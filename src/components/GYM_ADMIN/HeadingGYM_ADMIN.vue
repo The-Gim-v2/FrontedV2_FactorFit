@@ -742,28 +742,57 @@ const navAdmin = [
   }
 ];
 
+
 const navReports = [
   {
-    to: '/GYM_ADMIN/revenue', key: 'revenue', es: 'Ingresos', en: 'Revenue',
+    to: '/GYM_ADMIN/revenue', key: 'revenue',
+    es: 'Ingresos', en: 'Revenue',
     dEs: 'Historial de ingresos', dEn: 'Revenue history',
     icon: ICON.chart, color: 'green'
   },
   {
-    to: '/GYM_ADMIN/debtors', key: 'debtors', es: 'Deudores', en: 'Debtors',
-    dEs: 'Clientes con adeudos', dEn: 'Clients with outstanding balances',
+    to: '/GYM_ADMIN/debtors', key: 'debtors',
+    es: 'Deudores', en: 'Debtors',
+    dEs: 'Clientes con adeudos', dEn: 'Outstanding balances',
     icon: ICON.alert, color: 'red'
   },
   {
-    to: '/GYM_ADMIN/attendance', key: 'attendance', es: 'Asistencias', en: 'Attendance',
+    to: '/GYM_ADMIN/attendance', key: 'attendance',
+    es: 'Asistencias', en: 'Attendance',
     dEs: 'Registro de asistencias', dEn: 'Attendance records',
     icon: ICON.calendar, color: 'blue'
   },
   {
-    to: '/GYM_ADMIN/renewals', key: 'renewals', es: 'Renovaciones', en: 'Renewals',
+    to: '/GYM_ADMIN/renewals', key: 'renewals',
+    es: 'Renovaciones', en: 'Renewals',
     dEs: 'Seguimiento de membresías', dEn: 'Membership renewals',
+    icon: ICON.renew, color: 'purple'
+  },
+  {
+    to: '/GYM_ADMIN/audit-log', key: 'auditLog',
+    es: 'Auditoría', en: 'Audit log',
+    dEs: 'Registro de acciones del sistema',
+    dEn: 'System activity records',
+    icon: ICON.alert, color: 'blue'
+  },
+  {
+    to: '/GYM_ADMIN/cash-history', key: 'cashHistory',
+    es: 'Historial de caja', en: 'Cash history',
+    dEs: 'Aperturas, cierres y cortes de caja',
+    dEn: 'Cash opening and closing records',
+    icon: ICON.pay, color: 'green'
+  },
+  {
+    to: '/GYM_ADMIN/membership-history',
+    key: 'membershipHistory',
+    es: 'Historial de membresías',
+    en: 'Membership history',
+    dEs: 'Inscripciones, cambios y cancelaciones',
+    dEn: 'Registrations, changes and cancellations',
     icon: ICON.renew, color: 'purple'
   }
 ];
+
 
 /* =========================================================
    ESTADOS GENERALES
@@ -862,12 +891,17 @@ const grupos = {
     '/GYM_ADMIN/register-staff'
   ],
   administration: ['/GYM_ADMIN/pricing', '/GYM_ADMIN/fees'],
-  reports: [
-    '/GYM_ADMIN/revenue',
-    '/GYM_ADMIN/debtors',
-    '/GYM_ADMIN/attendance',
-    '/GYM_ADMIN/renewals'
-  ]
+  
+reports: [
+  '/GYM_ADMIN/revenue',
+  '/GYM_ADMIN/debtors',
+  '/GYM_ADMIN/attendance',
+  '/GYM_ADMIN/renewals',
+  '/GYM_ADMIN/membership-history',
+  '/GYM_ADMIN/cash-history',
+  '/GYM_ADMIN/audit-log'
+]
+
 };
 
 const isGroupActive = (name) =>
@@ -2587,41 +2621,5 @@ onUnmounted(() => {
     transition: none !important;
     animation-duration: 0.01ms !important;
   }
-}
-
-/* =========================================================
-   PERFIL (escritorio): iniciales + nombre + flecha
-========================================================= */
-
-@media (min-width: 900px) {
-  .desktop-profile { min-width: 0; gap: 9px; padding: 0 10px 0 6px; }
-  .profile-avatar { flex: 0 0 38px; font-size: .72rem; line-height: 1; letter-spacing: .02em; text-transform: uppercase; }
-  .profile-user-name {
-    min-width: 0; max-width: 155px; overflow: hidden;
-    color: var(--title); font-size: .82rem; font-weight: 700; line-height: 1.2;
-    text-align: left; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .profile-chevron { width: 15px; height: 15px; flex: 0 0 15px; margin-left: 2px; }
-  .profile-dropdown { width: 250px; }
-}
-
-@media (min-width: 900px) and (max-width: 1439px) {
-  .profile-user-name { max-width: 130px; }
-}
-
-@media (min-width: 900px) and (max-width: 1279px) {
-  .profile-user-name { max-width: 105px; }
-  .desktop-profile { gap: 7px; padding-right: 8px; }
-}
-
-@media (min-width: 900px) and (max-width: 1160px) {
-  .profile-user-name { max-width: 90px; font-size: .76rem; }
-}
-
-@media (min-width: 900px) and (max-width: 1020px) {
-  .desktop-navbar-inner { padding: 0 9px; }
-  .desktop-separator { margin: 0 4px; }
-  .profile-user-name { max-width: 72px; }
-  .desktop-profile { gap: 6px; padding-right: 6px; }
 }
 </style>

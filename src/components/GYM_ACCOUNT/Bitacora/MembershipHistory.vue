@@ -8,7 +8,7 @@
           <p class="main-subtitle">{{ tx('Consulta inscripciones, renovaciones, cambios y cancelaciones.', 'Track registrations, renewals, changes and cancellations.') }}</p>
         </div>
 
-        <div class="actions-bar">
+        <div class="actions-bar" id="tutorial-step-0">
           <div class="select-wrapper">
             <svg class="select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <select class="status-select" v-model="branch">
@@ -42,15 +42,6 @@
 
           <button v-if="hasFilters" class="btn-ghost" type="button" @click="reset">{{ tx('Limpiar', 'Clear') }}</button>
 
-          <button class="btn-bulk" type="button" @click="exportCSV">
-            <span class="btn-bulk-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="17" height="17"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </span>
-            <div class="btn-text-wrapper">
-              <span class="btn-label">{{ tx('Reporte', 'Report') }}</span>
-              <span class="highlight-text-custom">{{ tx('Exportar CSV', 'Export CSV') }}</span>
-            </div>
-          </button>
         </div>
       </header>
 
@@ -63,7 +54,7 @@
       </section>
 
       <!-- ESCRITORIO -->
-      <div class="table-container desktop-only">
+      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : undefined">
         <table class="user-table">
           <thead>
             <tr>
@@ -78,7 +69,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="x in paged" :key="x.id">
+            <tr v-for="(x, index) in paged" :key="x.id">
               <td class="text-muted nowrap">{{ x.fecha }}</td>
               <td>
                 <div class="person-cell">
@@ -94,7 +85,7 @@
               <td>{{ x.paquete }}</td>
               <td class="text-muted nowrap">{{ x.inicio }} — {{ x.fin }}</td>
               <td class="td-right"><span class="status-badge income">{{ money(x.importe) }}</span></td>
-              <td class="td-right"><button class="btn-link" type="button" @click="selected = x">{{ tx('Detalles', 'Details') }}</button></td>
+              <td class="td-right"><div class="details-cell" :id="!isMobile && index === 0 ? 'tutorial-step-2' : undefined"><button class="btn-link" type="button" @click="selected = x">{{ tx('Detalles', 'Details') }}</button></div></td>
             </tr>
             <tr v-if="filtered.length === 0">
               <td colspan="8" class="empty-state-cell">
@@ -106,11 +97,12 @@
             </tr>
           </tbody>
         </table>
+        <div class="table-footer">{{ filtered.length }} {{ tx('resultados', 'results') }}</div>
       </div>
 
       <!-- MÓVIL -->
       <div class="mobile-only">
-        <div v-for="x in paged" :key="x.id" class="user-card">
+        <div v-for="(x, index) in paged" :key="x.id" class="user-card" :id="isMobile && index === 0 ? 'tutorial-step-1' : undefined">
           <div class="card-top-section">
             <div class="avatar-small" :style="avatarStyle(x.clienteId)">{{ getInitials(x.cliente) }}</div>
             <div class="card-user-titles">
@@ -127,7 +119,7 @@
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>{{ x.paquete }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>{{ x.inicio }} — {{ x.fin }}</span>
           </div>
-          <button class="btn-card" type="button" @click="selected = x">{{ tx('Detalles', 'Details') }}</button>
+          <button class="btn-card" type="button" :id="isMobile && index === 0 ? 'tutorial-step-2' : undefined" @click="selected = x">{{ tx('Detalles', 'Details') }}</button>
         </div>
 
         <div v-if="filtered.length === 0" class="empty-state-mobile">
@@ -136,18 +128,26 @@
         </div>
       </div>
 
-      <div class="pager-bar">
-        <span>{{ filtered.length }} {{ tx('resultados', 'results') }}</span>
-        <div class="pager">
-          <button class="pager-btn" type="button" :disabled="page === 1" @click="page--">‹</button>
-          <span>{{ page }} / {{ pages }}</span>
-          <button class="pager-btn" type="button" :disabled="page === pages" @click="page++">›</button>
-        </div>
-      </div>
+      <!-- PAGINACIÓN (solo con más de 40 resultados) -->
+      <nav v-if="showPager" class="pager" :aria-label="tx('Paginación', 'Pagination')">
+        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="tx('Página anterior', 'Previous page')" @click="goPage(page - 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="tx('Página siguiente', 'Next page')" @click="goPage(page + 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </nav>
 
       <!-- Modal detalle -->
-      <ModalComponent :isOpen="!!selected" @close="selected = null">
-        <div class="modal-body-custom" v-if="selected">
+      <Teleport to="body">
+        <Transition name="rep-pop">
+          <div v-if="selected" class="rep-overlay" @click.self="selected = null">
+            <div class="rep-modal" role="dialog" aria-modal="true">
+              <button class="rep-close" type="button" :aria-label="tx('Cerrar', 'Close')" @click="selected = null">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+        <div class="rep-scroll modal-body-custom">
           <div class="modal-icon-container info-bg">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           </div>
@@ -155,35 +155,84 @@
           <dl class="detail-list">
             <div class="detail-row" v-for="r in detailRows" :key="r.k"><dt>{{ r.k }}</dt><dd>{{ r.v }}</dd></div>
           </dl>
-          <div class="modal-buttons">
-            <button class="btn-modal secondary" type="button" @click="selected = null">{{ tx('Cerrar', 'Close') }}</button>
-          </div>
         </div>
-      </ModalComponent>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </main>
   </HeadingGYM_ACCOUNT>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
-import ModalComponent from '../../Modals/ModalComponent.vue';
 // @ts-ignore: useLang.js no trae archivo de tipos
 import { useLang } from '../useLang.js';
 
 const { lang } = useLang();
+const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') selected.value = null; };
+onMounted(() => window.addEventListener('keydown', onEsc));
+onUnmounted(() => window.removeEventListener('keydown', onEsc));
+
+const isMobile = ref<boolean>(window.innerWidth <= 900);
+const updateWidth = (): void => { isMobile.value = window.innerWidth <= 900; };
+onMounted(() => window.addEventListener('resize', updateWidth));
+onUnmounted(() => window.removeEventListener('resize', updateWidth));
 const tx = (es: string, en: string) => (lang.value === 'en' ? en : es);
 
 type Movement = 'Inscripción' | 'Renovación' | 'Cambio' | 'Cancelación';
 interface Membership { id: number; clienteId: number; cliente: string; sede: string; fecha: string; tipo: Movement; anterior: string; paquete: string; inicio: string; fin: string; importe: number; responsable: string; nota: string }
+
 
 const records = ref<Membership[]>([
   { id: 401, clienteId: 101, cliente: 'Juan Pérez', sede: 'Centro', fecha: '2026-10-01', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-10-01', fin: '2026-10-31', importe: 500, responsable: 'Ana López', nota: 'Primera inscripción' },
   { id: 402, clienteId: 102, cliente: 'María García', sede: 'Norte', fecha: '2026-10-03', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-10-03', fin: '2026-11-02', importe: 500, responsable: 'Carlos Ruiz', nota: 'Renovación normal' },
   { id: 403, clienteId: 103, cliente: 'Pedro Ramírez', sede: 'Sur', fecha: '2026-10-05', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Trimestral', inicio: '2026-10-05', fin: '2027-01-04', importe: 1350, responsable: 'Luis Torres', nota: 'Cambio solicitado por cliente' },
   { id: 404, clienteId: 104, cliente: 'Laura Hernández', sede: 'Centro', fecha: '2026-10-07', tipo: 'Cancelación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-15', fin: '2026-10-14', importe: 0, responsable: 'Ana López', nota: 'Cancelación solicitada' },
-  { id: 405, clienteId: 105, cliente: 'Sofía Martínez', sede: 'Norte', fecha: '2026-10-09', tipo: 'Renovación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-10-09', fin: '2027-01-08', importe: 1350, responsable: 'Carlos Ruiz', nota: 'Renovación anticipada' }
+  { id: 405, clienteId: 105, cliente: 'Sofía Martínez', sede: 'Norte', fecha: '2026-10-09', tipo: 'Renovación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-10-09', fin: '2027-01-08', importe: 1350, responsable: 'Carlos Ruiz', nota: 'Renovación anticipada' },
+  { id: 406, clienteId: 106, cliente: 'Jesús Luis Ramírez Sánchez', sede: 'Centro', fecha: '2026-09-01', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-09-01', fin: '2026-09-30', importe: 500, responsable: 'María García', nota: 'Registro de nuevo cliente' },
+  { id: 407, clienteId: 107, cliente: 'Fernando López Morales', sede: 'Norte', fecha: '2026-09-02', tipo: 'Inscripción', anterior: '', paquete: 'Trimestral', inicio: '2026-09-02', fin: '2026-12-01', importe: 1350, responsable: 'Carlos Ruiz', nota: 'Inscripción con paquete trimestral' },
+  { id: 408, clienteId: 108, cliente: 'Daniela Guadalupe García', sede: 'Sur', fecha: '2026-09-03', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-03', fin: '2026-10-02', importe: 500, responsable: 'Luis Torres', nota: 'Renovación de membresía' },
+  { id: 409, clienteId: 109, cliente: 'Erick Alejandro Hernández', sede: 'Centro', fecha: '2026-09-04', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Semestral', inicio: '2026-09-04', fin: '2027-03-03', importe: 2500, responsable: 'Ana López', nota: 'Actualización a paquete semestral' },
+  { id: 410, clienteId: 110, cliente: 'Valeria Fernanda Cruz', sede: 'Norte', fecha: '2026-09-05', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-09-05', fin: '2026-10-04', importe: 500, responsable: 'Pedro Martínez', nota: 'Primera membresía registrada' },
+  { id: 411, clienteId: 111, cliente: 'Miguel Ángel Ramírez', sede: 'Sur', fecha: '2026-09-06', tipo: 'Cancelación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-08-01', fin: '2026-10-31', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación por motivos personales' },
+  { id: 412, clienteId: 112, cliente: 'Andrea Carolina Flores', sede: 'Centro', fecha: '2026-09-07', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-07', fin: '2026-10-06', importe: 500, responsable: 'María García', nota: 'Renovación sin cambios' },
+  { id: 413, clienteId: 113, cliente: 'Roberto Carlos Díaz', sede: 'Norte', fecha: '2026-09-08', tipo: 'Inscripción', anterior: '', paquete: 'Quincenal', inicio: '2026-09-08', fin: '2026-09-22', importe: 250, responsable: 'Carlos Ruiz', nota: 'Inscripción por quince días' },
+  { id: 414, clienteId: 114, cliente: 'Gabriela Alejandra Morales', sede: 'Sur', fecha: '2026-09-09', tipo: 'Cambio', anterior: 'Quincenal', paquete: 'Mensual', inicio: '2026-09-09', fin: '2026-10-08', importe: 500, responsable: 'Luis Torres', nota: 'Cambio a membresía mensual' },
+  { id: 415, clienteId: 115, cliente: 'Ricardo Antonio Navarro', sede: 'Centro', fecha: '2026-09-10', tipo: 'Renovación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-09-10', fin: '2026-12-09', importe: 1350, responsable: 'Ana López', nota: 'Renovación trimestral' },
+  { id: 416, clienteId: 116, cliente: 'Paola Andrea Jiménez', sede: 'Norte', fecha: '2026-09-11', tipo: 'Inscripción', anterior: '', paquete: 'Semestral', inicio: '2026-09-11', fin: '2027-03-10', importe: 2500, responsable: 'Pedro Martínez', nota: 'Inscripción con descuento semestral' },
+  { id: 417, clienteId: 117, cliente: 'Eduardo Sebastián Vargas', sede: 'Sur', fecha: '2026-09-12', tipo: 'Cancelación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-01', fin: '2026-09-30', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación voluntaria' },
+  { id: 418, clienteId: 118, cliente: 'Karla Vanessa Castillo', sede: 'Centro', fecha: '2026-09-13', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Trimestral', inicio: '2026-09-13', fin: '2026-12-12', importe: 1350, responsable: 'María García', nota: 'Renovación con cambio de paquete' },
+  { id: 419, clienteId: 119, cliente: 'Héctor Alejandro Salazar', sede: 'Norte', fecha: '2026-09-14', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-09-14', fin: '2026-10-13', importe: 500, responsable: 'Carlos Ruiz', nota: 'Nuevo cliente registrado' },
+  { id: 420, clienteId: 120, cliente: 'Mónica Isabel Romero', sede: 'Sur', fecha: '2026-09-15', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Trimestral', inicio: '2026-09-15', fin: '2026-12-14', importe: 1350, responsable: 'Luis Torres', nota: 'Cambio por promoción vigente' },
+  { id: 421, clienteId: 121, cliente: 'Óscar Iván Aguilar', sede: 'Centro', fecha: '2026-09-16', tipo: 'Renovación', anterior: 'Quincenal', paquete: 'Quincenal', inicio: '2026-09-16', fin: '2026-09-30', importe: 250, responsable: 'Ana López', nota: 'Renovación quincenal' },
+  { id: 422, clienteId: 122, cliente: 'Fernanda Guadalupe Ríos', sede: 'Norte', fecha: '2026-09-17', tipo: 'Inscripción', anterior: '', paquete: 'Trimestral', inicio: '2026-09-17', fin: '2026-12-16', importe: 1350, responsable: 'Pedro Martínez', nota: 'Primera inscripción trimestral' },
+  { id: 423, clienteId: 123, cliente: 'Alberto Enrique Vega', sede: 'Sur', fecha: '2026-09-18', tipo: 'Cancelación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-01', fin: '2026-09-30', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación por cambio de domicilio' },
+  { id: 424, clienteId: 124, cliente: 'Lucía Fernanda Herrera', sede: 'Centro', fecha: '2026-09-19', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-19', fin: '2026-10-18', importe: 500, responsable: 'María García', nota: 'Renovación de cliente frecuente' },
+  { id: 425, clienteId: 125, cliente: 'Diego Armando Molina', sede: 'Norte', fecha: '2026-09-20', tipo: 'Cambio', anterior: 'Quincenal', paquete: 'Mensual', inicio: '2026-09-20', fin: '2026-10-19', importe: 500, responsable: 'Carlos Ruiz', nota: 'Cambio de plan solicitado' },
+  { id: 426, clienteId: 126, cliente: 'Samantha Nicole Campos', sede: 'Sur', fecha: '2026-09-21', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-09-21', fin: '2026-10-20', importe: 500, responsable: 'Luis Torres', nota: 'Registro inicial' },
+  { id: 427, clienteId: 127, cliente: 'Adrián Eduardo Fuentes', sede: 'Centro', fecha: '2026-09-22', tipo: 'Renovación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-09-22', fin: '2026-12-21', importe: 1350, responsable: 'Ana López', nota: 'Renovación de tres meses' },
+  { id: 428, clienteId: 128, cliente: 'Natalia Berenice Pineda', sede: 'Norte', fecha: '2026-09-23', tipo: 'Inscripción', anterior: '', paquete: 'Semestral', inicio: '2026-09-23', fin: '2027-03-22', importe: 2500, responsable: 'Pedro Martínez', nota: 'Inscripción semestral' },
+  { id: 429, clienteId: 129, cliente: 'Víctor Hugo Cárdenas', sede: 'Sur', fecha: '2026-09-24', tipo: 'Cancelación', anterior: 'Quincenal', paquete: 'Quincenal', inicio: '2026-09-15', fin: '2026-09-29', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación anticipada' },
+  { id: 430, clienteId: 130, cliente: 'Regina Alejandra Espinoza', sede: 'Centro', fecha: '2026-09-25', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Semestral', inicio: '2026-09-25', fin: '2027-03-24', importe: 2500, responsable: 'María García', nota: 'Cambio a paquete de seis meses' },
+  { id: 431, clienteId: 131, cliente: 'Emmanuel David Guerrero', sede: 'Norte', fecha: '2026-09-26', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-26', fin: '2026-10-25', importe: 500, responsable: 'Carlos Ruiz', nota: 'Renovación de membresía mensual' },
+  { id: 432, clienteId: 132, cliente: 'Brenda Lizbeth Acosta', sede: 'Sur', fecha: '2026-09-27', tipo: 'Inscripción', anterior: '', paquete: 'Trimestral', inicio: '2026-09-27', fin: '2026-12-26', importe: 1350, responsable: 'Luis Torres', nota: 'Nueva inscripción trimestral' },
+  { id: 433, clienteId: 133, cliente: 'Rafael Antonio Bautista', sede: 'Centro', fecha: '2026-09-28', tipo: 'Renovación', anterior: 'Quincenal', paquete: 'Quincenal', inicio: '2026-09-28', fin: '2026-10-12', importe: 250, responsable: 'Ana López', nota: 'Renovación por quince días' },
+  { id: 434, clienteId: 134, cliente: 'Ximena Guadalupe Núñez', sede: 'Norte', fecha: '2026-09-29', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Trimestral', inicio: '2026-09-29', fin: '2026-12-28', importe: 1350, responsable: 'Pedro Martínez', nota: 'Cambio de membresía mensual a trimestral' },
+  { id: 435, clienteId: 135, cliente: 'Ángel Gabriel Contreras', sede: 'Sur', fecha: '2026-09-30', tipo: 'Cancelación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-09-10', fin: '2026-10-09', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación solicitada en recepción' },
+  { id: 436, clienteId: 136, cliente: 'Diana Carolina Serrano', sede: 'Centro', fecha: '2026-10-01', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-10-01', fin: '2026-10-30', importe: 500, responsable: 'María García', nota: 'Primera inscripción al gimnasio' },
+  { id: 437, clienteId: 137, cliente: 'Kevin Alexander Valdez', sede: 'Norte', fecha: '2026-10-02', tipo: 'Renovación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-10-02', fin: '2027-01-01', importe: 1350, responsable: 'Carlos Ruiz', nota: 'Renovación anticipada de tres meses' },
+  { id: 438, clienteId: 138, cliente: 'Mariana Alejandra Ochoa', sede: 'Sur', fecha: '2026-10-03', tipo: 'Inscripción', anterior: '', paquete: 'Semestral', inicio: '2026-10-03', fin: '2027-04-02', importe: 2500, responsable: 'Luis Torres', nota: 'Inscripción con paquete semestral' },
+  { id: 439, clienteId: 139, cliente: 'Cristian Eduardo Padilla', sede: 'Centro', fecha: '2026-10-04', tipo: 'Cambio', anterior: 'Quincenal', paquete: 'Mensual', inicio: '2026-10-04', fin: '2026-11-03', importe: 500, responsable: 'Ana López', nota: 'Actualización de paquete por solicitud' },
+  { id: 440, clienteId: 140, cliente: 'Alejandra Sofía Domínguez', sede: 'Norte', fecha: '2026-10-05', tipo: 'Renovación', anterior: 'Mensual', paquete: 'Mensual', inicio: '2026-10-05', fin: '2026-11-04', importe: 500, responsable: 'Pedro Martínez', nota: 'Renovación mensual sin modificaciones' },
+  { id: 441, clienteId: 141, cliente: 'Iván Alejandro Cabrera', sede: 'Sur', fecha: '2026-10-06', tipo: 'Cancelación', anterior: 'Trimestral', paquete: 'Trimestral', inicio: '2026-09-01', fin: '2026-11-30', importe: 0, responsable: 'Sofía Hernández', nota: 'Cancelación por motivos personales' },
+  { id: 442, clienteId: 142, cliente: 'Sofía Valentina Mendoza', sede: 'Centro', fecha: '2026-10-07', tipo: 'Inscripción', anterior: '', paquete: 'Mensual', inicio: '2026-10-07', fin: '2026-11-06', importe: 500, responsable: 'María García', nota: 'Nueva inscripción mensual' },
+  { id: 443, clienteId: 143, cliente: 'Carlos Andrés Mendoza', sede: 'Norte', fecha: '2026-10-08', tipo: 'Cambio', anterior: 'Mensual', paquete: 'Trimestral', inicio: '2026-10-08', fin: '2027-01-07', importe: 1350, responsable: 'Carlos Ruiz', nota: 'Cambio a paquete trimestral' },
+  { id: 444, clienteId: 144, cliente: 'Fernando Daniel Pérez', sede: 'Sur', fecha: '2026-10-09', tipo: 'Renovación', anterior: 'Quincenal', paquete: 'Quincenal', inicio: '2026-10-09', fin: '2026-10-23', importe: 250, responsable: 'Luis Torres', nota: 'Renovación quincenal regular' },
+  { id: 445, clienteId: 145, cliente: 'Mario Alberto González', sede: 'Centro', fecha: '2026-10-10', tipo: 'Inscripción', anterior: '', paquete: 'Semestral', inicio: '2026-10-10', fin: '2027-04-09', importe: 2500, responsable: 'Ana López', nota: 'Inscripción con membresía semestral' }
 ]);
+
 
 const types: Movement[] = ['Inscripción', 'Renovación', 'Cambio', 'Cancelación'];
 const typeEN: Record<Movement, string> = { 'Inscripción': 'Registration', 'Renovación': 'Renewal', 'Cambio': 'Plan change', 'Cancelación': 'Cancellation' };
@@ -197,7 +246,6 @@ const type = ref('');
 const date = ref('');
 const page = ref(1);
 const selected = ref<Membership | null>(null);
-const PER_PAGE = 8;
 
 const branches = computed(() => [...new Set(records.value.map(x => x.sede))]);
 const scoped = computed(() => records.value.filter(x => !branch.value || x.sede === branch.value));
@@ -209,11 +257,18 @@ const filtered = computed(() => {
     Object.values(x).join(' ').toLowerCase().includes(term)
   );
 });
-const pages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PER_PAGE)));
-const paged = computed(() => filtered.value.slice((page.value - 1) * PER_PAGE, page.value * PER_PAGE));
+const PAGE_SIZE = 40;
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)));
+const showPager = computed(() => filtered.value.length > PAGE_SIZE);
+const paged = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+const goPage = (n: number): void => {
+  page.value = Math.min(Math.max(1, n), totalPages.value);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 const hasFilters = computed(() => !!(search.value || branch.value || type.value || date.value));
 
 watch([search, branch, type, date], () => { page.value = 1; });
+watch(totalPages, n => { if (page.value > n) page.value = n; });
 
 const reset = () => { search.value = ''; branch.value = ''; type.value = ''; date.value = ''; };
 
@@ -258,19 +313,6 @@ const getInitials = (name: string): string => {
 };
 const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % avatarGradients.length] });
 
-function exportCSV() {
-  const rows = [
-    ['ID', 'Cliente_ID', 'Cliente', 'Sede', 'Fecha', 'Movimiento', 'Paquete_Anterior', 'Paquete', 'Inicio', 'Fin', 'Importe', 'Responsable', 'Observaciones'],
-    ...filtered.value.map(x => [x.id, x.clienteId, x.cliente, x.sede, x.fecha, x.tipo, x.anterior, x.paquete, x.inicio, x.fin, x.importe, x.responsable, x.nota])
-  ];
-  const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'historial_membresias.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-}
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
@@ -420,16 +462,14 @@ function exportCSV() {
 }
 
 /* PAGINACIÓN */
-.pager-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 0 4px; color: var(--muted); font-size: 0.74rem; font-weight: 500; }
-.pager { display: flex; align-items: center; gap: 10px; }
-.pager-btn {
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--line); border-radius: 9px; background: var(--card-bg);
-  color: var(--color-texto-general, #e5e7eb); font-size: 1rem; cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.pager-btn:hover:not(:disabled) { border-color: var(--tone-main); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--card-bg); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pager-btn:hover:not(:disabled) { border-color: var(--tone-main); background: color-mix(in srgb, var(--tone-main) 12%, transparent); color: var(--color-titulos, #ffffff); transform: translateY(-1px); }
 .pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
+.pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
+.table-footer { padding: 11px 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.72rem; font-weight: 500; text-align: right; }
+.details-cell { display: inline-flex; }
 
 /* AVATAR / TEXTO */
 .avatar-small {
@@ -481,7 +521,7 @@ function exportCSV() {
 .empty-state svg, .empty-state-mobile svg { opacity: 0.4; }
 
 /* MODAL DE DETALLE */
-.modal-body-custom { max-height: 72vh; overflow-y: auto; padding: 10px 5px; color: var(--color-texto-general, #ffffff); text-align: center; }
+.modal-body-custom { }
 .modal-icon-container { width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border-radius: 15px; }
 .info-bg { border: 1px solid color-mix(in srgb, var(--tone-main) 25%, transparent); background: color-mix(in srgb, var(--tone-main) 10%, transparent); color: var(--tone-main); }
 .modal-body-custom h2 { margin: 0 0 14px; color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.25rem; font-weight: 600; }
@@ -560,4 +600,22 @@ function exportCSV() {
   .search-input, .status-select, .date-input, .btn-bulk, .user-table tbody tr, .btn-modal, .pager-btn { transition: none !important; }
 }
 .main-content.tone-purple{--tone-main:#c084fc}
+
+/* ---------- Modal propio ---------- */
+.rep-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(4, 4, 8, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.rep-modal { position: relative; width: min(460px, 100%); max-height: min(86vh, 720px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--color-texto-general, #fff) 14%, transparent); border-radius: calc(var(--app-border-radius, 16px) * 1.1); background: var(--bg-cards, #121212); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8); }
+.rep-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid color-mix(in srgb, var(--color-texto-general, #fff) 14%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--color-texto-general, #fff) 7%, transparent); color: var(--color-texto-general, #cbd5e1); cursor: pointer; transition: background .18s ease, color .18s ease, transform .18s ease, border-color .18s ease; }
+.rep-close:hover { background: color-mix(in srgb, var(--tone-main, #34d399) 18%, transparent); border-color: color-mix(in srgb, var(--tone-main, #34d399) 55%, transparent); color: var(--color-titulos, #fff); transform: rotate(90deg); }
+.rep-close:focus-visible { outline: 2px solid var(--tone-main, #34d399); outline-offset: 2px; }
+.rep-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 34px 28px 26px; text-align: center; color: var(--color-texto-general, #fff); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-texto-general, #fff) 30%, transparent) transparent; scrollbar-gutter: stable both-edges; }
+.rep-scroll::-webkit-scrollbar { width: 8px; }
+.rep-scroll::-webkit-scrollbar-track { background: transparent; margin: 18px 0; }
+.rep-scroll::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--color-texto-general, #fff) 26%, transparent); background-clip: content-box; }
+.rep-scroll::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--tone-main, #34d399) 75%, transparent); background-clip: content-box; }
+.rep-pop-enter-active, .rep-pop-leave-active { transition: opacity .18s ease; }
+.rep-pop-enter-active .rep-modal, .rep-pop-leave-active .rep-modal { transition: transform .2s cubic-bezier(.2,.8,.2,1), opacity .18s ease; }
+.rep-pop-enter-from, .rep-pop-leave-to { opacity: 0; }
+.rep-pop-enter-from .rep-modal, .rep-pop-leave-to .rep-modal { transform: translateY(14px) scale(.97); opacity: 0; }
+@media (max-width: 560px) { .rep-overlay { padding: 12px; } .rep-scroll { padding: 30px 18px 22px; } }
+@media (prefers-reduced-motion: reduce) { .rep-close, .rep-pop-enter-active, .rep-pop-leave-active, .rep-pop-enter-active .rep-modal, .rep-pop-leave-active .rep-modal { transition: none !important; } }
 </style>

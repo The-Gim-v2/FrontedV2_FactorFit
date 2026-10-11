@@ -8,7 +8,7 @@
           <p class="main-subtitle">{{ tx('Control de aperturas, cierres, ingresos y diferencias por sucursal.', 'Track cash sessions and balances by branch.') }}</p>
         </div>
 
-        <div class="actions-bar">
+        <div class="actions-bar" id="tutorial-step-0">
           <div class="select-wrapper">
             <svg class="select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <select class="status-select" v-model="branch">
@@ -43,15 +43,6 @@
 
           <button v-if="hasFilters" class="btn-ghost" type="button" @click="reset">{{ tx('Limpiar', 'Clear') }}</button>
 
-          <button class="btn-bulk" type="button" @click="exportCSV">
-            <span class="btn-bulk-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="17" height="17"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </span>
-            <div class="btn-text-wrapper">
-              <span class="btn-label">{{ tx('Reporte', 'Report') }}</span>
-              <span class="highlight-text-custom">{{ tx('Exportar CSV', 'Export CSV') }}</span>
-            </div>
-          </button>
         </div>
       </header>
 
@@ -64,7 +55,7 @@
       </section>
 
       <!-- ESCRITORIO -->
-      <div class="table-container desktop-only">
+      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : undefined">
         <table class="user-table">
           <thead>
             <tr>
@@ -79,7 +70,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="x in paged" :key="x.id">
+            <tr v-for="(x, index) in paged" :key="x.id">
               <td class="text-bold">#{{ x.id }}</td>
               <td class="text-muted nowrap">{{ x.fecha }}</td>
               <td><span class="type-chip">{{ x.sede }}</span></td>
@@ -92,7 +83,7 @@
               <td><span :class="['status-badge2', x.estado === 'Cerrado' ? 'tag-green' : 'tag-yellow']">{{ statusLabel(x.estado) }}</span></td>
               <td class="td-right" :class="{ 'text-warn': delta(x) !== 0 && x.estado === 'Cerrado' }">{{ x.estado === 'Cerrado' ? money(delta(x)) : '—' }}</td>
               <td class="td-right"><span class="status-badge income">{{ money(collected(x)) }}</span></td>
-              <td class="td-right"><button class="btn-link" type="button" @click="selected = x">{{ tx('Ver corte', 'View') }}</button></td>
+              <td class="td-right"><div class="details-cell" :id="!isMobile && index === 0 ? 'tutorial-step-2' : undefined"><button class="btn-link" type="button" @click="selected = x">{{ tx('Ver corte', 'View') }}</button></div></td>
             </tr>
             <tr v-if="filtered.length === 0">
               <td colspan="8" class="empty-state-cell">
@@ -104,11 +95,12 @@
             </tr>
           </tbody>
         </table>
+        <div class="table-footer">{{ filtered.length }} {{ tx('resultados', 'results') }}</div>
       </div>
 
       <!-- MÓVIL -->
       <div class="mobile-only">
-        <div v-for="x in paged" :key="x.id" class="user-card">
+        <div v-for="(x, index) in paged" :key="x.id" class="user-card" :id="isMobile && index === 0 ? 'tutorial-step-1' : undefined">
           <div class="card-top-section">
             <div class="avatar-small" :style="avatarStyle(x.id)">{{ getInitials(x.responsable) }}</div>
             <div class="card-user-titles">
@@ -125,7 +117,7 @@
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>{{ x.apertura }} — {{ x.cierre || '—' }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>{{ tx('Diferencia', 'Difference') }}: <span :class="{ 'text-warn': delta(x) !== 0 && x.estado === 'Cerrado' }">{{ x.estado === 'Cerrado' ? money(delta(x)) : '—' }}</span></span>
           </div>
-          <button class="btn-card" type="button" @click="selected = x">{{ tx('Ver corte', 'View') }}</button>
+          <button class="btn-card" type="button" :id="isMobile && index === 0 ? 'tutorial-step-2' : undefined" @click="selected = x">{{ tx('Ver corte', 'View') }}</button>
         </div>
 
         <div v-if="filtered.length === 0" class="empty-state-mobile">
@@ -134,18 +126,26 @@
         </div>
       </div>
 
-      <div class="pager-bar">
-        <span>{{ filtered.length }} {{ tx('resultados', 'results') }}</span>
-        <div class="pager">
-          <button class="pager-btn" type="button" :disabled="page === 1" @click="page--">‹</button>
-          <span>{{ page }} / {{ pages }}</span>
-          <button class="pager-btn" type="button" :disabled="page === pages" @click="page++">›</button>
-        </div>
-      </div>
+      <!-- PAGINACIÓN (solo con más de 40 resultados) -->
+      <nav v-if="showPager" class="pager" :aria-label="tx('Paginación', 'Pagination')">
+        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="tx('Página anterior', 'Previous page')" @click="goPage(page - 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="tx('Página siguiente', 'Next page')" @click="goPage(page + 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </nav>
 
       <!-- Modal detalle -->
-      <ModalComponent :isOpen="!!selected" @close="selected = null">
-        <div class="modal-body-custom" v-if="selected">
+      <Teleport to="body">
+        <Transition name="rep-pop">
+          <div v-if="selected" class="rep-overlay" @click.self="selected = null">
+            <div class="rep-modal" role="dialog" aria-modal="true">
+              <button class="rep-close" type="button" :aria-label="tx('Cerrar', 'Close')" @click="selected = null">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+        <div class="rep-scroll modal-body-custom">
           <div class="modal-icon-container info-bg">
             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
           </div>
@@ -153,33 +153,83 @@
           <dl class="detail-list">
             <div class="detail-row" v-for="r in detailRows" :key="r.k"><dt>{{ r.k }}</dt><dd>{{ r.v }}</dd></div>
           </dl>
-          <div class="modal-buttons">
-            <button class="btn-modal secondary" type="button" @click="selected = null">{{ tx('Cerrar', 'Close') }}</button>
-          </div>
         </div>
-      </ModalComponent>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
     </main>
   </HeadingGYM_ACCOUNT>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
-import ModalComponent from '../../Modals/ModalComponent.vue';
 // @ts-ignore: useLang.js no trae archivo de tipos
 import { useLang } from '../useLang.js';
 
 const { lang } = useLang();
+const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') selected.value = null; };
+onMounted(() => window.addEventListener('keydown', onEsc));
+onUnmounted(() => window.removeEventListener('keydown', onEsc));
+
+const isMobile = ref<boolean>(window.innerWidth <= 900);
+const updateWidth = (): void => { isMobile.value = window.innerWidth <= 900; };
+onMounted(() => window.addEventListener('resize', updateWidth));
+onUnmounted(() => window.removeEventListener('resize', updateWidth));
 const tx = (es: string, en: string) => (lang.value === 'en' ? en : es);
 
 interface Cash { id: number; fecha: string; sede: string; responsable: string; apertura: string; cierre: string; fondo: number; efectivo: number; tarjeta: number; transferencia: number; contado: number | null; estado: 'Abierto' | 'Cerrado' }
+
 
 const records = ref<Cash[]>([
   { id: 301, fecha: '2026-10-08', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '20:00', fondo: 500, efectivo: 4300, tarjeta: 2100, transferencia: 1600, contado: 4800, estado: 'Cerrado' },
   { id: 302, fecha: '2026-10-08', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 2800, tarjeta: 1900, transferencia: 900, contado: 3050, estado: 'Cerrado' },
   { id: 303, fecha: '2026-10-09', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '19:00', fondo: 400, efectivo: 3200, tarjeta: 1400, transferencia: 1100, contado: 3600, estado: 'Cerrado' },
-  { id: 304, fecha: '2026-10-10', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '', fondo: 500, efectivo: 1200, tarjeta: 600, transferencia: 300, contado: null, estado: 'Abierto' }
+  { id: 304, fecha: '2026-10-10', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '', fondo: 500, efectivo: 1200, tarjeta: 600, transferencia: 300, contado: null, estado: 'Abierto' },
+  { id: 305, fecha: '2026-10-09', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 3500, tarjeta: 2200, transferencia: 1300, contado: 3800, estado: 'Cerrado' },
+  { id: 306, fecha: '2026-10-09', sede: 'Centro', responsable: 'María García', apertura: '06:00', cierre: '14:00', fondo: 500, efectivo: 2600, tarjeta: 1500, transferencia: 800, contado: 3100, estado: 'Cerrado' },
+  { id: 307, fecha: '2026-10-09', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '14:00', cierre: '22:00', fondo: 400, efectivo: 3900, tarjeta: 1800, transferencia: 1200, contado: 4300, estado: 'Cerrado' },
+  { id: 308, fecha: '2026-10-08', sede: 'Centro', responsable: 'Jorge Ramírez', apertura: '14:00', cierre: '22:00', fondo: 500, efectivo: 3100, tarjeta: 1700, transferencia: 950, contado: 3600, estado: 'Cerrado' },
+  { id: 309, fecha: '2026-10-08', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '06:00', cierre: '14:00', fondo: 300, efectivo: 2400, tarjeta: 1200, transferencia: 700, contado: 2700, estado: 'Cerrado' },
+  { id: 310, fecha: '2026-10-07', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '20:00', fondo: 400, efectivo: 4200, tarjeta: 2600, transferencia: 1500, contado: 4600, estado: 'Cerrado' },
+  { id: 311, fecha: '2026-10-07', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '20:00', fondo: 500, efectivo: 5100, tarjeta: 2800, transferencia: 1900, contado: 5600, estado: 'Cerrado' },
+  { id: 312, fecha: '2026-10-07', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 3300, tarjeta: 1600, transferencia: 1100, contado: 3600, estado: 'Cerrado' },
+  { id: 313, fecha: '2026-10-06', sede: 'Centro', responsable: 'María García', apertura: '06:00', cierre: '14:00', fondo: 500, efectivo: 2900, tarjeta: 1300, transferencia: 900, contado: 3400, estado: 'Cerrado' },
+  { id: 314, fecha: '2026-10-06', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '14:00', cierre: '22:00', fondo: 400, efectivo: 3700, tarjeta: 2100, transferencia: 1400, contado: 4100, estado: 'Cerrado' },
+  { id: 315, fecha: '2026-10-06', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 2700, tarjeta: 1500, transferencia: 800, contado: 3000, estado: 'Cerrado' },
+  { id: 316, fecha: '2026-10-05', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '20:00', fondo: 500, efectivo: 4600, tarjeta: 2400, transferencia: 1700, contado: 5100, estado: 'Cerrado' },
+  { id: 317, fecha: '2026-10-05', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 3100, tarjeta: 1800, transferencia: 1000, contado: 3400, estado: 'Cerrado' },
+  { id: 318, fecha: '2026-10-05', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '19:00', fondo: 400, efectivo: 3500, tarjeta: 1900, transferencia: 1200, contado: 3900, estado: 'Cerrado' },
+  { id: 319, fecha: '2026-10-04', sede: 'Centro', responsable: 'Jorge Ramírez', apertura: '08:00', cierre: '18:00', fondo: 500, efectivo: 2800, tarjeta: 1100, transferencia: 650, contado: 3300, estado: 'Cerrado' },
+  { id: 320, fecha: '2026-10-04', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '08:00', cierre: '18:00', fondo: 300, efectivo: 2100, tarjeta: 900, transferencia: 500, contado: 2400, estado: 'Cerrado' },
+  { id: 321, fecha: '2026-10-04', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '08:00', cierre: '18:00', fondo: 400, efectivo: 2500, tarjeta: 1200, transferencia: 700, contado: 2900, estado: 'Cerrado' },
+  { id: 322, fecha: '2026-10-03', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '21:00', fondo: 500, efectivo: 6200, tarjeta: 3500, transferencia: 2100, contado: 6700, estado: 'Cerrado' },
+  { id: 323, fecha: '2026-10-03', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 4100, tarjeta: 2400, transferencia: 1500, contado: 4400, estado: 'Cerrado' },
+  { id: 324, fecha: '2026-10-03', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '20:00', fondo: 400, efectivo: 3900, tarjeta: 2200, transferencia: 1300, contado: 4300, estado: 'Cerrado' },
+  { id: 325, fecha: '2026-10-02', sede: 'Centro', responsable: 'María García', apertura: '06:00', cierre: '14:00', fondo: 500, efectivo: 3200, tarjeta: 1600, transferencia: 950, contado: 3700, estado: 'Cerrado' },
+  { id: 326, fecha: '2026-10-02', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '07:00', cierre: '15:00', fondo: 300, efectivo: 2600, tarjeta: 1400, transferencia: 750, contado: 2900, estado: 'Cerrado' },
+  { id: 327, fecha: '2026-10-02', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '14:00', cierre: '22:00', fondo: 400, efectivo: 3400, tarjeta: 1800, transferencia: 1100, contado: 3800, estado: 'Cerrado' },
+  { id: 328, fecha: '2026-10-01', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '20:00', fondo: 500, efectivo: 5400, tarjeta: 3100, transferencia: 1800, contado: 5900, estado: 'Cerrado' },
+  { id: 329, fecha: '2026-10-01', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 3600, tarjeta: 2000, transferencia: 1200, contado: 3900, estado: 'Cerrado' },
+  { id: 330, fecha: '2026-10-01', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '19:00', fondo: 400, efectivo: 3800, tarjeta: 1700, transferencia: 1000, contado: 4200, estado: 'Cerrado' },
+  { id: 331, fecha: '2026-09-30', sede: 'Centro', responsable: 'Jorge Ramírez', apertura: '14:00', cierre: '22:00', fondo: 500, efectivo: 4700, tarjeta: 2600, transferencia: 1500, contado: 5200, estado: 'Cerrado' },
+  { id: 332, fecha: '2026-09-30', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 2900, tarjeta: 1700, transferencia: 900, contado: 3200, estado: 'Cerrado' },
+  { id: 333, fecha: '2026-09-30', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '08:00', cierre: '20:00', fondo: 400, efectivo: 3300, tarjeta: 1500, transferencia: 850, contado: 3700, estado: 'Cerrado' },
+  { id: 334, fecha: '2026-09-29', sede: 'Centro', responsable: 'Ana López', apertura: '08:00', cierre: '20:00', fondo: 500, efectivo: 4900, tarjeta: 2700, transferencia: 1600, contado: 5400, estado: 'Cerrado' },
+  { id: 335, fecha: '2026-09-29', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '21:00', fondo: 300, efectivo: 3200, tarjeta: 1800, transferencia: 1100, contado: 3500, estado: 'Cerrado' },
+  { id: 336, fecha: '2026-09-29', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '19:00', fondo: 400, efectivo: 3600, tarjeta: 2000, transferencia: 1250, contado: 4000, estado: 'Cerrado' },
+  { id: 337, fecha: '2026-09-28', sede: 'Centro', responsable: 'María García', apertura: '06:00', cierre: '14:00', fondo: 500, efectivo: 3000, tarjeta: 1400, transferencia: 800, contado: 3500, estado: 'Cerrado' },
+  { id: 338, fecha: '2026-09-28', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '07:00', cierre: '15:00', fondo: 300, efectivo: 2500, tarjeta: 1300, transferencia: 700, contado: 2800, estado: 'Cerrado' },
+  { id: 339, fecha: '2026-09-28', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '14:00', cierre: '22:00', fondo: 400, efectivo: 3100, tarjeta: 1600, transferencia: 950, contado: 3500, estado: 'Cerrado' },
+  { id: 340, fecha: '2026-10-10', sede: 'Norte', responsable: 'Carlos Ruiz', apertura: '07:00', cierre: '', fondo: 300, efectivo: 1800, tarjeta: 900, transferencia: 450, contado: null, estado: 'Abierto' },
+  { id: 341, fecha: '2026-10-10', sede: 'Sur', responsable: 'Luis Torres', apertura: '08:00', cierre: '', fondo: 400, efectivo: 1500, tarjeta: 750, transferencia: 350, contado: null, estado: 'Abierto' },
+  { id: 342, fecha: '2026-10-10', sede: 'Centro', responsable: 'María García', apertura: '14:00', cierre: '', fondo: 500, efectivo: 950, tarjeta: 500, transferencia: 250, contado: null, estado: 'Abierto' },
+  { id: 343, fecha: '2026-10-10', sede: 'Norte', responsable: 'Pedro Martínez', apertura: '14:00', cierre: '', fondo: 300, efectivo: 1100, tarjeta: 650, transferencia: 300, contado: null, estado: 'Abierto' },
+  { id: 344, fecha: '2026-10-10', sede: 'Sur', responsable: 'Sofía Hernández', apertura: '14:00', cierre: '', fondo: 400, efectivo: 1300, tarjeta: 700, transferencia: 400, contado: null, estado: 'Abierto' },
+  { id: 345, fecha: '2026-10-10', sede: 'Centro', responsable: 'Jorge Ramírez', apertura: '16:00', cierre: '', fondo: 500, efectivo: 800, tarjeta: 450, transferencia: 200, contado: null, estado: 'Abierto' }
 ]);
+
 
 const money = (n: number) => new Intl.NumberFormat(lang.value === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 const collected = (x: Cash) => x.efectivo + x.tarjeta + x.transferencia;
@@ -193,7 +243,6 @@ const status = ref('');
 const date = ref('');
 const page = ref(1);
 const selected = ref<Cash | null>(null);
-const PER_PAGE = 8;
 
 const branches = computed(() => [...new Set(records.value.map(x => x.sede))]);
 const scoped = computed(() => records.value.filter(x => !branch.value || x.sede === branch.value));
@@ -205,11 +254,18 @@ const filtered = computed(() => {
     Object.values(x).join(' ').toLowerCase().includes(term)
   );
 });
-const pages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PER_PAGE)));
-const paged = computed(() => filtered.value.slice((page.value - 1) * PER_PAGE, page.value * PER_PAGE));
+const PAGE_SIZE = 40;
+const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / PAGE_SIZE)));
+const showPager = computed(() => filtered.value.length > PAGE_SIZE);
+const paged = computed(() => filtered.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+const goPage = (n: number): void => {
+  page.value = Math.min(Math.max(1, n), totalPages.value);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 const hasFilters = computed(() => !!(search.value || branch.value || status.value || date.value));
 
 watch([search, branch, status, date], () => { page.value = 1; });
+watch(totalPages, n => { if (page.value > n) page.value = n; });
 
 const reset = () => { search.value = ''; branch.value = ''; status.value = ''; date.value = ''; };
 
@@ -256,19 +312,6 @@ const getInitials = (name: string): string => {
 };
 const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % avatarGradients.length] });
 
-function exportCSV() {
-  const rows = [
-    ['ID', 'Fecha', 'Sede', 'Responsable', 'Fondo', 'Efectivo', 'Tarjeta', 'Transferencia', 'Contado', 'Diferencia', 'Estado'],
-    ...filtered.value.map(x => [x.id, x.fecha, x.sede, x.responsable, x.fondo, x.efectivo, x.tarjeta, x.transferencia, x.contado ?? '', x.estado === 'Cerrado' ? delta(x) : '', x.estado])
-  ];
-  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'historial_caja.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-}
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
@@ -418,16 +461,14 @@ function exportCSV() {
 }
 
 /* PAGINACIÓN */
-.pager-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 0 4px; color: var(--muted); font-size: 0.74rem; font-weight: 500; }
-.pager { display: flex; align-items: center; gap: 10px; }
-.pager-btn {
-  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--line); border-radius: 9px; background: var(--card-bg);
-  color: var(--color-texto-general, #e5e7eb); font-size: 1rem; cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.pager-btn:hover:not(:disabled) { border-color: var(--tone-main); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--card-bg); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pager-btn:hover:not(:disabled) { border-color: var(--tone-main); background: color-mix(in srgb, var(--tone-main) 12%, transparent); color: var(--color-titulos, #ffffff); transform: translateY(-1px); }
 .pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
+.pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
+.table-footer { padding: 11px 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.72rem; font-weight: 500; text-align: right; }
+.details-cell { display: inline-flex; }
 
 /* AVATAR / TEXTO */
 .avatar-small {
@@ -479,7 +520,7 @@ function exportCSV() {
 .empty-state svg, .empty-state-mobile svg { opacity: 0.4; }
 
 /* MODAL DE DETALLE */
-.modal-body-custom { max-height: 72vh; overflow-y: auto; padding: 10px 5px; color: var(--color-texto-general, #ffffff); text-align: center; }
+.modal-body-custom { }
 .modal-icon-container { width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; border-radius: 15px; }
 .info-bg { border: 1px solid color-mix(in srgb, var(--tone-main) 25%, transparent); background: color-mix(in srgb, var(--tone-main) 10%, transparent); color: var(--tone-main); }
 .modal-body-custom h2 { margin: 0 0 14px; color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.25rem; font-weight: 600; }
@@ -557,4 +598,22 @@ function exportCSV() {
 @media (prefers-reduced-motion: reduce) {
   .search-input, .status-select, .date-input, .btn-bulk, .user-table tbody tr, .btn-modal, .pager-btn { transition: none !important; }
 }
+
+/* ---------- Modal propio ---------- */
+.rep-overlay { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(4, 4, 8, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.rep-modal { position: relative; width: min(460px, 100%); max-height: min(86vh, 720px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid color-mix(in srgb, var(--color-texto-general, #fff) 14%, transparent); border-radius: calc(var(--app-border-radius, 16px) * 1.1); background: var(--bg-cards, #121212); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8); }
+.rep-close { position: absolute; top: 14px; right: 14px; z-index: 2; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid color-mix(in srgb, var(--color-texto-general, #fff) 14%, transparent); border-radius: 50%; background: color-mix(in srgb, var(--color-texto-general, #fff) 7%, transparent); color: var(--color-texto-general, #cbd5e1); cursor: pointer; transition: background .18s ease, color .18s ease, transform .18s ease, border-color .18s ease; }
+.rep-close:hover { background: color-mix(in srgb, var(--tone-main, #34d399) 18%, transparent); border-color: color-mix(in srgb, var(--tone-main, #34d399) 55%, transparent); color: var(--color-titulos, #fff); transform: rotate(90deg); }
+.rep-close:focus-visible { outline: 2px solid var(--tone-main, #34d399); outline-offset: 2px; }
+.rep-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 34px 28px 26px; text-align: center; color: var(--color-texto-general, #fff); scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-texto-general, #fff) 30%, transparent) transparent; scrollbar-gutter: stable both-edges; }
+.rep-scroll::-webkit-scrollbar { width: 8px; }
+.rep-scroll::-webkit-scrollbar-track { background: transparent; margin: 18px 0; }
+.rep-scroll::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--color-texto-general, #fff) 26%, transparent); background-clip: content-box; }
+.rep-scroll::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--tone-main, #34d399) 75%, transparent); background-clip: content-box; }
+.rep-pop-enter-active, .rep-pop-leave-active { transition: opacity .18s ease; }
+.rep-pop-enter-active .rep-modal, .rep-pop-leave-active .rep-modal { transition: transform .2s cubic-bezier(.2,.8,.2,1), opacity .18s ease; }
+.rep-pop-enter-from, .rep-pop-leave-to { opacity: 0; }
+.rep-pop-enter-from .rep-modal, .rep-pop-leave-to .rep-modal { transform: translateY(14px) scale(.97); opacity: 0; }
+@media (max-width: 560px) { .rep-overlay { padding: 12px; } .rep-scroll { padding: 30px 18px 22px; } }
+@media (prefers-reduced-motion: reduce) { .rep-close, .rep-pop-enter-active, .rep-pop-leave-active, .rep-pop-enter-active .rep-modal, .rep-pop-leave-active .rep-modal { transition: none !important; } }
 </style>

@@ -321,6 +321,42 @@ const tutoriales = {
       { title: "Quick Actions", description: "Manage accounts by immediately renewing the membership or deleting the user's record as needed.", selector: '#tutorial-step-2' }
     ]
   },
+  'audit-log': {
+    es: [
+      { title: "Filtros y Búsqueda", description: "Filtra la bitácora por sucursal, tipo de acción o fecha, y busca por empleado o módulo. Usa el botón «Limpiar» para quitar todos los filtros de una vez.", selector: '#tutorial-step-0' },
+      { title: "Registro de Actividad", description: "Consulta quién realizó cada acción, en qué sucursal y módulo, y la descripción del cambio. Los cuadros superiores resumen los eventos, modificaciones, eliminaciones y usuarios involucrados.", selector: '#tutorial-step-1' },
+      { title: "Detalle de la Acción", description: "Abre el detalle completo del evento, incluyendo el valor anterior y el valor nuevo del cambio realizado.", selector: '#tutorial-step-2' }
+    ],
+    en: [
+      { title: "Filters and Search", description: "Filter the log by branch, action type or date, and search by employee or module. Use the “Clear” button to remove all filters at once.", selector: '#tutorial-step-0' },
+      { title: "Activity Log", description: "See who performed each action, in which branch and module, and a description of the change. The cards above summarize events, modifications, deletions and users involved.", selector: '#tutorial-step-1' },
+      { title: "Action Details", description: "Open the full detail of the event, including the previous value and the new value of the change.", selector: '#tutorial-step-2' }
+    ]
+  },
+  'cash-history': {
+    es: [
+      { title: "Filtros y Búsqueda de Cortes", description: "Filtra los cortes de caja por sucursal, estado (abierto o cerrado) o fecha, y busca por responsable o folio. Usa «Limpiar» para quitar los filtros.", selector: '#tutorial-step-0' },
+      { title: "Historial de Cortes", description: "Visualiza el folio, la fecha, la sucursal, el responsable, el estado, la diferencia y el total recaudado de cada corte. Los cuadros superiores muestran el total recaudado, el efectivo recibido y la diferencia neta.", selector: '#tutorial-step-1' },
+      { title: "Ver Corte", description: "Consulta el detalle del corte: apertura y cierre, fondo inicial, efectivo, tarjeta, transferencia, efectivo esperado y contado, y la diferencia.", selector: '#tutorial-step-2' }
+    ],
+    en: [
+      { title: "Cash Session Filters and Search", description: "Filter cash sessions by branch, status (open or closed) or date, and search by employee or reference. Use “Clear” to remove the filters.", selector: '#tutorial-step-0' },
+      { title: "Cash Session History", description: "View the reference, date, branch, employee, status, difference and total collected for each session. The cards above show the total collected, cash received and net difference.", selector: '#tutorial-step-1' },
+      { title: "View Session", description: "Check the session details: opening and closing, opening float, cash, card, transfer, expected and counted cash, and the difference.", selector: '#tutorial-step-2' }
+    ]
+  },
+  'membership-history': {
+    es: [
+      { title: "Filtros y Búsqueda", description: "Filtra los movimientos por sucursal, tipo (inscripción, renovación, cambio o cancelación) o fecha, y busca por cliente o paquete. Usa «Limpiar» para quitar los filtros.", selector: '#tutorial-step-0' },
+      { title: "Historial de Membresías", description: "Visualiza la fecha, el cliente, la sucursal, el tipo de movimiento, el paquete, la vigencia y el importe de cada registro. Los cuadros superiores resumen movimientos, renovaciones, cambios de paquete y cancelaciones.", selector: '#tutorial-step-1' },
+      { title: "Detalle del Movimiento", description: "Abre el detalle completo: paquete anterior y contratado, fechas de inicio y vencimiento, precio aplicado, responsable y observaciones.", selector: '#tutorial-step-2' }
+    ],
+    en: [
+      { title: "Filters and Search", description: "Filter movements by branch, type (registration, renewal, plan change or cancellation) or date, and search by client or plan. Use “Clear” to remove the filters.", selector: '#tutorial-step-0' },
+      { title: "Membership History", description: "View the date, client, branch, movement type, plan, validity and amount of each record. The cards above summarize transactions, renewals, plan changes and cancellations.", selector: '#tutorial-step-1' },
+      { title: "Movement Details", description: "Open the full detail: previous and new plan, start and expiration dates, applied price, employee and notes.", selector: '#tutorial-step-2' }
+    ]
+  },
   'GYM_ACCOUNT-settings': {
     es: [
       { title: "Guardar Cambios", description: "Aplica y almacena de forma permanente todas las modificaciones realizadas en la configuración del sitio.", selector: '#btn-guardar-cambios' },

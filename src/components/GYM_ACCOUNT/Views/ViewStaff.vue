@@ -42,7 +42,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(user, index) in filteredUsers" :key="user.id">
+            <tr v-for="(user, index) in pagedUsers" :key="user.id">
               <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }">{{ initials(user.name) }}</div></td>
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
@@ -77,7 +77,7 @@
           <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
         </div>
-        <div v-for="(user, index) in filteredUsers" :key="user.id" class="user-card" :id="index === 0 ? 'tutorial-step-1' : null">
+        <div v-for="(user, index) in pagedUsers" :key="user.id" class="user-card" :id="index === 0 ? 'tutorial-step-1' : null">
            <div class="card-top-section">
             <div class="avatar-small" :style="{ background: avatarColor(user.name) }">{{ initials(user.name) }}</div>
             <div class="card-user-titles">
@@ -111,6 +111,17 @@
           </div>
         </div>
       </div>
+
+      <!-- PAGINACIÓN (solo con más de 40 resultados) -->
+      <nav v-if="showPager" class="pager" :aria-label="pagerLabel(0)">
+        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="pagerLabel(1)" @click="goPage(page - 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="pagerLabel(2)" @click="goPage(page + 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </nav>
 
       <!-- Modal QR -->
       <ModalComponent :isOpen="showQR" @close="showQR = false">
@@ -162,7 +173,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import ModalComponent from '../../Modals/ModalComponent.vue';
@@ -247,6 +258,29 @@ const filteredUsers = computed(() => {
   return result;
 });
 
+// Paginación: se muestra solo cuando hay más de 40 resultados
+const PAGE_SIZE = 40;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
+const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
+const pagedUsers = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return filteredUsers.value.slice(start, start + PAGE_SIZE);
+});
+const goPage = (n) => {
+  page.value = Math.min(Math.max(1, n), totalPages.value);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+watch([searchQuery, selectedRoleFilter], () => { page.value = 1; });
+
+const pagerLabels = {
+  es: ['Paginación', 'Página anterior', 'Página siguiente'],
+  en: ['Pagination', 'Previous page', 'Next page'],
+  fr: ['Pagination', 'Page précédente', 'Page suivante'],
+  pt: ['Paginação', 'Página anterior', 'Próxima página']
+};
+const pagerLabel = (i) => (pagerLabels[currentLang.value] || pagerLabels.es)[i];
+
 const getRoleClass = (role) => {
   const classes = {
     'Propietario': 'role-propietario',
@@ -275,6 +309,7 @@ const avatarColor = (name = '') => {
   return `linear-gradient(135deg, ${color}, ${color}99)`;
 };
 
+
 const users = ref([
   { id: 1, name: 'Armando Luis Ramires Sanchez', email: 'Armandoluis@gmail.com', phone: '+52 481 1265412', role: 'Propietario' },
   { id: 2, name: 'Francisco Luis Ramires Sanchez', email: 'Francisco.luis@example.com', phone: '+52 4811 243422', role: 'Gerente' },
@@ -283,6 +318,44 @@ const users = ref([
   { id: 5, name: 'Mario Luis Ramires Sanchez', email: 'Mario.luis@example.com', phone: '+52 4811 243425', role: 'Entrenador' },
   { id: 6, name: 'Luis Ramires Sanchez', email: 'Luis.ramires@example.com', phone: '+52 4811 243426', role: 'Recepcionista' },
   { id: 7, name: 'Ana Sofia Torres Perez', email: 'Ana.torres@example.com', phone: '+52 4811 243427', role: 'Recepcionista' },
+  { id: 8, name: 'Carlos Alberto Hernández López', email: 'carlos.hernandez@example.com', phone: '+52 481 200 1008', role: 'Gerente' },
+  { id: 9, name: 'Daniela Guadalupe García Reyes', email: 'daniela.garcia@example.com', phone: '+52 481 200 1009', role: 'Recepcionista' },
+  { id: 10, name: 'José Manuel Ortiz Hernández', email: 'jose.ortiz@example.com', phone: '+52 481 200 1010', role: 'Entrenador' },
+  { id: 11, name: 'Valeria Fernanda Cruz Martínez', email: 'valeria.cruz@example.com', phone: '+52 481 200 1011', role: 'Recepcionista' },
+  { id: 12, name: 'Miguel Ángel Ramírez Castillo', email: 'miguel.ramirez@example.com', phone: '+52 481 200 1012', role: 'Entrenador' },
+  { id: 13, name: 'Andrea Carolina Flores Vargas', email: 'andrea.flores@example.com', phone: '+52 481 200 1013', role: 'Gerente' },
+  { id: 14, name: 'Roberto Carlos Díaz Moreno', email: 'roberto.diaz@example.com', phone: '+52 481 200 1014', role: 'Entrenador' },
+  { id: 15, name: 'Gabriela Alejandra Morales Ruiz', email: 'gabriela.morales@example.com', phone: '+52 481 200 1015', role: 'Recepcionista' },
+  { id: 16, name: 'Ricardo Antonio Navarro López', email: 'ricardo.navarro@example.com', phone: '+52 481 200 1016', role: 'Entrenador' },
+  { id: 17, name: 'Paola Andrea Jiménez Sánchez', email: 'paola.jimenez@example.com', phone: '+52 481 200 1017', role: 'Recepcionista' },
+  { id: 18, name: 'Eduardo Sebastián Vargas Torres', email: 'eduardo.vargas@example.com', phone: '+52 481 200 1018', role: 'Gerente' },
+  { id: 19, name: 'Karla Vanessa Castillo Pérez', email: 'karla.castillo@example.com', phone: '+52 481 200 1019', role: 'Entrenador' },
+  { id: 20, name: 'Héctor Alejandro Salazar Medina', email: 'hector.salazar@example.com', phone: '+52 481 200 1020', role: 'Entrenador' },
+  { id: 21, name: 'Mónica Isabel Romero García', email: 'monica.romero@example.com', phone: '+52 481 200 1021', role: 'Recepcionista' },
+  { id: 22, name: 'Óscar Iván Aguilar Rodríguez', email: 'oscar.aguilar@example.com', phone: '+52 481 200 1022', role: 'Entrenador' },
+  { id: 23, name: 'Fernanda Guadalupe Ríos López', email: 'fernanda.rios@example.com', phone: '+52 481 200 1023', role: 'Recepcionista' },
+  { id: 24, name: 'Alberto Enrique Vega Martínez', email: 'alberto.vega@example.com', phone: '+52 481 200 1024', role: 'Gerente' },
+  { id: 25, name: 'Lucía Fernanda Herrera Castro', email: 'lucia.herrera@example.com', phone: '+52 481 200 1025', role: 'Entrenador' },
+  { id: 26, name: 'Diego Armando Molina Reyes', email: 'diego.molina@example.com', phone: '+52 481 200 1026', role: 'Entrenador' },
+  { id: 27, name: 'Samantha Nicole Campos Flores', email: 'samantha.campos@example.com', phone: '+52 481 200 1027', role: 'Recepcionista' },
+  { id: 28, name: 'Adrián Eduardo Fuentes Sánchez', email: 'adrian.fuentes@example.com', phone: '+52 481 200 1028', role: 'Entrenador' },
+  { id: 29, name: 'Natalia Berenice Pineda Ortiz', email: 'natalia.pineda@example.com', phone: '+52 481 200 1029', role: 'Gerente' },
+  { id: 30, name: 'Víctor Hugo Cárdenas López', email: 'victor.cardenas@example.com', phone: '+52 481 200 1030', role: 'Entrenador' },
+  { id: 31, name: 'Regina Alejandra Espinoza Torres', email: 'regina.espinoza@example.com', phone: '+52 481 200 1031', role: 'Recepcionista' },
+  { id: 32, name: 'Emmanuel David Guerrero Ruiz', email: 'emmanuel.guerrero@example.com', phone: '+52 481 200 1032', role: 'Entrenador' },
+  { id: 33, name: 'Brenda Lizbeth Acosta García', email: 'brenda.acosta@example.com', phone: '+52 481 200 1033', role: 'Recepcionista' },
+  { id: 34, name: 'Rafael Antonio Bautista Pérez', email: 'rafael.bautista@example.com', phone: '+52 481 200 1034', role: 'Gerente' },
+  { id: 35, name: 'Ximena Guadalupe Núñez Morales', email: 'ximena.nunez@example.com', phone: '+52 481 200 1035', role: 'Entrenador' },
+  { id: 36, name: 'Ángel Gabriel Contreras López', email: 'angel.contreras@example.com', phone: '+52 481 200 1036', role: 'Entrenador' },
+  { id: 37, name: 'Diana Carolina Serrano Vargas', email: 'diana.serrano@example.com', phone: '+52 481 200 1037', role: 'Recepcionista' },
+  { id: 38, name: 'Kevin Alexander Valdez Martínez', email: 'kevin.valdez@example.com', phone: '+52 481 200 1038', role: 'Entrenador' },
+  { id: 39, name: 'Mariana Alejandra Ochoa Sánchez', email: 'mariana.ochoa@example.com', phone: '+52 481 200 1039', role: 'Recepcionista' },
+  { id: 40, name: 'Cristian Eduardo Padilla Flores', email: 'cristian.padilla@example.com', phone: '+52 481 200 1040', role: 'Entrenador' },
+  { id: 41, name: 'Alejandra Sofía Domínguez Reyes', email: 'alejandra.dominguez@example.com', phone: '+52 481 200 1041', role: 'Gerente' },
+  { id: 42, name: 'Iván Alejandro Cabrera Torres', email: 'ivan.cabrera@example.com', phone: '+52 481 200 1042', role: 'Entrenador' },
+  { id: 43, name: 'Sofía Valentina Mendoza García', email: 'sofia.mendoza@example.com', phone: '+52 481 200 1043', role: 'Recepcionista' },
+  { id: 44, name: 'Fernando Daniel Pérez Morales', email: 'fernando.perez@example.com', phone: '+52 481 200 1044', role: 'Entrenador' },
+  { id: 45, name: 'Mario Alberto González Sánchez', email: 'mario.gonzalez@example.com', phone: '+52 481 200 1045', role: 'Recepcionista' }
 ]);
 
 const confirmDelete = (user) => { 
@@ -302,6 +375,9 @@ const executeDelete = () => {
 
 const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-staff/${id}`);
 const openWhatsApp = (phone) => window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+
+// va al final: totalPages depende de `users`, que se declara arriba
+watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 </script>
 
 <style scoped>
@@ -1879,4 +1955,13 @@ const openWhatsApp = (phone) => window.open(`https://wa.me/${phone.replace(/\D/g
     transition: none !important;
   }
 }
+
+/* ---------- Paginación (solo con más de 40 resultados) ---------- */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-cards, #14161b); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pager-btn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--color-titulos, #ffffff); transform: translateY(-1px); }
+.pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pager-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
+.pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
 </style>

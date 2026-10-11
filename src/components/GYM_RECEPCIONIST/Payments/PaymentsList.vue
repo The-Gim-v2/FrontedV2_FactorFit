@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingGYM_RECEPCIONIST from '../HeadingGYM_RECEPCIONIST.vue';
 import CorreoMasivo from '../Componets/Bulk-Email.vue';
@@ -66,6 +66,29 @@ const filteredUsers = computed(() => {
   });
 });
 
+// Paginación: se muestra solo cuando hay más de 40 resultados
+const PAGE_SIZE = 40;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
+const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
+const pagedUsers = computed(() => {
+  const start = (page.value - 1) * PAGE_SIZE;
+  return filteredUsers.value.slice(start, start + PAGE_SIZE);
+});
+const goPage = (n) => {
+  page.value = Math.min(Math.max(1, n), totalPages.value);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+watch([searchQuery, selectedMembership, selectedStatus], () => { page.value = 1; });
+
+const pagerLabels = {
+  es: ['Paginación', 'Página anterior', 'Página siguiente'],
+  en: ['Pagination', 'Previous page', 'Next page'],
+  fr: ['Pagination', 'Page précédente', 'Page suivante'],
+  pt: ['Paginação', 'Página anterior', 'Próxima página']
+};
+const pagerLabel = (i) => (pagerLabels[currentLang.value] || pagerLabels.es)[i];
+
 const getStatusClass = (status) => {
   const classes = {
     'Activo': 'status-green',
@@ -91,16 +114,55 @@ const getInitials = (name) => {
 };
 const avatarStyle = (id) => ({ backgroundImage: avatarGradients[id % avatarGradients.length] });
 
+
 const users = ref([
-  { id: 1, name: 'Maria Luis Ramires Sanchez', email: 'Maria.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321' , mensualidad: 'Mensual' },
-  { id: 2, name: 'Francisco Luis Ramires Sanchez', email: 'Francisco.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321' , mensualidad: 'Quincenal' },
-  { id: 3, name: 'Luis Ramires Sanchez', email: 'Luis.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321' , mensualidad: 'Mensual' },
-  { id: 4, name: 'Jose Luis Ramires Sanchez', email: 'Jose.luis@example.com', expirationDate: '18/03/2026', status: 'Inactivo', phone: '+52 481 123 4321' , mensualidad: 'Quincenal' },
-  { id: 5, name: 'Mario Luis Ramires Sanchez', email: 'Mario.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321' , mensualidad: 'Mensual' },
-  { id: 6, name: 'Jesus Luis Ramires Sanchez', email: 'Jesus.luis@example.com', expirationDate: '18/03/2026', status: 'Inactivo', phone: '+52 481 123 4321' , mensualidad: 'Quincenal' },
-  { id: 7, name: 'Ana Luis Ramires Sanchez', email: 'Ana.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321' , mensualidad: 'Mensual' },
-  { id: 8, name: 'Carlos Luis Ramires Sanchez', email: 'Carlos.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321' , mensualidad: 'Quincenal' },
+  { id: 1, name: 'Maria Luis Ramires Sanchez', email: 'Maria.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321', mensualidad: 'Mensual' },
+  { id: 2, name: 'Francisco Luis Ramires Sanchez', email: 'Francisco.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321', mensualidad: 'Quincenal' },
+  { id: 3, name: 'Luis Ramires Sanchez', email: 'Luis.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321', mensualidad: 'Mensual' },
+  { id: 4, name: 'Jose Luis Ramires Sanchez', email: 'Jose.luis@example.com', expirationDate: '18/03/2026', status: 'Inactivo', phone: '+52 481 123 4321', mensualidad: 'Quincenal' },
+  { id: 5, name: 'Mario Luis Ramires Sanchez', email: 'Mario.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321', mensualidad: 'Mensual' },
+  { id: 6, name: 'Jesus Luis Ramires Sanchez', email: 'Jesus.luis@example.com', expirationDate: '18/03/2026', status: 'Inactivo', phone: '+52 481 123 4321', mensualidad: 'Quincenal' },
+  { id: 7, name: 'Ana Luis Ramires Sanchez', email: 'Ana.luis@example.com', expirationDate: '18/03/2026', status: 'Activo', phone: '+52 481 123 4321', mensualidad: 'Mensual' },
+  { id: 8, name: 'Carlos Luis Ramires Sanchez', email: 'Carlos.luis@example.com', expirationDate: '18/03/2026', status: 'Pendiente', phone: '+52 481 123 4321', mensualidad: 'Quincenal' },
+  { id: 9, name: 'Fernanda Lopez Garcia', email: 'fernanda.lopez@example.com', expirationDate: '25/10/2026', status: 'Activo', phone: '+52 481 901 2345', mensualidad: 'Mensual' },
+  { id: 10, name: 'Erick Alejandro Hernandez Ruiz', email: 'erick.hernandez@example.com', expirationDate: '12/11/2026', status: 'Activo', phone: '+52 481 112 3456', mensualidad: 'Mensual' },
+  { id: 11, name: 'Daniela Guadalupe Garcia Reyes', email: 'daniela.garcia@example.com', expirationDate: '14/12/2026', status: 'Activo', phone: '+52 481 223 4567', mensualidad: 'Mensual' },
+  { id: 12, name: 'Jose Manuel Ortiz Hernandez', email: 'jose.ortiz@example.com', expirationDate: '02/11/2026', status: 'Pendiente', phone: '+52 481 334 5678', mensualidad: 'Quincenal' },
+  { id: 13, name: 'Valeria Fernanda Cruz Martinez', email: 'valeria.cruz@example.com', expirationDate: '20/02/2027', status: 'Activo', phone: '+52 481 445 6789', mensualidad: 'Mensual' },
+  { id: 14, name: 'Miguel Angel Ramirez Castillo', email: 'miguel.ramirez@example.com', expirationDate: '09/09/2026', status: 'Inactivo', phone: '+52 481 556 7890', mensualidad: 'Mensual' },
+  { id: 15, name: 'Andrea Carolina Flores Vargas', email: 'andrea.flores@example.com', expirationDate: '25/11/2026', status: 'Activo', phone: '+52 481 667 8901', mensualidad: 'Mensual' },
+  { id: 16, name: 'Roberto Carlos Diaz Moreno', email: 'roberto.diaz@example.com', expirationDate: '17/10/2026', status: 'Pendiente', phone: '+52 481 778 9012', mensualidad: 'Quincenal' },
+  { id: 17, name: 'Gabriela Alejandra Morales Ruiz', email: 'gabriela.morales@example.com', expirationDate: '11/01/2027', status: 'Activo', phone: '+52 481 889 0123', mensualidad: 'Mensual' },
+  { id: 18, name: 'Ricardo Antonio Navarro Lopez', email: 'ricardo.navarro@example.com', expirationDate: '03/08/2026', status: 'Inactivo', phone: '+52 481 990 1234', mensualidad: 'Mensual' },
+  { id: 19, name: 'Paola Andrea Jimenez Sanchez', email: 'paola.jimenez@example.com', expirationDate: '29/12/2026', status: 'Activo', phone: '+52 481 101 2345', mensualidad: 'Mensual' },
+  { id: 20, name: 'Eduardo Sebastian Vargas Torres', email: 'eduardo.vargas@example.com', expirationDate: '07/11/2026', status: 'Pendiente', phone: '+52 481 212 3456', mensualidad: 'Quincenal' },
+  { id: 21, name: 'Karla Vanessa Castillo Perez', email: 'karla.castillo@example.com', expirationDate: '19/03/2027', status: 'Activo', phone: '+52 481 323 4567', mensualidad: 'Mensual' },
+  { id: 22, name: 'Hector Alejandro Salazar Medina', email: 'hector.salazar@example.com', expirationDate: '01/08/2026', status: 'Inactivo', phone: '+52 481 434 5678', mensualidad: 'Mensual' },
+  { id: 23, name: 'Monica Isabel Romero Garcia', email: 'monica.romero@example.com', expirationDate: '16/11/2026', status: 'Activo', phone: '+52 481 545 6789', mensualidad: 'Mensual' },
+  { id: 24, name: 'Oscar Ivan Aguilar Rodriguez', email: 'oscar.aguilar@example.com', expirationDate: '24/10/2026', status: 'Pendiente', phone: '+52 481 656 7890', mensualidad: 'Quincenal' },
+  { id: 25, name: 'Fernanda Guadalupe Rios Lopez', email: 'fernanda.rios@example.com', expirationDate: '13/02/2027', status: 'Activo', phone: '+52 481 767 8901', mensualidad: 'Mensual' },
+  { id: 26, name: 'Alberto Enrique Vega Martinez', email: 'alberto.vega@example.com', expirationDate: '06/09/2026', status: 'Inactivo', phone: '+52 481 878 9012', mensualidad: 'Mensual' },
+  { id: 27, name: 'Lucia Fernanda Herrera Castro', email: 'lucia.herrera@example.com', expirationDate: '21/12/2026', status: 'Activo', phone: '+52 481 989 0123', mensualidad: 'Mensual' },
+  { id: 28, name: 'Diego Armando Molina Reyes', email: 'diego.molina@example.com', expirationDate: '31/10/2026', status: 'Pendiente', phone: '+52 481 190 1234', mensualidad: 'Quincenal' },
+  { id: 29, name: 'Samantha Nicole Campos Flores', email: 'samantha.campos@example.com', expirationDate: '08/01/2027', status: 'Activo', phone: '+52 481 201 2345', mensualidad: 'Mensual' },
+  { id: 30, name: 'Adrian Eduardo Fuentes Sanchez', email: 'adrian.fuentes@example.com', expirationDate: '04/09/2026', status: 'Inactivo', phone: '+52 481 312 3456', mensualidad: 'Mensual' },
+  { id: 31, name: 'Natalia Berenice Pineda Ortiz', email: 'natalia.pineda@example.com', expirationDate: '27/11/2026', status: 'Activo', phone: '+52 481 423 4567', mensualidad: 'Mensual' },
+  { id: 32, name: 'Victor Hugo Cardenas Lopez', email: 'victor.cardenas@example.com', expirationDate: '10/10/2026', status: 'Pendiente', phone: '+52 481 534 5678', mensualidad: 'Quincenal' },
+  { id: 33, name: 'Regina Alejandra Espinoza Torres', email: 'regina.espinoza@example.com', expirationDate: '15/04/2027', status: 'Activo', phone: '+52 481 645 6789', mensualidad: 'Mensual' },
+  { id: 34, name: 'Emmanuel David Guerrero Ruiz', email: 'emmanuel.guerrero@example.com', expirationDate: '23/10/2026', status: 'Pendiente', phone: '+52 481 756 7890', mensualidad: 'Quincenal' },
+  { id: 35, name: 'Brenda Lizbeth Acosta Garcia', email: 'brenda.acosta@example.com', expirationDate: '12/12/2026', status: 'Activo', phone: '+52 481 867 8901', mensualidad: 'Mensual' },
+  { id: 36, name: 'Rafael Antonio Bautista Perez', email: 'rafael.bautista@example.com', expirationDate: '29/08/2026', status: 'Inactivo', phone: '+52 481 978 9012', mensualidad: 'Mensual' },
+  { id: 37, name: 'Ximena Guadalupe Nunez Morales', email: 'ximena.nunez@example.com', expirationDate: '18/01/2027', status: 'Activo', phone: '+52 481 189 0123', mensualidad: 'Mensual' },
+  { id: 38, name: 'Angel Gabriel Contreras Lopez', email: 'angel.contreras@example.com', expirationDate: '05/11/2026', status: 'Pendiente', phone: '+52 481 290 1234', mensualidad: 'Quincenal' },
+  { id: 39, name: 'Diana Carolina Serrano Vargas', email: 'diana.serrano@example.com', expirationDate: '22/12/2026', status: 'Activo', phone: '+52 481 301 2345', mensualidad: 'Mensual' },
+  { id: 40, name: 'Kevin Alexander Valdez Martinez', email: 'kevin.valdez@example.com', expirationDate: '02/08/2026', status: 'Inactivo', phone: '+52 481 412 3456', mensualidad: 'Mensual' },
+  { id: 41, name: 'Mariana Alejandra Ochoa Sanchez', email: 'mariana.ochoa@example.com', expirationDate: '14/03/2027', status: 'Activo', phone: '+52 481 523 4567', mensualidad: 'Mensual' },
+  { id: 42, name: 'Cristian Eduardo Padilla Flores', email: 'cristian.padilla@example.com', expirationDate: '26/10/2026', status: 'Pendiente', phone: '+52 481 634 5678', mensualidad: 'Quincenal' },
+  { id: 43, name: 'Alejandra Sofia Dominguez Reyes', email: 'alejandra.dominguez@example.com', expirationDate: '09/12/2026', status: 'Activo', phone: '+52 481 745 6789', mensualidad: 'Mensual' },
+  { id: 44, name: 'Ivan Alejandro Cabrera Torres', email: 'ivan.cabrera@example.com', expirationDate: '07/08/2026', status: 'Inactivo', phone: '+52 481 856 7890', mensualidad: 'Quincenal' },
+  { id: 45, name: 'Sofia Valentina Mendoza Garcia', email: 'sofia.mendoza@example.com', expirationDate: '20/02/2027', status: 'Activo', phone: '+52 481 967 8901', mensualidad: 'Mensual' }
 ]);
+
 
 const confirmDelete = (user) => { 
   selectedUser.value = user; 
@@ -117,6 +179,9 @@ const executeDelete = () => {
 
 const goToPayments = (id) => router.push(`/GYM_RECEPCIONIST/pay/${id}`);
 const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
+
+// va al final: totalPages depende de `users`, que se declara arriba
+watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 </script>
 
 <template>
@@ -176,7 +241,7 @@ const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
             <tr><th>{{ t('tablePhoto') }}</th><th>{{ t('tableName') }}</th><th>{{ t('tableEmail') }}</th><th>{{ t('tableExpiration') }}</th><th>{{ t('tableStatus') }}</th><th>{{ t('tableActions') }}</th></tr>
           </thead>
           <tbody>
-            <tr v-for="(user, index) in filteredUsers" :key="user.id">
+            <tr v-for="(user, index) in pagedUsers" :key="user.id">
               <td><div class="avatar-small" :style="avatarStyle(user.id)">{{ getInitials(user.name) }}</div></td>
               <td class="text-bold">{{user.name}}</td>
               <td class="text-muted">{{user.email}}</td>
@@ -210,7 +275,7 @@ const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
       <!-- VISTA MÓVIL -->
       <div class="mobile-only">
        <div
-          v-for="(user, index) in filteredUsers"
+          v-for="(user, index) in pagedUsers"
           :key="user.id"
           class="user-card"
           :class="getStatusClass(user.status)"
@@ -254,6 +319,17 @@ const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
           <span>{{ t('emptyStateUsers') }}</span>
         </div>
       </div>
+
+      <!-- PAGINACIÓN (solo con más de 40 resultados) -->
+      <nav v-if="showPager" class="pager" :aria-label="pagerLabel(0)">
+        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="pagerLabel(1)" @click="goPage(page - 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="pagerLabel(2)" @click="goPage(page + 1)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </nav>
 
     </main>
       <transition name="pop">
@@ -359,6 +435,7 @@ const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
 
   margin-bottom: 22px;
 }
+
 
 
 .main-title {
@@ -1865,4 +1942,13 @@ const goToEdit = (id) => router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);
     transition: none !important;
   }
 }
+
+/* ---------- Paginación (solo con más de 40 resultados) ---------- */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-cards, #14161b); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pager-btn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--color-titulos, #ffffff); transform: translateY(-1px); }
+.pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pager-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
+.pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
 </style>

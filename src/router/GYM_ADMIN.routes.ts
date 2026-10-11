@@ -103,7 +103,25 @@ export const GYM_ADMINRoutes = [
         component: () => import('@/components/GYM_ADMIN/Bitacora/RevenueLog.vue'),
         meta: { allowedRole: 'GYM_ADMIN' }
       },
-
+      // --- BITÁCORAS Y REPORTES ADICIONALES ---
+      {
+        path: 'audit-log',
+        name: 'GYM_ADMIN-audit-log',
+        component: () => import('@/components/GYM_ADMIN/Bitacora/AuditLog.vue'),
+        meta: { allowedRole: 'GYM_ADMIN' }
+      },
+      {
+        path: 'cash-history',
+        name: 'GYM_ADMIN-cash-history',
+        component: () => import('@/components/GYM_ADMIN/Bitacora/CashHistory.vue'),
+        meta: { allowedRole: 'GYM_ADMIN' }
+      },
+      {
+        path: 'membership-history',
+        name: 'GYM_ADMIN-membership-history',
+        component: () => import('@/components/GYM_ADMIN/Bitacora/MembershipHistory.vue'),
+        meta: { allowedRole: 'GYM_ADMIN' }
+      },
       // --- FINANZAS, PAGOS Y CORTES ---
       {
         path: 'payments',
