@@ -3,118 +3,171 @@
   <div class="saas-dashboard-wrapper">
     <main class="dashboard-main-container">
 
-      <!-- HEADER / CABECERA CON PERFIL ANTROPOMÉTRICO -->
-      <section id="tutorial-1" class="glass-card header-card">
-        <div class="header-top-row">
-          <span class="gym-badge-tag">{{ t.officialCatalog }} • 1,324 {{ t.exercisesLabel }}</span>
-          <div id="tutorial-9" class="athlete-counter-pill">
-            <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            <span class="counter-num">{{ mySavedRoutines.length }}</span>
-            <span class="counter-text">{{ t.savedLabel }}</span>
+      <!-- 1. HERO -->
+      <section id="tutorial-1" class="hero">
+        <div class="hero-main">
+          <div class="hero-top">
+            <span class="eyebrow">{{ t.heroEyebrow }}</span>
+            <div id="tutorial-9" class="athlete-counter-pill">
+              <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span class="counter-num">{{ mySavedRoutines.length }}</span>
+              <span class="counter-text">{{ t.savedLabel }}</span>
+            </div>
           </div>
-        </div>
 
-        <div class="header-titles">
           <h1 class="main-heading">
             {{ t.mainTitle1 }} <span class="highlight-color">{{ t.mainTitle2 }}</span>
           </h1>
           <p class="hero-desc">{{ t.heroDesc }}</p>
+
+          <ul class="hero-facts">
+            <li><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg><b>1,324</b> {{ t.exercisesLabel }}</li>
+            <li><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><b>{{ targetCategoriesKeys.length }}</b> {{ t.zonesLabel }}</li>
+            <li><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/></svg><b>{{ equipmentList.length }}</b> {{ t.equipmentsLabel }}</li>
+          </ul>
         </div>
 
-        <!-- PANEL ANTROPOMÉTRICO -->
-        <div id="tutorial-2" class="anthropometric-panel">
-          <div class="panel-title-row">
-            <span class="panel-title">
-              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              {{ t.profileTitle }}
+        <!-- Tarjeta IMC -->
+        <aside class="imc-card" :class="imcTone">
+          <span class="imc-card-label">{{ t.imcLabel }}</span>
+          <div class="imc-value-row">
+            <strong>{{ calculatedIMC }}</strong>
+            <span class="imc-chip">{{ imcCategory }}</span>
+          </div>
+
+          <div class="imc-gauge" aria-hidden="true">
+            <div class="imc-track"></div>
+            <i class="imc-marker" :style="{ left: imcPercent + '%' }"></i>
+          </div>
+          <div class="imc-scale"><span>15</span><span>18.5</span><span>25</span><span>30</span><span>40</span></div>
+
+          <div class="imc-divider"></div>
+
+          <div class="imc-meta">
+            <span>{{ t.somatotypeLabel }}</span>
+            <strong>{{ somatotype }}</strong>
+          </div>
+        </aside>
+      </section>
+
+      <!-- 2. PERFIL -->
+      <section id="tutorial-2" class="profile-card">
+        <header class="block-head">
+          <div class="block-icon">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div>
+            <h2>{{ t.profileTitle }}</h2>
+            <p>{{ t.profileSub }}</p>
+          </div>
+        </header>
+
+        <div id="tutorial-3" class="metrics-grid">
+          <label class="metric-tile">
+            <span class="metric-ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            <span class="metric-label">{{ t.ageLabel }}</span>
+            <span class="metric-input">
+              <input type="number" v-model.number="userProfile.age" min="10" max="100" />
+              <small>{{ t.yearsUnit }}</small>
             </span>
-            <div class="badges-row" v-if="calculatedIMC">
-              <span class="imc-badge">{{ t.imcLabel }}: <strong>{{ calculatedIMC }}</strong> · {{ imcCategory }}</span>
-              <span class="somatotype-badge">{{ t.somatotypeLabel }}: <strong>{{ somatotype }}</strong></span>
+          </label>
+
+          <label class="metric-tile">
+            <span class="metric-ico"><svg viewBox="0 0 24 24"><path d="M6.5 6.5h11L21 21H3z"/><path d="M8.5 6.5a3.5 3.5 0 0 1 7 0"/></svg></span>
+            <span class="metric-label">{{ t.weightLabel }}</span>
+            <span class="metric-input">
+              <input type="number" v-model.number="userProfile.weight" min="30" max="250" />
+              <small>kg</small>
+            </span>
+          </label>
+
+          <label class="metric-tile">
+            <span class="metric-ico"><svg viewBox="0 0 24 24"><path d="M12 2v20M8 6l4-4 4 4M8 18l4 4 4-4"/></svg></span>
+            <span class="metric-label">{{ t.heightLabel }}</span>
+            <span class="metric-input">
+              <input type="number" v-model.number="userProfile.height" min="100" max="230" />
+              <small>cm</small>
+            </span>
+          </label>
+
+          <div class="metric-tile gender-tile">
+            <span class="metric-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></span>
+            <span class="metric-label">{{ t.genderLabel }}</span>
+            <div class="segmented" role="group">
+              <button type="button" :class="{ active: userProfile.gender === 'male' }" @click="userProfile.gender = 'male'">{{ t.genderMale }}</button>
+              <button type="button" :class="{ active: userProfile.gender === 'female' }" @click="userProfile.gender = 'female'">{{ t.genderFemale }}</button>
             </div>
           </div>
+        </div>
 
-          <div id="tutorial-3" class="anthropometric-grid">
-            <div class="input-group">
-              <label>{{ t.ageLabel }}</label>
-              <input type="number" v-model.number="userProfile.age" min="10" max="100" class="styled-input" />
-            </div>
-            <div class="input-group">
-              <label>{{ t.weightLabel }} (kg)</label>
-              <input type="number" v-model.number="userProfile.weight" min="30" max="250" class="styled-input" />
-            </div>
-            <div class="input-group">
-              <label>{{ t.heightLabel }} (cm)</label>
-              <input type="number" v-model.number="userProfile.height" min="100" max="230" class="styled-input" />
-            </div>
-            <div class="input-group">
-              <label>{{ t.genderLabel }}</label>
-              <select v-model="userProfile.gender" class="styled-select">
-                <option value="male">{{ t.genderMale }}</option>
-                <option value="female">{{ t.genderFemale }}</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>{{ t.goalLabel }}</label>
-              <select v-model="userProfile.goal" class="styled-select">
-                <option value="hypertrophy">{{ t.goalHypertrophy }}</option>
-                <option value="strength">{{ t.goalStrength }}</option>
-                <option value="endurance">{{ t.goalEndurance }}</option>
-                <option value="fat_loss">{{ t.goalFatLoss }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="calculate-action-row">
-            <button id="tutorial-4" type="button" class="btn-calculate-routines" @click="calculateRoutines">
-              <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
-              {{ t.calculateBtnText }}
+        <div class="goal-block">
+          <span class="field-title">{{ t.goalLabel }}</span>
+          <div class="goal-grid">
+            <button
+              v-for="g in goalOptions"
+              :key="g.value"
+              type="button"
+              class="goal-card"
+              :class="{ active: userProfile.goal === g.value }"
+              :aria-pressed="userProfile.goal === g.value"
+              @click="userProfile.goal = g.value"
+            >
+              <span class="goal-ico"><svg viewBox="0 0 24 24"><path :d="g.icon"/></svg></span>
+              <span class="goal-copy">
+                <strong>{{ g.label }}</strong>
+                <small>{{ g.hint }}</small>
+              </span>
+              <span class="goal-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
             </button>
           </div>
         </div>
 
-        <div class="header-divider"></div>
+        <footer class="profile-footer">
+          <p>{{ t.calcHint }}</p>
+          <button id="tutorial-4" type="button" class="btn-calculate-routines" @click="calculateRoutines">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+            {{ t.calculateBtnText }}
+          </button>
+        </footer>
+      </section>
 
-        <!-- FILTROS -->
-        <div id="tutorial-5" class="filters-toolbar">
-          <div class="filter-block">
-            <span class="filter-block-title">{{ t.bodyPartFilterLabel }}</span>
-            <div class="chip-filter-row">
-              <button type="button" class="filter-chip" :class="{ active: activeBodyPartFilter === 'all' }" @click="activeBodyPartFilter = 'all'">{{ t.bodyPartAll }}</button>
-              <button
-                v-for="bp in targetCategoriesKeys"
-                :key="bp"
-                type="button"
-                class="filter-chip"
-                :class="{ active: activeBodyPartFilter === bp }"
-                @click="activeBodyPartFilter = bp"
-              >{{ t.catsShort[bp] }}</button>
-            </div>
+      <!-- 3. FILTROS -->
+      <section id="tutorial-5" class="filters-bar">
+        <div class="filters-head">
+          <span class="field-title">{{ t.filtersTitle }}</span>
+          <button v-if="hasActiveFilters" type="button" class="link-btn" @click="clearFilters">{{ t.clearFilters }} ✕</button>
+        </div>
+
+        <div class="chip-filter-row zones-row">
+          <button type="button" class="filter-chip" :class="{ active: activeBodyPartFilter === 'all' }" @click="activeBodyPartFilter = 'all'">{{ t.bodyPartAll }}</button>
+          <button
+            v-for="bp in targetCategoriesKeys"
+            :key="bp"
+            type="button"
+            class="filter-chip"
+            :class="{ active: activeBodyPartFilter === bp }"
+            @click="activeBodyPartFilter = bp"
+          >{{ t.catsShort[bp] }}</button>
+        </div>
+
+        <div class="filters-row">
+          <div class="segmented level-seg" role="group">
+            <button
+              v-for="opt in levelOptions"
+              :key="opt.value"
+              type="button"
+              :class="{ active: activeLevel === opt.value }"
+              @click="activeLevel = opt.value"
+            >{{ opt.label }}</button>
           </div>
 
-          <div class="filters-row">
-            <div class="filter-block">
-              <span class="filter-block-title">{{ t.difficultyLabel }}</span>
-              <div class="chip-filter-row">
-                <button
-                  v-for="opt in levelOptions"
-                  :key="opt.value"
-                  type="button"
-                  class="filter-chip"
-                  :class="{ active: activeLevel === opt.value }"
-                  @click="activeLevel = opt.value"
-                >{{ opt.label }}</button>
-              </div>
-            </div>
-
-            <div class="filter-block equipment-block">
-              <label for="equipment-select" class="filter-block-title">{{ t.equipmentLabel }}</label>
-              <select id="equipment-select" v-model="activeEquipment" class="styled-select">
-                <option value="all">{{ t.equipmentAll }}</option>
-                <option v-for="eq in equipmentList" :key="eq" :value="eq">{{ eq }}</option>
-              </select>
-            </div>
-          </div>
+          <label class="equipment-field">
+            <span class="field-title">{{ t.equipmentLabel }}</span>
+            <select id="equipment-select" v-model="activeEquipment" class="styled-select">
+              <option value="all">{{ t.equipmentAll }}</option>
+              <option v-for="eq in equipmentList" :key="eq" :value="eq">{{ eq }}</option>
+            </select>
+          </label>
         </div>
       </section>
 
@@ -385,6 +438,20 @@ const traducciones = {
     removeRoutineBtn: "Quitar de mis rutinas",
     addRoutineBtn: "Añadir a mis rutinas",
     closeBtn: "Cerrar",
+    heroEyebrow: "ARMA TU RUTINA",
+    zonesLabel: "zonas",
+    equipmentsLabel: "equipos",
+    profileSub: "Con estos datos ajustamos series, repeticiones y ejercicios para ti.",
+    yearsUnit: "años",
+    calcHint: "Tus datos solo se usan para personalizar la selección. Puedes cambiarlos y recalcular cuando quieras.",
+    filtersTitle: "Filtrar catálogo",
+    clearFilters: "Limpiar filtros",
+    goalHints: {
+      hypertrophy: "Más masa muscular",
+      strength: "Cargas altas, pocas reps",
+      endurance: "Más repeticiones",
+      fat_loss: "Quema y definición"
+    },
     setsShort: "series",
     repsShort: "repeticiones",
     prevBtn: "Anteriores",
@@ -463,6 +530,20 @@ const traducciones = {
     removeRoutineBtn: "Remove from routines",
     addRoutineBtn: "Add to routines",
     closeBtn: "Close",
+    heroEyebrow: "BUILD YOUR ROUTINE",
+    zonesLabel: "zones",
+    equipmentsLabel: "equipment types",
+    profileSub: "We use this data to adjust sets, reps and exercises for you.",
+    yearsUnit: "years",
+    calcHint: "Your data is only used to personalize the selection. Change it and recalculate anytime.",
+    filtersTitle: "Filter catalog",
+    clearFilters: "Clear filters",
+    goalHints: {
+      hypertrophy: "More muscle mass",
+      strength: "Heavy loads, low reps",
+      endurance: "Higher repetitions",
+      fat_loss: "Burn and definition"
+    },
     setsShort: "sets",
     repsShort: "repetitions",
     prevBtn: "Previous",
@@ -496,6 +577,28 @@ const traducciones = {
 
 const t = computed(() => traducciones[lang.value] || traducciones.es);
 
+/* ---------- IMC visual ---------- */
+const imcPercent = computed(() => {
+  const imc = parseFloat(calculatedIMC.value) || 0;
+  return Math.min(100, Math.max(0, ((imc - 15) / 25) * 100));
+});
+
+const imcTone = computed(() => {
+  const imc = parseFloat(calculatedIMC.value) || 0;
+  if (imc < 18.5) return 'tone-low';
+  if (imc < 25) return 'tone-ok';
+  if (imc < 30) return 'tone-over';
+  return 'tone-high';
+});
+
+/* ---------- Objetivos ---------- */
+const goalOptions = computed(() => [
+  { value: 'hypertrophy', label: t.value.goalHypertrophy, hint: t.value.goalHints.hypertrophy, icon: 'M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11' },
+  { value: 'strength', label: t.value.goalStrength, hint: t.value.goalHints.strength, icon: 'M13 2L3 14h9l-1 8 10-12h-9z' },
+  { value: 'endurance', label: t.value.goalEndurance, hint: t.value.goalHints.endurance, icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
+  { value: 'fat_loss', label: t.value.goalFatLoss, hint: t.value.goalHints.fat_loss, icon: 'M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-4 3 0-3-1-6-4-8 0 4-3 6-3 11 0 4 3 7 7 8z' }
+]);
+
 const activeEquipment = ref('all');
 const activeLevel = ref('Todos');
 const activeBodyPartFilter = ref('all');
@@ -507,6 +610,16 @@ const levelOptions = computed(() => [
   { value: 'Intermedio', label: t.value.levelIntermediate },
   { value: 'Avanzado', label: t.value.levelAdvanced }
 ]);
+
+const hasActiveFilters = computed(
+  () => activeBodyPartFilter.value !== 'all' || activeLevel.value !== 'Todos' || activeEquipment.value !== 'all'
+);
+
+const clearFilters = () => {
+  activeBodyPartFilter.value = 'all';
+  activeLevel.value = 'Todos';
+  activeEquipment.value = 'all';
+};
 
 const mySavedRoutines = ref([]);
 const routineLibrary = ref([]);
@@ -811,170 +924,452 @@ input:focus-visible {
 }
 
 /* =========================================================
-   HEADER
+   HERO
 ========================================================= */
-.header-card { display: flex; flex-direction: column; gap: 22px; }
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hl);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+}
 
-.header-card::before {
+.eyebrow::before { content: ''; width: 14px; height: 2px; border-radius: 2px; background: currentColor; }
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: center;
+  gap: 28px;
+  padding: 36px;
+  background:
+    radial-gradient(520px 260px at 100% 0%, var(--hl-mid), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card) 92%, white), var(--card) 55%, rgba(10, 10, 10, 0.96));
+  border: 1px solid var(--line2);
+  border-radius: 26px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.hero::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--hl), transparent 70%);
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse at 100% 0%, #000, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0%, #000, transparent 70%);
+  pointer-events: none;
 }
 
-.header-top-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-
-.gym-badge-tag {
-  padding: 6px 13px;
-  color: var(--hl);
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -70px;
+  bottom: -190px;
+  width: 320px;
+  height: 320px;
+  border: 1px solid var(--hl-mid);
+  border-radius: 50%;
+  box-shadow: 0 0 0 38px var(--hl-soft), 0 0 0 39px var(--hl-soft);
+  pointer-events: none;
 }
+
+.hero-main,
+.imc-card { position: relative; z-index: 1; }
+
+.hero-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.hero-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
 .athlete-counter-pill {
   padding: 7px 15px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface);
+  background: rgba(10, 10, 10, 0.55);
   border: 1px solid var(--line2);
   border-radius: 999px;
+  backdrop-filter: blur(8px);
 }
 
 .athlete-counter-pill svg { color: var(--hl); width: 14px; height: 14px; }
 .counter-num { color: #fff; font-family: 'Oswald', sans-serif; font-size: 16px; font-weight: 700; line-height: 1; }
 .counter-text { color: var(--text3); font-size: 11px; font-weight: 700; }
 
-.header-titles { display: flex; flex-direction: column; gap: 10px; }
-
 .main-heading {
   margin: 0;
   color: var(--title);
   font-family: 'Anton', sans-serif;
-  font-size: clamp(28px, 3.6vw, 44px);
+  font-size: clamp(30px, 4vw, 50px);
   font-weight: 400;
   letter-spacing: 0.3px;
-  line-height: 1.08;
+  line-height: 1.05;
   text-transform: uppercase;
 }
 
-.highlight-color { color: var(--hl); }
+.highlight-color { color: var(--hl); text-shadow: 0 0 36px var(--hl-line); }
 
-.hero-desc { max-width: 620px; margin: 0; color: var(--text2); font-size: 14px; line-height: 1.6; }
+.hero-desc { max-width: 560px; margin: 0; color: var(--text2); font-size: 14px; line-height: 1.6; }
 
-/* ---------- Perfil antropométrico ---------- */
-.anthropometric-panel {
-  padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-}
+.hero-facts { margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; list-style: none; }
 
-.panel-title-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-
-.panel-title { display: flex; align-items: center; gap: 9px; color: var(--title); font-size: 13px; font-weight: 700; }
-.panel-title svg { color: var(--hl); }
-
-.badges-row { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.imc-badge,
-.somatotype-badge {
-  padding: 6px 11px;
-  color: var(--green);
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 9px;
+.hero-facts li {
+  padding: 8px 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  background: rgba(10, 10, 10, 0.5);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
   font-size: 12px;
 }
 
-.somatotype-badge { color: #93c5fd; background: var(--hl-soft); border-color: var(--hl-line); }
+.hero-facts li svg { width: 14px; height: 14px; color: var(--hl); }
+.hero-facts li b { color: #fff; font-weight: 800; }
 
-.anthropometric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+/* ---------- Tarjeta IMC ---------- */
+.imc-card {
+  --tone: var(--green);
 
-.input-group { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-
-.input-group label,
-.filter-block-title {
-  color: var(--text3);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid var(--line2);
+  border-radius: 22px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 }
 
-.styled-input,
-.styled-select {
-  width: 100%;
-  height: 44px;
-  padding: 0 14px;
+.imc-card.tone-low { --tone: #60a5fa; }
+.imc-card.tone-ok { --tone: var(--green); }
+.imc-card.tone-over { --tone: #fbbf24; }
+.imc-card.tone-high { --tone: #f87171; }
+
+.imc-card-label { color: var(--text3); font-size: 11px; font-weight: 800; letter-spacing: 1px; }
+
+.imc-value-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.imc-value-row strong {
   color: #fff;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid var(--line2);
-  border-radius: 11px;
-  font-size: 14px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 52px;
   font-weight: 600;
-  outline: none;
+  line-height: 1;
+  text-shadow: 0 0 30px color-mix(in srgb, var(--tone) 50%, transparent);
+}
+
+.imc-chip {
+  padding: 6px 12px;
+  color: var(--tone);
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.imc-gauge { position: relative; height: 12px; margin-top: 4px; }
+
+.imc-track {
+  position: absolute;
+  inset: 3px 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa 0%, #60a5fa 14%, #34d399 14%, #34d399 40%, #fbbf24 40%, #fbbf24 60%, #f87171 60%);
+  opacity: 0.85;
+}
+
+.imc-marker {
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: #fff;
+  border: 3px solid var(--tone);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--tone);
+  transition: left 0.5s var(--ease);
+}
+
+.imc-scale { display: flex; justify-content: space-between; color: var(--text3); font-size: 10px; font-weight: 700; }
+
+.imc-divider { height: 1px; background: var(--line); }
+
+.imc-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.imc-meta span { color: var(--text3); font-size: 11.5px; font-weight: 700; }
+.imc-meta strong { color: #fff; font-size: 13px; text-align: right; }
+
+/* =========================================================
+   PERFIL
+========================================================= */
+.profile-card {
+  padding: 28px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
+}
+
+.block-head { display: flex; align-items: center; gap: 14px; }
+
+.block-icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 13px;
+}
+
+.block-icon svg { width: 20px; height: 20px; }
+
+.block-head h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 600; }
+.block-head p { margin: 3px 0 0; color: var(--text3); font-size: 12.5px; }
+
+.field-title { color: var(--text3); font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
+
+.metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+.metric-tile {
+  --ico: var(--hl);
+
+  position: relative;
+  min-width: 0;
+  padding: 16px 16px 14px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-areas: 'ico label' 'val val';
+  align-items: center;
+  gap: 10px 10px;
+  cursor: text;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+  border-radius: 16px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.styled-input:hover,
-.styled-select:hover { border-color: rgba(255, 255, 255, 0.25); }
+.metric-tile:hover { border-color: var(--line2); }
+.metric-tile:focus-within { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
 
-.styled-input:focus,
-.styled-select:focus { border-color: var(--hl); background: rgba(255, 255, 255, 0.05); box-shadow: 0 0 0 3px var(--hl-soft); }
-
-.styled-select {
-  padding-right: 34px;
-  cursor: pointer;
-  appearance: none;
-  color-scheme: dark;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.364%22%20height%3D%22292.364%22%3E%3Cpath%20fill%3D%22%2360a5fa%22%20d%3D%22M287.9 69.8c-4.3-4.3-11.3-4.3-15.6 0L146.1 195.8 20 69.8c-4.3-4.3-11.3-4.3-15.6 0s-4.3 11.3 0 15.6l133.4 133.4c4.3 4.3 11.3 4.3 15.6 0l133.5-133.4c4.3-4.3 4.3-11.3 0-15.6z%22%2F%3E%3C%2Fsvg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 9px auto;
+.metric-ico {
+  grid-area: ico;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 10px;
 }
 
-.styled-select option { background: #15171b; color: #fff; }
+.metric-ico svg { width: 16px; height: 16px; }
 
-.calculate-action-row { display: flex; justify-content: flex-end; }
+.metric-label { grid-area: label; color: var(--text2); font-size: 12px; font-weight: 700; }
+
+.metric-input { grid-area: val; display: flex; align-items: baseline; gap: 8px; }
+
+.metric-input input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: 'Oswald', sans-serif;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.1;
+  -moz-appearance: textfield;
+}
+
+.metric-input input::-webkit-outer-spin-button,
+.metric-input input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.metric-input small { color: var(--text3); font-size: 12px; font-weight: 700; }
+
+.gender-tile { cursor: default; }
+.gender-tile .segmented { grid-area: val; }
+
+.segmented {
+  padding: 4px;
+  display: flex;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line2);
+  border-radius: 13px;
+}
+
+.segmented button {
+  height: 34px;
+  padding: 0 14px;
+  flex: 1;
+  color: var(--text2);
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.segmented button:hover { color: #fff; }
+.segmented button.active { color: #fff; background: var(--hl); }
+
+/* ---------- Objetivo ---------- */
+.goal-block { display: flex; flex-direction: column; gap: 12px; }
+
+.goal-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+.goal-card {
+  position: relative;
+  min-width: 0;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease);
+}
+
+.goal-card:hover { background: var(--surface-hover); transform: translateY(-2px); }
+
+.goal-card.active { background: var(--hl-soft); border-color: var(--hl); box-shadow: 0 0 0 1px var(--hl-soft), 0 12px 26px rgba(0, 0, 0, 0.25); }
+
+.goal-ico {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text2);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.goal-ico svg { width: 18px; height: 18px; }
+
+.goal-card.active .goal-ico { color: var(--hl); background: var(--hl-soft); border-color: var(--hl-line); }
+
+.goal-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.goal-copy strong { color: var(--title); font-size: 13px; font-weight: 700; line-height: 1.25; }
+.goal-copy small { color: var(--text3); font-size: 11px; line-height: 1.35; }
+
+.goal-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--hl);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s ease, transform 0.2s var(--ease);
+}
+
+.goal-check svg { width: 11px; height: 11px; stroke-width: 3; }
+.goal-card.active .goal-check { opacity: 1; transform: scale(1); }
+
+.profile-footer {
+  padding-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.profile-footer p { max-width: 460px; margin: 0; color: var(--text3); font-size: 12.5px; line-height: 1.55; }
 
 .btn-calculate-routines,
 .btn-primary-action {
-  min-height: 44px;
-  padding: 0 22px;
+  min-height: 48px;
+  padding: 0 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 10px;
   color: var(--color-texto-botones, #fff);
   cursor: pointer;
   background: var(--color-botones, var(--hl));
   border: 0;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--hl) 25%, transparent);
-  font-size: 13px;
+  border-radius: 14px;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--hl) 30%, transparent);
+  font-size: 13.5px;
   font-weight: 700;
-  transition: filter 0.2s ease, transform 0.2s var(--ease);
+  transition: filter 0.2s ease, transform 0.2s var(--ease), box-shadow 0.2s ease;
 }
 
+.btn-calculate-routines svg { width: 17px; height: 17px; }
+
 .btn-calculate-routines:hover,
-.btn-primary-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-primary-action:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 16px 34px color-mix(in srgb, var(--hl) 38%, transparent); }
 
-.header-divider { height: 1px; background: var(--line); }
+/* =========================================================
+   FILTROS
+========================================================= */
+.filters-bar {
+  position: sticky;
+  top: 82px;
+  z-index: 30;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+}
 
-/* ---------- Filtros ---------- */
-.filters-toolbar { display: flex; flex-direction: column; gap: 18px; }
+.filters-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
-.filters-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.link-btn {
+  padding: 6px 12px;
+  color: var(--hl);
+  cursor: pointer;
+  background: var(--hl-soft);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
 
-.filter-block { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.link-btn:hover { background: var(--hl-mid); border-color: var(--hl-line); }
 
 .chip-filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
@@ -993,10 +1388,38 @@ input:focus-visible {
 }
 
 .filter-chip:hover { color: #fff; background: var(--surface-hover); }
-
 .filter-chip.active { color: #fff; background: var(--hl-mid); border-color: var(--hl-line); }
 
-.equipment-block { width: 260px; }
+.filters-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; }
+
+.level-seg { flex: none; }
+
+.equipment-field { width: 260px; display: flex; flex-direction: column; gap: 7px; }
+
+.styled-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 34px 0 14px;
+  color: #fff;
+  cursor: pointer;
+  appearance: none;
+  color-scheme: dark;
+  background-color: rgba(0, 0, 0, 0.28);
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.364%22%20height%3D%22292.364%22%3E%3Cpath%20fill%3D%22%2360a5fa%22%20d%3D%22M287.9 69.8c-4.3-4.3-11.3-4.3-15.6 0L146.1 195.8 20 69.8c-4.3-4.3-11.3-4.3-15.6 0s-4.3 11.3 0 15.6l133.4 133.4c4.3 4.3 11.3 4.3 15.6 0l133.5-133.4c4.3-4.3 4.3-11.3 0-15.6z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 9px auto;
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  outline: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.styled-select:hover { border-color: rgba(255, 255, 255, 0.25); }
+.styled-select:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.styled-select option { background: #15171b; color: #fff; }
 
 /* =========================================================
    ESTADOS
@@ -1326,21 +1749,36 @@ input:focus-visible {
    RESPONSIVE
 ========================================================= */
 @media (max-width: 1100px) {
-  .anthropometric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .imc-card { max-width: 420px; }
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .goal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .filters-bar { top: 76px; }
 }
 
 @media (max-width: 768px) {
-  .dashboard-main-container { padding: 16px 12px 44px; gap: 20px; }
+  .dashboard-main-container { padding: 16px 12px 44px; gap: 18px; }
   .glass-card { padding: 22px 16px; border-radius: 20px; }
-  .anthropometric-panel { padding: 16px; }
-  .anthropometric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .calculate-action-row { justify-content: stretch; }
-  .btn-calculate-routines { width: 100%; }
-  .equipment-block { width: 100%; }
-  .filters-row { flex-direction: column; align-items: stretch; }
 
-  .chip-filter-row { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 2px; scrollbar-width: none; }
-  .chip-filter-row::-webkit-scrollbar { display: none; }
+  .hero { padding: 22px 16px; border-radius: 20px; gap: 18px; }
+  .hero::after { right: -120px; bottom: -210px; }
+  .imc-card { max-width: none; }
+  .imc-value-row strong { font-size: 44px; }
+
+  .profile-card { padding: 20px 16px; border-radius: 20px; }
+  .metric-input input { font-size: 28px; }
+  .profile-footer { flex-direction: column; align-items: stretch; }
+  .btn-calculate-routines { width: 100%; }
+
+  .filters-bar { top: 70px; padding: 12px; border-radius: 17px; }
+  .zones-row { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 2px; scrollbar-width: none; }
+  .zones-row::-webkit-scrollbar { display: none; }
+  .filters-row { flex-direction: column; align-items: stretch; }
+  .level-seg { overflow-x: auto; scrollbar-width: none; }
+  .equipment-field { width: 100%; }
 
   .body-part-section { padding: 18px 14px; border-radius: 20px; }
   .category-section-header { align-items: flex-start; }
@@ -1349,8 +1787,9 @@ input:focus-visible {
   .card-media { height: 200px; }
 }
 
-@media (max-width: 480px) {
-  .anthropometric-grid { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 520px) {
+  .metrics-grid { grid-template-columns: minmax(0, 1fr); }
+  .goal-grid { grid-template-columns: minmax(0, 1fr); }
   .range-label { display: none; }
 }
 
