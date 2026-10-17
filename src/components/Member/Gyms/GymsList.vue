@@ -3,9 +3,19 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingMember from '../HeadingMember.vue';
 import UpgradeMembershipModal from '../Modals/UpgradeMembershipModal.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 const router = useRouter();
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
+
+/* =========================================================
+   NOTIFICACIONES (mismo componente que Rutinas Semanales)
+========================================================= */
+
+const toastRef = ref(null);
+const notify = (message, type = 'success', duration = 4000) => {
+  toastRef.value?.notify(message, type, duration);
+};
 
 /* =========================================================
    DATOS (de prueba: reemplázalos por los del backend)
@@ -296,7 +306,7 @@ const normalize = (str) =>
     .toString()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[̀-ͯ]/g, '');
 
 const matchesQuery = (gym, q) =>
   !q ||
@@ -338,14 +348,6 @@ const pickState = (estado) => {
 
 const userPos = ref(null);
 const locating = ref(false);
-const geoMessage = ref('');
-let geoTimer = null;
-
-const flashGeo = (msg) => {
-  geoMessage.value = msg;
-  clearTimeout(geoTimer);
-  geoTimer = setTimeout(() => (geoMessage.value = ''), 4500);
-};
 
 const toRad = (deg) => (deg * Math.PI) / 180;
 
@@ -370,7 +372,7 @@ const formatDistance = (gym) => {
 
 const requestLocation = () => {
   if (!navigator.geolocation) {
-    flashGeo(t('geoUnsupported'));
+    notify(t('geoUnsupported'), 'error');
     return;
   }
 
@@ -381,11 +383,11 @@ const requestLocation = () => {
       userPos.value = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       sortBy.value = 'nearest';
       locating.value = false;
-      flashGeo(t('geoOk'));
+      notify(t('geoOk'), 'success');
     },
     () => {
       locating.value = false;
-      flashGeo(t('geoError'));
+      notify(t('geoError'), 'error');
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -517,12 +519,13 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('language-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
-  clearTimeout(geoTimer);
 });
 </script>
 
 <template>
   <HeadingMember>
+    <NotificationSystem ref="toastRef" />
+
     <div class="gyms-page">
       <main class="gyms-container">
 
@@ -683,10 +686,6 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
-
-          <transition name="fade">
-            <div v-if="geoMessage" class="geo-note" role="status">{{ geoMessage }}</div>
-          </transition>
         </section>
 
         <!-- Resultados -->
@@ -1557,16 +1556,6 @@ select:focus-visible,
 
 .chip.active em { color: #fff; }
 
-.geo-note {
-  padding: 9px 14px;
-  color: var(--text2);
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 11px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .results-bar {
   margin: -6px 2px -4px;
   display: flex;
@@ -2094,12 +2083,6 @@ select:focus-visible,
 
 .pop-enter-from,
 .pop-leave-to { opacity: 0; transform: scale(0.96); }
-
-.fade-enter-active,
-.fade-leave-active { transition: opacity 0.25s ease; }
-
-.fade-enter-from,
-.fade-leave-to { opacity: 0; }
 
 /* =========================================================
    RESPONSIVE

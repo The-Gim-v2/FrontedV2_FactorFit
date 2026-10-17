@@ -1,5 +1,7 @@
 <template>
   <HeadingMember>
+  <NotificationSystem ref="toastRef" />
+
   <div class="saas-dashboard-wrapper">
     <main class="dashboard-main-container">
 
@@ -345,8 +347,15 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
 import RoutineDetailModal from '../Modals/RoutineDetailModal.vue';
 import HeadingMember from '../HeadingMember.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 const { lang } = useLang();
+
+// Notificaciones (mismo componente que Rutinas Semanales)
+const toastRef = ref(null);
+const notify = (message, type = 'success', duration = 4000) => {
+  toastRef.value?.notify(message, type, duration);
+};
 
 // PERFIL ANTROPOMÉTRICO
 const userProfile = ref({
@@ -363,6 +372,7 @@ const calculationTriggerKey = ref(0);
 const calculateRoutines = () => {
   hasCalculated.value = true;
   calculationTriggerKey.value++;
+  notify(t.value.calculatedToast, 'success');
 };
 
 const calculatedIMC = computed(() => {
@@ -446,6 +456,9 @@ const traducciones = {
     calcHint: "Tus datos solo se usan para personalizar la selección. Puedes cambiarlos y recalcular cuando quieras.",
     filtersTitle: "Filtrar catálogo",
     clearFilters: "Limpiar filtros",
+    routineSavedToast: "Rutina guardada en tus rutinas.",
+    routineRemovedToast: "Rutina quitada de tus guardados.",
+    calculatedToast: "Rutinas calculadas según tu perfil.",
     goalHints: {
       hypertrophy: "Más masa muscular",
       strength: "Cargas altas, pocas reps",
@@ -538,6 +551,9 @@ const traducciones = {
     calcHint: "Your data is only used to personalize the selection. Change it and recalculate anytime.",
     filtersTitle: "Filter catalog",
     clearFilters: "Clear filters",
+    routineSavedToast: "Routine saved to your routines.",
+    routineRemovedToast: "Routine removed from your saved list.",
+    calculatedToast: "Routines calculated for your profile.",
     goalHints: {
       hypertrophy: "More muscle mass",
       strength: "Heavy loads, low reps",
@@ -838,8 +854,10 @@ const toggleSaveRoutine = (routine) => {
   const index = mySavedRoutines.value.indexOf(routine.id);
   if (index > -1) {
     mySavedRoutines.value.splice(index, 1);
+    notify(t.value.routineRemovedToast, 'info');
   } else {
     mySavedRoutines.value.push(routine.id);
+    notify(t.value.routineSavedToast, 'success');
   }
 };
 

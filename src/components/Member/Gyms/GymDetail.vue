@@ -1,5 +1,7 @@
 <template>
   <HeadingMember>
+    <NotificationSystem ref="toastRef" />
+
     <div class="gym-detail-wrapper">
 
       <!-- Barra superior: regresar + estado -->
@@ -300,19 +302,6 @@
         </aside>
       </div>
 
-      <!-- TOAST -->
-      <transition name="toast-fade">
-        <div v-if="toast.visible" class="custom-toast-notification" role="status">
-          <div class="toast-icon-wrapper">
-            <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-          </div>
-          <span class="toast-message">{{ toast.message }}</span>
-          <button type="button" class="toast-close-btn" @click="toast.visible = false">
-            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </transition>
-
     </div>
   </HeadingMember>
 </template>
@@ -322,6 +311,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import L from 'leaflet';
 import HeadingMember from '../HeadingMember.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-routing-machine';
 import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
@@ -339,16 +329,10 @@ const hasActiveRoute = ref(false);
 const showInstructions = ref(true);
 const routeInfo = ref(null);
 
-/* ---------- Toast ---------- */
-const toast = ref({ visible: false, message: '', timer: null });
-
-const showToast = (message) => {
-  if (toast.value.timer) clearTimeout(toast.value.timer);
-  toast.value.message = message;
-  toast.value.visible = true;
-  toast.value.timer = setTimeout(() => {
-    toast.value.visible = false;
-  }, 4000);
+/* ---------- Notificaciones (mismo componente que Rutinas Semanales) ---------- */
+const toastRef = ref(null);
+const notify = (message, type = 'success', duration = 4000) => {
+  toastRef.value?.notify(message, type, duration);
 };
 
 /* ---------- Datos ---------- */
@@ -493,7 +477,7 @@ const updateMapLocation = (branch) => {
 
 const calculateRouteFromCurrentLocation = () => {
   if (!navigator.geolocation) {
-    alert(t('geoUnsupported'));
+    notify(t('geoUnsupported'), 'error');
     return;
   }
 
@@ -536,7 +520,7 @@ const calculateRouteFromCurrentLocation = () => {
     },
     (error) => {
       console.error(error);
-      alert(t('geoError'));
+      notify(t('geoError'), 'error');
     },
     { enableHighAccuracy: true }
   );
@@ -555,13 +539,13 @@ const clearRoute = () => updateBranchMarkerOnly();
 const recenterMap = () => {
   if (!map) return;
   map.setView([currentBranch.value.lat, currentBranch.value.lng], 16, { animate: true });
-  showToast(`${t('centeredOn')} ${currentBranch.value.name}`);
+  notify(`${t('centeredOn')} ${currentBranch.value.name}`, 'info');
 };
 
 const handleJoin = () => {
   if (isEnrolled.value) return;
   enrolledBranchIds.value.push(currentBranch.value.id);
-  showToast(`${t('joinedOk')} ${currentBranch.value.name}`);
+  notify(`${t('joinedOk')} ${currentBranch.value.name}`, 'success');
 };
 
 const contactOwner = () => {
@@ -658,7 +642,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (toast.value.timer) clearTimeout(toast.value.timer);
   if (map) map.remove();
 });
 </script>
@@ -1487,62 +1470,8 @@ a:focus-visible,
 .cta-main-btn:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 18px 36px color-mix(in srgb, var(--hl) 38%, transparent); }
 
 /* =========================================================
-   TOAST
+   TRANSICIONES
 ========================================================= */
-.custom-toast-notification {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 9999;
-  max-width: 400px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #fff;
-  background: #10b981;
-  border-radius: 14px;
-  box-shadow: 0 14px 34px rgba(16, 185, 129, 0.4);
-  font-size: 13.5px;
-  font-weight: 600;
-}
-
-.toast-icon-wrapper {
-  width: 26px;
-  height: 26px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
-}
-
-.toast-icon-wrapper svg { width: 14px; height: 14px; stroke-width: 3; }
-
-.toast-message { flex: 1; line-height: 1.4; overflow-wrap: anywhere; }
-
-.toast-close-btn {
-  width: 24px;
-  height: 24px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: pointer;
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-}
-
-.toast-close-btn svg { width: 14px; height: 14px; }
-.toast-close-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.15); }
-
-.toast-fade-enter-active,
-.toast-fade-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
-
-.toast-fade-enter-from,
-.toast-fade-leave-to { opacity: 0; transform: translateY(-16px); }
-
 .fade-enter-active,
 .fade-leave-active { transition: opacity 0.25s ease; }
 
@@ -1590,8 +1519,6 @@ a:focus-visible,
 
   .map-container-inner { height: 300px; }
   .route-summary small { width: 100%; margin-left: 0; }
-
-  .custom-toast-notification { top: 12px; right: 12px; left: 12px; max-width: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

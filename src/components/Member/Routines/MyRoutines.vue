@@ -1,71 +1,133 @@
 <template>
-    <HeadingMember>
+  <HeadingMember>
+  <NotificationSystem ref="toastRef" />
+
   <div class="weekly-wrapper">
     <main class="weekly-main">
 
-      <!-- HEADER -->
-      <section id="tutorial-1" class="glass-card header-card">
-        <div class="header-top-row">
-          <span class="gym-badge-tag">{{ t.planTag }}</span>
-          <transition name="fade">
-            <span v-if="savedConfirmation" class="saved-toast">✓ {{ t.savedToast }}</span>
-          </transition>
-        </div>
+      <!-- 1. HERO -->
+      <section id="tutorial-1" class="hero">
+        <div class="hero-main">
+          <div class="hero-top">
+            <span class="eyebrow">{{ t.planTag }}</span>
+          </div>
 
-        <div class="header-titles">
           <h1 class="main-heading">
             {{ t.mainTitle1 }} <span class="highlight-color">{{ t.mainTitle2 }}</span>
           </h1>
           <p class="hero-desc">{{ t.heroDesc }}</p>
-        </div>
 
-        <div id="tutorial-2" class="summary-row">
-          <div class="summary-pill">
-            <svg class="summary-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            <span class="summary-num">{{ summary.trainingDays }}</span>
-            <span class="summary-label">{{ t.summaryTrainingDays }}</span>
-          </div>
-          <div class="summary-pill rest-pill">
-            <svg class="summary-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            <span class="summary-num">{{ summary.restDays }}</span>
-            <span class="summary-label">{{ t.summaryRestDays }}</span>
-          </div>
-          <div class="summary-pill">
-            <svg class="summary-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-            <span class="summary-num">{{ summary.totalExercises }}</span>
-            <span class="summary-label">{{ t.summaryExercises }}</span>
+          <div id="tutorial-3" class="hero-actions">
+            <button type="button" class="btn-primary-action" @click="saveWeeklyPlan">
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+              {{ t.saveBtn }}
+            </button>
+            <button type="button" class="btn-ghost" @click="openGenerateModal">
+              <svg viewBox="0 0 24 24"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+              {{ t.generateBtn }}
+            </button>
           </div>
         </div>
 
-        <div id="tutorial-3" class="header-actions-row">
-          <button class="btn-secondary-action" @click="openGenerateModal">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
-            {{ t.generateBtn }}
-          </button>
-          <button class="btn-primary-action" @click="saveWeeklyPlan">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            {{ t.saveBtn }}
-          </button>
-        </div>
+        <!-- Anillo de progreso -->
+        <aside class="week-ring-card">
+          <div class="ring-wrap">
+            <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+              <circle class="ring-bg" cx="50" cy="50" r="44"/>
+              <circle class="ring-fg" cx="50" cy="50" r="44" :style="{ strokeDashoffset: ringOffset }"/>
+            </svg>
+            <div class="ring-center">
+              <strong>{{ summary.trainingDays }}</strong>
+              <span>{{ t.ofSeven }}</span>
+            </div>
+          </div>
+          <div class="ring-copy">
+            <strong>{{ t.summaryTrainingDays }}</strong>
+            <span>{{ summary.totalExercises }} {{ t.summaryExercises.toLowerCase() }}</span>
+          </div>
+        </aside>
       </section>
 
-      <!-- LAYOUT: BIBLIOTECA + DÍA ENFOCADO -->
+      <!-- 2. INDICADORES -->
+      <section id="tutorial-2" class="kpi-grid">
+        <article class="kpi-card">
+          <div class="kpi-icon accent">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </div>
+          <div class="kpi-body">
+            <strong>{{ summary.trainingDays }}</strong>
+            <span>{{ t.summaryTrainingDays }}</span>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon muted">
+            <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </div>
+          <div class="kpi-body">
+            <strong>{{ summary.restDays }}</strong>
+            <span>{{ t.summaryRestDays }}</span>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <div class="kpi-icon success">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
+          </div>
+          <div class="kpi-body">
+            <strong>{{ summary.totalExercises }}</strong>
+            <span>{{ t.summaryExercises }}</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- 3. TIRA DE LA SEMANA -->
+      <section id="tutorial-5" class="week-strip" role="tablist">
+        <button
+          v-for="day in dayKeys"
+          :key="day"
+          type="button"
+          role="tab"
+          :aria-selected="selectedDay === day"
+          class="week-day"
+          :class="{
+            active: selectedDay === day,
+            rest: weeklyPlan[day].isRest,
+            filled: !weeklyPlan[day].isRest && weeklyPlan[day].routines.length
+          }"
+          @click="selectedDay = day"
+        >
+          <span class="wd-name">{{ t.daysShort[day] }}</span>
+          <span v-if="day === todayKey" class="wd-today">{{ t.todayLabel }}</span>
+          <strong class="wd-count">
+            <template v-if="weeklyPlan[day].isRest">—</template>
+            <template v-else>{{ weeklyPlan[day].routines.length }}</template>
+          </strong>
+          <span class="wd-state">
+            {{ weeklyPlan[day].isRest ? t.restShort : t.exercisesShort }}
+          </span>
+        </button>
+      </section>
+
+      <!-- 4. BIBLIOTECA + DÍA -->
       <div class="planner-layout">
 
-        <!-- BIBLIOTECA DE RUTINAS GUARDADAS -->
-        <aside id="tutorial-4" class="glass-card library-panel">
-          <h3 class="panel-heading">{{ t.libraryTitle }}</h3>
-          <p class="hero-desc small">{{ t.libraryDesc }}</p>
+        <!-- BIBLIOTECA -->
+        <aside id="tutorial-4" class="panel library-panel">
+          <header class="panel-head">
+            <div class="block-icon">
+              <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>
+              <h3>{{ t.libraryTitle }}</h3>
+              <p>{{ props.savedRoutines.length }} · {{ t.libraryDesc }}</p>
+            </div>
+          </header>
 
-          <div class="search-input-wrapper">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input
-              type="text"
-              class="styled-input"
-              v-model="libraryFilterText"
-              :placeholder="t.searchPlaceholder"
-            />
-          </div>
+          <label class="search-box">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" v-model="libraryFilterText" :placeholder="t.searchPlaceholder" />
+          </label>
 
           <div class="library-list custom-scrollbar">
             <div
@@ -74,7 +136,7 @@
               class="mini-routine-card"
               draggable="true"
               @dragstart="onDragStart($event, routine, { type: 'library' })"
-              @click="openDetail(routine)"
+              @click="viewRoutineDetails(routine)"
             >
               <img
                 class="mini-thumb"
@@ -83,6 +145,7 @@
                 loading="lazy"
                 @error="(e) => { e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=200'; }"
               />
+
               <div class="mini-info">
                 <span class="mini-name">{{ routine.name }}</span>
                 <div class="mini-badges-row">
@@ -92,11 +155,11 @@
               </div>
 
               <div class="mini-card-actions" @click.stop>
-                <button class="add-to-day-btn" @click="toggleAddMenu(routine.id, $event)">
-                  {{ t.addToDayBtn }} <span class="chevron">▾</span>
+                <button type="button" class="add-to-day-btn" :title="t.addToDayBtn" @click="toggleAddMenu(routine.id, $event)">
+                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
                 <div class="add-day-dropdown" v-if="openAddMenuId === routine.id">
-                  <button v-for="day in dayKeys" :key="day" @click="addRoutineToDay(day, routine)">
+                  <button v-for="day in dayKeys" :key="day" type="button" @click="addRoutineToDay(day, routine)">
                     {{ t.daysShort[day] }}
                   </button>
                 </div>
@@ -109,243 +172,224 @@
           </div>
         </aside>
 
-        <!-- PANEL DE DÍA ENFOCADO -->
-        <section class="week-focus-panel">
-
-          <div id="tutorial-5" class="day-selector-bar glass-card">
-            <div class="day-select-field">
-              <label class="filter-group-title">{{ t.selectDayLabel }}</label>
-              <div class="select-wrapper">
-                <select v-model="selectedDay" class="styled-select">
-                  <option v-for="day in dayKeys" :key="day" :value="day">
-                    {{ t.days[day] }}{{ weeklyPlan[day].isRest ? ' · ' + t.restDayLabel : (weeklyPlan[day].routines.length ? ' · ' + weeklyPlan[day].routines.length + ' ' + t.exercisesShort : '') }}
-                  </option>
-                </select>
+        <!-- PANEL DEL DÍA -->
+        <section
+          id="tutorial-6"
+          class="panel day-detail-card"
+          :class="{ 'is-drop-target': draggingItem }"
+          @dragover.prevent
+          @drop="onDropToDay($event, selectedDay)"
+        >
+          <header class="day-detail-header">
+            <div class="day-title-group">
+              <div class="block-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
               </div>
+              <div>
+                <span class="section-eyebrow">{{ selectedDay === todayKey ? t.todayLabel.toUpperCase() : t.daysShort[selectedDay].toUpperCase() }}</span>
+                <h2 class="day-detail-title">{{ t.days[selectedDay] }}</h2>
+              </div>
+              <span class="count-pill" v-if="!weeklyPlan[selectedDay].isRest">
+                {{ weeklyPlan[selectedDay].routines.length }} {{ t.resultsLabel }}
+              </span>
             </div>
 
-            <div class="day-chips-strip">
+            <div class="day-detail-actions">
+              <label class="rest-toggle">
+                <span class="switch">
+                  <input type="checkbox" v-model="weeklyPlan[selectedDay].isRest" @change="onToggleRest(selectedDay)" />
+                  <i></i>
+                </span>
+                <span>{{ t.restDayLabel }}</span>
+              </label>
+
               <button
-                v-for="day in dayKeys"
-                :key="day"
-                class="day-strip-chip"
-                :class="{ active: selectedDay === day, 'is-rest': weeklyPlan[day].isRest, 'has-routines': !weeklyPlan[day].isRest && weeklyPlan[day].routines.length }"
-                @click="selectedDay = day"
+                v-if="!weeklyPlan[selectedDay].isRest && weeklyPlan[selectedDay].routines.length"
+                type="button"
+                class="clear-day-btn"
+                :title="t.clearDayBtn"
+                :aria-label="t.clearDayBtn"
+                @click="clearDay(selectedDay)"
               >
-                <span class="strip-day-label">{{ t.daysShort[day] }}</span>
-                <span class="strip-dot"></span>
+                <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>
+          </header>
+
+          <div v-if="weeklyPlan[selectedDay].isRest" class="state-box">
+            <div class="waiting-icon-ring">
+              <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </div>
+            <h3>{{ t.restDayBoxTitle }}</h3>
+            <p>{{ t.restDayBoxText }}</p>
           </div>
 
-          <div
-            id="tutorial-6"
-            class="day-detail-card glass-card"
-            :class="{ 'is-drop-target': draggingItem }"
-            @dragover.prevent
-            @drop="onDropToDay($event, selectedDay)"
-          >
-            <div class="day-detail-header">
-              <div class="day-detail-title-group">
-                <h2 class="day-detail-title">{{ t.days[selectedDay] }}</h2>
-                <span class="section-count-badge" v-if="!weeklyPlan[selectedDay].isRest">
-                  {{ weeklyPlan[selectedDay].routines.length }} {{ t.resultsLabel }}
-                </span>
-              </div>
-              <div class="day-detail-actions">
-                <label class="rest-toggle">
-                  <input type="checkbox" v-model="weeklyPlan[selectedDay].isRest" @change="onToggleRest(selectedDay)" />
-                  <span>{{ t.restDayLabel }}</span>
-                </label>
-                <button
-                  v-if="!weeklyPlan[selectedDay].isRest && weeklyPlan[selectedDay].routines.length"
-                  class="clear-day-btn"
-                  @click="clearDay(selectedDay)"
-                  :title="t.clearDayBtn"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
-              </div>
+          <div v-else-if="!weeklyPlan[selectedDay].routines.length" class="state-box dashed">
+            <div class="waiting-icon-ring">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             </div>
+            <p>{{ t.dropHint }}</p>
+          </div>
 
-            <div v-if="weeklyPlan[selectedDay].isRest" class="rest-day-box big">
-              <div class="waiting-icon-ring">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-              </div>
-              <h3>{{ t.restDayBoxTitle }}</h3>
-              <p>{{ t.restDayBoxText }}</p>
-            </div>
+          <div v-else id="tutorial-7" class="routines-grid">
+            <article
+              v-for="(routine, idx) in weeklyPlan[selectedDay].routines"
+              :key="routine.instanceId || routine.id"
+              class="routine-card"
+              draggable="true"
+              @dragstart="onDragStart($event, routine, { type: 'day', day: selectedDay, index: idx })"
+            >
+              <div class="card-media">
+                <img
+                  :src="getRoutineMediaSrc(routine)"
+                  :alt="routine.name"
+                  loading="lazy"
+                  @error="(e) => { e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=800'; }"
+                />
+                <div class="media-overlay"></div>
 
-            <div v-else-if="!weeklyPlan[selectedDay].routines.length" class="day-empty-drop big">
-              <div class="waiting-icon-ring">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-              </div>
-              <p>{{ t.dropHint }}</p>
-            </div>
-
-            <!-- GRILLA DE RUTINAS -->
-            <div v-else id="tutorial-7" class="routines-grid">
-              <div
-                v-for="(routine, idx) in weeklyPlan[selectedDay].routines"
-                :key="routine.instanceId || routine.id"
-                class="routine-card"
-                draggable="true"
-                @dragstart="onDragStart($event, routine, { type: 'day', day: selectedDay, index: idx })"
-              >
-                <!-- Contenedor de Imagen e Insignias -->
-                <div class="card-media">
-                  <img :src="getRoutineMediaSrc(routine)" :alt="routine.name" loading="lazy" @error="(e) => { e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=800'; }">
-                  <div class="media-overlay"></div>
-                  
-                  <div class="badge-container">
-                    <span class="badge-level">{{ translateLevel(routine.level) }}</span>
-                    <span class="badge-goal">{{ routine.target }}</span>
-                  </div>
-
-                  <!-- ACCIONES SUPERIORES DE LA TARJETA -->
-                  <div class="media-actions" style="display: flex; gap: 6px;">
-                    <button 
-                      class="icon-action-btn delete-btn" 
-                      @click="removeRoutineFromDay(selectedDay, idx)"
-                      title="Borrar de la rutina">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-
-                    <div style="position: relative;" @click.stop>
-                      <button 
-                        class="icon-action-btn move-btn" 
-                        @click="toggleMoveMenu(routine.instanceId || routine.id, $event)"
-                        title="Mover a otro día">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
-                      </button>
-                      <div class="add-day-dropdown" v-if="openMoveMenuId === (routine.instanceId || routine.id)" style="right: 0; left: auto; top: 100%;">
-                        <button v-for="day in dayKeys" :key="day" @click="moveRoutineToDay(selectedDay, idx, day, routine)">
-                          {{ t.days[day] }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                <div class="badge-container">
+                  <span class="badge-level">{{ translateLevel(routine.level) }}</span>
+                  <span class="badge-order">#{{ idx + 1 }}</span>
                 </div>
 
-                <!-- Cuerpo de la Tarjeta -->
-                <div class="card-body">
-                  <h3 class="card-title-routine">{{ routine.name }}</h3>
-                  <p class="routine-desc">{{ getRoutineDescription(routine) }}</p>
-
-                  <div class="quick-prescription-pill">
-                    <div class="pill-item">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-                      <span><strong>{{ getPrescribedSets(routine) }}</strong> series</span>
-                    </div>
-                    <div class="pill-divider"></div>
-                    <div class="pill-item">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                      <span><strong>{{ getPrescribedReps(routine) }}</strong></span>
-                    </div>
-                  </div>
-
-                  <div class="routine-stats">
-                    <div class="stat-item">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                      <span>{{ t.muscleLabel }}: <strong>{{ routine.target }}</strong></span>
+                <div class="media-actions">
+                  <div class="move-wrap" @click.stop>
+                    <button
+                      type="button"
+                      class="icon-action-btn move-btn"
+                      :title="t.moveTitle"
+                      :aria-label="t.moveTitle"
+                      @click="toggleMoveMenu(routine.instanceId || routine.id, $event)"
+                    >
+                      <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                    <div class="add-day-dropdown move-dropdown" v-if="openMoveMenuId === (routine.instanceId || routine.id)">
+                      <button v-for="day in dayKeys" :key="day" type="button" @click="moveRoutineToDay(selectedDay, idx, day, routine)">
+                        {{ t.daysShort[day] }}
+                      </button>
                     </div>
                   </div>
 
-                  <button class="btn-explore" @click="viewRoutineDetails(routine)">
-                    {{ t.viewDetails }}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                  <button
+                    type="button"
+                    class="icon-action-btn delete-btn"
+                    :title="t.removeTitle"
+                    :aria-label="t.removeTitle"
+                    @click="removeRoutineFromDay(selectedDay, idx)"
+                  >
+                    <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
-
               </div>
-            </div>
 
+              <div class="card-body">
+                <h3 class="card-title-routine">{{ routine.name }}</h3>
+                <span class="muscle-tag">{{ t.muscleLabel }}: <strong>{{ routine.target }}</strong></span>
+                <p class="routine-desc">{{ getRoutineDescription(routine) }}</p>
+
+                <div class="quick-prescription-pill">
+                  <div class="pill-item">
+                    <span class="pill-value">{{ getPrescribedSets(routine) }}</span>
+                    <span class="pill-label">{{ t.setsShort }}</span>
+                  </div>
+                  <div class="pill-divider"></div>
+                  <div class="pill-item">
+                    <span class="pill-value">{{ getPrescribedReps(routine) }}</span>
+                    <span class="pill-label">{{ t.repsShort }}</span>
+                  </div>
+                </div>
+
+                <button type="button" class="btn-explore" @click="viewRoutineDetails(routine)">
+                  {{ t.viewDetails }}
+                  <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            </article>
           </div>
         </section>
       </div>
 
       <!-- ESTADO VACÍO GLOBAL -->
-      <div id="tutorial-8" v-if="!props.savedRoutines.length" class="waiting-calculation-box glass-card">
+      <div id="tutorial-8" v-if="!props.savedRoutines.length" class="panel global-empty">
         <div class="waiting-icon-ring">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </div>
         <h3>{{ t.emptyGlobalTitle }}</h3>
         <p>{{ t.emptyGlobalDesc }}</p>
       </div>
 
-
     </main>
 
-    <!-- MODAL: GENERAR SEMANA AUTOMÁTICAMENTE -->
-    <div class="modal-backdrop" v-if="showGenerateModal" @click.self="showGenerateModal = false">
-      <div class="modal-content glass-card small-modal custom-scrollbar">
-        <div class="modal-header">
-          <div class="modal-title-group">
-            <h2>{{ t.modalGenerateTitle }}</h2>
+    <!-- MODAL: GENERAR SEMANA -->
+    <transition name="pop">
+      <div class="modal-backdrop" v-if="showGenerateModal" @click.self="showGenerateModal = false">
+        <div class="modal-content custom-scrollbar" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <div>
+              <span class="section-eyebrow">{{ t.planTag.toUpperCase() }}</span>
+              <h2>{{ t.modalGenerateTitle }}</h2>
+            </div>
+            <button type="button" class="close-btn" @click="showGenerateModal = false">&times;</button>
           </div>
-          <button class="close-btn" @click="showGenerateModal = false">&times;</button>
-        </div>
 
-        <p class="modal-desc">{{ t.modalGenerateDesc }}</p>
+          <p class="modal-desc">{{ t.modalGenerateDesc }}</p>
 
-        <div class="gen-section">
-          <span class="gen-section-title">{{ t.chooseDaysLabel }}</span>
-          <div class="day-chips-row">
-            <button
-              v-for="day in dayKeys"
-              :key="day"
-              class="day-chip"
-              :class="{ active: genSelectedDays.includes(day) }"
-              @click="toggleGenDay(day)"
-            >
-              {{ t.daysShort[day] }}
+          <div class="gen-section">
+            <span class="gen-section-title">{{ t.chooseDaysLabel }}</span>
+            <div class="day-chips-row">
+              <button
+                v-for="day in dayKeys"
+                :key="day"
+                type="button"
+                class="day-chip"
+                :class="{ active: genSelectedDays.includes(day) }"
+                @click="toggleGenDay(day)"
+              >{{ t.daysShort[day] }}</button>
+            </div>
+            <p class="gen-hint">{{ t.chooseDaysHint(genSelectedDays.length) }}</p>
+          </div>
+
+          <div class="gen-section">
+            <span class="gen-section-title">{{ t.sourceLabel }}</span>
+            <div class="source-options-row">
+              <label class="source-option" :class="{ active: genSource === 'saved' }">
+                <input type="radio" value="saved" v-model="genSource" />{{ t.sourceSaved }}
+              </label>
+              <label class="source-option" :class="{ active: genSource === 'library' }">
+                <input type="radio" value="library" v-model="genSource" />{{ t.sourceLibrary }}
+              </label>
+              <label class="source-option" :class="{ active: genSource === 'both' }">
+                <input type="radio" value="both" v-model="genSource" />{{ t.sourceBoth }}
+              </label>
+            </div>
+          </div>
+
+          <div class="gen-section">
+            <span class="gen-section-title">{{ t.goalPerDay }}</span>
+            <div class="day-goal-list">
+              <div v-for="day in genSelectedDays" :key="day" class="day-goal-row">
+                <span class="day-goal-name">{{ t.days[day] }}</span>
+                <select v-model="dayGoals[day]" class="styled-select day-goal-select">
+                  <option value="hypertrophy">{{ t.goals.hypertrophy }}</option>
+                  <option value="strength">{{ t.goals.strength }}</option>
+                  <option value="endurance">{{ t.goals.endurance }}</option>
+                  <option value="fat_loss">{{ t.goals.fat_loss }}</option>
+                </select>
+              </div>
+              <p v-if="!genSelectedDays.length" class="gen-hint">{{ t.selectDaysFirst }}</p>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-ghost" @click="showGenerateModal = false">{{ t.cancelBtn }}</button>
+            <button type="button" class="btn-primary-action" :disabled="!genSelectedDays.length" @click="generateWeeklyPlan">
+              {{ t.generateConfirmBtn }}
             </button>
           </div>
-          <p class="gen-hint">{{ t.chooseDaysHint(genSelectedDays.length) }}</p>
-        </div>
-
-        <div class="gen-section">
-          <span class="gen-section-title">{{ t.sourceLabel }}</span>
-          <div class="source-options-row">
-            <label class="source-option" :class="{ active: genSource === 'saved' }">
-              <input type="radio" value="saved" v-model="genSource" />
-              {{ t.sourceSaved }}
-            </label>
-            <label class="source-option" :class="{ active: genSource === 'library' }">
-              <input type="radio" value="library" v-model="genSource" />
-              {{ t.sourceLibrary }}
-            </label>
-            <label class="source-option" :class="{ active: genSource === 'both' }">
-              <input type="radio" value="both" v-model="genSource" />
-              {{ t.sourceBoth }}
-            </label>
-          </div>
-        </div>
-
-        <div class="gen-section">
-          <span class="gen-section-title">{{ t.goalLabelRecap }} por Día</span>
-          <div class="day-goal-selects-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
-            <div v-for="day in genSelectedDays" :key="day" class="day-goal-row">
-              <span class="day-goal-name">{{ t.days[day] }}</span>
-              <select v-model="dayGoals[day]" class="styled-select day-goal-select">
-                <option value="hypertrophy">{{ t.goals.hypertrophy }}</option>
-                <option value="strength">{{ t.goals.strength }}</option>
-                <option value="endurance">{{ t.goals.endurance }}</option>
-                <option value="fat_loss">{{ t.goals.fat_loss }}</option>
-              </select>
-            </div>
-            <p v-if="!genSelectedDays.length" class="gen-hint">Selecciona días de entrenamiento arriba para configurar sus objetivos.</p>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-primary-action" :disabled="!genSelectedDays.length" @click="generateWeeklyPlan">
-            {{ t.generateConfirmBtn }}
-          </button>
-          <button class="btn-secondary" @click="showGenerateModal = false">{{ t.cancelBtn }}</button>
         </div>
       </div>
-    </div>
+    </transition>
 
     <!-- MODAL DE DETALLES -->
     <RoutineDetailModal
@@ -360,6 +404,7 @@
       :prescribedRest="getPrescribedRest(selectedRoutine)"
       :translateLevel="translateLevel"
       @close="selectedRoutine = null"
+      @toggle-save="(r) => emit('toggle-save-routine', r)"
     />
 
   </div>
@@ -369,8 +414,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
-import RoutineDetailModal from '../Modals/RoutineDetailModalSM.vue';
+import RoutineDetailModal from '../Modals/RoutineDetailModal.vue';
 import HeadingMember from '../HeadingMember.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 const { lang } = useLang();
 
@@ -384,38 +430,54 @@ const props = defineProps({
   initialWeeklyPlan: { type: Object, default: null }
 });
 
-const emit = defineEmits(['save-weekly-plan']);
+const emit = defineEmits(['save-weekly-plan', 'toggle-save-routine']);
 
 const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+// Notificaciones (mismo componente que usa el registro de clientes)
+const toastRef = ref(null);
+const notify = (message, type = 'success', duration = 4000) => {
+  toastRef.value?.notify(message, type, duration);
+};
+
+// Día actual (para marcar "Hoy" en la tira de la semana)
+const todayKey = dayKeys[(new Date().getDay() + 6) % 7];
 
 // -------------------- TRADUCCIONES --------------------
 const traducciones = {
   es: {
     planTag: 'Mi Plan Semanal',
-    savedToast: 'Guardado',
+    savedToast: 'Plan semanal guardado correctamente.',
+    generatedToast: 'Semana generada correctamente.',
+    addedToast: (day) => `Rutina añadida al ${day}.`,
+    movedToast: (day) => `Rutina movida al ${day}.`,
+    removedToast: 'Rutina quitada del día.',
+    clearedToast: 'Día vaciado correctamente.',
     mainTitle1: 'Rutinas',
     mainTitle2: 'Semanales',
     heroDesc: 'Elige un día, revisa o arma su rutina, y muévela a otro día cuando quieras.',
     summaryTrainingDays: 'Días de entrenamiento',
     summaryRestDays: 'Días de descanso',
     summaryExercises: 'Ejercicios asignados',
+    ofSeven: 'de 7 días',
+    todayLabel: 'Hoy',
+    restShort: 'descanso',
     generateBtn: 'Generar Semana Automática',
     saveBtn: 'Guardar Plan Semanal',
     libraryTitle: 'Mis Rutinas Guardadas',
-    libraryDesc: 'Arrastra una rutina hacia el día seleccionado o usa "Añadir a día".',
+    libraryDesc: 'Arrastra una al día o usa +',
     searchPlaceholder: 'Buscar rutina...',
     addToDayBtn: 'Añadir a día',
-    moveToBtn: 'Mover a',
-    removeBtn: 'Quitar',
+    moveTitle: 'Mover a otro día',
+    removeTitle: 'Quitar de este día',
     noSavedRoutines: 'Aún no has guardado rutinas del catálogo.',
     noMatchFilter: 'Ninguna rutina coincide con la búsqueda.',
-    selectDayLabel: 'Ver rutina del día',
     exercisesShort: 'ejerc.',
     resultsLabel: 'ejercicios programados',
     restDayLabel: 'Día de descanso',
     restDayBoxTitle: 'Día de descanso',
-    restDayBoxText: 'No hay ejercicios programados para hoy. El cuerpo también entrena descansando.',
-    dropHint: 'Arrastra una rutina desde la biblioteca o usa "Añadir a día" para llenar este día.',
+    restDayBoxText: 'No hay ejercicios programados para este día. El cuerpo también entrena descansando.',
+    dropHint: 'Arrastra una rutina desde la biblioteca o usa el botón + para llenar este día.',
     clearDayBtn: 'Vaciar día',
     emptyGlobalTitle: 'Todavía no tienes rutinas guardadas',
     emptyGlobalDesc: 'Ve al catálogo, calcula tus rutinas recomendadas y guarda las que quieras entrenar. Aparecerán aquí para armar tu semana.',
@@ -427,7 +489,8 @@ const traducciones = {
     sourceSaved: 'Solo mis guardados',
     sourceLibrary: 'Todo el catálogo',
     sourceBoth: 'Ambos',
-    goalLabelRecap: 'Objetivo actual',
+    goalPerDay: 'Objetivo por día',
+    selectDaysFirst: 'Selecciona días de entrenamiento arriba para configurar sus objetivos.',
     generateConfirmBtn: 'Generar Rutina',
     cancelBtn: 'Cancelar',
     setsLabel: 'Series sugeridas',
@@ -437,6 +500,8 @@ const traducciones = {
     closeBtn: 'Cerrar',
     viewDetails: 'Ver Detalle Completo',
     muscleLabel: 'Músculo',
+    setsShort: 'series',
+    repsShort: 'repeticiones',
     days: { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' },
     daysShort: { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb', sun: 'Dom' },
     levelBeginner: 'Principiante',
@@ -455,30 +520,37 @@ const traducciones = {
   },
   en: {
     planTag: 'My Weekly Plan',
-    savedToast: 'Saved',
+    savedToast: 'Weekly plan saved successfully.',
+    generatedToast: 'Week generated successfully.',
+    addedToast: (day) => `Routine added to ${day}.`,
+    movedToast: (day) => `Routine moved to ${day}.`,
+    removedToast: 'Routine removed from the day.',
+    clearedToast: 'Day cleared successfully.',
     mainTitle1: 'Weekly',
     mainTitle2: 'Routines',
     heroDesc: 'Pick a day, review or build its routine, and move it to another day anytime.',
     summaryTrainingDays: 'Training days',
     summaryRestDays: 'Rest days',
     summaryExercises: 'Assigned exercises',
+    ofSeven: 'of 7 days',
+    todayLabel: 'Today',
+    restShort: 'rest',
     generateBtn: 'Auto-Generate Week',
     saveBtn: 'Save Weekly Plan',
     libraryTitle: 'My Saved Routines',
-    libraryDesc: 'Drag a routine onto the selected day or use "Add to day".',
+    libraryDesc: 'Drag one to a day or use +',
     searchPlaceholder: 'Search routine...',
     addToDayBtn: 'Add to day',
-    moveToBtn: 'Move to',
-    removeBtn: 'Remove',
+    moveTitle: 'Move to another day',
+    removeTitle: 'Remove from this day',
     noSavedRoutines: "You haven't saved any routines from the catalog yet.",
     noMatchFilter: 'No routines match your search.',
-    selectDayLabel: 'View day routine',
     exercisesShort: 'ex.',
     resultsLabel: 'scheduled exercises',
     restDayLabel: 'Rest day',
     restDayBoxTitle: 'Rest day',
-    restDayBoxText: 'No exercises scheduled for today. The body trains by resting too.',
-    dropHint: 'Drag a routine from the library or use "Add to day" to fill this day.',
+    restDayBoxText: 'No exercises scheduled for this day. The body trains by resting too.',
+    dropHint: 'Drag a routine from the library or use the + button to fill this day.',
     clearDayBtn: 'Clear day',
     emptyGlobalTitle: "You don't have any saved routines yet",
     emptyGlobalDesc: 'Go to the catalog, calculate your recommended routines and save the ones you want to train. They will show up here to build your week.',
@@ -490,7 +562,8 @@ const traducciones = {
     sourceSaved: 'Saved only',
     sourceLibrary: 'Full catalog',
     sourceBoth: 'Both',
-    goalLabelRecap: 'Current goal',
+    goalPerDay: 'Goal per day',
+    selectDaysFirst: 'Select training days above to set their goals.',
     generateConfirmBtn: 'Generate Routine',
     cancelBtn: 'Cancel',
     setsLabel: 'Suggested Sets',
@@ -500,6 +573,8 @@ const traducciones = {
     closeBtn: 'Close',
     viewDetails: 'View Full Details',
     muscleLabel: 'Muscle',
+    setsShort: 'sets',
+    repsShort: 'repetitions',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' },
     daysShort: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
     levelBeginner: 'Beginner',
@@ -611,7 +686,6 @@ const weeklyPlan = reactive(
 );
 
 const selectedDay = ref('mon');
-const savedConfirmation = ref(false);
 
 const showGenerateModal = ref(false);
 const genSelectedDays = ref(['mon', 'wed', 'fri']);
@@ -642,7 +716,7 @@ const generateWeeklyPlan = () => {
       if (genSource.value === 'saved' || genSource.value === 'both') pool = pool.concat(props.savedRoutines);
       if (genSource.value === 'library' || genSource.value === 'both') pool = pool.concat(props.routineLibrary);
       if (!pool.length) pool = simulatedSavedRoutines.value;
-      
+
       if (pool.length) {
         const shuffled = [...pool].sort(() => 0.5 - Math.random());
         const selectedSlice = shuffled.slice(0, 3);
@@ -657,12 +731,12 @@ const generateWeeklyPlan = () => {
     }
   });
   showGenerateModal.value = false;
+  notify(t.value.generatedToast, 'success');
 };
 
 const saveWeeklyPlan = () => {
   emit('save-weekly-plan', JSON.parse(JSON.stringify(weeklyPlan)));
-  savedConfirmation.value = true;
-  setTimeout(() => { savedConfirmation.value = false; }, 3000);
+  notify(t.value.savedToast, 'success');
 };
 
 const summary = computed(() => {
@@ -673,6 +747,10 @@ const summary = computed(() => {
   });
   return { trainingDays, restDays, totalExercises };
 });
+
+// Anillo de progreso (circunferencia con r = 44)
+const RING_LENGTH = 2 * Math.PI * 44;
+const ringOffset = computed(() => RING_LENGTH * (1 - summary.value.trainingDays / 7));
 
 // -------------------- BIBLIOTECA / FILTRO --------------------
 const libraryFilterText = ref('');
@@ -709,24 +787,29 @@ const addRoutineToDay = (day, routine) => {
   weeklyPlan[day].routines.push({ ...routine, instanceId: makeInstanceId(routine) });
   openAddMenuId.value = null;
   selectedDay.value = day;
+  notify(t.value.addedToast(t.value.days[day]), 'success');
 };
 
 // --- BORRAR Y MOVER RUTINA DENTRO DEL PLAN ---
 const removeRoutineFromDay = (day, index) => {
   weeklyPlan[day].routines.splice(index, 1);
+  notify(t.value.removedToast, 'info');
 };
 
 const moveRoutineToDay = (fromDay, index, targetDay, routine) => {
-  // Quitar del día actual
+  if (fromDay === targetDay) { openMoveMenuId.value = null; return; }
   weeklyPlan[fromDay].routines.splice(index, 1);
-  // Agregar al día de destino
   weeklyPlan[targetDay].isRest = false;
   weeklyPlan[targetDay].routines.push(routine);
   openMoveMenuId.value = null;
   selectedDay.value = targetDay;
+  notify(t.value.movedToast(t.value.days[targetDay]), 'info');
 };
 
-const clearDay = (day) => { weeklyPlan[day].routines = []; };
+const clearDay = (day) => {
+  weeklyPlan[day].routines = [];
+  notify(t.value.clearedToast, 'info');
+};
 const onToggleRest = (day) => { if (weeklyPlan[day].isRest) weeklyPlan[day].routines = []; };
 
 // -------------------- DRAG & DROP --------------------
@@ -756,703 +839,987 @@ const isRoutineSaved = (routine) => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 
+* { box-sizing: border-box; }
+button, input, select { font: inherit; }
+
+svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* =========================================================
+   BASE
+========================================================= */
 .weekly-wrapper {
-  background: var(--bg-custom, #0a0a0a);
+  --hl: var(--color-highlight, #3b82f6);
+  --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
+  --hl-mid: color-mix(in srgb, var(--hl) 22%, transparent);
+  --hl-line: color-mix(in srgb, var(--hl) 45%, transparent);
+  --card: var(--bg-cards, #121212);
+  --line: rgba(255, 255, 255, 0.07);
+  --line2: rgba(255, 255, 255, 0.13);
+  --title: var(--color-titulos, #fff);
+  --text2: rgba(245, 245, 244, 0.66);
+  --text3: rgba(245, 245, 244, 0.45);
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.055);
+  --green: #34d399;
+  --amber: #fbbf24;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   min-height: 100vh;
-  color: var(--color-texto-general, #f5f5f4);
-  font-family: 'Inter', sans-serif;
   display: flex;
   flex-direction: column;
+  color: var(--color-texto-general, #f5f5f4);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(900px 420px at 85% -80px, var(--hl-soft), transparent 70%),
+    var(--bg-custom, #090909);
 }
 
 .weekly-main {
   flex: 1;
+  width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  width: 100%;
-  padding: 40px clamp(16px, 3vw, 32px);
+  padding: 30px clamp(14px, 3vw, 32px) 64px;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 22px;
 }
 
-.glass-card {
-  background: var(--bg-cards, #121212);
-  border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.08));
-  border-radius: var(--app-border-radius, 22px);
-  padding: 28px 30px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
-  position: relative;
-  overflow: hidden;
+button:focus-visible,
+input:focus-visible,
+select:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+
+.panel {
+  min-width: 0;
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.24);
 }
 
-/* HEADER */
-.header-card { display: flex; flex-direction: column; gap: 22px; }
-
-.header-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--color-botones, #1c4fd6), #60a5fa, var(--color-botones, #1c4fd6));
-}
-
-.header-top-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-
-.gym-badge-tag {
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.68rem;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  color: var(--color-highlight, #60a5fa);
-  padding: 5px 12px;
-  border-radius: 50px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-
-.saved-toast {
-  font-size: 0.74rem;
-  font-weight: 700;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  color: #34d399;
-  padding: 5px 12px;
-  border-radius: 50px;
-}
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-.header-titles { display: flex; flex-direction: column; gap: 8px; }
-
-.main-heading {
-  font-family: 'Anton', sans-serif;
-  font-size: 2.1rem;
-  font-weight: 400;
-  margin: 0;
-  color: var(--color-titulos, #ffffff);
-  letter-spacing: 0.3px;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.highlight-color { color: var(--color-highlight, #3b82f6); }
-
-.hero-desc { font-size: 0.9rem; color: rgba(245, 245, 244, 0.6); margin: 0; font-weight: 500; line-height: 1.5; max-width: 560px; }
-.hero-desc.small { font-size: 0.78rem; margin-bottom: 2px; }
-
-.summary-row { display: flex; gap: 12px; flex-wrap: wrap; }
-
-.summary-pill {
-  background: rgba(59, 130, 246, 0.06);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 14px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 110px;
-  flex: 1;
-  transition: border-color 0.2s ease, transform 0.15s ease;
-}
-.summary-pill:hover { transform: translateY(-2px); border-color: rgba(59, 130, 246, 0.4); }
-.summary-pill.rest-pill { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.1); }
-
-.summary-icon { color: var(--color-highlight, #3b82f6); margin-bottom: 6px; }
-.summary-num { font-family: 'Oswald', sans-serif; font-size: 1.5rem; font-weight: 700; color: #fff; line-height: 1.1; }
-.summary-label { font-size: 0.66rem; text-transform: uppercase; color: rgba(245, 245, 244, 0.5); font-weight: 600; text-align: center; letter-spacing: 0.3px; margin-top: 2px; }
-
-.header-actions-row { display: flex; gap: 12px; flex-wrap: wrap; }
-
-.btn-primary-action, .btn-secondary-action, .btn-secondary {
-  border: none;
-  padding: 12px 20px;
-  border-radius: 12px;
-  font-family: 'Oswald', sans-serif;
-  font-weight: 700;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
+.eyebrow,
+.section-eyebrow {
   display: flex;
   align-items: center;
+  gap: 8px;
+  color: var(--hl);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+}
+
+.eyebrow::before,
+.section-eyebrow::before { content: ''; width: 14px; height: 2px; border-radius: 2px; background: currentColor; }
+
+.block-icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 13px;
+}
+
+.block-icon svg { width: 20px; height: 20px; }
+
+/* =========================================================
+   BOTONES
+========================================================= */
+.btn-primary-action,
+.btn-ghost {
+  min-height: 46px;
+  padding: 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 9px;
   cursor: pointer;
-  transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
-}
-.btn-primary-action { background: var(--color-botones, #3b82f6); color: var(--color-texto-botones, white); box-shadow: 0 6px 18px rgba(59, 130, 246, 0.35); }
-.btn-primary-action:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(59, 130, 246, 0.45); }
-.btn-primary-action:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-
-.btn-secondary-action {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-.btn-secondary-action:hover { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.4); transform: translateY(-2px); }
-
-.btn-secondary { background: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
-
-/* LAYOUT */
-.planner-layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
-
-/* BIBLIOTECA */
-.library-panel { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 24px; }
-.panel-heading {
-  margin: 0;
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.05rem;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.panel-heading::before {
-  content: '';
-  width: 3px;
-  height: 16px;
-  border-radius: 3px;
-  flex-shrink: 0;
-  background: linear-gradient(180deg, var(--color-botones, #1c4fd6), rgba(37, 99, 235, 0.25));
+  border-radius: 13px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: filter 0.2s ease, transform 0.2s var(--ease), background 0.2s ease, border-color 0.2s ease;
 }
 
-.search-input-wrapper {
+.btn-primary-action {
+  color: var(--color-texto-botones, #fff);
+  background: var(--color-botones, var(--hl));
+  border: 0;
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--hl) 30%, transparent);
+}
+
+.btn-primary-action:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-2px); }
+.btn-primary-action:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+.btn-ghost { color: var(--title); background: var(--surface); border: 1px solid var(--line2); }
+.btn-ghost:hover { background: var(--surface-hover); border-color: var(--hl-line); transform: translateY(-2px); }
+
+/* =========================================================
+   HERO
+========================================================= */
+.hero {
   position: relative;
-  display: flex;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
   align-items: center;
+  gap: 28px;
+  padding: 36px;
+  background:
+    radial-gradient(520px 260px at 100% 0%, var(--hl-mid), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card) 92%, white), var(--card) 55%, rgba(10, 10, 10, 0.96));
+  border: 1px solid var(--line2);
+  border-radius: 26px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-.search-input-wrapper svg {
+
+.hero::before {
+  content: '';
   position: absolute;
-  left: 12px;
-  color: rgba(245, 245, 244, 0.4);
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse at 100% 0%, #000, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0%, #000, transparent 70%);
   pointer-events: none;
 }
-.search-input-wrapper .styled-input { padding-left: 34px; }
 
-.styled-input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -70px;
+  bottom: -190px;
+  width: 320px;
+  height: 320px;
+  border: 1px solid var(--hl-mid);
+  border-radius: 50%;
+  box-shadow: 0 0 0 38px var(--hl-soft), 0 0 0 39px var(--hl-soft);
+  pointer-events: none;
 }
-.styled-input:focus { border-color: var(--color-highlight, #3b82f6); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
 
-.library-list { display: flex; flex-direction: column; gap: 10px; max-height: 640px; overflow-y: auto; padding-right: 4px; }
+.hero-main,
+.week-ring-card { position: relative; z-index: 1; }
 
-.mini-routine-card {
+.hero-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.hero-top { min-height: 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+.main-heading {
+  margin: 0;
+  color: var(--title);
+  font-family: 'Anton', sans-serif;
+  font-size: clamp(30px, 4vw, 50px);
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.highlight-color { color: var(--hl); text-shadow: 0 0 36px var(--hl-line); }
+
+.hero-desc { max-width: 560px; margin: 0; color: var(--text2); font-size: 14px; line-height: 1.6; }
+
+.hero-actions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* Anillo */
+.week-ring-card {
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid var(--line2);
+  border-radius: 22px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.ring-wrap {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  flex: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  stroke: none;
+  transform: rotate(-90deg);
+}
+
+.ring:focus,
+.ring:focus-visible,
+.ring-wrap:focus,
+.ring-wrap:focus-visible,
+.week-ring-card:focus,
+.week-ring-card:focus-visible { outline: none; box-shadow: none; }
+
+.ring circle { fill: none; stroke-width: 8; }
+.ring-bg { stroke: rgba(255, 255, 255, 0.08); }
+
+.ring-fg {
+  stroke: var(--hl);
+  stroke-dasharray: 276.46;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s var(--ease);
+}
+
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.ring-center strong { color: #fff; font-family: 'Oswald', sans-serif; font-size: 32px; font-weight: 600; line-height: 1; }
+.ring-center span { color: var(--text3); font-size: 10px; font-weight: 700; }
+
+.ring-copy { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.ring-copy strong { color: #fff; font-size: 13.5px; line-height: 1.3; }
+.ring-copy span { color: var(--text3); font-size: 12px; line-height: 1.4; }
+
+/* =========================================================
+   INDICADORES
+========================================================= */
+.kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+
+.kpi-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background:
+    radial-gradient(180px 90px at 0% 0%, var(--hl-soft), transparent 75%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 60%),
+    var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 22px;
+  right: 22px;
+  height: 2px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, var(--hl), transparent);
+  opacity: 0.85;
+}
+
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 14px;
+}
+
+.kpi-icon svg { width: 21px; height: 21px; }
+.kpi-icon.muted { color: var(--text2); background: rgba(255, 255, 255, 0.05); border-color: var(--line2); }
+.kpi-icon.success { color: var(--green); background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.28); }
+
+.kpi-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.kpi-body strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 32px; font-weight: 600; line-height: 1; }
+
+.kpi-body span { color: var(--text3); font-size: 10px; font-weight: 800; letter-spacing: 0.7px; text-transform: uppercase; }
+
+/* =========================================================
+   TIRA DE LA SEMANA
+========================================================= */
+.week-strip {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  border: 1px solid var(--line2);
+  border-radius: 20px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
+}
+
+.week-day {
+  position: relative;
+  min-width: 0;
+  padding: 14px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease);
+}
+
+.week-day:hover { background: var(--surface-hover); transform: translateY(-2px); }
+
+.wd-name { font-size: 11.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+
+.wd-today {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  overflow: hidden;
+  color: transparent;
+  background: var(--amber);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--amber);
+}
+
+.wd-count { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1.1; }
+.wd-state { color: var(--text3); font-size: 10.5px; font-weight: 700; }
+
+.week-day.rest .wd-count { color: var(--text3); }
+.week-day.filled { border-color: rgba(16, 185, 129, 0.25); }
+.week-day.filled .wd-state { color: var(--green); }
+
+.week-day.active { background: var(--hl-soft); border-color: var(--hl); box-shadow: 0 0 0 1px var(--hl-soft), 0 10px 24px rgba(0, 0, 0, 0.25); }
+.week-day.active .wd-name { color: var(--hl); }
+
+/* =========================================================
+   LAYOUT
+========================================================= */
+.planner-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 22px; align-items: start; }
+
+/* ---------- Biblioteca ---------- */
+.library-panel { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 24px; }
+
+.panel-head { display: flex; align-items: center; gap: 13px; }
+.panel-head h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
+.panel-head p { margin: 3px 0 0; color: var(--text3); font-size: 11.5px; line-height: 1.4; }
+
+.search-box {
+  height: 44px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line2);
   border-radius: 12px;
-  padding: 9px;
-  cursor: grab;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-box:focus-within { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.search-box svg { color: var(--text3); }
+
+.search-box input {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  color: #fff;
+  font-size: 13.5px;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.search-box input::placeholder { color: var(--text3); }
+
+.library-list { display: flex; flex-direction: column; gap: 10px; max-height: 620px; overflow-y: auto; padding: 2px 4px 60px 0; margin-bottom: -50px; }
+
+.mini-routine-card {
   position: relative;
-  transition: border-color 0.2s ease, transform 0.15s ease;
-}
-.mini-routine-card:hover { border-color: var(--color-highlight, #3b82f6); transform: translateY(-1px); }
-.mini-routine-card:active { cursor: grabbing; }
-
-.mini-thumb { width: 46px; height: 46px; object-fit: contain; background: #000; border-radius: 8px; flex-shrink: 0; }
-
-.mini-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.mini-name { font-size: 0.78rem; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mini-badges-row { display: flex; gap: 5px; flex-wrap: wrap; }
-.mini-level-badge {
-  font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 5px;
-  background: var(--color-botones, #3b82f6); color: var(--color-texto-botones, #fff); text-transform: uppercase;
-}
-.mini-cat-badge { font-size: 0.64rem; color: var(--color-highlight, #60a5fa); font-weight: 600; }
-
-.mini-card-actions { position: relative; }
-
-.add-to-day-btn {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  color: var(--color-highlight, #60a5fa);
-  font-size: 0.64rem;
-  font-weight: 700;
-  padding: 6px 9px;
-  border-radius: 7px;
-  cursor: pointer;
+  padding: 10px;
   display: flex;
   align-items: center;
-  gap: 2px;
-  white-space: nowrap;
-  transition: background 0.2s ease;
+  gap: 12px;
+  cursor: grab;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  transition: border-color 0.2s ease, transform 0.2s var(--ease), background 0.2s ease;
 }
-.add-to-day-btn:hover { background: rgba(59, 130, 246, 0.22); }
+
+.mini-routine-card:hover { background: var(--surface-hover); border-color: var(--hl-line); transform: translateY(-1px); }
+.mini-routine-card:active { cursor: grabbing; }
+
+.mini-thumb { width: 52px; height: 52px; flex: none; object-fit: contain; background: #060606; border: 1px solid var(--line); border-radius: 11px; }
+
+.mini-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+.mini-name { overflow: hidden; color: var(--title); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+.mini-badges-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+
+.mini-level-badge {
+  padding: 2px 8px;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mini-cat-badge { color: var(--text3); font-size: 11px; font-weight: 600; }
+
+.mini-card-actions { position: relative; flex: none; }
+
+.add-to-day-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  cursor: pointer;
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 11px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s var(--ease);
+}
+
+.add-to-day-btn:hover { color: #fff; background: var(--color-botones, var(--hl)); transform: scale(1.06); }
 
 .add-day-dropdown {
   position: absolute;
   right: 0;
-  top: calc(100% + 4px);
-  background: #1a1a1a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  top: calc(100% + 6px);
+  z-index: 30;
   padding: 6px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  z-index: 20;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  min-width: 184px;
+  background: #17181c;
+  border: 1px solid var(--line2);
+  border-radius: 13px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
 }
+
 .add-day-dropdown button {
+  padding: 8px 4px;
+  color: #fff;
+  cursor: pointer;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-size: 0.62rem;
-  font-weight: 600;
-  padding: 6px 4px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.add-day-dropdown button:hover { background: var(--color-highlight, #3b82f6); border-color: var(--color-highlight, #3b82f6); }
-
-.empty-hint { padding: 20px 8px; text-align: center; color: rgba(245, 245, 244, 0.4); font-size: 0.78rem; }
-
-/* PANEL DE DÍA ENFOCADO */
-.week-focus-panel { display: flex; flex-direction: column; gap: 18px; }
-
-.day-selector-bar {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  padding: 20px 24px;
-}
-
-.day-select-field { display: flex; flex-direction: column; gap: 7px; min-width: 220px; }
-.filter-group-title { font-family: 'Oswald', sans-serif; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: rgba(245, 245, 244, 0.5); letter-spacing: 0.5px; }
-
-.select-wrapper { position: relative; width: 100%; }
-
-.styled-select {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  padding: 10px 30px 10px 13px;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-  appearance: none;
-  box-sizing: border-box;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.364%22%20height%3D%22292.364%22%3E%3Cpath%20fill%3D%22%2360a5fa%22%20d%3D%22M287.9 69.8c-4.3-4.3-11.3-4.3-15.6 0L146.1 195.8 20 69.8c-4.3-4.3-11.3-4.3-15.6 0s-4.3 11.3 0 15.6l133.4 133.4c4.3 4.3 11.3 4.3 15.6 0l133.5-133.4c4.3-4.3 4.3-11.3 0-15.6z%22%2F%3E%3C%2Fsvg%3E");
-  background-repeat: no-repeat;
-  background-position: right 13px center;
-  background-size: 9px auto;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-.styled-select:hover, .styled-select:focus { border-color: var(--color-highlight, #3b82f6); background-color: rgba(59, 130, 246, 0.05); }
-.styled-select option { background: #141414; color: #fff; }
-
-.day-chips-strip { display: flex; gap: 7px; flex-wrap: wrap; }
-
-.day-strip-chip {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  color: rgba(245, 245, 244, 0.65);
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 11px;
   font-weight: 700;
-  padding: 8px 13px;
-  border-radius: 50px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  transition: all 0.18s ease;
+  transition: background 0.2s ease;
 }
-.day-strip-chip:hover { border-color: var(--color-highlight, #3b82f6); color: #fff; transform: translateY(-1px); }
-.day-strip-chip.active { background: var(--color-botones, #3b82f6); border-color: var(--color-botones, #3b82f6); color: var(--color-texto-botones, #fff); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); }
-.strip-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(245, 245, 244, 0.25); flex-shrink: 0; }
-.day-strip-chip.has-routines .strip-dot { background: #34d399; }
-.day-strip-chip.is-rest .strip-dot { background: rgba(245, 245, 244, 0.2); }
-.day-strip-chip.active .strip-dot { background: #fff; }
 
-.day-detail-card {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-height: 420px;
-  transition: border-color 0.2s ease;
-}
-.day-detail-card.is-drop-target { border-color: rgba(59, 130, 246, 0.45); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12); }
+.add-day-dropdown button:hover { background: var(--hl); border-color: var(--hl); }
+
+.empty-hint { padding: 22px 8px; color: var(--text3); font-size: 12.5px; text-align: center; }
+.empty-hint p { margin: 0; }
+
+/* ---------- Panel del día ---------- */
+.day-detail-card { display: flex; flex-direction: column; gap: 22px; min-height: 440px; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+
+.day-detail-card.is-drop-target { border-color: var(--hl); box-shadow: 0 0 0 4px var(--hl-soft), 0 16px 38px rgba(0, 0, 0, 0.24); }
 
 .day-detail-header {
+  padding-bottom: 18px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding-bottom: 16px;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
-.day-detail-title-group { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.day-detail-title {
-  margin: 0;
-  font-family: 'Anton', sans-serif;
-  font-size: 1.6rem;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.day-title-group { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+
+.day-detail-title { margin: 3px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1.1; }
+
+.count-pill {
+  padding: 7px 13px;
+  color: var(--hl);
+  white-space: nowrap;
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
 }
-.day-detail-title::before {
+
+.day-detail-actions { display: flex; align-items: center; gap: 14px; }
+
+.rest-toggle { display: flex; align-items: center; gap: 10px; color: var(--text2); font-size: 12.5px; font-weight: 600; cursor: pointer; user-select: none; }
+
+.switch { position: relative; width: 40px; height: 22px; flex: none; display: inline-block; }
+.switch input { position: absolute; width: 0; height: 0; opacity: 0; }
+
+.switch i {
+  position: absolute;
+  inset: 0;
+  background: #303030;
+  border-radius: 999px;
+  transition: background 0.2s ease;
+}
+
+.switch i::before {
   content: '';
-  width: 4px;
-  height: 22px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  background: linear-gradient(180deg, var(--color-botones, #1c4fd6), rgba(37, 99, 235, 0.25));
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  background: #aaa;
+  border-radius: 50%;
+  transition: transform 0.2s var(--ease), background 0.2s ease;
 }
 
-.section-count-badge {
-  font-size: 0.74rem;
-  font-weight: 700;
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-highlight, #60a5fa);
-  padding: 5px 12px;
-  border-radius: 50px;
-  border: 1px solid rgba(59, 130, 246, 0.22);
-}
-
-.day-detail-actions { display: flex; align-items: center; gap: 16px; }
-
-.rest-toggle { display: flex; align-items: center; gap: 7px; font-size: 0.75rem; color: rgba(245, 245, 244, 0.6); font-weight: 600; cursor: pointer; user-select: none; }
-.rest-toggle input { accent-color: var(--color-highlight, #3b82f6); cursor: pointer; width: 15px; height: 15px; }
+.switch input:checked + i { background: var(--hl); }
+.switch input:checked + i::before { transform: translateX(18px); background: #fff; }
+.switch input:focus-visible + i { box-shadow: 0 0 0 3px var(--hl-soft); }
 
 .clear-day-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(245, 245, 244, 0.6);
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: var(--text2);
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 11px;
+  transition: color 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease);
 }
+
 .clear-day-btn:hover { color: #f87171; border-color: rgba(248, 113, 113, 0.4); transform: translateY(-1px); }
 
-.rest-day-box.big, .day-empty-drop.big {
+/* Estados */
+.state-box {
   flex: 1;
+  padding: 50px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: rgba(245, 245, 244, 0.45);
+  color: var(--text3);
   text-align: center;
-  padding: 60px 20px;
+  border: 1.5px solid transparent;
+  border-radius: 18px;
 }
-.waiting-icon-ring {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  color: var(--color-highlight, #3b82f6);
-}
-.rest-day-box.big h3 { margin: 0; color: #fff; font-family: 'Anton', sans-serif; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.3px; }
-.rest-day-box.big p, .day-empty-drop.big p { margin: 0; font-size: 0.85rem; max-width: 360px; line-height: 1.5; }
 
-/* TARJETAS DE RUTINA */
-.routines-grid {
+.state-box.dashed { background: var(--surface); border: 1.5px dashed var(--line2); }
+
+.waiting-icon-ring {
+  width: 66px;
+  height: 66px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 20px;
+  place-items: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 20px;
 }
+
+.waiting-icon-ring svg { width: 28px; height: 28px; }
+
+.state-box h3,
+.global-empty h3 { margin: 4px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 21px; font-weight: 600; }
+
+.state-box p,
+.global-empty p { max-width: 380px; margin: 0; font-size: 13.5px; line-height: 1.6; }
+
+.global-empty { padding: 50px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text2); text-align: center; }
+
+/* ---------- Tarjetas de rutina ---------- */
+.routines-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
 
 .routine-card {
-  background: var(--bg-cards, #121212);
-  border-radius: var(--app-border-radius, 16px);
-  overflow: hidden;
-  border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.08));
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
   cursor: grab;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), #0f0f0f;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  transition: transform 0.3s var(--ease), border-color 0.25s ease, box-shadow 0.3s ease;
 }
-.routine-card:hover { border-color: var(--color-highlight, #3b82f6); transform: translateY(-3px); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4); }
+
+.routine-card:hover { transform: translateY(-4px); border-color: var(--hl-line); box-shadow: 0 20px 44px rgba(0, 0, 0, 0.4); }
 .routine-card:active { cursor: grabbing; }
 
-.card-media { position: relative; height: 160px; width: 100%; overflow: hidden; background: #050505; display: flex; align-items: center; justify-content: center; }
-.card-media img { width: 100%; height: 100%; object-fit: contain; padding: 12px; transition: transform 0.35s ease; }
-.routine-card:hover .card-media img { transform: scale(1.04); }
+.card-media {
+  position: relative;
+  height: 170px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: #060606;
+  border-radius: 20px 20px 0 0;
+}
 
-.media-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 42%, rgba(18,18,18,0.88) 100%); pointer-events: none; }
+.card-media img { width: 100%; height: 100%; padding: 14px; object-fit: contain; border-radius: 20px 20px 0 0; transition: transform 0.5s var(--ease); }
+.routine-card:hover .card-media img { transform: scale(1.05); }
 
-.badge-container { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; z-index: 2; flex-wrap: wrap; }
-.badge-level, .badge-goal { font-family: 'Oswald', sans-serif; font-size: 0.6rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
-.badge-level { background: var(--color-botones, #3b82f6); color: var(--color-texto-botones, #fff); }
-.badge-goal { background: rgba(0, 0, 0, 0.72); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.12); }
+.media-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent 40%, rgba(15, 15, 15, 0.9));
+  border-radius: 20px 20px 0 0;
+  pointer-events: none;
+}
 
-.media-actions { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.badge-container { position: absolute; top: 12px; left: 12px; z-index: 2; display: flex; align-items: center; gap: 6px; }
+
+.badge-level {
+  padding: 5px 10px;
+  color: var(--color-texto-botones, #fff);
+  background: var(--color-botones, var(--hl));
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.badge-order {
+  padding: 5px 9px;
+  color: var(--text2);
+  background: rgba(10, 10, 10, 0.78);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.media-actions { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; gap: 6px; }
+
+.move-wrap { position: relative; }
 
 .icon-action-btn {
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
   color: #fff;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 5px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.15s ease;
+  background: rgba(10, 10, 10, 0.78);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s var(--ease);
 }
-.icon-action-btn:hover { transform: translateY(-1px); }
-.icon-action-btn.delete-btn:hover { background: rgba(248, 113, 113, 0.85); }
-.icon-action-btn.move-btn:hover { background: rgba(59, 130, 246, 0.85); }
 
-.card-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; flex-grow: 1; }
-.card-title-routine { margin: 0; font-family: 'Oswald', sans-serif; font-size: 1.08rem; color: var(--color-titulos, #ffffff); line-height: 1.3; }
+.icon-action-btn svg { width: 14px; height: 14px; }
+.icon-action-btn:hover { transform: translateY(-1px); border-color: transparent; }
+.icon-action-btn.move-btn:hover { background: var(--hl); }
+.icon-action-btn.delete-btn:hover { background: #ef4444; }
+
+.move-dropdown { right: 0; left: auto; }
+
+.card-body { padding: 18px; flex: 1; display: flex; flex-direction: column; gap: 11px; }
+
+.card-title-routine {
+  margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.muscle-tag { color: var(--text3); font-size: 11.5px; font-weight: 600; }
+.muscle-tag strong { color: var(--hl); font-weight: 700; }
 
 .routine-desc {
-  margin: 0; font-size: 0.8rem; color: rgba(245, 245, 244, 0.55); line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text2);
+  font-size: 12.5px;
+  line-height: 1.55;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .quick-prescription-pill {
-  display: flex; align-items: center; justify-content: space-between; background: rgba(59, 130, 246, 0.06);
-  border: 1px solid rgba(59, 130, 246, 0.18); padding: 8px 14px; border-radius: 10px;
-  font-size: 0.75rem; color: var(--color-highlight, #60a5fa);
+  margin-top: auto;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 13px;
 }
-.pill-item { display: flex; align-items: center; gap: 6px; }
-.pill-item svg { color: var(--color-highlight, #60a5fa); flex-shrink: 0; }
-.pill-divider { width: 1px; height: 16px; background: rgba(59, 130, 246, 0.25); flex-shrink: 0; }
 
-.routine-stats {
-  display: flex; gap: 10px; font-size: 0.74rem; color: rgba(245, 245, 244, 0.6);
-  background: rgba(255, 255, 255, 0.02); padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.04);
-}
-.stat-item { display: flex; align-items: center; gap: 6px; }
-.stat-item svg { color: var(--color-highlight, #3b82f6); flex-shrink: 0; }
+.pill-item { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.pill-value { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 600; line-height: 1.1; }
+.pill-label { color: var(--text3); font-size: 10px; font-weight: 700; }
+.pill-divider { width: 1px; height: 28px; background: var(--line2); }
 
 .btn-explore {
-  background: var(--color-botones, #3b82f6);
-  color: var(--color-texto-botones, white);
-  border: none;
   width: 100%;
-  padding: 11px;
-  border-radius: 10px;
-  font-family: 'Oswald', sans-serif;
-  font-weight: 700;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  cursor: pointer;
-  margin-top: 2px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  color: var(--color-texto-botones, #fff);
+  cursor: pointer;
+  background: var(--color-botones, var(--hl));
+  border: 0;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: filter 0.2s ease, transform 0.2s var(--ease);
 }
-.btn-explore:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 8px 18px rgba(59, 130, 246, 0.35); }
 
-.waiting-calculation-box {
-  text-align: center; padding: 56px 24px; display: flex; flex-direction: column;
-  align-items: center; gap: 16px; color: rgba(245, 245, 244, 0.6);
-}
-.waiting-calculation-box h3 { margin: 0; color: #fff; font-family: 'Anton', sans-serif; font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.3px; }
-.waiting-calculation-box p { margin: 0; font-size: 0.88rem; max-width: 420px; line-height: 1.5; }
+.btn-explore svg { width: 15px; height: 15px; }
+.btn-explore:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-/* MODALES */
+/* =========================================================
+   MODAL GENERAR
+========================================================= */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
-  display: flex; align-items: center; justify-content: center; z-index: 99999; padding: 20px;
-  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
 }
 
 .modal-content {
-  width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto;
-  background: var(--bg-cards, #111111) !important; border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.12)) !important;
-  border-radius: 24px; padding: 32px !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-  animation: modalAppear 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 30px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
+  border: 1px solid var(--line2);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
 }
-.modal-content.small-modal { max-width: 520px; }
 
-@keyframes modalAppear {
-  from { opacity: 0; transform: translateY(15px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+.pop-enter-active, .pop-leave-active { transition: opacity 0.22s ease; }
+.pop-enter-active .modal-content, .pop-leave-active .modal-content { transition: transform 0.25s var(--ease), opacity 0.22s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; }
+.pop-enter-from .modal-content, .pop-leave-to .modal-content { opacity: 0; transform: translateY(14px) scale(0.97); }
 
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.8); }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--hl); }
 
-.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
-.modal-title-group { display: flex; flex-direction: column; gap: 8px; }
-.modal-header h2 { margin: 0; font-family: 'Anton', sans-serif; font-size: 1.35rem; color: #fff; letter-spacing: 0.3px; text-transform: uppercase; }
+.modal-header { margin-bottom: 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+
+.modal-header h2 { margin: 6px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; }
 
 .close-btn {
-  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff;
-  width: 34px; height: 34px; border-radius: 50%; font-size: 1.3rem; display: flex;
-  align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s ease;
-  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 11px;
+  font-size: 20px;
+  line-height: 1;
+  transition: color 0.2s ease, background 0.2s ease;
 }
-.close-btn:hover { background: rgba(255, 255, 255, 0.15); }
 
-.modal-desc { font-size: 0.86rem; color: rgba(245, 245, 244, 0.72); margin-bottom: 20px; line-height: 1.6; }
+.close-btn:hover { color: #fff; background: var(--surface-hover); }
 
-.gen-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
-.gen-section-title { font-family: 'Oswald', sans-serif; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; color: rgba(245, 245, 244, 0.55); letter-spacing: 0.4px; }
+.modal-desc { margin: 0 0 22px; color: var(--text2); font-size: 13.5px; line-height: 1.6; }
 
-.day-chips-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.gen-section { margin-bottom: 22px; display: flex; flex-direction: column; gap: 10px; }
+
+.gen-section-title { color: var(--text3); font-size: 11px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
+
+.day-chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .day-chip {
-  background: rgba(255, 255, 255, 0.035); border: 1.5px solid rgba(255, 255, 255, 0.1);
-  color: rgba(245, 245, 244, 0.7); font-family: 'Oswald', sans-serif; font-size: 0.76rem; font-weight: 700; padding: 9px 16px;
-  border-radius: 50px; cursor: pointer; transition: all 0.18s ease;
+  height: 38px;
+  padding: 0 16px;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
-.day-chip:hover { border-color: var(--color-highlight, #3b82f6); color: #fff; transform: translateY(-1px); }
-.day-chip.active { background: var(--color-botones, #3b82f6); border-color: var(--color-botones, #3b82f6); color: var(--color-texto-botones, #fff); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); }
 
-.gen-hint { font-size: 0.74rem; color: rgba(245, 245, 244, 0.4); margin: 2px 0 0; }
+.day-chip:hover { color: #fff; background: var(--surface-hover); }
+.day-chip.active { color: #fff; background: var(--hl-mid); border-color: var(--hl-line); }
 
-.source-options-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.gen-hint { margin: 0; color: var(--text3); font-size: 12px; }
+
+.source-options-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .source-option {
-  background: rgba(255, 255, 255, 0.025); border: 1.5px solid rgba(255, 255, 255, 0.08);
-  color: rgba(245, 245, 244, 0.7); font-size: 0.78rem; font-weight: 600; padding: 9px 15px;
-  border-radius: 10px; display: flex; align-items: center; gap: 7px; cursor: pointer; transition: all 0.18s ease;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
-.source-option input { accent-color: var(--color-highlight, #3b82f6); }
-.source-option:hover { border-color: rgba(59, 130, 246, 0.35); }
-.source-option.active { border-color: var(--color-highlight, #3b82f6); background: rgba(59, 130, 246, 0.09); color: #fff; }
+
+.source-option input { accent-color: var(--hl); }
+.source-option:hover { border-color: var(--hl-line); }
+.source-option.active { color: #fff; background: var(--hl-soft); border-color: var(--hl); }
+
+.day-goal-list { display: flex; flex-direction: column; gap: 8px; }
 
 .day-goal-row {
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 9px 12px;
-  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
 }
-.day-goal-name { font-family: 'Oswald', sans-serif; font-size: 0.78rem; font-weight: 700; color: #fff; width: 80px; flex-shrink: 0; }
-.day-goal-select { flex: 1; max-width: 240px; padding: 7px 26px 7px 11px; font-size: 0.76rem; }
 
-.modal-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; flex-wrap: wrap; }
-.modal-footer .btn-primary-action, .modal-footer .btn-secondary { flex: 1; justify-content: center; min-width: 140px; }
+.day-goal-name { width: 90px; flex: none; color: var(--title); font-size: 13px; font-weight: 700; }
 
+.styled-select {
+  height: 40px;
+  padding: 0 32px 0 12px;
+  color: #fff;
+  cursor: pointer;
+  appearance: none;
+  color-scheme: dark;
+  background-color: rgba(0, 0, 0, 0.28);
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.364%22%20height%3D%22292.364%22%3E%3Cpath%20fill%3D%22%2360a5fa%22%20d%3D%22M287.9 69.8c-4.3-4.3-11.3-4.3-15.6 0L146.1 195.8 20 69.8c-4.3-4.3-11.3-4.3-15.6 0s-4.3 11.3 0 15.6l133.4 133.4c4.3 4.3 11.3 4.3 15.6 0l133.5-133.4c4.3-4.3 4.3-11.3 0-15.6z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 9px auto;
+  border: 1px solid var(--line2);
+  border-radius: 11px;
+  outline: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.styled-select:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.styled-select option { background: #15171b; color: #fff; }
+
+.day-goal-select { flex: 1; min-width: 0; max-width: 250px; }
+
+.modal-footer { padding-top: 20px; display: flex; gap: 10px; border-top: 1px solid var(--line); }
+.modal-footer .btn-primary-action,
+.modal-footer .btn-ghost { flex: 1; }
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
 @media (max-width: 1100px) {
-  .planner-layout { grid-template-columns: 1fr; }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .week-ring-card { max-width: 420px; }
+  .planner-layout { grid-template-columns: minmax(0, 1fr); }
   .library-panel { position: static; }
   .library-list { max-height: 380px; }
 }
 
 @media (max-width: 768px) {
-  .weekly-main { padding: 20px 14px; gap: 24px; }
-  .glass-card { padding: 22px 18px; }
-  .main-heading { font-size: 1.6rem; }
-  .hero-desc { font-size: 0.84rem; }
+  .weekly-main { padding: 16px 12px 44px; gap: 16px; }
 
-  /* Tarjetas de resumen en cuadrícula de 2 columnas */
-  .summary-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .summary-row .summary-pill:last-child {
-    grid-column: span 2;
-  }
+  .hero { padding: 22px 16px; border-radius: 20px; gap: 18px; }
+  .hero::after { right: -120px; bottom: -210px; }
+  .hero-actions { flex-direction: column; }
+  .hero-actions > * { width: 100%; }
+  .week-ring-card { max-width: none; }
 
-  .header-actions-row { flex-direction: column; }
-  .btn-primary-action, .btn-secondary-action { width: 100%; justify-content: center; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .kpi-card:last-child { grid-column: 1 / -1; }
+  .kpi-card { padding: 14px 16px; gap: 12px; border-radius: 17px; }
+  .kpi-icon { width: 40px; height: 40px; border-radius: 12px; }
+  .kpi-icon svg { width: 18px; height: 18px; }
+  .kpi-body strong { font-size: 26px; }
 
-  .day-selector-bar { flex-direction: column; align-items: stretch; padding: 16px; }
-  .day-detail-title { font-size: 1.3rem; }
-  .routines-grid { grid-template-columns: 1fr; }
-  .day-detail-header { flex-direction: column; align-items: flex-start; }
+  /* La tira de la semana se desplaza de lado */
+  .week-strip { display: flex; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; padding: 8px; border-radius: 17px; }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .week-day { min-width: 72px; flex: none; scroll-snap-align: start; }
 
-  /* MEJORAS VISUALES PARA EL MODAL EN MÓVIL */
-  .modal-backdrop {
-    padding: 12px;
-    align-items: center;
-  }
-  
-  .modal-content {
-    max-height: 90vh;
-    padding: 22px 18px !important;
-  }
+  .panel { padding: 18px 14px; border-radius: 20px; }
+  .day-detail-card { min-height: 0; }
+  .day-detail-header { align-items: flex-start; }
+  .day-detail-title { font-size: 22px; }
+  .routines-grid { grid-template-columns: minmax(0, 1fr); }
 
-  /* Distribución en cuadrícula de 4 columnas para los días */
-  .day-chips-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-  
-  .day-chip {
-    text-align: center;
-    padding: 9px 2px;
-    font-size: 0.7rem;
-  }
+  .modal-backdrop { padding: 10px; }
+  .modal-content { padding: 22px 16px; border-radius: 20px; }
 
-  /* Opciones de fuente de ejercicios (Grid de 2 columnas para que no se amontonen feo) */
-  .source-options-row {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-  
-  .source-option {
-    width: 100%;
-    justify-content: flex-start;
-    padding: 10px 12px;
-  }
-  
-  /* Hacer que la última opción de fuente ocupe todo el ancho si es impar */
-  .source-option:last-child:nth-child(odd) {
-    grid-column: span 2;
-  }
+  .day-chips-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .day-chip { padding: 0 2px; text-align: center; font-size: 12px; }
+
+  .source-options-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .source-option:last-child:nth-child(odd) { grid-column: span 2; }
 
   .day-goal-row { flex-wrap: wrap; }
-  .day-goal-select { max-width: 100%; width: 100%; }
+  .day-goal-select { width: 100%; max-width: none; }
+}
 
-  /* Botones del footer del modal alineados en fila horizontal o con buen espaciado */
-  .modal-footer {
-    display: flex;
-    flex-direction: row;
-    gap: 10px;
-  }
-  
-  .modal-footer button {
-    flex: 1;
-    justify-content: center;
-    padding: 12px 14px;
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
 </style>
