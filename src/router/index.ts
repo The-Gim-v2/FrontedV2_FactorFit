@@ -58,11 +58,11 @@ const router = createRouter({
       name: 'record-client',
       component: RecordClient,
     },
-    {
-  path: '/prueba-mascotas',
-  name: 'prueba-mascotas',
-  component: () => import('@/components/PruebaMascotas.vue')
-},
+    //{
+        //path: '/prueba-mascotas',
+        //name: 'prueba-mascotas',
+        //component: () => import('@/components/PruebaMascotas.vue')
+      //},
     // --- MÓDULOS DEL SISTEMA (Spread de rutas por roles) ---
     ...GYM_ACCOUNTRoutes,
     ...GYM_RECEPCIONISTRoutes,
