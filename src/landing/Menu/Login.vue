@@ -1,92 +1,113 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 interface LoginResponse {
-  message: string;
-  token: string;
-  token_type: string;
-  rol: string;
+  message: string
+  token: string
+  token_type: string
+  rol: string
   usuario: {
-    id: number;
-    nombre: string;
-    propietario: string;
-    email: string;
-    logo: string | null;
-    fondo: string | null;
-    sedes: Array<Record<string, unknown>>;
-  };
+    id: number
+    nombre: string
+    propietario: string
+    email: string
+    logo: string | null
+    fondo: string | null
+    sedes: Array<Record<string, unknown>>
+  }
 }
 
-const router = useRouter();
-const email = ref('');
-const password = ref('');
-const showPassword = ref(false);
-const errorMessage = ref('');
-const successMessage = ref('');
-const loading = ref(false);
+const router = useRouter()
+const email = ref('')
+const password = ref('')
+const showPassword = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+const loading = ref(false)
+
+const dashboardRoutes: Record<string, string> = {
+  GYM_ACCOUNT: 'GYM_ACCOUNT-dashboard',
+  GYM_RECEPCIONIST: 'GYM_RECEPCIONIST-dashboard',
+  GYM_ADMIN: 'GYM_ADMIN-dashboard',
+  GYM_MANAGER: 'GYM_MANAGER-dashboard',
+  Admin: 'Admin-dashboard',
+  Member: 'Member-dashboard'
+}
 
 const clearMessages = () => {
-  errorMessage.value = '';
-  successMessage.value = '';
-};
+  errorMessage.value = ''
+  successMessage.value = ''
+}
 
 const handleSubmit = async () => {
-  if (loading.value) return;
-  clearMessages();
-  loading.value = true;
+  if (loading.value) return
+  clearMessages()
+  loading.value = true
 
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+    const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+    if (!apiUrl) throw new Error('No está configurada la URL del servidor.')
+
+    const response = await fetch(`${apiUrl}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        Accept: 'application/json'
       },
       body: JSON.stringify({
         email: email.value.trim().toLowerCase(),
         password: password.value
       })
-    });
+    })
 
-    const data = await response.json();
+    const data = await response.json()
 
     if (!response.ok) {
-      errorMessage.value = data.message || 'No fue posible iniciar sesión.';
-      return;
+      errorMessage.value = data.message || 'Correo o contraseña incorrectos.'
+      return
     }
 
-    const result = data as LoginResponse;
+    const result = data as LoginResponse
+    const role = String(result.rol ?? '').trim()
+    const routeName = dashboardRoutes[role]
 
-    sessionStorage.setItem('auth_token', result.token);
-    sessionStorage.setItem('user_role', result.rol);
-    sessionStorage.setItem('gym_account', JSON.stringify(result.usuario));
-
-    successMessage.value = `Bienvenido a ${result.usuario.nombre}.`;
-
-    const routes: Record<string, string> = {
-      GYM_ACCOUNT: 'GYM_ACCOUNT-dashboard',
-      GYM_ADMIN: 'GYM_ADMIN-dashboard',
-      GYM_MANAGER: 'GYM_MANAGER-dashboard',
-      GYM_RECEPCIONIST: 'GYM_RECEPCIONIST-dashboard',
-      Member: 'Member-dashboard',
-      Admin: 'Admin-dashboard'
-    };
-
-    const routeName = routes[result.rol];
-
-    if (!routeName) {
-      errorMessage.value = 'Tu rol todavía no tiene un panel configurado.';
-      return;
+    if (!result.token || !role || !routeName) {
+      errorMessage.value = 'La respuesta del servidor no contiene una sesión válida.'
+      return
     }
 
-    await router.push({ name: routeName });
-  } catch {
-    errorMessage.value = 'No se pudo conectar con el servidor. Intenta nuevamente.';
+    if (!router.hasRoute(routeName)) {
+      errorMessage.value = `No se encontró el dashboard para el rol ${role}.`
+      return
+    }
+
+    sessionStorage.setItem('auth_token', result.token)
+    sessionStorage.setItem('user_role', role)
+    sessionStorage.setItem('gym_account', JSON.stringify(result.usuario ?? {}))
+    localStorage.removeItem('user_role')
+
+    successMessage.value = `Bienvenido a ${result.usuario?.nombre || 'Factor Fit'}.`
+
+    const failure = await router.replace({ name: routeName })
+
+    if (failure) {
+      console.error('Error de navegación:', failure)
+      errorMessage.value = 'No fue posible acceder al dashboard.'
+      return
+    }
+
+    console.log('Inicio de sesión exitoso:', role)
+    console.log('Dashboard:', router.currentRoute.value.fullPath)
+  } catch (error) {
+    console.error('Error al iniciar sesión:', error)
+    errorMessage.value = error instanceof Error && error.message === 'No está configurada la URL del servidor.'
+      ? error.message
+      : 'No se pudo completar el inicio de sesión. Intenta nuevamente.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 </script>
 
 <template>
