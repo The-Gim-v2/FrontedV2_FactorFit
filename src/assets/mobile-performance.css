@@ -1,0 +1,101 @@
+/* =========================================================
+   RENDIMIENTO EN MÓVIL / TÁCTIL
+   Se importa una sola vez en main.ts. Usa !important a propósito
+   para ganarle a los estilos "scoped" de cada componente.
+========================================================= */
+
+/* ---------------------------------------------------------
+   1) Pausa las animaciones de lo que no se ve.
+      El atributo data-offscreen lo pone pauseOffscreenAnimations.ts
+      (aplica en PC y en móvil).
+--------------------------------------------------------- */
+[data-offscreen],
+[data-offscreen] *,
+[data-offscreen] *::before,
+[data-offscreen] *::after {
+  animation-play-state: paused !important;
+}
+
+/* ---------------------------------------------------------
+   2) Solo pantallas chicas o táctiles
+--------------------------------------------------------- */
+@media (max-width: 960px), (pointer: coarse) {
+
+  /* Sin desenfoque de fondo: es lo que más pesa al hacer scroll
+     cuando detrás hay cosas animadas */
+  *,
+  *::before,
+  *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Como ya no hay blur, el vidrio de Horarios queda más opaco
+     para que el texto se siga leyendo bien */
+  .loc {
+    --glass:
+      linear-gradient(160deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+      rgba(26, 15, 62, 0.94) !important;
+  }
+
+  /* Capas decorativas pesadas: se quitan en móvil */
+  .aurora,
+  .grain,
+  .watermark,
+  .floaters,
+  .wave,
+  .bg-ring,
+  .bg-float,
+  .float,
+  .spark,
+  .fb-section .ring,
+  .b4,
+  .orb-c {
+    display: none !important;
+  }
+
+  /* Manchas de color: más pequeñas, estáticas y sin capa propia */
+  .blob,
+  .orb,
+  .bg-orb {
+    width: 280px !important;
+    height: 280px !important;
+    filter: blur(56px) !important;
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  /* Hero: foto sin filtro ni zoom animado, y sin blend mode */
+  .hero .bg {
+    inset: 0 !important;
+    filter: none !important;
+    animation: none !important;
+  }
+  .hero .bg-tint {
+    mix-blend-mode: normal !important;
+  }
+  .hero .logo-card::after {
+    display: none !important;
+  }
+
+  /* Efectos que obligan a repintar en cada cuadro */
+  .grad {
+    animation: none !important;
+    filter: none !important;
+  }
+  .btn-main::after {
+    display: none !important;
+  }
+
+  /* No mantener decenas de capas promovidas a la GPU */
+  .polaroid,
+  .tile {
+    will-change: auto !important;
+  }
+
+  /* Mapas de Google: solo vista. Así no atrapan el scroll del dedo.
+     El botón "Cómo llegar" abre Google Maps completo. */
+  .map iframe {
+    pointer-events: none !important;
+  }
+}
