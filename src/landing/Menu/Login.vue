@@ -1,46 +1,91 @@
 <script setup lang="ts">
-import {ref} from 'vue';
-import {useRouter} from 'vue-router';
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-const VALID_USERS:Record<string,{role:string;nameRoute:string}>={
-  'admin@gmail.com':{role:'Admin',nameRoute:'Admin-dashboard'},
-  'gym@gmail.com':{role:'GYM_ACCOUNT',nameRoute:'GYM_ACCOUNT-dashboard'},
-  'recepcionista@gmail.com':{role:'GYM_RECEPCIONIST',nameRoute:'GYM_RECEPCIONIST-dashboard'},
-  'miembro@gmail.com':{role:'Member',nameRoute:'Member-dashboard'},
-  'propietario@gmail.com':{role:'GYM_ADMIN',nameRoute:'GYM_ADMIN-dashboard'},
-  'gerente@gmail.com':{role:'GYM_MANAGER',nameRoute:'GYM_MANAGER-dashboard'}
+interface LoginResponse {
+  message: string;
+  token: string;
+  token_type: string;
+  rol: string;
+  usuario: {
+    id: number;
+    nombre: string;
+    propietario: string;
+    email: string;
+    logo: string | null;
+    fondo: string | null;
+    sedes: Array<Record<string, unknown>>;
+  };
+}
+
+const router = useRouter();
+const email = ref('');
+const password = ref('');
+const showPassword = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
+const loading = ref(false);
+
+const clearMessages = () => {
+  errorMessage.value = '';
+  successMessage.value = '';
 };
 
-const router=useRouter();
-const email=ref('');
-const password=ref('');
-const showPassword=ref(false);
-const errorMessage=ref('');
-const successMessage=ref('');
+const handleSubmit = async () => {
+  if (loading.value) return;
+  clearMessages();
+  loading.value = true;
 
-const clearMessages=()=>{errorMessage.value='';successMessage.value=''};
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        email: email.value.trim().toLowerCase(),
+        password: password.value
+      })
+    });
 
-const handleSubmit=()=>{
-  const userEmail=email.value.toLowerCase().trim();
-  const userInfo=VALID_USERS[userEmail];
+    const data = await response.json();
 
-  if(password.value!=='123'){
-    errorMessage.value='Contraseña incorrecta. Intenta de nuevo.';
-    return;
+    if (!response.ok) {
+      errorMessage.value = data.message || 'No fue posible iniciar sesión.';
+      return;
+    }
+
+    const result = data as LoginResponse;
+
+    sessionStorage.setItem('auth_token', result.token);
+    sessionStorage.setItem('user_role', result.rol);
+    sessionStorage.setItem('gym_account', JSON.stringify(result.usuario));
+
+    successMessage.value = `Bienvenido a ${result.usuario.nombre}.`;
+
+    const routes: Record<string, string> = {
+      GYM_ACCOUNT: 'GYM_ACCOUNT-dashboard',
+      GYM_ADMIN: 'GYM_ADMIN-dashboard',
+      GYM_MANAGER: 'GYM_MANAGER-dashboard',
+      GYM_RECEPCIONIST: 'GYM_RECEPCIONIST-dashboard',
+      Member: 'Member-dashboard',
+      Admin: 'Admin-dashboard'
+    };
+
+    const routeName = routes[result.rol];
+
+    if (!routeName) {
+      errorMessage.value = 'Tu rol todavía no tiene un panel configurado.';
+      return;
+    }
+
+    await router.push({ name: routeName });
+  } catch {
+    errorMessage.value = 'No se pudo conectar con el servidor. Intenta nuevamente.';
+  } finally {
+    loading.value = false;
   }
-
-  if(!userInfo){
-    errorMessage.value='Usuario no reconocido o sin privilegios de acceso.';
-    return;
-  }
-
-  errorMessage.value='';
-  successMessage.value=`Acceso concedido como ${userInfo.role}. Redirigiendo...`;
-  localStorage.setItem('user_role',userInfo.role);
-
-  setTimeout(()=>{
-    router.push({name:userInfo.nameRoute});
-  },1000);
 };
 </script>
 
@@ -225,8 +270,8 @@ const handleSubmit=()=>{
               </div>
 
               <!-- BOTÓN -->
-              <button type="submit" class="login-button">
-                <span>Iniciar sesión</span>
+              <button type="submit" class="login-button" :disabled="loading">
+               <span>{{ loading ? 'Iniciando sesión...' : 'Iniciar sesión' }}</span>
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M5 12h14M14 7l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
