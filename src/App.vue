@@ -1,9 +1,6 @@
 <template>
   <RouterView />
-  <!--<HelpButton v-if="userRole === 'GYM_ACCOUNT'" />
-  <HelpButton2 v-if="userRole === 'GYM_RECEPCIONIST'" />
-  <HelpButton3 v-if="userRole === 'member'" />-->
-  <HelpButton/>
+    <HelpButton/>
   <HelpButton2/>
   <HelpButton3/>
   <HelpButton4/>
@@ -12,7 +9,7 @@
     <div v-if="mostrarAvisoInactividad" class="inactivity-overlay">
       <div class="inactivity-modal glass-effect">
         <div class="warning-icon-wrap">
-          <svg viewBox="0 0 24 24" class="warning-icon" fill="none" xmlns="http\://www.w3.org/2000/svg">
+          <svg viewBox="0 0 24 24" class="warning-icon" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2L1 21h22L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="rgba(245,158,11,0.12)"/>
             <path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             <circle cx="12" cy="17" r="1" fill="currentColor"/>
@@ -81,8 +78,8 @@ const RUTAS_CSS_POR_ROL: Record<string, string | undefined> = {
   gym_manager: estilosPorRol['./assets/styles-GYM_MANAGER.css'], member: estilosPorRol['./assets/styles-member.css'],
   gym_recepcionist: estilosPorRol['./assets/styles-GYM_RECEPCIONIST.css']
 };
-const tieneSesion = () => Boolean(localStorage.getItem('token') || localStorage.getItem('user_role'));
-const ultimaActividad = () => Number(localStorage.getItem(LAST_ACTIVITY_KEY));
+const tieneSesion = () => Boolean(sessionStorage.getItem('auth_token') && sessionStorage.getItem('user_role'));
+const ultimaActividad = () => Number(sessionStorage.getItem(LAST_ACTIVITY_KEY));
 function safeJsonParse(raw: string | null): Record<string, string> { try { const data = raw ? JSON.parse(raw) : {}; return data && typeof data === 'object' ? data : {}; } catch { return {}; } }
 function detenerTemporizadores() {
   if (inactivityTimer !== undefined) clearTimeout(inactivityTimer);
@@ -94,6 +91,7 @@ function ejecutarCierreSesion() {
   closing = true;
   detenerTemporizadores();
   mostrarAvisoInactividad.value = false;
+  sessionStorage.removeItem('auth_token'); sessionStorage.removeItem('user_role'); sessionStorage.removeItem('gym_account'); sessionStorage.removeItem(LAST_ACTIVITY_KEY);
   localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('user_role'); localStorage.removeItem(LAST_ACTIVITY_KEY);
   window.location.replace(HOME_PATH);
 }
@@ -122,7 +120,7 @@ function reiniciarTemporizador() {
   if (!tieneSesion() || closing) return;
   const last = ultimaActividad();
   if (last > 0 && Date.now() - last >= INACTIVITY_TIME_LIMIT + COUNTDOWN_TIME_LIMIT * 1000) { ejecutarCierreSesion(); return; }
-  lastWrite = Date.now(); localStorage.setItem(LAST_ACTIVITY_KEY, String(lastWrite));
+  lastWrite = Date.now(); sessionStorage.setItem(LAST_ACTIVITY_KEY, String(lastWrite));
   mostrarAvisoInactividad.value = false; revisarInactividad();
 }
 function registrarActividad() {
@@ -140,7 +138,7 @@ function sincronizarSesion() {
   if (!wasAuthenticated) {
     wasAuthenticated = true;
     // Sesiones nuevas o heredadas sin marca: inicializar sin expulsar al usuario recién autenticado.
-    if (!localStorage.getItem(LAST_ACTIVITY_KEY)) localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+    if (!sessionStorage.getItem(LAST_ACTIVITY_KEY)) sessionStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
   }
   if (!monitored) {
     EVENTOS.forEach(evento => window.addEventListener(evento, registrarActividad, { passive: true }));
@@ -149,14 +147,14 @@ function sincronizarSesion() {
   revisarInactividad();
 }
 function manejarCambioStorage(evento: StorageEvent) {
-  if (evento.key === 'user_role' || evento.key === 'token') {
+  if (evento.key === 'user_role' || evento.key === 'token' || evento.key === 'auth_token') {
     if (wasAuthenticated && !tieneSesion()) { ejecutarCierreSesion(); return; }
     sincronizarSesion(); actualizarApariencia();
   }
   if (evento.key === LAST_ACTIVITY_KEY && tieneSesion()) revisarInactividad();
 }
 function cargarEstiloDelRol() {
-  const rol = (localStorage.getItem('user_role') || '').toLowerCase();
+  const rol = (sessionStorage.getItem('user_role') || '').toLowerCase();
   const ruta = RUTAS_CSS_POR_ROL[rol];
   let link = document.getElementById('role-stylesheet') as HTMLLinkElement | null;
   if (!ruta) { link?.remove(); return; }
@@ -164,7 +162,7 @@ function cargarEstiloDelRol() {
   if (link.href !== new URL(ruta, location.href).href) link.href = ruta;
 }
 function aplicarEstilosGlobales() {
-  const rol = (localStorage.getItem('user_role') || '').toLowerCase();
+  const rol = (sessionStorage.getItem('user_role') || '').toLowerCase();
   const savedColors = safeJsonParse(localStorage.getItem(`app-colors-${rol}`));
   const savedRadius = localStorage.getItem(`app-radius-${rol}`);
   const savedDensidad = localStorage.getItem(`app-densidad-${rol}`);
