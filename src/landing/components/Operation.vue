@@ -1,793 +1,444 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useReveal } from '../useReveal';
-import { ClipboardList, MessageSquareText, BarChart3, CalendarDays, Rocket } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight, MapPin, Clock, Heart, Pause, Play } from 'lucide-vue-next';
 
-// --- IMPORTACIÓN DE IMÁGENES LOCALES ---
-import imgScreen1 from '../../assets/Operation/organiza.png';
-import imgScreen2 from '../../assets/Operation/acompaña.png';
-import imgScreen3 from '../../assets/Operation/analiza.png';
+/* ─────────────────────────────────────────────────────────────
+   Tus eventos. Para usar fotos o flyers, impórtalos y ponlos en `img`:
+     import sanValentin from '../../assets/Events/san-valentin.webp';
+     { ..., img: sanValentin }
+   Funciona con fotos horizontales y con flyers verticales: la imagen
+   siempre se ve completa, sin recortes.
+   ───────────────────────────────────────────────────────────── */
+interface EventItem {
+  title: string;
+  desc: string;
+  branch: string;
+  day: string;
+  month: string;
+  time?: string;
+  img?: string;
+}
 
-// --- CONFIGURACIÓN DE PANTALLAS (Sincronizadas con las 4 tarjetas) ---
-const screenshots = computed(() => [
-  { 
-    type: 'image',
-    img: imgScreen1, 
-    title: "Gestión Total", 
-    desc: "Controla clientes, pagos y operación" 
+const events: EventItem[] = [
+  {
+    title: 'San Valentín 2026 💖',
+    desc: 'Festejando el día del amor y la amistad. Reforzamos lazos y disfrutamos de un lindo día de convivencia en el parque. Gracias por su participación, a las entrenadoras de Factor FIT y, por supuesto, a nuestro invitado especial Osiel.',
+    branch: 'Sucursal Obrera',
+    day: '14', month: 'FEB',
   },
-  { 
-    type: 'image',
-    img: imgScreen2, 
-    title: "Experiencia Móvil", 
-    desc: "App dedicada y mensajería en tiempo real" 
+  /* EJEMPLOS: cámbialos o bórralos */
+  {
+    title: 'Clase especial de San Valentín',
+    desc: 'Una clase pensada para celebrar entrenando juntas, con música, retos en pareja y sorpresas para las asistentes.',
+    branch: 'Sucursal Obrera',
+    day: '14', month: 'FEB', time: '8:00 AM',
   },
-  { 
-    type: 'image',
-    img: imgScreen3, 
-    title: "Métricas de Impacto", 
-    desc: "Visualiza el progreso físico de tus usuarios" 
+  {
+    title: 'Día de la Mujer',
+    desc: 'Una mañana de entrenamiento, convivencia y reconocimientos para todas las mujeres de la comunidad.',
+    branch: 'Sucursal Centro',
+    day: '08', month: 'MAR', time: '9:00 AM',
   },
-  { 
-    type: 'upcoming',
-    title: 'PRÓXIMAMENTE',
-    desc: 'Asistencia de IA integrada para rutinas y comunicación avanzada.',
-    icon: Rocket
-  }
-]);
-
-// --- LÓGICA DE CONTROL ---
-const { el, revealed } = useReveal();
-const activeFeatureIndex = ref<number>(0);
-const currentSlideIndex = ref<number>(0);
-let slideInterval: any = null;
-
-const features = [
-  { 
-    title: "ORGANIZA", 
-    subtitle: "Gestión Total", 
-    desc: "Controla clientes, pagos, registro de calendarios, registro de personal, bitácora y mantén todo bajo control operativo.", 
-    tags: ["✓ Clientes", "✓ Pagos", "✓ Calendarios", "✓ Personal", "✓ Bitácora"], 
-    icon: ClipboardList 
+  {
+    title: 'Reto 30 días',
+    desc: 'Suma rachas, registra tu progreso en la app y celebra con nosotras al terminar el mes.',
+    branch: 'App Factor Fit',
+    day: '01', month: 'ABR',
   },
-  { 
-    title: "ACOMPAÑA", 
-    subtitle: "Experiencia Móvil", 
-    desc: "Ofrece a tus entrenadores y deportistas una app dedicada con mensajería y alertas en tiempo real.", 
-    tags: ["✓ App cliente", "✓ Mensajería", "✓ Videollamadas", "✓ Alertas"], 
-    icon: MessageSquareText 
-  },
-  { 
-    title: "ANALIZA", 
-    subtitle: "Métricas de Impacto", 
-    desc: "Visualiza el progreso físico de tus usuarios con gráficas de rendimiento, comparativa fotográfica y control de racha para miembros.", 
-    tags: ["✓ Progreso", "✓ Métricas", "✓ Fotos", "✓ Racha miembros"], 
-    icon: BarChart3 
-  },
-  { 
-    title: "PLANIFICA", 
-    subtitle: "Inteligencia Deportiva", 
-    desc: "Permite a los entrenadores diseñar rutinas personalizadas para los clientes, potenciando la comunicación directa. Con asistencia de IA integrada para dueños, entrenadores y clientes.", 
-    tags: ["✓ Rutinas", "✓ Comunicación", "✓ Asistencia IA"], 
-    icon: CalendarDays 
-  }
 ];
 
-const selectFeature = (index: number) => {
-  activeFeatureIndex.value = index;
-  currentSlideIndex.value = index;
-  resetInterval();
+/* ---------- Estado ---------- */
+const { el, revealed } = useReveal();
+const total = events.length;
+const active = ref(0);
+const hovering = ref(false);
+const inView = ref(true);
+const userPaused = ref(false);
+
+const reduceMotion =
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const autoplayOn = computed(() => !reduceMotion && !userPaused.value && total > 1);
+
+/* ---------- Navegación ---------- */
+const wrap = (n: number) => ((n % total) + total) % total;
+const goTo = (i: number) => { active.value = wrap(i); };
+const next = () => goTo(active.value + 1);
+const prev = () => goTo(active.value - 1);
+
+/* Distancia circular de cada tarjeta respecto a la activa (-2, -1, 0, 1, 2…) */
+const offsetOf = (i: number) => {
+  let d = i - active.value;
+  if (d > total / 2) d -= total;
+  if (d < -total / 2) d += total;
+  return d;
 };
 
-const startInterval = () => {
-  slideInterval = setInterval(() => {
-    currentSlideIndex.value = (currentSlideIndex.value + 1) % screenshots.value.length;
-    activeFeatureIndex.value = currentSlideIndex.value;
-  }, 4500);
+const cardStyle = (i: number) => {
+  const d = offsetOf(i);
+  const a = Math.abs(d);
+  const opacity = a === 0 ? 1 : a === 1 ? 0.6 : a === 2 ? 0.25 : 0;
+  return {
+    transform: `translate3d(calc(${d} * var(--step)), 0, 0) scale(${1 - a * 0.13}) rotate(${d * 2.5}deg)`,
+    opacity,
+    zIndex: 10 - a,
+    pointerEvents: a > 2 ? 'none' : 'auto',
+  } as Record<string, string | number>;
 };
 
-const resetInterval = () => {
-  if (slideInterval) clearInterval(slideInterval);
-  startInterval();
+/* Swipe con dedo o mouse */
+let startX = 0;
+let dragged = false;
+const onDown = (e: PointerEvent) => { startX = e.clientX; dragged = false; };
+const onUp = (e: PointerEvent) => {
+  const dx = e.clientX - startX;
+  if (Math.abs(dx) > 8) dragged = true;
+  if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+};
+const onCardClick = (i: number) => { if (!dragged && i !== active.value) goTo(i); };
+
+const onKey = (e: KeyboardEvent) => {
+  if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
 };
 
+/* El avance automático lo marca la barra de progreso del punto activo:
+   cuando termina su animación (6 s) pasa al siguiente evento. */
+const onProgressEnd = () => { if (autoplayOn.value) next(); };
+
+/* Pausa cuando la sección no está a la vista */
+let io: IntersectionObserver | null = null;
 onMounted(() => {
-  startInterval();
+  const node = el.value as unknown as HTMLElement | null;
+  if (node && 'IntersectionObserver' in window) {
+    io = new IntersectionObserver(([entry]) => { inView.value = entry.isIntersecting; }, { threshold: 0.2 });
+    io.observe(node);
+  }
 });
-
-onUnmounted(() => {
-  if (slideInterval) clearInterval(slideInterval);
-});
+onUnmounted(() => io?.disconnect());
 </script>
 
 <template>
-  <section id="como-funciona" ref="el" class="ecosystem-section" :class="{ revealed }">
-    <div class="ambient-glow-deep"></div>
+  <section id="eventos" ref="el" class="events" :class="{ revealed }">
+    <div class="blob blob-a"></div>
+    <div class="blob blob-b"></div>
+
     <div class="container">
-      
-      <div class="section-header">
-        <span class="badge">Ecosistema Conectado</span>
-        <h2 class="section-title">
-          TODO <span class="text-accent">EN CONJUNTO</span>
-        </h2>
-        <p class="section-subtitle">Una plataforma integral diseñada para dominar la operación de tu centro fitness.</p>
-      </div>
+      <header class="head">
+        <h2 class="title">Eventos</h2>
+        <p class="lead">Entrenamos, convivimos y celebramos juntas.</p>
+      </header>
 
-      <div class="dashboard-ecosystem-grid">
-        
-        <div class="features-column">
-          <div 
-            v-for="(item, index) in features" 
-            :key="index"
-            class="feature-card"
-            :class="{ active: activeFeatureIndex === index }"
-            @mouseenter="selectFeature(index)"
-            @click="selectFeature(index)"
+      <div
+        class="carousel"
+        :class="{ hold: hovering || !inView }"
+        role="region"
+        aria-roledescription="carrusel"
+        aria-label="Eventos de Factor Fit"
+        tabindex="0"
+        @keydown="onKey"
+        @pointerenter="hovering = true"
+        @pointerleave="hovering = false"
+        @focusin="hovering = true"
+        @focusout="hovering = false"
+      >
+        <div class="stage" @pointerdown="onDown" @pointerup="onUp" @pointercancel="dragged = true">
+          <article
+            v-for="(ev, i) in events"
+            :key="i"
+            class="card"
+            :class="{ current: i === active, far: Math.abs(offsetOf(i)) === 2 }"
+            :style="cardStyle(i)"
+            :aria-hidden="i !== active"
+            :aria-label="`${i + 1} de ${total}: ${ev.title}`"
+            @click="onCardClick(i)"
           >
-            <div class="card-content-wrapper">
-              <div class="card-icon-box">
-                <component :is="item.icon" :size="24" />
-              </div>
-              <div class="card-text-data">
-                <span class="card-tag-mini">{{ item.subtitle }}</span>
-                <h3>{{ item.title }}</h3>
-                <p>{{ item.desc }}</p>
-                <div class="tags-row">
-                  <span v-for="(tag, tIdx) in item.tags" :key="tIdx" class="mini-pill">{{ tag }}</span>
-                </div>
+            <div class="media">
+              <template v-if="ev.img">
+                <img class="media-bg" :src="ev.img" alt="" aria-hidden="true" draggable="false" />
+                <img class="media-fg" :src="ev.img" :alt="ev.title" loading="lazy" draggable="false" />
+              </template>
+              <div v-else class="media-empty"><Heart :size="46" /></div>
+
+              <div class="date">
+                <strong>{{ ev.day }}</strong>
+                <span>{{ ev.month }}</span>
               </div>
             </div>
-          </div>
+
+            <div class="body">
+              <h3>{{ ev.title }}</h3>
+              <p>{{ ev.desc }}</p>
+              <div class="meta">
+                <span class="branch"><MapPin :size="14" /> {{ ev.branch }}</span>
+                <span v-if="ev.time" class="time"><Clock :size="14" /> {{ ev.time }}</span>
+              </div>
+            </div>
+          </article>
         </div>
 
-        <div class="phone-showcase-column">
-          <div class="phone-showcase-container">
-            
-            <div class="orbital-lights-container">
-              <div class="light-orbit orbit-green"></div>
-              <div class="light-orbit orbit-blue"></div>
-              <div class="light-orbit orbit-purple"></div>
-              <div class="light-particle particle-1"></div>
-              <div class="light-particle particle-2"></div>
-              <div class="light-particle particle-3"></div>
-            </div>
-            
-            <div class="iphone-titanium-frame-pro">
-              <div class="phone-antenna top"></div>
-              <div class="phone-antenna bottom"></div>
-              <div class="side-button power"></div>
-              <div class="side-button volume-up"></div>
-              <div class="side-button volume-down"></div>
-              <div class="side-button action-btn"></div>
-              
-              <div class="iphone-screen-container-pro">
-                <div class="dynamic-island">
-                  <div class="camera-lens"></div>
-                  <div class="sensor-dot"></div>
-                </div>
+        <div class="controls">
+          <button class="round" type="button" aria-label="Evento anterior" @click="prev">
+            <ChevronLeft :size="20" />
+          </button>
 
-                <div class="carousel-track-pro" :style="{ transform: `translateX(-${currentSlideIndex * (100 / screenshots.length)}%)`, width: `${screenshots.length * 100}%` }">
-                  <div v-for="(slide, sIdx) in screenshots" :key="sIdx" class="carousel-slide-pro" :style="{ width: `${100 / screenshots.length}%` }">
-                    
-                    <!-- Renderizado condicional para Imagen o Próximamente -->
-                    <template v-if="slide.type === 'image'">
-                      <img :src="slide.img" :alt="slide.title" class="preview-active-img-pro" loading="lazy" />
-                      <div class="screen-overlay-gradient-pro"></div>
-                      <div class="screen-caption-tag-pro">
-                        <span class="live-dot-pro"></span>
-                        <span>{{ slide.title }}</span>
-                      </div>
-                    </template>
-
-                    <template v-else-if="slide.type === 'upcoming'">
-                      <div class="upcoming-slide-content">
-                        <div class="upcoming-icon-wrapper">
-                          <component :is="slide.icon" :size="36" />
-                        </div>
-                        <span class="upcoming-badge">{{ slide.title }}</span>
-                        <h4 class="upcoming-title">Inteligencia Deportiva</h4>
-                        <p class="upcoming-desc">{{ slide.desc }}</p>
-                      </div>
-                    </template>
-
-                  </div>
-                </div>
-
-                <div class="screen-indicators-pro">
-                  <span 
-                    v-for="(_, dotIdx) in screenshots" 
-                    :key="dotIdx" 
-                    class="indicator-dot-pro"
-                    :class="{ active: currentSlideIndex === dotIdx }"
-                    @click="selectFeature(dotIdx)"
-                  ></span>
-                </div>
-
-              </div>
-            </div>
-
+          <div class="dots" role="tablist" aria-label="Elegir evento">
+            <button
+              v-for="(_, d) in events"
+              :key="d"
+              type="button"
+              role="tab"
+              class="dot"
+              :aria-selected="active === d"
+              :aria-label="`Ir al evento ${d + 1}`"
+              @click="goTo(d)"
+            >
+              <span
+                class="dot-bar"
+                :class="{ active: active === d, running: active === d && autoplayOn }"
+                @animationend="onProgressEnd"
+              ></span>
+            </button>
           </div>
-        </div>
 
+          <button class="round" type="button" aria-label="Evento siguiente" @click="next">
+            <ChevronRight :size="20" />
+          </button>
+
+          <button
+            v-if="!reduceMotion && total > 1"
+            class="round ghost"
+            type="button"
+            :aria-label="userPaused ? 'Reanudar avance automático' : 'Pausar avance automático'"
+            @click="userPaused = !userPaused"
+          >
+            <Play v-if="userPaused" :size="16" />
+            <Pause v-else :size="16" />
+          </button>
+        </div>
       </div>
-
     </div>
   </section>
 </template>
 
 <style scoped>
-.ecosystem-section {
-  padding: clamp(60px, 8vw, 140px) 16px;
-  background: #020204;
-  color: #f5f5f4;
-  font-family: 'Inter', sans-serif;
+.events {
+  --plum: #1d0a33;
+  --violet: #6d2a9c;
+  --orchid: #c26bf2;
+  --pink: #f472b6;
+  --blush: #fff6fb;
+  --ink: #2a1245;
+  --step: 74%;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(64px, 8vw, 120px) 16px clamp(56px, 7vw, 100px);
+  background: linear-gradient(160deg, #2a0f4d 0%, var(--violet) 48%, #b84fd6 100%);
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
   opacity: 0;
   transform: translateY(25px);
   transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
-  position: relative;
 }
+.events.revealed { opacity: 1; transform: translateY(0); }
 
-.ecosystem-section.revealed { 
-  opacity: 1; 
-  transform: translateY(0); 
-}
+.blob { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(80px); }
+.blob-a { width: 520px; height: 520px; left: -140px; top: 18%; background: rgba(244, 114, 182, 0.35); }
+.blob-b { width: 460px; height: 460px; right: -120px; bottom: -80px; background: rgba(168, 85, 247, 0.4); }
 
-.ambient-glow-deep {
-  position: absolute;
-  top: 40%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(900px, 90vw);
-  height: min(900px, 90vw);
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(28,79,214,0.26) 0%, rgba(2,2,4,0) 70%);
-  filter: blur(90px);
-  pointer-events: none;
-}
+.container { position: relative; z-index: 2; max-width: 1300px; margin: 0 auto; }
 
-.container { 
-  max-width: 1300px; 
-  margin: 0 auto; 
-  position: relative;
-  z-index: 2;
-  width: 100%;
-}
-
-.section-header {
-  text-align: center;
-  margin-bottom: clamp(30px, 5vw, 60px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.badge {
-  display: inline-block;
-  padding: 6px 16px;
-  background: #121216;
-  border: 1px solid rgba(28,79,214,0.45);
-  border-radius: 6px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: #4a7cf0;
-  text-transform: uppercase;
-}
-
-.section-title {
-  font-family: 'Anton', sans-serif;
-  font-size: clamp(2.2rem, 6vw, 5rem);
-  line-height: 0.95;
-  text-transform: uppercase;
-  letter-spacing: -1px;
+/* ---------- Encabezado ---------- */
+.head { text-align: center; margin-bottom: clamp(28px, 5vw, 56px); }
+.title {
+  /* Pon aquí la misma fuente script que ya usas en tu sitio */
+  font-family: var(--font-script, 'Sedgwick Ave Display', 'Caveat Brush', cursive);
+  font-weight: 400;
+  font-size: clamp(3.4rem, 9vw, 6.4rem);
+  line-height: 1;
   margin: 0;
-  text-align: center;
+  color: #fbe4ff;
+  text-shadow: 0 6px 30px rgba(244, 114, 182, 0.55);
+  transform: rotate(-2deg);
 }
+.lead { margin: 14px 0 0; font-size: clamp(0.95rem, 2vw, 1.1rem); color: rgba(255, 240, 250, 0.82); }
 
-.text-accent { 
-  color: #3a6bd6; 
-  text-shadow: 0 0 38px rgba(28,79,214,0.5);
-}
+/* ---------- Escenario ---------- */
+.carousel { outline: none; }
+.carousel:focus-visible .stage { outline: 2px dashed rgba(255, 255, 255, 0.6); outline-offset: 8px; border-radius: 24px; }
 
-.section-subtitle {
-  color: rgba(245, 245, 244, 0.6);
-  font-size: clamp(0.95rem, 2vw, 1.05rem);
-  max-width: 550px;
-  margin: 0;
-  text-align: center;
-  padding: 0 10px;
-}
-
-.dashboard-ecosystem-grid {
+.stage {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: clamp(30px, 4vw, 50px);
-  align-items: center;
-  margin-top: 30px;
+  justify-items: center;
+  align-items: start;
+  padding: 6px 0 30px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
 }
+.stage:active { cursor: grabbing; }
 
-.features-column {
+.card {
+  grid-area: 1 / 1;
+  width: clamp(280px, 28vw, 360px);
+  background: var(--blush);
+  color: var(--ink);
+  border-radius: 28px;
+  padding: 10px 10px 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  box-shadow: 0 24px 50px rgba(20, 4, 40, 0.35);
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, box-shadow 0.5s ease;
+  will-change: transform, opacity;
 }
+.card.current {
+  box-shadow: 0 34px 70px rgba(20, 4, 40, 0.5), 0 0 0 6px rgba(255, 255, 255, 0.14);
+}
+.card:not(.current) { cursor: pointer; }
 
-.feature-card {
+/* Imagen: siempre completa, con su propio desenfoque de fondo */
+.media {
   position: relative;
-  background: rgba(16, 16, 20, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: clamp(16px, 2.5vw, 24px);
-  cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(14px);
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
   overflow: hidden;
+  background: #2a0f4d;
+}
+.media-bg {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(22px) saturate(1.2) brightness(0.85);
+}
+.media-fg { position: relative; width: 100%; height: 100%; object-fit: contain; display: block; }
+.media-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(135deg, #8b3fc4, #f472b6);
 }
 
-.feature-card::before {
+.date {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  min-width: 52px;
+  padding: 8px 10px 7px;
+  border-radius: 14px;
+  background: var(--blush);
+  color: var(--ink);
+  box-shadow: 0 8px 20px rgba(20, 4, 40, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.date strong { font-size: 1.45rem; font-weight: 800; color: #b3258f; }
+.date span { margin-top: 4px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; color: var(--ink); }
+
+/* Texto */
+.body { padding: 18px 12px 0; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.body h3 {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.25rem, 2.2vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+  color: #24103d;
+}
+.body p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(42, 18, 69, 0.75);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(0.9rem * 1.55 * 4);
+}
+.meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+.branch, .time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.branch { background: linear-gradient(135deg, #f9a8d4, #d78bf5); color: #3b0f5c; }
+.time { background: rgba(109, 42, 156, 0.1); color: #5b1f86; }
+
+/* ---------- Controles ---------- */
+.controls { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+.round {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: background 0.25s ease, transform 0.2s ease, color 0.25s ease;
+}
+.round:hover { background: #fff; color: var(--violet); }
+.round:active { transform: scale(0.93); }
+.round:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.round.ghost { width: 36px; height: 36px; background: transparent; border-color: rgba(255, 255, 255, 0.25); }
+
+.dots { display: flex; align-items: center; }
+.dot { background: none; border: none; padding: 14px 4px; cursor: pointer; }
+.dot:focus-visible { outline: 2px solid #fff; outline-offset: 0; border-radius: 8px; }
+.dot-bar {
+  position: relative;
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.35);
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dot-bar.active { width: 42px; }
+.dot-bar.active::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(28,79,214,0.12), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd1ea, #fff);
+  transform-origin: left center;
 }
+.dot-bar.running::after { transform: scaleX(0); animation: fill 6s linear forwards; }
+.carousel.hold .dot-bar.running::after { animation-play-state: paused; }
+@keyframes fill { to { transform: scaleX(1); } }
 
-.feature-card:hover, .feature-card.active {
-  border-color: rgba(28, 79, 214, 0.6);
-  background: rgba(20, 20, 26, 0.95);
-  transform: translateX(4px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(28, 79, 214, 0.2);
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .events { --step: 66%; }
+  .card { width: min(76vw, 340px); }
 }
-
-.feature-card.active::before {
-  opacity: 1;
+@media (max-width: 600px) {
+  .events { --step: 60%; }
+  .card.far { opacity: 0 !important; }
+  .blob-a, .blob-b { filter: blur(60px); }
 }
-
-.card-content-wrapper {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  position: relative;
-  z-index: 2;
-}
-
-.card-icon-box {
-  width: 44px;
-  height: 44px;
-  background: #14141a;
-  border: 1px solid rgba(28, 79, 214, 0.3);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #4a7cf0;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-}
-
-.feature-card.active .card-icon-box {
-  background: #1c4fd6;
-  color: #ffffff;
-  border-color: #3a6bd6;
-  box-shadow: 0 0 20px rgba(28, 79, 214, 0.7);
-}
-
-.card-text-data {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.card-tag-mini {
-  font-family: 'Oswald', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  color: #4a7cf0;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
-
-.card-text-data h3 {
-  font-family: 'Anton', sans-serif;
-  font-size: 1.25rem;
-  letter-spacing: 0.5px;
-  margin: 0;
-  color: #ffffff;
-}
-
-.card-text-data p {
-  font-size: 0.88rem;
-  color: rgba(245, 245, 244, 0.7);
-  line-height: 1.45;
-  margin: 0 0 10px 0;
-}
-
-.tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.mini-pill {
-  font-size: 10.5px;
-  font-weight: 500;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 3px 9px;
-  border-radius: 20px;
-  color: rgba(245, 245, 244, 0.8);
-}
-
-.feature-card.active .mini-pill {
-  background: rgba(28, 79, 214, 0.12);
-  border-color: rgba(28, 79, 214, 0.3);
-  color: #93b4fd;
-}
-
-.phone-showcase-column {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  min-height: 640px;
-  width: 100%;
-}
-
-.phone-showcase-container {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  animation: floatPhone 6s ease-in-out infinite;
-  width: 100%;
-}
-
-@keyframes floatPhone {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-10px) rotate(0.5deg); }
-}
-
-.orbital-lights-container {
-  position: absolute;
-  width: 480px;
-  height: 480px;
-  pointer-events: none;
-  z-index: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.light-orbit {
-  position: absolute;
-  border-radius: 50%;
-  border: 2px solid transparent;
-}
-
-.orbit-green {
-  width: 380px;
-  height: 380px;
-  border-top-color: rgba(16, 185, 129, 0.6);
-  border-right-color: rgba(16, 185, 129, 0.1);
-  animation: spinSlow 12s linear infinite;
-  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));
-}
-
-.orbit-blue {
-  width: 430px;
-  height: 430px;
-  border-bottom-color: rgba(59, 130, 246, 0.6);
-  border-left-color: rgba(59, 130, 246, 0.1);
-  animation: spinReverse 16s linear infinite;
-  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.4));
-}
-
-.orbit-purple {
-  width: 480px;
-  height: 480px;
-  border-right-color: rgba(168, 85, 247, 0.5);
-  border-top-color: rgba(168, 85, 247, 0.05);
-  animation: spinSlow 20s linear infinite;
-  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.3));
-}
-
-.light-particle {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  box-shadow: 0 0 10px currentColor;
-}
-
-.particle-1 { background: #10b981; color: #10b981; top: 15px; animation: orbitParticle1 8s linear infinite; }
-.particle-2 { background: #3b82f6; color: #3b82f6; bottom: 20px; animation: orbitParticle2 10s linear infinite; }
-.particle-3 { background: #a855f7; color: #a855f7; right: 15px; animation: orbitParticle3 12s linear infinite; }
-
-@keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-
-@keyframes orbitParticle1 {
-  0% { transform: rotate(0deg) translateX(190px) rotate(0deg); }
-  100% { transform: rotate(360deg) translateX(190px) rotate(-360deg); }
-}
-@keyframes orbitParticle2 {
-  0% { transform: rotate(0deg) translateX(215px) rotate(0deg); }
-  100% { transform: rotate(-360deg) translateX(215px) rotate(360deg); }
-}
-@keyframes orbitParticle3 {
-  0% { transform: rotate(0deg) translateX(240px) rotate(0deg); }
-  100% { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
-}
-
-.iphone-titanium-frame-pro {
-  width: clamp(260px, 25vw, 340px);
-  height: clamp(520px, 51vw, 680px);
-  background: #18181c;
-  border-radius: 48px;
-  padding: 12px;
-  position: relative;
-  box-shadow: 
-    0 40px 80px rgba(0, 0, 0, 0.85),
-    0 0 0 2px #3a3a44,
-    0 0 0 6px #121216,
-    inset 0 0 18px rgba(255, 255, 255, 0.12);
-  z-index: 5;
-}
-
-.side-button { position: absolute; background: #2c2c34; border-radius: 2px; }
-.power { right: -7px; top: 160px; width: 4px; height: 55px; }
-.volume-up { left: -7px; top: 130px; width: 4px; height: 35px; }
-.volume-down { left: -7px; top: 180px; width: 4px; height: 35px; }
-.action-btn { left: -7px; top: 80px; width: 4px; height: 26px; }
-
-.phone-antenna { position: absolute; background: #2e2e38; width: 12px; height: 2px; }
-.phone-antenna.top { top: 6px; left: 60px; }
-.phone-antenna.bottom { bottom: 6px; right: 60px; }
-
-.iphone-screen-container-pro {
-  width: 100%;
-  height: 100%;
-  border-radius: 38px;
-  overflow: hidden;
-  background: #000;
-  position: relative;
-}
-
-.dynamic-island {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 110px;
-  height: 26px;
-  background: #050507;
-  border-radius: 16px;
-  z-index: 25;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 9px;
-}
-
-.camera-lens { width: 10px; height: 10px; background: #101014; border-radius: 50%; border: 1px solid rgba(255,255,255,0.08); }
-.sensor-dot { width: 4px; height: 4px; background: #0a0a12; border-radius: 50%; }
-
-.carousel-track-pro {
-  display: flex;
-  height: 100%;
-  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-  will-change: transform;
-}
-
-.carousel-slide-pro {
-  height: 100%;
-  position: relative;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #000000;
-}
-
-.preview-active-img-pro {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-}
-
-.screen-overlay-gradient-pro {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 40%);
-  pointer-events: none;
-}
-
-.screen-caption-tag-pro {
-  position: absolute;
-  bottom: 35px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(14, 14, 18, 0.88);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(28, 79, 214, 0.45);
-  padding: 6px 14px;
-  border-radius: 30px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #ffffff;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-  white-space: nowrap;
-  z-index: 10;
-}
-
-.live-dot-pro {
-  width: 7px;
-  height: 7px;
-  background: #10b981;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #10b981;
-  animation: pulseDot 2s infinite;
-}
-
-@keyframes pulseDot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
-/* Estilos para el estado Próximamente (Planifica / IA) */
-.upcoming-slide-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 30px 24px;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(28,79,214,0.18) 0%, #08080c 70%);
-}
-
-.upcoming-icon-wrapper {
-  width: 70px;
-  height: 70px;
-  background: rgba(28, 79, 214, 0.15);
-  border: 1px solid rgba(58, 107, 214, 0.4);
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #60a5fa;
-  margin-bottom: 20px;
-  box-shadow: 0 0 30px rgba(28, 79, 214, 0.25);
-}
-
-.upcoming-badge {
-  font-family: 'Oswald', sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: #3b82f6;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  background: rgba(59, 130, 246, 0.1);
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-}
-
-.upcoming-title {
-  font-family: 'Anton', sans-serif;
-  font-size: 1.5rem;
-  color: #ffffff;
-  letter-spacing: 0.5px;
-  margin: 0 0 10px 0;
-  text-transform: uppercase;
-}
-
-.upcoming-desc {
-  font-size: 0.85rem;
-  color: rgba(245, 245, 244, 0.65);
-  line-height: 1.5;
-  margin: 0;
-  max-width: 240px;
-}
-
-.screen-indicators-pro {
-  position: absolute;
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 5px;
-  z-index: 15;
-}
-
-.indicator-dot-pro {
-  width: 5px;
-  height: 5px;
-  background: rgba(255,255,255,0.3);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.indicator-dot-pro.active {
-  width: 16px;
-  border-radius: 4px;
-  background: #3a6bd6;
-  box-shadow: 0 0 8px rgba(28,79,214,0.8);
-}
-/* Efecto de pulso épico para el fondo */
-@keyframes epicGlow {
-  0% {
-    background: radial-gradient(circle at center, rgba(28,79,214,0.15) 0%, #08080c 70%);
-    box-shadow: inset 0 0 15px rgba(28,79,214,0.1);
-  }
-  50% {
-    background: radial-gradient(circle at center, rgba(58,130,246,0.3) 0%, #08080c 70%);
-    box-shadow: inset 0 0 35px rgba(58,130,246,0.4);
-  }
-  100% {
-    background: radial-gradient(circle at center, rgba(28,79,214,0.15) 0%, #08080c 70%);
-    box-shadow: inset 0 0 15px rgba(28,79,214,0.1);
-  }
-}
-
-.upcoming-slide-content {
-  animation: epicGlow 4s ease-in-out infinite;
-}
-
-/* Icono con flotación magnética intensa */
-@keyframes floatIcon {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-8px) rotate(3deg); }
-}
-
-.upcoming-icon-wrapper {
-  animation: floatIcon 3s ease-in-out infinite;
-}
-@keyframes hologramReveal {
-  0% {
-    opacity: 0;
-    transform: scale(0.9) translateY(10px);
-    filter: blur(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
-}
-
-.upcoming-slide-content {
-  animation: hologramReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, epicGlow 4s ease-in-out infinite;
-}
-
-@media (max-width: 968px) {
-  .dashboard-ecosystem-grid {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-  .phone-showcase-container {
-    animation: none;
-  }
-  .orbital-lights-container {
-    display: none;
-  }
-  .phone-showcase-column {
-    min-height: 480px;
-  }
-  .iphone-titanium-frame-pro {
-    width: 250px;
-    height: 510px;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .card, .dot-bar { transition: none; }
+  .title { transform: none; }
 }
 </style>

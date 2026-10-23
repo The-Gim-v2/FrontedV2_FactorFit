@@ -1095,29 +1095,28 @@ button, input, textarea { font: inherit; }
 
 /* =========================================================
    BASE
+   Todo sale de las variables globales del tema. Esta página
+   ya NO pinta su propio fondo: usa el del layout.
 ========================================================= */
 .settings-page {
   --accent: var(--color-highlight, #3b82f6);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 35%, transparent);
-  --card: var(--bg-cards, #121212);
-  --bg: var(--color-interfaz, #090909);
+  --card: var(--bg-cards, rgba(18, 18, 18, 0.75));
   --title: var(--color-titulos, #fff);
   --text: var(--color-texto-general, #e5e5e5);
   --muted: rgba(229, 229, 229, 0.62);
   --muted2: rgba(229, 229, 229, 0.42);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.15);
-  --field: #101010;
-  --radius: 18px;
+  --line: var(--border-cards, rgba(255, 255, 255, 0.09));
+  --line-strong: var(--border-input, rgba(255, 255, 255, 0.15));
+  --field: var(--bg-input, rgba(255, 255, 255, 0.03));
+  --radius: var(--app-border-radius, 18px);
 
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
   padding: 34px clamp(18px, 4vw, 64px) 70px;
   overflow-x: clip;
   color: var(--text);
-  background: var(--bg);
   font-family: 'Inter', sans-serif;
 }
 
@@ -1264,7 +1263,8 @@ button, input, textarea { font: inherit; }
 .avatar-wrapper:focus-visible,
 .sidebar-photo-btn:focus-visible,
 .settings-nav-item:focus-visible,
-.save-button:focus-visible {
+.save-button:focus-visible,
+.maps-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -1360,7 +1360,7 @@ button, input, textarea { font: inherit; }
 
 .profile-data-item strong {
   min-width: 0;
-  max-width: 160px;
+  max-width: 170px;
   overflow: hidden;
   color: var(--text);
   font-size: 12px;
@@ -1512,6 +1512,18 @@ button, input, textarea { font: inherit; }
   gap: 14px;
 }
 
+.card-header-actions {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.card-header-main {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
 .card-header-icon {
   width: 40px;
   height: 40px;
@@ -1541,7 +1553,8 @@ button, input, textarea { font: inherit; }
   stroke-linejoin: round;
 }
 
-.card-header > div:last-child { min-width: 0; }
+.card-header > div:last-child,
+.card-header-main > div:last-child { min-width: 0; }
 
 .card-eyebrow {
   display: block;
@@ -1570,6 +1583,34 @@ button, input, textarea { font: inherit; }
   line-height: 1.5;
 }
 
+.readonly-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.readonly-chip svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* =========================================================
    INPUTS
 ========================================================= */
@@ -1578,8 +1619,6 @@ button, input, textarea { font: inherit; }
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 20px;
 }
-
-.span-full { grid-column: 1 / -1; }
 
 .input-group {
   min-width: 0;
@@ -1606,24 +1645,27 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--line-strong);
   border-radius: 11px;
   outline: none;
-  color-scheme: dark;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-.input-group > input:hover { border-color: rgba(255, 255, 255, 0.25); }
+.input-group > input:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
 
 .input-group > input:focus {
-  background: #131313;
+  background: var(--field);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .input-group > input::placeholder { color: var(--muted2); }
 
-.field-hint {
-  color: var(--muted2);
-  font-size: 11.5px;
-  line-height: 1.4;
+/* Campos bloqueados */
+.input-group > input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
 }
 
 .input-with-icon {
@@ -1672,7 +1714,12 @@ button, input, textarea { font: inherit; }
   outline: none;
 }
 
-.input-with-icon input:disabled { color: var(--muted); cursor: not-allowed; }
+.input-with-icon input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+}
 
 .input-with-icon input::placeholder { color: var(--muted2); }
 
@@ -1741,6 +1788,148 @@ button, input, textarea { font: inherit; }
 .security-notice strong { color: var(--text); font-size: 12.5px; }
 
 .security-notice span { color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+/* =========================================================
+   UBICACIÓN (solo lectura)
+========================================================= */
+.location-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.location-fields { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+.maps-link {
+  width: fit-content;
+  height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  text-decoration: none;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: filter 0.2s;
+}
+
+.maps-link:hover { filter: brightness(1.15); }
+
+.maps-link svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-column {
+  min-width: 0;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.map-stage { position: relative; min-width: 0; }
+
+.leaflet-map {
+  width: 100%;
+  height: 340px;
+  overflow: hidden;
+  background: #161616;
+  border-radius: 12px;
+  z-index: 1;
+  cursor: default;
+}
+
+.map-readonly-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--muted);
+  background: rgba(15, 15, 15, 0.92);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.map-readonly-badge svg { width: 12px; height: 12px; color: var(--accent); }
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  background: #141414;
+  border-radius: 12px;
+  font-size: 12.5px;
+}
+
+.map-spinner {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex: none;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: map-spin 0.8s linear infinite;
+}
+
+@keyframes map-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Pin y controles de Leaflet ---------- */
+:deep(.gym-pin) { background: transparent; border: 0; }
+
+:deep(.gym-pin-body) {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 34px;
+  margin: 0 1px;
+  background: var(--accent, #3b82f6);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+  transform: rotate(-45deg);
+}
+
+:deep(.gym-pin-dot) {
+  position: absolute;
+  inset: 0;
+  width: 10px;
+  height: 10px;
+  margin: auto;
+  background: #fff;
+  border-radius: 50%;
+}
+
+:deep(.leaflet-control-attribution) { color: #888 !important; background: rgba(15, 15, 15, 0.88) !important; font-size: 0.62rem !important; }
+:deep(.leaflet-control-attribution a) { color: #9db8e8 !important; }
+
+:deep(.leaflet-popup-content-wrapper),
+:deep(.leaflet-popup-tip) { color: #eee !important; background: #171717 !important; }
 
 /* =========================================================
    GUARDAR
@@ -2194,6 +2383,7 @@ button, input, textarea { font: inherit; }
 @media (max-width: 1180px) {
   .settings-layout { grid-template-columns: 250px minmax(0, 1fr); gap: 18px; }
   .settings-card { padding: 24px; }
+  .location-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* =========================================================
@@ -2234,8 +2424,6 @@ button, input, textarea { font: inherit; }
   .settings-nav-item small { display: none; }
 
   .form-grid { grid-template-columns: minmax(0, 1fr); }
-
-  .span-full { grid-column: auto; }
 }
 
 /* =========================================================
@@ -2251,6 +2439,16 @@ button, input, textarea { font: inherit; }
   .settings-card { padding: 20px 14px; border-radius: 16px; }
 
   .card-header { margin-bottom: 20px; }
+
+  .card-header-actions { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+  .card-header-main { gap: 12px; }
+
+  .map-column { padding: 10px; }
+
+  .leaflet-map { height: 260px; }
+
+  .maps-link { width: 100%; justify-content: center; }
 
   .security-notice { align-items: flex-start; }
 
@@ -2311,6 +2509,7 @@ button, input, textarea { font: inherit; }
   }
 
   .camera-loader,
-  .switch-camera-btn svg.rotating { animation-duration: 1.4s !important; }
+  .switch-camera-btn svg.rotating,
+  .map-spinner { animation-duration: 1.4s !important; }
 }
 </style>

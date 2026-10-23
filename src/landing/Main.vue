@@ -33,9 +33,9 @@ const scrollToSection = (id: string) => {
       <!--APP-->
       <FitDevicesSection/>
       <Roles />
-      <Operation/>
-      <!--Precios-->
-      <MonthlyPayments />
+      <!--Operation-->
+      <!--<Operation/>
+      <MonthlyPayments />-->
 
     </main>
     <!--Pie de Pagina-->

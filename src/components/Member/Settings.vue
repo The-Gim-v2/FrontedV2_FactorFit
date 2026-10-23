@@ -391,18 +391,18 @@ const claveDensidad = () => {
   return `app-densidad-${rol}`;
 };
 
-const defaultColors = { 
-  headingBg: '#0b0b0e',
-  tablas: '#111', 
-  interfaz: '#0a0a0a', 
-  botones: '#1c4fd6',
-  tarjetas: '#121212',
-  titulos: '#ffffff',
-  highlight: '#3b82f6',
-  etiquetas: '#f5f5f4',
-  textoGeneral: '#94a3b8',
-  textoBotones: '#ffffff',
-  svgColor: '#ffffff'
+const defaultColors = {
+  headingBg:    '#161726',  // --color-heading-bg
+  tablas:       '#25283d',  // --color-tablas
+  interfaz:     '#12121c',  // --bg-custom (fondo)
+  botones:      '#e04a6d',  // --color-botones
+  tarjetas:     '#1a1b2b',  // --bg-cards
+  titulos:      '#fff7f1',  // --color-titulos
+  highlight:    '#ffb27a',  // --color-highlight
+  etiquetas:    '#f6e8df',  // --color-etiquetas
+  textoGeneral: '#c9c5d3',  // --color-texto-general
+  textoBotones: '#ffffff',  // --color-texto-botones
+  svgColor:     '#ffc7a1'   // --color-svg
 };
 
 const colorPresets = {

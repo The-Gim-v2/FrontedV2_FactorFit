@@ -1,85 +1,105 @@
 <script setup lang="ts">
-import { useReveal } from '../useReveal';
+import { ref, onMounted, onUnmounted } from 'vue';
 
-const { el, revealed } = useReveal();
+// Misma foto que usa el hero y el login
+const photo = 'https://i.ibb.co/272HW3wN/fondo-landing.jpg';
 
-const BENEFITS = [
-  {
-    title: 'Gestión Financiera e Ingresos',
-    text: 'Control total de ingresos, saldos pendientes y deudores de forma automatizada, optimizando tu flujo de caja con alertas inteligentes.',
-    tag: 'Control Financiero',
-    highlighted: false,
-    colSpan: 'col-span-1',
-  },
-  {
-    title: 'Acceso Biomédico y QR',
-    text: 'Tecnología de reconocimiento facial y códigos QR en tiempo real para garantizar un flujo de entrada rápido, seguro y libre de suplantaciones.',
-    tag: 'Seguridad Avanzada',
-    highlighted: true,
-    colSpan: 'col-span-2',
-  },
-  {
-    title: 'Asistente IA Integrado',
-    text: 'Consulta métricas clave, reportes de asistencia y proyecciones de negocio conversando de manera natural, sin complejos paneles de control.',
-    tag: 'Inteligencia Artificial',
-    highlighted: false,
-    colSpan: 'col-span-1',
-  },
-  {
-    title: 'Experiencia y Fidelización',
-    text: 'Herramientas diseñadas para elevar la retención de tus clientes mediante notificaciones personalizadas, rutinas y un seguimiento impecable.',
-    tag: 'Retención Activa',
-    highlighted: false,
-    colSpan: 'col-span-2',
-  },
+const PILLARS = [
+  { icon: 'move', title: 'Movimiento', text: 'El poder de transformar tu vida.' },
+  { icon: 'people', title: 'Comunidad', text: 'Aquí entrenas, creces y te inspiras.' },
+  { icon: 'heart', title: 'Bienestar', text: 'Física y mentalmente, es nuestra prioridad.' },
 ];
+
+const el = ref<HTMLElement | null>(null);
+const revealed = ref(false);
+let observer: IntersectionObserver | null = null;
+
+onMounted(() => {
+  if (!('IntersectionObserver' in window) || !el.value) {
+    revealed.value = true;
+    return;
+  }
+  observer = new IntersectionObserver(
+    ([entry]) => {
+      if (entry?.isIntersecting) {
+        revealed.value = true;
+        observer?.disconnect();
+      }
+    },
+    { threshold: 0.15 }
+  );
+  observer.observe(el.value);
+});
+onUnmounted(() => observer?.disconnect());
 </script>
 
 <template>
-  <section id="beneficios" ref="el" class="benefits-wrapper">
-    <!-- Fondo animado con formas geométricas (cuadros) flotantes y blobs de luz -->
-    <div class="background-animation">
-      <div class="mesh-blob blob-1"></div>
-      <div class="mesh-blob blob-2"></div>
-      <!-- Cuadros / Elementos geométricos flotantes en el fondo fondo -->
-      <div class="floating-box box-1"></div>
-      <div class="floating-box box-2"></div>
-      <div class="floating-box box-3"></div>
-      <div class="floating-box box-4"></div>
-    </div>
+  <section id="sobre-nosotros" ref="el" :class="['about', { revealed }]">
+    <!-- Fondo -->
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="watermark" aria-hidden="true">FACTOR</div>
 
     <div class="container">
-      <div class="header" :class="{ revealed }">
-        <span class="section-badge">Ventajas Competitivas</span>
-        <h2 class="main-title">
-          DISEÑADO PARA LLEVAR TU GYM<br />
-          <span class="text-accent">AL SIGUIENTE NIVEL</span>
-        </h2>
-        <p class="subtitle">
-          Una arquitectura tecnológica robusta pensada para automatizar operaciones y maximizar la rentabilidad de tu negocio fitness.
-        </p>
-      </div>
+      <div class="grid">
+        <!-- Texto -->
+        <div class="col-text">
+          <h2 class="title">
+            Sobre
+            <span class="last-word">nosotros<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span></span>
+          </h2>
 
-      <div class="benefits-grid">
-        <div
-          v-for="(item, i) in BENEFITS"
-          :key="item.title"
-          :class="['benefit-card', item.colSpan, { highlighted: item.highlighted, revealed }]"
-          :style="{ transitionDelay: `${i * 0.12}s` }"
-        >
-          <!-- Efecto de brillo interior -->
-          <div class="card-glow-effect"></div>
-
-          <div class="card-content">
-            <span class="card-tag">{{ item.tag }}</span>
-            <h3 class="card-title">{{ item.title }}</h3>
-            <p class="card-text">{{ item.text }}</p>
+          <div class="text-card">
+            <p>
+              En Factor FIT creemos que cada persona tiene el poder de
+              <mark>transformar su vida a través del movimiento</mark>. No solo somos un gimnasio, somos una
+              <mark>comunidad</mark> dedicada a ayudarte a alcanzar tu mejor versión, tanto física como mentalmente.
+            </p>
+            <p>
+              Aquí no solo entrenas, creces, te inspiras y te conviertes en la
+              <mark>mejor versión de ti mismo</mark>. En Factor FIT tu bienestar es nuestra prioridad.
+            </p>
           </div>
 
-          <div class="card-footer-icon" v-if="item.highlighted">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M5 12h14m-7-7 7 7-7 7"/>
-            </svg>
+          <ul class="pillars">
+            <li v-for="(p, i) in PILLARS" :key="p.title" :style="{ transitionDelay: `${0.35 + i * 0.12}s` }">
+              <span class="pillar-icon">
+                <svg v-if="p.icon === 'move'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg>
+                <svg v-else-if="p.icon === 'people'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5a5 5 0 0 1 4 5"/></svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.6-7.5 10-7.5 10Z"/></svg>
+              </span>
+              <span class="pillar-text">
+                <strong>{{ p.title }}</strong>
+                <small>{{ p.text }}</small>
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual -->
+        <div class="col-visual">
+          <div class="visual">
+            <div class="ring ring-dashed"></div>
+            <div class="ring ring-solid"></div>
+
+            <div class="photo-circle">
+              <img :src="photo" alt="Comunidad Factor FIT entrenando" loading="lazy" />
+              <div class="photo-shade"></div>
+            </div>
+
+            <div class="chip chip-a">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14.5a5 5 0 0 1 4 5"/></svg>
+              Comunidad
+            </div>
+            <div class="chip chip-b">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.4-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 3c0 5.6-7.5 10-7.5 10Z"/></svg>
+              Tu bienestar
+            </div>
+            <div class="chip chip-c">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.5 6.6 19.5l1.2-6L3.3 9.3l6.1-.7L12 3z"/></svg>
+              Mejor versión
+            </div>
           </div>
         </div>
       </div>
@@ -88,303 +108,265 @@ const BENEFITS = [
 </template>
 
 <style scoped>
-.benefits-wrapper {
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
+.about {
+  --purple: #a020ff;
   position: relative;
   scroll-margin-top: 84px;
-  padding: clamp(80px, 10vw, 140px) clamp(20px, 5vw, 60px);
-  background: #09090b;
-  font-family: 'Inter', sans-serif;
+  padding: clamp(70px, 10vw, 130px) clamp(18px, 5vw, 64px);
   overflow: hidden;
-  color: #f5f5f4;
+  isolation: isolate;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse 70% 60% at 0% 0%, #b44ce6 0%, rgba(180, 76, 230, 0) 55%),
+    linear-gradient(150deg, #6c2f9c 0%, #43246a 45%, #131526 100%);
 }
 
-/* Fondo animado profundo con cuadros y blobs */
-.background-animation {
+/* ---------- Fondo ---------- */
+.bg-orb { position: absolute; border-radius: 50%; filter: blur(90px); z-index: -2; pointer-events: none; }
+.orb-a { width: 460px; height: 460px; background: rgba(255, 120, 255, 0.35); top: -120px; left: -120px; animation: drift 16s ease-in-out infinite alternate; }
+.orb-b { width: 420px; height: 420px; background: rgba(70, 90, 255, 0.28); bottom: -140px; right: -100px; animation: drift 19s ease-in-out infinite alternate-reverse; }
+.orb-c { width: 300px; height: 300px; background: rgba(160, 32, 255, 0.3); top: 40%; left: 45%; animation: drift 22s ease-in-out infinite alternate; }
+.watermark {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  z-index: -1;
+  right: -2%;
+  bottom: -6%;
+  font-family: 'Roboto Mono', 'Inter', monospace;
+  font-weight: 800;
+  font-size: clamp(6rem, 22vw, 20rem);
+  letter-spacing: 0.1em;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.07);
+  user-select: none;
   pointer-events: none;
-  z-index: 0;
 }
 
-/* Efectos de luz difusa (blobs) */
-.mesh-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.35;
-  will-change: transform;
+@keyframes drift { from { transform: translate(0, 0); } to { transform: translate(50px, -36px); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+
+.container { max-width: 1240px; margin: 0 auto; position: relative; }
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: clamp(36px, 6vw, 90px);
+  align-items: center;
 }
 
-.blob-1 {
-  width: 550px;
-  height: 550px;
-  background: rgba(28, 79, 214, 0.45);
-  top: -10%;
-  left: 5%;
-  animation: moveBlob1 16s ease-in-out infinite alternate;
-}
-
-.blob-2 {
-  width: 650px;
-  height: 650px;
-  background: rgba(14, 116, 144, 0.3);
-  bottom: -20%;
-  right: 5%;
-  animation: moveBlob2 20s ease-in-out infinite alternate;
-}
-
-@keyframes moveBlob1 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(80px, 100px) scale(1.15); }
-}
-
-@keyframes moveBlob2 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-90px, -70px) scale(1.2); }
-}
-
-/* Cuadros flotantes animados en el fondo fondo */
-.floating-box {
-  position: absolute;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(255, 255, 255, 0.01);
-  border-radius: 16px;
-  backdrop-filter: blur(2px);
-  will-change: transform;
-}
-
-.box-1 {
-  width: 140px;
-  height: 140px;
-  top: 15%;
-  left: 8%;
-  animation: floatBox1 12s ease-in-out infinite;
-}
-
-.box-2 {
-  width: 200px;
-  height: 200px;
-  top: 60%;
-  left: 3%;
-  animation: floatBox2 16s ease-in-out infinite;
-}
-
-.box-3 {
-  width: 160px;
-  height: 160px;
-  top: 10%;
-  right: 10%;
-  animation: floatBox3 14s ease-in-out infinite;
-}
-
-.box-4 {
-  width: 110px;
-  height: 110px;
-  bottom: 12%;
-  right: 15%;
-  animation: floatBox1 10s ease-in-out infinite reverse;
-}
-
-@keyframes floatBox1 {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-30px) rotate(8deg); }
-}
-
-@keyframes floatBox2 {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-45px) rotate(-10deg); }
-}
-
-@keyframes floatBox3 {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(35px) rotate(12deg); }
-}
-
-.container {
-  max-width: 1280px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-/* Cabecera */
-.header {
-  text-align: center;
-  margin-bottom: 60px;
+/* ---------- Texto ---------- */
+.col-text {
   opacity: 0;
-  transform: translateY(24px);
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-30px);
+  transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.revealed .col-text { opacity: 1; transform: none; }
+
+.title {
+  margin: 0 0 clamp(20px, 3vw, 30px);
+  font-family: 'Permanent Marker', 'Inter', cursive;
+  font-weight: 400;
+  font-size: clamp(2.3rem, 7.4vw, 4.4rem);
+  line-height: 1.08;
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 0 3px 0 rgba(40, 10, 84, 0.7), 0 8px 30px rgba(20, 8, 44, 0.6);
+}
+.last-word { white-space: nowrap; }
+
+/* Puntos suspensivos: junto a la palabra, alineados a la base */
+.dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.13em;
+  margin-left: 0.14em;
+  vertical-align: baseline;
+}
+.dots i {
+  display: block;
+  width: 0.14em;
+  height: 0.14em;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: #f7c6ff;
+  box-shadow: 0 0 12px rgba(247, 198, 255, 0.85);
+  animation: dotJump 1.4s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: 0.18s; }
+.dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dotJump { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-0.3em); } }
+
+.text-card {
+  position: relative;
+  padding: clamp(22px, 3vw, 34px) clamp(20px, 3vw, 36px);
+  border-radius: 24px;
+  background: linear-gradient(150deg, rgba(36, 12, 74, 0.78), rgba(22, 9, 50, 0.7));
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 30px 70px rgba(15, 6, 36, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.text-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 24px; bottom: 24px;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffd0ff, var(--purple));
+}
+.text-card p {
+  margin: 0 0 16px;
+  font-size: clamp(1rem, 1.5vw, 1.12rem);
+  line-height: 1.75;
+  font-weight: 500;
+  color: #fff;
+}
+.text-card p:last-child { margin-bottom: 0; }
+.text-card mark {
+  background: linear-gradient(transparent 62%, rgba(206, 110, 255, 0.6) 62%);
+  color: #fff;
+  font-weight: 700;
+  padding: 0 3px;
 }
 
-.header.revealed { opacity: 1; transform: translateY(0); }
-
-.section-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  background: rgba(28, 79, 214, 0.12);
-  border: 1px solid rgba(28, 79, 214, 0.3);
-  border-radius: 20px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
-  color: #4a7cf0;
-  text-transform: uppercase;
-  margin-bottom: 20px;
-}
-
-.main-title {
-  font-family: 'Anton', sans-serif;
-  font-size: clamp(2.2rem, 5vw, 4rem);
-  line-height: 1.05;
-  text-transform: uppercase;
-  margin: 0 0 18px;
-  letter-spacing: -0.5px;
-}
-
-.text-accent {
-  background: linear-gradient(135deg, #3a6bd6 0%, #60a5fa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-  font-size: 16px;
-  line-height: 1.6;
-  color: rgba(245, 245, 244, 0.65);
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-/* Grid Bento */
-.benefits-grid {
+/* Pilares */
+.pillars {
+  list-style: none;
+  margin: clamp(20px, 3vw, 28px) 0 0;
+  padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
+  gap: 12px;
 }
-
-.col-span-1 { grid-column: span 1; }
-.col-span-2 { grid-column: span 2; }
-
-@media (max-width: 1024px) {
-  .benefits-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .col-span-1, .col-span-2 { grid-column: span 1; }
-}
-
-@media (max-width: 640px) {
-  .benefits-grid { grid-template-columns: 1fr; }
-}
-
-/* Tarjetas */
-.benefit-card {
-  position: relative;
-  background: rgba(18, 18, 22, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 24px;
-  padding: clamp(32px, 3.5vw, 44px);
+.pillars li {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  overflow: hidden;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(14, 8, 30, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   opacity: 0;
-  transform: translateY(30px);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.7s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease;
 }
-
-.benefit-card.revealed { opacity: 1; transform: translateY(0); }
-
-.benefit-card:hover {
-  transform: translateY(-8px);
-  border-color: rgba(58, 107, 214, 0.45);
-  box-shadow: 0 22px 45px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(28, 79, 214, 0.18);
+.revealed .pillars li { opacity: 1; transform: none; }
+.revealed .pillars li:hover { transform: translateY(-5px); border-color: rgba(240, 180, 255, 0.6); background: rgba(60, 20, 100, 0.55); }
+.pillar-icon {
+  width: 42px; height: 42px;
+  display: grid; place-items: center;
+  border-radius: 13px;
+  color: #f1c4ff;
+  background: rgba(160, 32, 255, 0.28);
+  border: 1px solid rgba(220, 150, 255, 0.45);
 }
+.pillar-icon svg { width: 21px; height: 21px; }
+.pillar-text { display: flex; flex-direction: column; gap: 3px; }
+.pillar-text strong { font-size: 0.98rem; font-weight: 700; }
+.pillar-text small { font-size: 0.8rem; line-height: 1.4; color: rgba(255, 255, 255, 0.7); }
 
-.card-glow-effect {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(700px circle at 50% 0%, rgba(58, 107, 214, 0.1), transparent 60%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-.benefit-card:hover .card-glow-effect { opacity: 1; }
-
-/* Tarjeta Destacada principal */
-.benefit-card.highlighted {
-  background: linear-gradient(135deg, #1c4fd6 0%, #11369c 100%);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 15px 35px rgba(28, 79, 214, 0.35);
-}
-
-.benefit-card.highlighted:hover {
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 25px 50px rgba(28, 79, 214, 0.55);
-}
-
-.card-content {
-  position: relative;
-  z-index: 2;
-}
-
-.card-tag {
-  display: inline-block;
-  font-family: 'Oswald', sans-serif;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: #60a5fa;
-  margin-bottom: 16px;
-  background: rgba(96, 165, 250, 0.1);
-  padding: 4px 10px;
-  border-radius: 6px;
-}
-
-.benefit-card.highlighted .card-tag {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.card-title {
-  font-family: 'Oswald', sans-serif;
-  font-size: clamp(1.35rem, 1.8vw, 1.6rem);
-  font-weight: 700;
-  margin: 0 0 14px;
-  letter-spacing: 0.2px;
-  color: #f5f5f4;
-}
-
-.benefit-card.highlighted .card-title { color: #ffffff; }
-
-.card-text {
-  font-size: 15px;
-  line-height: 1.65;
-  color: rgba(245, 245, 244, 0.65);
-  margin: 0;
-}
-
-.benefit-card.highlighted .card-text { color: rgba(255, 255, 255, 0.88); }
-
-.card-footer-icon {
-  margin-top: 24px;
+/* ---------- Visual ---------- */
+.col-visual {
   display: flex;
-  justify-content: flex-end;
-  color: rgba(255, 255, 255, 0.9);
-  transition: transform 0.3s ease;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 1s 0.15s ease, transform 1s 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.revealed .col-visual { opacity: 1; transform: none; }
+
+.visual {
   position: relative;
-  z-index: 2;
+  width: min(100%, 460px);
+  aspect-ratio: 1;
+}
+.ring { position: absolute; border-radius: 50%; }
+.ring-dashed {
+  inset: 0;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  animation: spin 40s linear infinite;
+}
+.ring-solid {
+  inset: 5.5%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 80px rgba(210, 110, 255, 0.4);
+}
+.photo-circle {
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 30px 70px rgba(10, 4, 28, 0.55);
+  background: #2a1646;
+}
+.photo-circle img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transform: scale(1.08);
+  transition: transform 1.2s ease;
+}
+.visual:hover .photo-circle img { transform: scale(1.16); }
+.photo-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg, rgba(160, 32, 255, 0.28), rgba(10, 6, 30, 0.2) 55%, rgba(10, 6, 30, 0.45));
 }
 
-.benefit-card.highlighted:hover .card-footer-icon {
-  transform: translateX(6px);
+.chip {
+  position: absolute;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px 10px 12px;
+  border-radius: 999px;
+  font-size: clamp(0.78rem, 1.6vw, 0.9rem);
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(20, 8, 44, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  animation: bob 5s ease-in-out infinite;
+}
+.chip svg { width: 18px; height: 18px; color: #e9b3ff; }
+.chip-a { top: 8%; right: -3%; }
+.chip-b { bottom: 12%; left: -5%; animation-delay: -1.6s; }
+.chip-c { bottom: -2%; right: 10%; animation-delay: -3.2s; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; gap: 44px; }
+  .col-visual { order: -1; }
+  .col-text { text-align: center; }
+  .title { text-align: center; }
+  .text-card { text-align: left; }
+  .visual { width: min(78vw, 400px); }
+  .chip-a { right: -2%; }
+  .chip-b { left: -2%; }
+}
+@media (max-width: 640px) {
+  .pillars { grid-template-columns: 1fr; }
+  .pillars li { flex-direction: row; align-items: center; gap: 14px; text-align: left; }
+  .pillar-icon { flex: 0 0 42px; }
+  .text-card::before { display: none; }
+  .chip { padding: 8px 13px 8px 10px; }
+  .chip svg { width: 16px; height: 16px; }
+}
+@media (max-width: 380px) {
+  .chip-c { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .col-text, .col-visual, .pillars li { opacity: 1 !important; transform: none !important; }
 }
 </style>

@@ -71,7 +71,7 @@
           </transition>
         </div>
 
-        <!-- MENÚ CENTRAL (mismas secciones del sidebar) -->
+        <!-- MENÚ CENTRAL -->
         <nav class="desktop-menu">
           <template v-for="m in desktopMenu" :key="m.key">
 
@@ -205,7 +205,7 @@
                   <span class="dropdown-copy"><strong>{{ nt(l.key) }}</strong></span>
                 </router-link>
 
-                <div class="dropdown-divider"></div>
+                <div v-if="profileLinks.length" class="dropdown-divider"></div>
 
                 <router-link :to="`${BASE}/profile`" class="dropdown-link compact" @click="closeDesktopDropdown">
                   <span class="dropdown-icon neutral">
@@ -595,7 +595,13 @@ const NAV_ICON = {
   /* corazón: salud y nutrición */
   health: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
   /* tarjeta de membresía: membresía y pagos */
-  payments: 'M20 2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h4v5l4-2 4 2v-5h4c1.11 0 2-.89 2-2V4c0-1.11-.89-2-2-2zm0 13H4v-2h16v2zm0-5H4V4h16v6z'
+  payments: 'M20 2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h4v5l4-2 4 2v-5h4c1.11 0 2-.89 2-2V4c0-1.11-.89-2-2-2zm0 13H4v-2h16v2zm0-5H4V4h16v6z',
+  /* personas: clases y reservas */
+  classes: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+  /* persona: entrenadores */
+  trainers: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+  /* barras: estadísticas */
+  statistics: 'M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z'
 };
 
 /* =========================================================
@@ -620,9 +626,9 @@ const menu = [
       { to: `${BASE}/nutrition-plan`, key: 'nutritionPlan', svg: ICON.nutrition, color: 'purple' }
     ]
   },
-  { type: 'link', key: 'classesAndBookings', to: `${BASE}/classes`, svg: ICON.classes, color: 'purple' },
-  { type: 'link', key: 'trainers', to: `${BASE}/trainers`, svg: ICON.profile, color: 'green' },
-  { type: 'link', key: 'statistics', to: `${BASE}/statistics`, svg: ICON.statistics, color: 'orange' },
+  { type: 'link', key: 'classesAndBookings', to: `${BASE}/classes`, svg: ICON.classes, navIcon: NAV_ICON.classes, color: 'purple' },
+  { type: 'link', key: 'trainers', to: `${BASE}/trainers`, svg: ICON.profile, navIcon: NAV_ICON.trainers, color: 'green' },
+  { type: 'link', key: 'statistics', to: `${BASE}/statistics`, svg: ICON.statistics, navIcon: NAV_ICON.statistics, color: 'orange' },
   {
     type: 'group', id: 'payments', key: 'membershipAndPayments', svg: ICON.payments, navIcon: NAV_ICON.payments,
     items: [
@@ -636,21 +642,28 @@ const groupsById = Object.fromEntries(
   menu.filter((m) => m.type === 'group').map((g) => [g.id, g])
 );
 
+const menuByKey = Object.fromEntries(menu.map((m) => [m.key, m]));
+
 /* Enlaces que en móvil van dentro de "Más" */
 const moreLinks = menu.filter((m) => m.type === 'link' && m.key !== 'home');
 
 /*
-  Escritorio: para que el menú no se vea apretado, Clases y Reservas,
-  Entrenadores y Estadísticas van dentro del panel del perfil.
+  Escritorio (barra superior): Inicio, Clases y Reservas,
+  Entrenadores, Estadísticas y Membresía y Pagos.
 */
-const desktopMenu = menu.filter(
-  (m) =>
-    m.type === 'group' ||
-    m.key === 'home' ||
-    m.key === 'gymsAndVenues'
-);
+const desktopMenu = [
+  menuByKey.home,
+  menuByKey.classesAndBookings,
+  menuByKey.trainers,
+  menuByKey.statistics,
+  menuByKey.membershipAndPayments
+];
 
-const profileLinks = moreLinks.filter((l) => l.key !== 'gymsAndVenues');
+/*
+  Panel del perfil: sin enlaces extra. Rutinas y Salud y Nutrición ya no
+  se muestran en escritorio. Gimnasios y Sedes sigue en el menú de sucursal.
+*/
+const profileLinks = [];
 
 /* =========================================================
    TEXTOS DEL MENÚ (los mismos del Sidebar + algunos de apoyo)

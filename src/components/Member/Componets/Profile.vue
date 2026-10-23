@@ -1290,55 +1290,7 @@ onUnmounted(() => {
               </div>
             </section>
 
-            <!-- MEMBRESÍA DEL GIMNASIO -->
-            <section id="athlete-gym" class="settings-card">
-              <div id="tutorial-gym-membership-card"></div>
-              <header class="card-header">
-                <div class="card-header-icon">
-                  <svg viewBox="0 0 24 24"><path d="M6 4v16M18 4v16M3 9v6M21 9v6M6 12h12" /></svg>
-                </div>
-
-                <div>
-                  <span class="card-eyebrow">{{ t.gymEyebrow }}</span>
-                  <h2>{{ t.gymMembershipTitle }}</h2>
-                  <p>{{ t.gymDescription }}</p>
-                </div>
-              </header>
-
-              <div class="form-grid">
-                <div class="input-group">
-                  <label for="tipoMembresia">{{ t.gymMembershipTypeLabel }}</label>
-                  <div class="input-with-icon disabled">
-                    <svg viewBox="0 0 24 24"><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" /></svg>
-                    <input id="tipoMembresia" :value="membershipLabel" type="text" disabled />
-                  </div>
-                </div>
-
-                <div class="input-group">
-                  <label for="montoPagado">{{ t.amountPaidLabel }}</label>
-                  <div class="input-with-icon disabled">
-                    <svg viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                    <input id="montoPagado" :value="`$ ${form.montoPagado}`" type="text" disabled />
-                  </div>
-                </div>
-
-                <div class="input-group">
-                  <label for="fechaInscripcion">{{ t.enrollmentDateLabel }}</label>
-                  <div class="input-with-icon disabled">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 10h18M8 2v4M16 2v4" /></svg>
-                    <input id="fechaInscripcion" v-model="form.fechaInscripcion" type="date" disabled />
-                  </div>
-                </div>
-
-                <div class="input-group">
-                  <label for="fechaCorte">{{ t.cutoffDateLabel }}</label>
-                  <div class="input-with-icon disabled">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                    <input id="fechaCorte" v-model="form.fechaCorte" type="date" disabled />
-                  </div>
-                </div>
-              </div>
-            </section>
+            
 
             <!-- SUSCRIPCIÓN WEB -->
             <section id="athlete-web" class="settings-card">
@@ -1732,29 +1684,28 @@ button, input, textarea { font: inherit; }
 
 /* =========================================================
    BASE
+   Todo sale de las variables globales del tema. Esta página
+   ya NO pinta su propio fondo: usa el del layout.
 ========================================================= */
 .settings-page {
   --accent: var(--color-highlight, #3b82f6);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 35%, transparent);
-  --card: var(--bg-cards, #121212);
-  --bg: var(--color-interfaz, #090909);
+  --card: var(--bg-cards, rgba(18, 18, 18, 0.75));
   --title: var(--color-titulos, #fff);
   --text: var(--color-texto-general, #e5e5e5);
   --muted: rgba(229, 229, 229, 0.62);
   --muted2: rgba(229, 229, 229, 0.42);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.15);
-  --field: #101010;
-  --radius: 18px;
+  --line: var(--border-cards, rgba(255, 255, 255, 0.09));
+  --line-strong: var(--border-input, rgba(255, 255, 255, 0.15));
+  --field: var(--bg-input, rgba(255, 255, 255, 0.03));
+  --radius: var(--app-border-radius, 18px);
 
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
   padding: 34px clamp(18px, 4vw, 64px) 70px;
   overflow-x: clip;
   color: var(--text);
-  background: var(--bg);
   font-family: 'Inter', sans-serif;
 }
 
@@ -2266,19 +2217,27 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--line-strong);
   border-radius: 11px;
   outline: none;
-  color-scheme: dark;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-.input-group > input:hover { border-color: rgba(255, 255, 255, 0.25); }
+.input-group > input:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
 
 .input-group > input:focus {
-  background: #131313;
+  background: var(--field);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .input-group > input::placeholder { color: var(--muted2); }
+
+.input-group > input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--line);
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+}
 
 .input-with-icon {
   height: 46px;
@@ -2324,10 +2283,14 @@ button, input, textarea { font: inherit; }
   background: transparent;
   border: 0;
   outline: none;
-  color-scheme: dark;
 }
 
-.input-with-icon input:disabled { color: var(--muted); cursor: not-allowed; }
+.input-with-icon input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
+}
 
 .input-with-icon input::placeholder { color: var(--muted2); }
 
@@ -2348,14 +2311,13 @@ button, input, textarea { font: inherit; }
   border: 1px solid var(--line-strong);
   border-radius: 11px;
   outline: none;
-  color-scheme: dark;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 .unit-input input:hover { border-color: rgba(255, 255, 255, 0.25); }
 
 .unit-input input:focus {
-  background: #131313;
+  background: var(--field);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }

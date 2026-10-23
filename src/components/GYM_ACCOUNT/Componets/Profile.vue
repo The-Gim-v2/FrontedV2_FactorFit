@@ -3,7 +3,6 @@ import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from
 import { useRouter } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import RegisterGymModal from '../../Record/Record-Gym.vue';
-import MembershipModal from '../../Modals/MembershipModal.vue';
 import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
@@ -34,9 +33,7 @@ const FALLBACKS: Record<string, string> = {
   coverPreviewAlt: 'Portada del gimnasio',
   coverPlaceholderText: 'Haz clic para seleccionar una imagen',
   labelGymName: 'Nombre del gimnasio',
-  labelCurrentMembership: 'Membresía actual',
   btnAddBranch: 'Agregar sede',
-  btnCancelSubscription: 'Cancelar suscripción',
   sectionGymDetailsTitle: 'Acerca del gimnasio',
   labelGymDescription: 'Descripción del gimnasio',
   placeholderGymDescription: 'Describe las instalaciones, servicios y ambiente de tu gimnasio…',
@@ -62,10 +59,6 @@ const FALLBACKS: Record<string, string> = {
   labelConfirmPassword: 'Confirmar contraseña',
   confirmPasswordPlaceholder: 'Repite la contraseña',
   btnSaveDataset: 'Guardar cambios',
-  modalCancelTitle: 'Cancelar suscripción',
-  modalCancelText: '¿Seguro que deseas cancelar tu suscripción? Perderás los beneficios del plan al terminar el periodo actual.',
-  btnKeepPlan: 'Conservar plan',
-  btnConfirmCancel: 'Sí, cancelar',
   credentialsUpdateModalTitle: 'Actualizar credenciales',
   emailChangeWarningText: 'Cambiaste el correo de acceso. Define una nueva contraseña para continuar; se cerrará tu sesión.',
   newAccessPasswordLabel: 'Nueva contraseña de acceso',
@@ -122,7 +115,7 @@ const sections: NavSection[] = [
   {
     id: 'gym-info',
     title: ['navGeneral', 'Información general'],
-    desc: ['navGeneralDesc', 'Perfil y membresía'],
+    desc: ['navGeneralDesc', 'Perfil y sedes'],
     icon: ['M3 21h18', 'M5 21V7l7-4 7 4v14', 'M9 21v-5h6v5'],
   },
   {
@@ -219,8 +212,6 @@ const previewCoverImage = ref<string | null>(null);
 const showPassword = ref(false);
 
 const showAddSedeModal = ref(false);
-const showPaymentModal = ref(false);
-const showCancelModal = ref(false);
 const showEmailModal = ref(false);
 
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
@@ -628,24 +619,6 @@ const confirmEmailAndPasswordChange = () => {
 
     router.replace({ name: 'login' });
   }, 2000);
-};
-
-const handleUpdateMembership = () => {
-  showPaymentModal.value = true;
-};
-
-const handlePaymentSuccess = (msg: string) => {
-  showPaymentModal.value = false;
-  showNotification(msg, 'success');
-};
-
-const handleCancelSubscription = () => {
-  showCancelModal.value = true;
-};
-
-const confirmCancelSubscription = () => {
-  showCancelModal.value = false;
-  showNotification(tr('toastCancelRequested', 'Solicitud de cancelación procesada'), 'warning');
 };
 
 const handleAddSede = () => {
@@ -1175,58 +1148,25 @@ async function buscarDireccion() {
                 </div>
               </div>
 
-              <!-- MEMBRESÍA -->
-              <div class="membership-card">
-                <div class="membership-icon">
+              <!-- AGREGAR SEDE -->
+              <div class="branch-row">
+                <div class="branch-copy">
+                  <strong>{{ tr('branchesTitle', 'Sedes') }}</strong>
+                  <span>{{ tr('branchesHint', 'Registra una nueva sede para tu gimnasio.') }}</span>
+                </div>
+
+                <button
+                  type="button"
+                  class="primary-action-btn"
+                  :class="{ disabled: !isProMember }"
+                  @click="handleAddSede"
+                >
                   <svg viewBox="0 0 24 24">
-                    <path d="M4 6h16v12H4z"/>
-                    <path d="M4 10h16"/>
-                    <path d="M8 15h4"/>
+                    <path d="M12 5v14M5 12h14"/>
                   </svg>
-                </div>
-
-                <div class="membership-content">
-                  <span class="membership-label">{{ t('labelCurrentMembership') }}</span>
-                  <strong>Plan Pro</strong>
-
-                  <div class="membership-meta">
-                    <span>
-                      <i class="membership-status-dot"></i>
-                      {{ tr('membershipActive', 'Membresía activa') }}
-                    </span>
-                    <span class="membership-sep">•</span>
-                    <span>{{ tr('mainBranchLabel', 'Sede Principal') }}</span>
-                  </div>
-                </div>
-
-                <div class="membership-actions">
-                  <button type="button" class="secondary-action-btn" @click="handleUpdateMembership">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M21 2v6h-6"/>
-                      <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
-                      <path d="M3 22v-6h6"/>
-                      <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
-                    </svg>
-                    {{ tr('manageMembership', 'Administrar membresía') }}
-                  </button>
-
-                  <button
-                    type="button"
-                    class="primary-action-btn"
-                    :class="{ disabled: !isProMember }"
-                    @click="handleAddSede"
-                  >
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    {{ t('btnAddBranch') }}
-                  </button>
-                </div>
+                  {{ t('btnAddBranch') }}
+                </button>
               </div>
-
-              <button type="button" class="cancel-subscription-link" @click="handleCancelSubscription">
-                {{ t('btnCancelSubscription') }}
-              </button>
             </section>
 
             <!-- ACERCA DEL GIMNASIO -->
@@ -1937,41 +1877,6 @@ async function buscarDireccion() {
         </div>
       </transition>
 
-      <!-- MODAL CANCELAR -->
-      <div v-if="showCancelModal" class="modal-overlay" @click.self="showCancelModal = false">
-        <div class="modal-container modal-small animate-modal">
-          <div class="modal-header">
-            <h3>{{ t('modalCancelTitle') }}</h3>
-
-            <button type="button" class="close-btn" @click="showCancelModal = false">×</button>
-          </div>
-
-          <div class="modal-body text-center">
-            <div class="warning-icon-wrapper">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-                <path
-                  d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
-                />
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-
-            <p class="modal-text">{{ t('modalCancelText') }}</p>
-
-            <div class="modal-actions">
-              <button type="button" class="btn-secondary-modal" @click="showCancelModal = false">
-                {{ t('btnKeepPlan') }}
-              </button>
-
-              <button type="button" class="btn-danger-modal" @click="confirmCancelSubscription">
-                {{ t('btnConfirmCancel') }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- MODAL CAMBIO DE CORREO -->
       <div v-if="showEmailModal" class="modal-overlay" @click.self="showEmailModal = false">
         <div class="modal-container modal-small animate-modal">
@@ -2025,12 +1930,6 @@ async function buscarDireccion() {
         </div>
       </div>
 
-      <MembershipModal
-        v-if="showPaymentModal"
-        @close="showPaymentModal = false"
-        @success="handlePaymentSuccess"
-      />
-
       <!-- MODAL AGREGAR SEDE -->
       <div v-if="showAddSedeModal" class="modal-overlay" @click.self="showAddSedeModal = false">
         <div class="modal-container animate-modal modal-large">
@@ -2064,24 +1963,21 @@ button, input, textarea { font: inherit; }
   --accent: var(--color-highlight, #3b82f6);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 35%, transparent);
-  --card: var(--bg-cards, #121212);
-  --bg: var(--color-interfaz, #090909);
+  --card: var(--bg-cards, rgba(18, 18, 18, 0.75));
   --title: var(--color-titulos, #fff);
   --text: var(--color-texto-general, #e5e5e5);
   --muted: rgba(229, 229, 229, 0.62);
   --muted2: rgba(229, 229, 229, 0.42);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.15);
-  --field: #101010;
-  --radius: 18px;
+  --line: var(--border-cards, rgba(255, 255, 255, 0.09));
+  --line-strong: var(--border-input, rgba(255, 255, 255, 0.15));
+  --field: var(--bg-input, rgba(255, 255, 255, 0.03));
+  --radius: var(--app-border-radius, 18px);
 
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
   padding: 34px clamp(18px, 4vw, 64px) 70px;
   overflow-x: clip;
   color: var(--text);
-  background: var(--bg);
   font-family: 'Inter', sans-serif;
 }
 
@@ -2577,6 +2473,7 @@ button, input, textarea { font: inherit; }
   line-height: 1.2;
 }
 
+/* Estilo base de los campos (siempre visible, no solo al enfocar) */
 .input-group > input,
 .input-group > textarea,
 .plain-input,
@@ -2609,7 +2506,7 @@ button, input, textarea { font: inherit; }
 .input-group > textarea:focus,
 .plain-input:focus,
 .weekly-time-field input:focus {
-  background: #131313;
+  background: var(--field);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -2716,7 +2613,7 @@ button, input, textarea { font: inherit; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: #0f0f0f;
+  background: var(--field);
   border: 1px dashed rgba(255, 255, 255, 0.2);
   border-radius: 14px;
   transition: border-color 0.2s, background 0.2s;
@@ -2767,121 +2664,58 @@ button, input, textarea { font: inherit; }
 }
 
 /* =========================================================
-   MEMBRESÍA
+   AGREGAR SEDE
 ========================================================= */
-.membership-card {
+.branch-row {
   margin-top: 22px;
   padding: 16px 18px;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 14px;
-  background: linear-gradient(90deg, var(--accent-soft), rgba(255, 255, 255, 0.015));
-  border: 1px solid var(--accent-border);
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--field);
+  border: 1px solid var(--line);
   border-radius: 14px;
 }
 
-.membership-icon {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-radius: 12px;
-}
+.branch-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 
-.membership-icon svg,
-.membership-actions svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
+.branch-copy strong { color: var(--title); font-size: 14px; }
 
-.membership-content { min-width: 0; display: flex; flex-direction: column; }
+.branch-copy span { color: var(--muted); font-size: 12px; line-height: 1.45; }
 
-.membership-label {
-  color: var(--muted2);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
-
-.membership-content strong {
-  margin-top: 2px;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 19px;
-}
-
-.membership-meta {
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.membership-meta > span { display: inline-flex; align-items: center; gap: 6px; }
-
-.membership-sep { color: var(--muted2); }
-
-.membership-status-dot {
-  width: 7px;
-  height: 7px;
-  display: inline-block;
-  background: #34d399;
-  border-radius: 50%;
-  box-shadow: 0 0 6px #34d399;
-}
-
-.membership-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.secondary-action-btn,
 .primary-action-btn {
-  height: 38px;
-  padding: 0 13px;
+  height: 40px;
+  padding: 0 16px;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
   white-space: nowrap;
   cursor: pointer;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 700;
-}
-
-.secondary-action-btn { color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line-strong); }
-
-.primary-action-btn {
   color: var(--color-texto-botones, #fff);
   background: var(--color-botones, var(--accent));
   border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: filter 0.2s, transform 0.2s;
 }
+
+.primary-action-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
 
 .primary-action-btn.disabled { opacity: 0.45; }
 
-.cancel-subscription-link {
-  margin-top: 12px;
-  padding: 0;
-  color: #f87171;
-  cursor: pointer;
-  background: none;
-  border: 0;
-  font-size: 12px;
-  font-weight: 700;
+.primary-action-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-
-.cancel-subscription-link:hover { text-decoration: underline; }
 
 /* =========================================================
    AMENIDADES
@@ -3020,7 +2854,7 @@ button, input, textarea { font: inherit; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #0e0e0e;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--line);
   border-radius: 14px;
 }
@@ -4002,7 +3836,6 @@ button, input, textarea { font: inherit; }
 .modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
 
 .btn-secondary-modal,
-.btn-danger-modal,
 .btn-primary-modal {
   min-height: 42px;
   padding: 0 18px;
@@ -4013,8 +3846,6 @@ button, input, textarea { font: inherit; }
 }
 
 .btn-secondary-modal { color: var(--text); background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
-
-.btn-danger-modal { color: #fff; background: #dc2626; border: 1px solid #dc2626; }
 
 .btn-primary-modal { color: #fff; background: var(--accent); border: 1px solid var(--accent); }
 
@@ -4029,8 +3860,6 @@ button, input, textarea { font: inherit; }
   .settings-layout { grid-template-columns: 250px minmax(0, 1fr); gap: 18px; }
   .settings-card { padding: 24px; }
   .location-layout { grid-template-columns: minmax(0, 1fr); }
-  .membership-card { grid-template-columns: 44px minmax(0, 1fr); }
-  .membership-actions { grid-column: 1 / -1; padding-left: 58px; }
 }
 
 /* =========================================================
@@ -4101,14 +3930,11 @@ button, input, textarea { font: inherit; }
 
   .field-heading { flex-wrap: wrap; }
 
-  .membership-card { grid-template-columns: 40px minmax(0, 1fr); padding: 14px; }
+  .branch-row { flex-direction: column; align-items: stretch; padding: 14px; }
 
-  .membership-actions { padding-left: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+  .primary-action-btn { width: 100%; }
 
   .days-selector { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-  /* Horarios: cada día en su bloque y las horas en dos columnas dentro de la tarjeta */
-  .weekly-time-field input { height: 38px; padding: 0 8px; font-size: 13px; }
 
   /* Horarios por turnos en móvil */
   .day-card { padding: 12px; }

@@ -157,7 +157,7 @@ const translations = {
     contactDescription: 'You can update your mobile and email. Your email is also your login.',
     emailNotice: 'If you change your login email you must set a new password and sign in again.',
     scheduleEyebrow: 'SHIFT',
-    scheduleDescription: "Your schedule is assigned by the gym owner.",
+    scheduleDescription: 'Your schedule is assigned by the gym owner.',
     locationEyebrow: 'BRANCH',
     openInMaps: 'Open in Google Maps',
     securityEyebrow: 'SECURITY',
@@ -1404,29 +1404,28 @@ button, input, textarea { font: inherit; }
 
 /* =========================================================
    BASE
+   Todo sale de las variables globales del tema. Esta página
+   ya NO pinta su propio fondo: usa el del layout.
 ========================================================= */
 .settings-page {
   --accent: var(--color-highlight, #3b82f6);
   --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --accent-border: color-mix(in srgb, var(--accent) 35%, transparent);
-  --card: var(--bg-cards, #121212);
-  --bg: var(--color-interfaz, #090909);
+  --card: var(--bg-cards, rgba(18, 18, 18, 0.75));
   --title: var(--color-titulos, #fff);
   --text: var(--color-texto-general, #e5e5e5);
   --muted: rgba(229, 229, 229, 0.62);
   --muted2: rgba(229, 229, 229, 0.42);
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.15);
-  --field: #101010;
-  --radius: 18px;
+  --line: var(--border-cards, rgba(255, 255, 255, 0.09));
+  --line-strong: var(--border-input, rgba(255, 255, 255, 0.15));
+  --field: var(--bg-input, rgba(255, 255, 255, 0.03));
+  --radius: var(--app-border-radius, 18px);
 
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
   padding: 34px clamp(18px, 4vw, 64px) 70px;
   overflow-x: clip;
   color: var(--text);
-  background: var(--bg);
   font-family: 'Inter', sans-serif;
 }
 
@@ -1961,7 +1960,7 @@ button, input, textarea { font: inherit; }
 .input-group > input:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.25); }
 
 .input-group > input:focus {
-  background: #131313;
+  background: var(--field);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -2143,7 +2142,7 @@ button, input, textarea { font: inherit; }
 .map-column {
   min-width: 0;
   padding: 14px;
-  background: #0e0e0e;
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--line);
   border-radius: 14px;
 }

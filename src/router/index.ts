@@ -13,7 +13,7 @@ import RecoverPassword from '@/landing/Menu/Recover-password.vue'
 import Record from '@/landing/Menu/Record.vue'
 
 // Vistas de acceso para clientes/miembros
-import LoginClient from '@/components/Login.vue'
+//import LoginClient from '@/components/Login.vue'
 import RecoverPasswordClient from '@/components/Record/Recover-password.vue'
 import RecordClient from '@/components/Record/Record-Client.vue'
 
@@ -43,11 +43,11 @@ const router = createRouter({
     },
 
     // --- RUTAS DE AUTENTICACIÓN / REGISTRO DE CLIENTES ---
-    {
-      path: '/loginclient',
-      name: 'loginclient', 
-      component: LoginClient,
-    },
+    //{
+     // path: '/loginclient',
+      //name: 'loginclient', 
+      //component: LoginClient,
+    //},
     {
       path: '/recover-password-client',
       name: 'recover-password-client',

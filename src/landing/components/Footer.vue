@@ -1,368 +1,172 @@
 <script setup lang="ts">
-import { useReveal } from '../useReveal';
+import { ref, onMounted, onUnmounted } from 'vue';
 
-const { el, revealed } = useReveal();
+const year = new Date().getFullYear();
+
+const PHONE = '+52 481 111 1030';
+const WHATSAPP = 'https://wa.me/524811111030';
+const EMAIL = 'g-nafc@hotmail.com';
+
+/* Ajusta los href a los ids reales de tus secciones */
+const LINKS = [
+  { label: 'Inicio', href: '#' },
+  { label: 'Clases', href: '#clases' },
+  { label: 'Comunidad', href: '#comunidad' },
+  { label: 'Sedes y horarios', href: '#location' },
+];
+
+const goTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+/* Aparición al hacer scroll */
+const root = ref<HTMLElement | null>(null);
+const revealed = ref(false);
+let io: IntersectionObserver | null = null;
+
+onMounted(() => {
+  if (!('IntersectionObserver' in window) || !root.value) { revealed.value = true; return; }
+  io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { revealed.value = true; io?.disconnect(); } }, { threshold: 0.08 });
+  io.observe(root.value);
+});
+onUnmounted(() => io?.disconnect());
 </script>
 
 <template>
-  <!-- Sección de Llamada a la Acción (CTA) -->
-  <section id="cta-final" ref="el" class="cta-final" :class="{ revealed }">
-    <div class="cta-glow"></div>
-    <div class="cta-content">
-      <span class="cta-badge">Empieza hoy mismo</span>
-      <h2 class="cta-text">Digitaliza tu gimnasio y lleva el <span class="text-highlight">control total</span></h2>
-    </div>
-    <router-link to="/Record" class="cta-btn">
-      <span>Comenzar gratis</span>
-      <svg class="cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </router-link>
-  </section>
+  <footer ref="root" :class="['ff', { revealed }]">
+    <div class="blob b1" aria-hidden="true"></div>
+    <div class="blob b2" aria-hidden="true"></div>
+    <svg class="wave" viewBox="0 0 2880 120" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,60 C240,10 480,110 720,60 C960,10 1200,110 1440,60 C1680,10 1920,110 2160,60 C2400,10 2640,110 2880,60 L2880,0 L0,0 Z" />
+    </svg>
 
-  <!-- Pie de Página (Footer) -->
-  <footer class="footer-custom">
     <div class="container">
-      <div class="footer-main">
-
-        <!-- Columna 1: Marca y Descripción -->
-        <div class="footer-col brand-section">
-          <div class="brand-wrapper">
-            <h3 class="brand-name"><span class="text-accent">SAHWA</span></h3>
-          </div>
-          <p class="brand-desc">Sistema inteligente de gestión de pagos, control de accesos y optimización integral para centros deportivos modernos.</p>
-          <div class="social-icons">
-            <a href="#" class="social-link" aria-label="Facebook">
-              <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      <!-- ===== Columnas ===== -->
+      <div class="main">
+        <div class="col brand">
+          <h3 class="logo">FACTOR <span>FIT</span></h3>
+          <p class="desc">Entrenamiento funcional, GAP, Zumba, Tabata y mucho más. Asesoría cercana y un ambiente increíble en Ciudad Valles.</p>
+          <div class="social">
+            <a href="#" class="soc" aria-label="Facebook">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.07C24 5.45 18.63.07 12 .07S0 5.45 0 12.07c0 5.99 4.39 10.95 10.13 11.85v-8.39H7.08v-3.47h3.05V9.43c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.69.23 2.69.23v2.95h-1.52c-1.49 0-1.96.93-1.96 1.87v2.25h3.33l-.53 3.47h-2.8v8.39C19.61 23.03 24 18.06 24 12.07z"/></svg>
             </a>
-            <a href="#" class="social-link" aria-label="WhatsApp">
-              <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.558 0 11.893-5.335 11.897-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            <a href="#" class="soc" aria-label="Instagram">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85 0 3.2-.01 3.58-.07 4.85-.15 3.22-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07-3.2 0-3.58-.01-4.85-.07-3.26-.15-4.77-1.7-4.92-4.92C2.17 15.58 2.16 15.2 2.16 12c0-3.2.01-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16M12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95C23.73 2.7 21.3.27 16.95.07 15.67.01 15.26 0 12 0m0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32M12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8m6.41-11.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88"/></svg>
             </a>
-            <a href="#" class="social-link" aria-label="Instagram">
-              <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.981 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+            <a :href="WHATSAPP" target="_blank" rel="noopener" class="soc" aria-label="WhatsApp">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.07 2.88 1.21 3.07.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.7.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35M12.05 21.78h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88M20.46 3.49A11.82 11.82 0 0 0 12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L0 24l6.34-1.66a11.9 11.9 0 0 0 5.63 1.44h.01c6.56 0 11.9-5.34 11.9-11.89 0-3.18-1.24-6.17-3.48-8.41"/></svg>
             </a>
           </div>
         </div>
 
-        <!-- Columna 2: Soluciones -->
-        <div class="footer-col">
-          <h4 class="section-title">Soluciones</h4>
-          <ul class="footer-links">
-            <li><a href="#">Control de Accesos</a></li>
-            <li><a href="#">Gestión de Membresías</a></li>
-            <li><a href="#">Punto de Venta (POS)</a></li>
-            <li><a href="#">Reportes Financieros</a></li>
+        <nav class="col" aria-label="Navegación">
+          <h4 class="title">Explorar</h4>
+          <ul class="links">
+            <li v-for="l in LINKS" :key="l.label"><a :href="l.href">{{ l.label }}</a></li>
+          </ul>
+        </nav>
+
+        <div class="col">
+          <h4 class="title">Escríbenos</h4>
+          <ul class="links">
+            <li><a :href="WHATSAPP" target="_blank" rel="noopener">{{ PHONE }}</a></li>
+            <li><a :href="`mailto:${EMAIL}`">{{ EMAIL }}</a></li>
           </ul>
         </div>
-
-        <!-- Columna 3: Enlaces Útiles -->
-        <div class="footer-col">
-          <h4 class="section-title">Recursos</h4>
-          <ul class="footer-links">
-            <li><a href="#">Planes y Precios</a></li>
-            <li><a href="#">Casos de Éxito</a></li>
-            <li><a href="#">Guía de Instalación</a></li>
-            <li><a href="#">Estado del Sistema</a></li>
-          </ul>
-        </div>
-
-        <!-- Columna 4: Soporte y Contacto -->
-        <div class="footer-col">
-          <h4 class="section-title">Soporte</h4>
-          <ul class="footer-links">
-            <li><a href="#">Centro de Ayuda</a></li>
-            <li><a href="#">Documentación Técnica</a></li>
-            <li><a href="#">Seguridad de Datos</a></li>
-          </ul>
-          <div class="footer-contact-info">
-            <a href="mailto:Sahwa@gmail.com" class="email-link">
-              <svg class="email-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              Sahwagmail.com
-            </a>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Barra inferior -->
-      <div class="footer-bottom">
-        <div class="legal-links">
-          <a href="#">Aviso de Privacidad</a>
-          <span class="separator">•</span>
-          <a href="#">Términos de Servicio</a>
-          <span class="separator">•</span>
-          <a href="#">Cookies</a>
-        </div>
-        <p class="copyright">© 2026 SAHWA Todos los derechos reservados.</p>
+      <!-- ===== Barra inferior ===== -->
+      <div class="bottom">
+        <p class="copy">© {{ year }} <strong>Factor Fit</strong>. Todos los derechos reservados.</p>
+        <nav class="legal" aria-label="Legal">
+          <a href="#">Términos &amp; Condiciones</a>
+          <span class="sep" aria-hidden="true">•</span>
+          <a href="#">Política de Privacidad</a>
+        </nav>
+        <button class="top" type="button" aria-label="Volver arriba" @click="goTop">
+          Volver arriba
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+        </button>
       </div>
     </div>
   </footer>
 </template>
 
 <style scoped>
-/* ================= CTA FINAL ================= */
-.cta-final {
-  padding: clamp(70px, 9vw, 100px) clamp(24px, 6vw, 70px);
-  background: linear-gradient(135deg, #1844c0 0%, #0d2775 100%);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 36px;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+.ff {
+  --accent: #a78bfa;
+  --accent2: #7c3aed;
   position: relative;
+  isolation: isolate;
   overflow: hidden;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: clamp(56px, 7vw, 80px) clamp(16px, 4vw, 56px) 24px;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse 60% 50% at 0% 0%, rgba(124, 58, 237, 0.4), transparent 62%),
+    radial-gradient(ellipse 55% 45% at 100% 30%, rgba(217, 70, 239, 0.2), transparent 62%),
+    linear-gradient(180deg, #170f3d 0%, #0d0922 45%, #07041a 100%);
 }
 
-.cta-glow {
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-  pointer-events: none;
+.blob { position: absolute; border-radius: 50%; filter: blur(90px); z-index: -3; pointer-events: none; will-change: transform; }
+.b1 { width: 400px; height: 400px; background: rgba(109, 40, 217, 0.45); top: -120px; left: -120px; animation: fa 18s ease-in-out infinite alternate; }
+.b2 { width: 340px; height: 340px; background: rgba(217, 70, 239, 0.22); bottom: -120px; right: -100px; animation: fb 22s ease-in-out infinite alternate; }
+@keyframes fa { from { transform: translate(0, 0) scale(1); } to { transform: translate(80px, 50px) scale(1.18); } }
+@keyframes fb { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-80px, -40px) scale(0.9); } }
+
+.wave { position: absolute; top: -1px; left: 0; width: 200%; height: clamp(40px, 6vw, 80px); z-index: -1; pointer-events: none; fill: rgba(167, 139, 250, 0.14); animation: slide 28s linear infinite; }
+@keyframes slide { to { transform: translateX(-50%); } }
+
+.container { max-width: 1100px; margin: 0 auto; }
+
+.main, .bottom { opacity: 0; transform: translateY(22px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+.revealed .main { opacity: 1; transform: none; }
+.revealed .bottom { opacity: 1; transform: none; transition-delay: 0.2s; }
+
+.main { display: grid; grid-template-columns: 1.6fr 1fr 1.2fr; gap: clamp(28px, 5vw, 64px); padding-bottom: clamp(32px, 4vw, 48px); align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.logo { margin: 0; font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; font-size: clamp(1.9rem, 3.4vw, 2.5rem); letter-spacing: 1px; line-height: 1; text-transform: uppercase; }
+.logo span { background: linear-gradient(135deg, #c4b5fd, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+.desc { margin: 0; max-width: 38ch; font-size: 0.98rem; line-height: 1.7; color: rgba(255, 255, 255, 0.72); }
+
+.social { display: flex; gap: 12px; margin-top: 4px; }
+.soc { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #fff; text-decoration: none; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, box-shadow 0.3s ease; }
+.soc svg { width: 20px; height: 20px; }
+.soc:hover { transform: translateY(-5px); background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 10px 22px rgba(124, 58, 237, 0.5); }
+.soc:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+.title { margin: 0 0 2px; font-size: 0.82rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: #d8c8ff; }
+
+.links { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.links a { color: rgba(255, 255, 255, 0.85); font-weight: 600; font-size: 0.98rem; text-decoration: none; word-break: break-word; transition: color 0.2s ease, padding-left 0.25s ease; }
+.links a:hover { color: #fff; padding-left: 6px; }
+.links a:focus-visible, .legal a:focus-visible, .top:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 6px; }
+
+.bottom {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap;
+  padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.12); font-size: 0.9rem; color: rgba(255, 255, 255, 0.6);
 }
+.copy { margin: 0; }
+.copy strong { color: rgba(255, 255, 255, 0.9); font-weight: 700; }
+.legal { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.legal a { color: rgba(255, 255, 255, 0.7); text-decoration: none; transition: color 0.2s ease; }
+.legal a:hover { color: #fff; text-decoration: underline; }
+.sep { color: rgba(255, 255, 255, 0.25); }
+.top { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 18px; border-radius: 999px; font: 700 0.85rem 'Inter', sans-serif; color: #fff; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.22); transition: background 0.25s ease; }
+.top svg { width: 16px; height: 16px; transition: transform 0.25s ease; }
+.top:hover { background: rgba(255, 255, 255, 0.2); }
+.top:hover svg { transform: translateY(-3px); }
 
-.cta-final.revealed { opacity: 1; transform: translateY(0); }
-
-.cta-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 720px;
-  position: relative;
-  z-index: 2;
+@media (max-width: 800px) {
+  .main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brand { grid-column: 1 / -1; }
 }
-
-.cta-badge {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: rgba(255, 255, 255, 0.8);
+@media (max-width: 560px) {
+  .main { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .bottom { flex-direction: column; text-align: center; }
+  .legal { justify-content: center; }
 }
-
-.cta-text {
-  font-family: 'Anton', sans-serif;
-  font-size: clamp(2.2rem, 4.8vw, 3.4rem);
-  line-height: 1.05;
-  color: #ffffff;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0;
-}
-
-.text-highlight {
-  color: #60a5fa;
-}
-
-.cta-btn {
-  background: #ffffff;
-  color: #1237a0;
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 18px 38px;
-  border-radius: 14px;
-  text-decoration: none;
-  white-space: nowrap;
-  min-height: 54px;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  z-index: 2;
-}
-
-.cta-btn svg {
-  width: 18px;
-  height: 18px;
-  transition: transform 0.3s ease;
-}
-
-.cta-btn:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
-  background: #f8fafc;
-}
-
-.cta-btn:hover svg {
-  transform: translateX(5px);
-}
-
-/* ================= FOOTER ================= */
-.footer-custom {
-  padding: clamp(60px, 8vw, 85px) clamp(24px, 6vw, 70px) 36px;
-  background: #050508;
-  color: #f5f5f4;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: 'Inter', sans-serif;
-}
-
-.container { max-width: 1400px; margin: 0 auto; }
-
-.footer-main {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
-  gap: 48px;
-  padding-bottom: 55px;
-  align-items: start;
-}
-
-.footer-col { display: flex; flex-direction: column; gap: 16px; }
-
-.brand-section { gap: 14px; }
-
-.brand-name {
-  font-family: 'Anton', sans-serif;
-  font-size: 22px;
-  margin: 0;
-  letter-spacing: 0.8px;
-  color: #ffffff;
-}
-
-.text-accent { color: #3a6bd6; }
-
-.brand-desc {
-  font-size: 14px;
-  color: rgba(245, 245, 244, 0.6);
-  margin: 0;
-  line-height: 1.65;
-  max-width: 360px;
-}
-
-.section-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  color: rgba(245, 245, 244, 0.5);
-  margin: 0 0 4px 0;
-  text-transform: uppercase;
-}
-
-.footer-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.footer-links a {
-  color: rgba(245, 245, 244, 0.7);
-  font-size: 14px;
-  text-decoration: none;
-  transition: color 0.25s ease, transform 0.25s ease;
-  display: inline-block;
-}
-
-.footer-links a:hover {
-  color: #ffffff;
-  transform: translateX(4px);
-}
-
-.social-icons {
-  display: flex;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.social-link {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #f5f5f4;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.social-link svg { width: 16px; height: 16px; fill: currentColor; }
-
-.social-link:hover {
-  background: #3a6bd6;
-  border-color: #3a6bd6;
-  color: #ffffff;
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(58, 107, 214, 0.4);
-}
-
-.footer-contact-info { margin-top: 8px; }
-
-.email-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(245, 245, 244, 0.75);
-  font-size: 14px;
-  text-decoration: none;
-  transition: color 0.25s;
-}
-
-.email-link:hover { color: #60a5fa; }
-.email-icon { width: 16px; height: 16px; }
-
-/* ================= FOOTER BOTTOM ================= */
-.footer-bottom {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 28px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px;
-  font-size: 13px;
-  color: rgba(245, 245, 244, 0.45);
-}
-
-.legal-links { display: flex; align-items: center; gap: 14px; }
-.legal-links a { color: rgba(245, 245, 244, 0.5); text-decoration: none; transition: color 0.2s; }
-.legal-links a:hover { color: #ffffff; }
-.separator { color: rgba(255, 255, 255, 0.2); }
-
-.copyright { margin: 0; }
-
-/* ================= RESPONSIVE ================= */
-@media (max-width: 1024px) {
-  .footer-main {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 40px;
-  }
-}
-
-@media (max-width: 768px) {
-  .cta-final {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .cta-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .footer-main {
-    grid-template-columns: 1fr;
-    text-align: left;
-    gap: 36px;
-  }
-
-  .footer-bottom {
-    flex-direction: column;
-    text-align: center;
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .main, .bottom { opacity: 1 !important; transform: none !important; }
 }
 </style>

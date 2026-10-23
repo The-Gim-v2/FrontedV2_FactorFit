@@ -1,16 +1,18 @@
 :root {
-  --bg-custom: #0a0a0a;
-  --bg-cards: #121212;
-  --color-heading-bg: rgba(18, 18, 18, 0.7);
-  --color-tablas: #1e293b;
-  --color-botones: #1c4fd6;
-  --color-titulos: #ffffff;
-  --color-highlight: #3b82f6;
-  --color-etiquetas: #f5f5f4;
-  --color-texto-general: #f5f5f4;
-  --color-texto-botones: #ffffff;
-  --color-svg: #f5f5f4;
-  --app-border-radius: 24px;
-  --panel-padding: 30px;
-  --row-padding: 16px 0;
+  --bg-custom: #12121c ;
+  --bg-cards: #1a1b2b ;
+  --color-heading-bg: #161726 ;
+  --color-tablas: #25283d ;
+  --color-botones: #e04a6d ;
+  --color-titulos: #fff7f1 ;
+  --color-highlight: #ffb27a ;
+  --color-etiquetas: #f6e8df ;
+  --color-texto-general: #c9c5d3 ;
+  --color-texto-botones: #ffffff ;
+  --color-svg: #ffc7a1 ;
+  --app-border-radius: 24px ;
+  --ka1: #f2706b; --kb1: #d9457f;
+  --ka2: #f5b04a; --kb2: #ee7d3a;
+  --ka3: #2cc3a1; --kb3: #1b8fa8;
+  --ka4: #4f9cf0; --kb4: #3569d4;
 }
