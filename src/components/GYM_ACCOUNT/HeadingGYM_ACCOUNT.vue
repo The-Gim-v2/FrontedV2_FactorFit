@@ -1056,9 +1056,16 @@ const handleResize = () => {
 ========================================================= */
 
 const handleLogout = () => {
-  localStorage.removeItem('user_role');
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('user_role');
+  sessionStorage.removeItem('gym_account');
+  sessionStorage.removeItem('user');
+
   localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem('user_role');
   localStorage.removeItem('user');
+  localStorage.removeItem('gym_account');
 
   closeDesktopDropdown();
   closeSheet();

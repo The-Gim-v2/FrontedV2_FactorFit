@@ -253,11 +253,18 @@ const selectGym = (gym: string): void => {
 };
 
 const handleLogout = (): void => {
+  sessionStorage.removeItem('auth_token');
+  sessionStorage.removeItem('user_role');
+  sessionStorage.removeItem('gym_account');
+  sessionStorage.removeItem('user');
+
+  localStorage.removeItem('token');
+  localStorage.removeItem('auth_token');
   localStorage.removeItem('user_role');
-  localStorage.removeItem('token'); 
   localStorage.removeItem('user');
-  
-  router.replace({ name: 'login' }); 
+  localStorage.removeItem('gym_account');
+
+  router.replace({ name: 'login' });
 };
 </script>
 

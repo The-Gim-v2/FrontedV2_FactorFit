@@ -1,55 +1,37 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, watch } from 'vue'
+import { useRoute, useRouter, RouterView } from 'vue-router'
 
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
+const REQUIRED_ROLE = 'GYM_MANAGER'
 
-// Define el rol requerido estrictamente para este layout de propietario
-const REQUIRED_ROLE = 'GYM_MANAGER';
-
-// Función centralizada para verificar permisos y bloquear accesos indebidos
 const verifySecurityAccess = () => {
-  const userRole = localStorage.getItem('user_role');
+  const token = sessionStorage.getItem('auth_token')
+  const userRole = sessionStorage.getItem('user_role')?.trim()
 
-  // Si no hay rol o el rol no coincide exactamente con el permitido, expulsión total
-  if (!userRole || userRole !== REQUIRED_ROLE) {
-    localStorage.removeItem('user_role');
-    router.replace({ name: 'home' });
+  if (!token || !userRole) {
+    sessionStorage.removeItem('auth_token')
+    sessionStorage.removeItem('user_role')
+    sessionStorage.removeItem('gym_account')
+    void router.replace({ name: 'login' })
+    return
   }
-};
 
-// Validar seguridad al cargar el componente por primera vez
-onMounted(() => {
-  verifySecurityAccess();
-});
-
-// Vigilar cambios en la ruta por si intentan navegar internamente de forma anómala
-watch(
-  () => route.fullPath,
-  () => {
-    verifySecurityAccess();
+  if (userRole !== REQUIRED_ROLE) {
+    void router.replace({ name: 'login' })
   }
-);
+}
 
-// Extrae el nombre de la ruta para pasárselo al Heading automáticamente
-const currentRouteName = computed(() => {
-  return (route.name as string)?.replace('GYM_MANAGER-', '').replace('-', ' ') || 'Dashboard';
-});
+onMounted(verifySecurityAccess)
+watch(() => route.fullPath, verifySecurityAccess)
 </script>
 
 <template>
-  <!-- Contenedor blindado: Protege la vista completa del propietario -->
   <div class="GYM_MANAGER-layout">
-    <!-- <aside class="sidebar-container">
-      <Sidebar /> 
-    </aside>-->
-
     <div class="main-wrapper">
-      <Heading :title="currentRouteName" />
-
       <main class="content-area">
-        <router-view />
+        <RouterView />
       </main>
     </div>
   </div>
