@@ -13,7 +13,7 @@
             type="button"
             class="brand-button"
             :class="{ active: desktopDropdown === 'branch' }"
-            :title="selectedGym"
+            :title="selectedGym?.Sede_Colonia || 'Sin sucursales'"
             @click.stop="toggleDesktopDropdown('branch')"
           >
             <div class="brand-mark">
@@ -21,7 +21,7 @@
             </div>
 
             <div class="brand-copy">
-              <strong>{{ selectedGym }}</strong>
+              <strong>{{ selectedGym?.Sede_Colonia || 'Sin sucursales' }}</strong>
               <span>{{ label('currentBranch', 'Sucursal actual', 'Current branch') }}</span>
             </div>
 
@@ -42,10 +42,10 @@
 
               <button
                 v-for="gym in gyms"
-                :key="gym"
+                :key="gym.ID_Sede"
                 type="button"
                 class="branch-option"
-                :class="{ selected: selectedGym === gym }"
+                :class="{ selected: selectedGym?.ID_Sede === gym.ID_Sede }"
                 @click="selectGym(gym)"
               >
                 <span class="branch-option-icon">
@@ -53,17 +53,17 @@
                 </span>
 
                 <span class="branch-option-copy">
-                  <strong>{{ gym }}</strong>
+                  <strong>{{ gym.Sede_Colonia }}</strong>
                   <small>
                     {{
-                      selectedGym === gym
+                      selectedGym?.ID_Sede === gym.ID_Sede
                         ? label('', 'Sucursal seleccionada', 'Selected branch')
                         : label('', 'Cambiar a esta sucursal', 'Switch to this branch')
                     }}
                   </small>
                 </span>
 
-                <svg v-if="selectedGym === gym" class="option-check" viewBox="0 0 24 24">
+                <svg v-if="selectedGym?.ID_Sede === gym.ID_Sede" class="option-check" viewBox="0 0 24 24">
                   <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
@@ -325,7 +325,7 @@
             <svg viewBox="0 0 24 24"><path :d="ICON.pin" /></svg>
           </span>
           <span class="mobile-branch-copy">
-            <strong>{{ selectedGym }}</strong>
+            <strong>{{ selectedGym?.Sede_Colonia || 'Sin sucursales' }}</strong>
             <small>{{ label('currentBranch', 'Sucursal actual', 'Current branch') }}</small>
           </span>
           <svg class="mobile-branch-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" /></svg>
@@ -499,26 +499,26 @@
 
             <button
               v-for="gym in gyms"
-              :key="gym"
+              :key="gym.ID_Sede"
               type="button"
               class="sheet-link branch"
-              :class="{ selected: selectedGym === gym }"
+              :class="{ selected: selectedGym?.ID_Sede === gym.ID_Sede }"
               @click="selectGym(gym)"
             >
               <span class="dropdown-icon blue">
                 <svg viewBox="0 0 24 24"><path :d="ICON.pin" /></svg>
               </span>
               <span class="dropdown-copy">
-                <strong>{{ gym }}</strong>
+                <strong>{{ gym.Sede_Colonia }}</strong>
                 <small>
                   {{
-                    selectedGym === gym
+                    selectedGym?.ID_Sede === gym.ID_Sede
                       ? label('', 'Sucursal seleccionada', 'Selected branch')
                       : label('', 'Cambiar a esta sucursal', 'Switch to this branch')
                   }}
                 </small>
               </span>
-              <svg v-if="selectedGym === gym" class="sheet-check" viewBox="0 0 24 24">
+              <svg v-if="selectedGym?.ID_Sede === gym.ID_Sede" class="sheet-check" viewBox="0 0 24 24">
                 <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
@@ -805,11 +805,11 @@ const desktopDropdown = ref(null);
 /* Hoja inferior móvil: null | 'users' | 'reports' | 'more' | 'branch' */
 const mobileSheet = ref(null);
 
-const selectedGym = ref(
-  localStorage.getItem('GYM_ACCOUNT-selected-gym') || 'Gimnasio Principal'
-);
-
-const gyms = ref(['Gimnasio Principal', 'Sucursal Secundaria']);
+const readAccount = () => { try { const x = JSON.parse(sessionStorage.getItem('gym_account') || '{}'); return x.usuario || x; } catch { return {}; } };
+const gyms = ref(Array.isArray(readAccount().sedes) ? readAccount().sedes : []);
+const selectedGym = ref(gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null);
+const syncBranch = () => { const account = readAccount(); gyms.value = Array.isArray(account.sedes) ? account.sedes : []; selectedGym.value = gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null; };
+const onBranchChanged = () => syncBranch();
 
 const notifications = ref([
   {
@@ -1004,7 +1004,8 @@ const closeDesktopDropdown = () => {
 
 const selectGym = (gym) => {
   selectedGym.value = gym;
-  localStorage.setItem('GYM_ACCOUNT-selected-gym', gym);
+  sessionStorage.setItem('selected_sede_id', String(gym.ID_Sede));
+  window.dispatchEvent(new Event('factorfit:branch-changed'));
   closeDesktopDropdown();
   closeSheet();
 };
@@ -1055,22 +1056,22 @@ const handleResize = () => {
    LOGOUT
 ========================================================= */
 
-const handleLogout = () => {
-  sessionStorage.removeItem('auth_token');
-  sessionStorage.removeItem('user_role');
-  sessionStorage.removeItem('gym_account');
-  sessionStorage.removeItem('user');
-
-  localStorage.removeItem('token');
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('user_role');
-  localStorage.removeItem('user');
-  localStorage.removeItem('gym_account');
-
-  closeDesktopDropdown();
-  closeSheet();
-
-  router.replace({ name: 'login' });
+const handleLogout = async () => {
+  const token = sessionStorage.getItem('auth_token');
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  try {
+    if (token && base) {
+      const url = `${base}${base.endsWith('/api') ? '' : '/api'}/auth/logout`;
+      const response = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+      if (!response.ok) console.error('No se pudo revocar el token:', response.status);
+    }
+  } catch (error) { console.error('Error al cerrar sesión:', error); }
+  finally {
+    ['auth_token', 'token', 'user_role', 'gym_account', 'user', 'selected_sede_id'].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); });
+    localStorage.removeItem('GYM_ACCOUNT-selected-gym');
+    closeDesktopDropdown(); closeSheet();
+    await router.replace({ name: 'login' });
+  }
 };
 
 /* =========================================================
@@ -1159,6 +1160,8 @@ const aplicarEstilosGlobales = () => {
 ========================================================= */
 
 onMounted(() => {
+  syncBranch();
+  window.addEventListener('factorfit:branch-changed', onBranchChanged);
   aplicarEstilosGlobales();
 
   document.addEventListener('click', handleDocumentClick);
@@ -1169,6 +1172,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  window.removeEventListener('factorfit:branch-changed', onBranchChanged);
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('resize', handleResize);
