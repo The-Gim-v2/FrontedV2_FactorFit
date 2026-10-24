@@ -8,20 +8,20 @@ const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 
 const extraTexts = {
   es: {
-    /* Encabezado general */
+    
     fp_pageTitle: 'GESTIÓN DE',
     fp_pageHighlight: 'MOROSIDAD Y RECARGOS',
     fp_pageSubtitle:
       'Configura estados de morosidad, períodos de gracia, recargos, límites y notificaciones de pago.',
 
-    /* KPIs */
+    
     fp_kpiRules: 'Reglas activas',
     fp_kpiGrace: 'Período de gracia',
     fp_kpiFine: 'Multa base',
     fp_kpiCap: 'Tope máximo',
     fp_days: 'días',
 
-    /* Simulador */
+    
     fp_simTitle1: 'Simulador de',
     fp_simTitleHl: 'multas',
     fp_simSubtitle:
@@ -38,7 +38,7 @@ const extraTexts = {
     fp_charges: 'Recargos',
     fp_totalToPay: 'Total a pagar',
 
-    /* Gráfica */
+    
     fp_projection: 'Proyección a 90 días',
     fp_cap: 'Tope',
     fp_graceShort: 'Gracia',
@@ -47,7 +47,7 @@ const extraTexts = {
     fp_fine: 'Multa',
     fp_ofCap: '% del tope',
 
-    /* Avisos */
+    
     fp_remTitle1: 'Avisos al',
     fp_remTitleHl: 'socio',
     fp_remSubtitle:
@@ -60,7 +60,7 @@ const extraTexts = {
     fp_notifyFineDesc:
       'El socio recibe un mensaje cada vez que se genera un recargo.',
 
-    /* Validaciones */
+    
     fp_noteNoCap:
       'Sin tope: las multas pueden acumularse sin límite.',
     fp_warnExceeds:
@@ -72,20 +72,20 @@ const extraTexts = {
   },
 
   en: {
-    /* General heading */
+    
     fp_pageTitle: 'DELINQUENCY &',
     fp_pageHighlight: 'LATE FEE MANAGEMENT',
     fp_pageSubtitle:
       'Configure delinquency statuses, grace periods, late fees, limits and payment notifications.',
 
-    /* KPIs */
+    
     fp_kpiRules: 'Active rules',
     fp_kpiGrace: 'Grace period',
     fp_kpiFine: 'Base fine',
     fp_kpiCap: 'Maximum cap',
     fp_days: 'days',
 
-    /* Simulator */
+    
     fp_simTitle1: 'Fine',
     fp_simTitleHl: 'simulator',
     fp_simSubtitle:
@@ -102,7 +102,7 @@ const extraTexts = {
     fp_charges: 'Charges',
     fp_totalToPay: 'Total to pay',
 
-    /* Chart */
+    
     fp_projection: '90-day projection',
     fp_cap: 'Cap',
     fp_graceShort: 'Grace',
@@ -111,7 +111,7 @@ const extraTexts = {
     fp_fine: 'Fine',
     fp_ofCap: '% of cap',
 
-    /* Notices */
+    
     fp_remTitle1: 'Member',
     fp_remTitleHl: 'notices',
     fp_remSubtitle:
@@ -124,7 +124,7 @@ const extraTexts = {
     fp_notifyFineDesc:
       'The member receives a message every time a charge is generated.',
 
-    /* Validation */
+    
     fp_noteNoCap:
       'No cap: fines can accumulate without limit.',
     fp_warnExceeds:
@@ -148,9 +148,7 @@ const t = (key) => {
   );
 };
 
-/* =========================================================
-   IDIOMA
-========================================================= */
+
 
 const handleLangChange = (event) => {
   const idioma = event?.detail?.idioma;
@@ -169,9 +167,7 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
 });
 
-/* =========================================================
-   CONFIGURACIÓN
-========================================================= */
+
 
 const toastRef = ref(null);
 
@@ -186,12 +182,7 @@ const settings = ref({
 
   fineAmount: 800,
 
-  /*
-   * unica
-   * diaria
-   * semanal
-   * mensual
-   */
+  
   recurrence: 'unica',
 
   maxFineLimit: 2500,
@@ -201,47 +192,28 @@ const settings = ref({
   notifyFine: true
 });
 
-/* =========================================================
-   NOTIFICACIONES
-========================================================= */
+
 
 const notify = (message, type = 'success') => {
   toastRef.value?.notify?.(message, type);
 };
 
-const guardarCambiosRapidos = () => {
-  notify(t('quickSettingsUpdatedToast'), 'success');
-};
+const selectedSede=ref(sessionStorage.getItem('selected_sede_id')||'');
+const loading=ref(false),saving=ref(false),aplicarTodas=ref(false);
+const base=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'');
+const api=`${base}${base.endsWith('/api')?'':'/api'}/gym/morosidad`;
+const request=async(path='',options={})=>{const token=sessionStorage.getItem('auth_token');if(!token)throw new Error('Sesión no iniciada.');const r=await fetch(`${api}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.message||Object.values(data.errors||{}).flat().join(' ')||`Error HTTP ${r.status}`);return data;};
+const resolveSede=()=>{selectedSede.value=sessionStorage.getItem('selected_sede_id')||'';if(!selectedSede.value){try{const acc=JSON.parse(sessionStorage.getItem('gym_account')||'{}');selectedSede.value=String((acc.usuario||acc).sedes?.[0]?.ID_Sede||'');}catch{}}};
+const cargarConfiguracion=async()=>{resolveSede();if(!selectedSede.value)return;loading.value=true;try{const data=await request(`?sede_id=${encodeURIComponent(selectedSede.value)}`);if(data.configuracion){const c=data.configuracion;graceDays.value=Number(c.graceDays??3);Object.assign(settings.value,c);}}catch(e){notify(e.message,'error');}finally{loading.value=false;}};
+const guardarConfiguracionGeneral=async()=>{if(!selectedSede.value)return notify('Selecciona una sucursal.','error');const fine=Number(settings.value.fineAmount),cap=Number(settings.value.maxFineLimit);if(!Number.isFinite(fine)||!Number.isFinite(cap)||fine<0||cap<0)return notify(t('fp_invalidValues'),'error');if(cap>0&&fine>cap)return notify(t('fp_invalidFine'),'error');saving.value=true;try{await request('',{method:'PUT',body:JSON.stringify({sede_id:Number(selectedSede.value),graceDays:graceDays.value,...settings.value,aplicar_todas:aplicarTodas.value})});notify(t('generalSettingsSavedToast'),'success');}catch(e){notify(e.message,'error');}finally{saving.value=false;}};
+let timer=null;
+const guardarCambiosRapidos=()=>{clearTimeout(timer);timer=setTimeout(()=>guardarConfiguracionGeneral(),550);};
+const copiarSedes=async()=>{if(!selectedSede.value)return notify('Selecciona una sucursal.','error');if(!window.confirm('¿Copiar la configuración actual de esta sede a todas las demás?'))return;try{await request('/copiar-sedes',{method:'POST',body:JSON.stringify({sede_id:Number(selectedSede.value)})});notify('Configuración copiada a todas las sucursales.','success');}catch(e){notify(e.message,'error');}};
+const handleBranchChange=()=>{clearTimeout(timer);cargarConfiguracion();};
+onMounted(()=>{window.addEventListener('factorfit:branch-changed',handleBranchChange);cargarConfiguracion();});
+onUnmounted(()=>{clearTimeout(timer);window.removeEventListener('factorfit:branch-changed',handleBranchChange);});
 
-const guardarConfiguracionGeneral = () => {
-  const fine = Number(settings.value.fineAmount) || 0;
-  const cap = Number(settings.value.maxFineLimit) || 0;
 
-  if (fine < 0 || cap < 0) {
-    notify(t('fp_invalidValues'), 'error');
-    return;
-  }
-
-  if (cap > 0 && fine > cap) {
-    notify(t('fp_invalidFine'), 'error');
-    return;
-  }
-
-  /*
-   * Aquí posteriormente puedes colocar la petición real:
-   *
-   * await api.post('/configuracion/morosidad', {
-   *   graceDays: graceDays.value,
-   *   ...settings.value
-   * });
-   */
-
-  notify(t('generalSettingsSavedToast'), 'success');
-};
-
-/* =========================================================
-   PERÍODO DE GRACIA
-========================================================= */
 
 const incrementDays = () => {
   graceDays.value++;
@@ -264,9 +236,7 @@ const setGrace = (days) => {
   guardarCambiosRapidos();
 };
 
-/* =========================================================
-   RECORDATORIOS
-========================================================= */
+
 
 const remindPresets = [1, 3, 5, 7];
 
@@ -277,9 +247,7 @@ const setRemindDays = (days) => {
   guardarCambiosRapidos();
 };
 
-/* =========================================================
-   FORMATOS
-========================================================= */
+
 
 const fmt = (number) => {
   const value = Number(number) || 0;
@@ -314,9 +282,7 @@ const fmtShort = (number) => {
   return String(Math.round(value));
 };
 
-/* =========================================================
-   KPIs
-========================================================= */
+
 
 const activeRules = computed(() => {
   return [
@@ -365,9 +331,7 @@ const fineLevel = computed(() => {
   return 'ok';
 });
 
-/* =========================================================
-   SIMULADOR
-========================================================= */
+
 
 const simDays = ref(20);
 const simAmount = ref(1200);
@@ -376,23 +340,7 @@ const normalizeDays = (days) => {
   return Math.max(Math.floor(Number(days) || 0), 0);
 };
 
-/*
- * IMPORTANTE:
- *
- * El primer recargo se aplica inmediatamente después
- * de terminar el período de gracia.
- *
- * Ejemplo:
- *
- * gracia = 3 días
- * recurrencia semanal
- *
- * día 1 - 3  -> 0 recargos
- * día 4 - 10 -> 1 recargo
- * día 11-17  -> 2 recargos
- *
- * Esto deja explícita la regla utilizada por el simulador.
- */
+
 const periodsFor = (days) => {
   const normalizedDays = normalizeDays(days);
 
@@ -489,9 +437,7 @@ const simStatusText = computed(() => {
   );
 });
 
-/* =========================================================
-   GRÁFICA
-========================================================= */
+
 
 const CW = 640;
 const CH = 210;
@@ -637,9 +583,7 @@ const graceWidth = computed(() => {
   );
 });
 
-/* =========================================================
-   HITOS
-========================================================= */
+
 
 const milestoneDays = [
   7,
@@ -694,7 +638,7 @@ const milestones = computed(() => {
           </p>
         </div>
       </header>
-      <!-- ================= RESUMEN (KPIs) ================= -->
+      
       <section class="kpi-grid">
         <article class="kpi-card">
           <span class="kpi-icon amber">
@@ -737,7 +681,7 @@ const milestones = computed(() => {
         </article>
       </section>
 
-      <!-- ================= CUADRO IZQUIERDO: REGLAS DE MOROSIDAD ================= -->
+      
       <section class="promo-box-container accent-amber" id="tutorial-step-0">
         <div class="box-header">
           <div class="header-top">
@@ -753,7 +697,7 @@ const milestones = computed(() => {
         </div>
 
         <div class="box-content">
-          <!-- Pendientes -->
+          
           <div class="item-row" :class="{ 'is-on': settings.pendingStatus }">
             <div class="item-info">
               <div class="icon-wrapper">
@@ -770,7 +714,7 @@ const milestones = computed(() => {
             </label>
           </div>
 
-          <!-- Inactivos -->
+          
           <div class="item-row" :class="{ 'is-on': settings.inactiveStatus }">
             <div class="item-info">
               <div class="icon-wrapper">
@@ -787,7 +731,7 @@ const milestones = computed(() => {
             </label>
           </div>
 
-          <!-- Torniquete -->
+          
           <div class="item-row" :class="{ 'is-on': settings.blockTurnstile }">
             <div class="item-info">
               <div class="icon-wrapper">
@@ -804,7 +748,7 @@ const milestones = computed(() => {
             </label>
           </div>
 
-          <!-- Período de gracia -->
+          
           <div class="item-row vertical-layout grace-row">
             <div class="item-info full-width">
               <div class="icon-wrapper">
@@ -845,7 +789,7 @@ const milestones = computed(() => {
         </div>
       </section>
 
-      <!-- ================= CUADRO DERECHO: COSTO Y FRECUENCIA ================= -->
+      
       <section class="promo-box-container accent-blue" id="tutorial-step-1">
         <div class="box-header">
           <div class="header-top">
@@ -917,8 +861,9 @@ const milestones = computed(() => {
               </div>
             </div>
 
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" v-model="aplicarTodas"> Aplicar esta configuración a todas las sedes</label><button type="button" class="chip-btn" @click="copiarSedes">Copiar a todas las sedes</button></div>
             <div class="button-container">
-              <button type="button" class="btn-primary-action" @click="guardarConfiguracionGeneral">
+              <button type="button" class="btn-primary-action" @click="guardarConfiguracionGeneral" :disabled="saving||loading">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
                 {{ t('saveConfigurationBtn') }}
               </button>
@@ -927,7 +872,7 @@ const milestones = computed(() => {
         </div>
       </section>
 
-      <!-- ================= AVISOS AL SOCIO ================= -->
+      
       <section class="promo-box-container accent-amber span-full">
         <div class="box-header">
           <div class="header-top">
