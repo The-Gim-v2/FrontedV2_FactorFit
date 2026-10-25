@@ -1,6 +1,7 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
+    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR"><section class="ff-qr-card"><button type="button" class="ff-qr-close" @click="cerrarQR">×</button><h2>Inscripción registrada</h2><p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p><p class="ff-qr-status">Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.</p><p v-if="qrCargando">Cargando código QR...</p><p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p><img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" /><div class="ff-qr-actions"><button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button><button type="button" @click="cerrarQR">Cerrar</button></div></section></div>
 
     <main class="main-content">
       <div class="profile-card">
@@ -438,6 +439,7 @@
               </div>
             </header>
 
+            <div class="input-group" style="margin-bottom:16px"><label>Tarifa de inscripción <span class="required">*</span></label><select v-model="idPrecio" required style="width:100%;height:46px;padding:0 14px;border-radius:12px;background:var(--bg-input,#17191f);color:var(--color-texto-input,#fff);border:1px solid var(--border-input,#555)"><option value="" disabled>Selecciona una tarifa</option><option v-for="p in tarifasFiltradas" :key="p.ID_Precio" :value="String(p.ID_Precio)">{{ p.Nombre_Paquete }} — ${{ p.Precio }}</option></select></div>
             <div class="membership-date-grid">
               <div class="date-field">
                 <div class="date-icon">
@@ -483,6 +485,7 @@
                   <input
                     type="date"
                     v-model="form.fechaCorte"
+                    readonly
                   />
                 </div>
               </div>
@@ -504,6 +507,7 @@
               type="button"
               class="btn-primary"
               @click="saveRegistration"
+              :disabled="guardando"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -851,6 +855,7 @@ import {
   ref,
   reactive,
   computed,
+  watch,
   nextTick,
   onMounted,
   onUnmounted
@@ -867,6 +872,24 @@ import { traducciones } from '../i18n.js';
 ========================================================= */
 
 const activeModal = ref(null);
+const guardando = ref(false);
+const tarifas = ref([]);
+const idPrecio = ref('');
+const base = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const clientesApi = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/clientes`;
+const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
+const authHeaders = () => ({Accept:'application/json',Authorization:`Bearer ${sessionStorage.getItem('auth_token') || ''}`});
+const cargarTarifas = async () => {idPrecio.value='';tarifas.value=[];const sede=sedeActual();if(!sede)return;try{const res=await fetch(`${clientesApi}/tarifas?sede_id=${sede}`,{headers:authHeaders()});const data=await res.json();if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);tarifas.value=data;if(tarifasFiltradas.value.length===1)idPrecio.value=String(tarifasFiltradas.value[0].ID_Precio);}catch(e){toastRef.value?.notify(e.message,'error');}};
+const tarifasFiltradas=computed(()=>tarifas.value.filter(p=>form.tipoMembresia==='mes'?String(p.Periodo).toLowerCase()==='mensual':String(p.Periodo).toLowerCase()==='semanal'));
+let versionCalculo=0;
+const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';if(!idPrecio.value||!sedeActual())return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value)});if(form.fechaInscripcion)q.set('fechaInscripcion',form.fechaInscripcion);const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);if(version===versionCalculo)form.fechaCorte=data.fecha_vencimiento;}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
+watch(()=>form.tipoMembresia,()=>{if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value))idPrecio.value='';});
+watch([idPrecio,()=>form.fechaInscripcion],calcularVencimiento);
+const qrModal=ref(null),qrUrl=ref(''),qrError=ref(''),qrCargando=ref(false);
+let qrVersion=0;
+const cerrarQR=()=>{qrVersion++;qrModal.value=null;qrUrl.value='';qrError.value='';qrCargando.value=false;};
+const mostrarQR=async registro=>{const version=++qrVersion;qrModal.value=registro;qrUrl.value='';qrError.value='';qrCargando.value=true;try{const res=await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error ${res.status}`);if(version===qrVersion){if(!data.qr_url)throw new Error('El servidor no devolvió la imagen QR.');qrUrl.value=data.qr_url;}}catch(e){if(version===qrVersion)qrError.value=e.message||'No se pudo consultar el QR.';}finally{if(version===qrVersion)qrCargando.value=false;}};
+const descargarQR=async()=>{if(!qrModal.value)return;try{const res=await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`,{headers:authHeaders()});if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error(data.message||`Error ${res.status}`);}const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${qrModal.value.ID_Inscripto}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR.','error');}};
 const toastRef = ref(null);
 
 const currentLang = ref(
@@ -1322,66 +1345,28 @@ const capturePhoto = () => {
    REGISTRO
 ========================================================= */
 
-const saveRegistration = () => {
-  if (
-    !form.nombres ||
-    !form.apellidoP ||
-    !form.apellidoM ||
-    !form.fechaNacimiento
-  ) {
-    toastRef.value?.notify(
-      t('msgWarning'),
-      'warning'
-    );
-
-    return;
-  }
-
+const saveRegistration = async () => {
+  if(guardando.value)return;
+  if(!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value){toastRef.value?.notify('Nombre, apellido paterno y tarifa son obligatorios.','warning');return;}
+  if(!sedeActual()){toastRef.value?.notify('Selecciona una sucursal.','warning');return;}
+  if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value)){toastRef.value?.notify('La tarifa no coincide con el tipo de membresía.','warning');return;}
+  guardando.value=true;
   try {
-    const data = {
-      nombres: form.nombres.trim(),
-      apellidoP: form.apellidoP.trim(),
-      apellidoM: form.apellidoM.trim(),
-      fechaNacimiento: form.fechaNacimiento,
-      celular: form.celular.trim(),
-      email: form.email.trim(),
-      peso: form.peso
-        ? Number(form.peso)
-        : null,
-      altura: form.altura
-        ? Number(form.altura)
-        : null,
-      tipoMembresia: form.tipoMembresia,
-      fechaInscripcion: form.fechaInscripcion,
-      fechaCorte: form.fechaCorte,
-
-      /*
-        Tanto la foto subida como la tomada
-        terminan aquí como File.
-      */
-      foto: avatarFile.value
-    };
-
-    console.log(
-      'Datos a guardar:',
-      data
-    );
-
-    toastRef.value?.notify(
-      t('msgSuccess'),
-      'success'
-    );
-  } catch (error) {
-    console.error(
-      'Error al registrar cliente:',
-      error
-    );
-
-    toastRef.value?.notify(
-      t('msgError'),
-      'error'
-    );
-  }
+    const data=new FormData();
+    const values={sede_id:sedeActual(),id_precio:idPrecio.value,nombres:form.nombres.trim(),apellidoP:form.apellidoP.trim(),apellidoM:form.apellidoM.trim(),fechaNacimiento:form.fechaNacimiento,celular:form.celular.trim(),email:form.email.trim(),peso:form.peso,altura:form.altura,fechaInscripcion:form.fechaInscripcion};
+    Object.entries(values).forEach(([key,value])=>{if(value!==''&&value!==null&&value!==undefined)data.append(key,String(value));});
+    if(avatarFile.value)data.append('foto',avatarFile.value);
+    const res=await fetch(clientesApi,{method:'POST',headers:authHeaders(),body:data});
+    const result=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(result.message || Object.values(result.errors||{}).flat().join(' ') || `HTTP ${res.status}`);
+    toastRef.value?.notify(result.message||'Cliente registrado correctamente.','success');
+    if(result.ID_Inscripto)await mostrarQR(result);
+    Object.assign(form,{nombres:'',apellidoP:'',apellidoM:'',fechaNacimiento:'',celular:'',email:'',peso:'',altura:'',tipoMembresia:'mes',fechaInscripcion:'',fechaCorte:''});
+    if(avatarPreview.value?.startsWith('blob:'))URL.revokeObjectURL(avatarPreview.value);
+    avatarPreview.value=null;avatarFile.value=null;idPrecio.value='';
+    window.dispatchEvent(new CustomEvent('factorfit:clientes-changed',{detail:{sede_id:sedeActual()}}));
+  }catch(error){toastRef.value?.notify(error.message||'No se pudo registrar el cliente.','error');}
+  finally{guardando.value=false;}
 };
 
 /* =========================================================
@@ -1393,6 +1378,8 @@ onMounted(() => {
     'idioma-changed',
     handleLangChange
   );
+  window.addEventListener('factorfit:branch-changed',cargarTarifas);
+  cargarTarifas();
 });
 
 onUnmounted(() => {
@@ -1401,7 +1388,8 @@ onUnmounted(() => {
     handleLangChange
   );
 
-  stopCamera();
+  stopCamera();cerrarQR();
+  window.removeEventListener('factorfit:branch-changed',cargarTarifas);
 
   if (
     avatarPreview.value &&
@@ -2557,4 +2545,7 @@ input:focus {
     height: 19px;
   }
 }
+</style>
+<style scoped>
+.ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}.ff-qr-card{position:relative;width:min(420px,100%);padding:30px 22px;border-radius:22px;background:#191b25;border:1px solid #454654;text-align:center;color:#f8fafc;box-shadow:0 20px 70px #0009}.ff-qr-card h2{font-size:24px;font-weight:750;margin:0 0 8px}.ff-qr-card p{margin:8px 0;color:#cbd5e1}.ff-qr-card .ff-qr-status{font-size:13px;color:#fbbf24}.ff-qr-image{width:min(290px,100%);aspect-ratio:1;object-fit:contain;background:white;padding:12px;border-radius:14px;margin:14px auto}.ff-qr-close{position:absolute;top:8px;right:14px;border:0;background:none;color:white;font-size:28px;cursor:pointer}.ff-qr-error{color:#fca5a5!important}.ff-qr-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}.ff-qr-actions button{border:1px solid #666;border-radius:10px;padding:10px 16px;background:#334155;color:white;cursor:pointer}.ff-qr-actions button:first-child{background:#2563eb;border-color:#2563eb}.ff-qr-actions button:disabled{opacity:.5;cursor:not-allowed}
 </style>
