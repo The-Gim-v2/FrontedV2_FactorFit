@@ -461,6 +461,7 @@
                   <input
                     type="date"
                     v-model="form.fechaInscripcion"
+                    :max="fechaLocal()"
                   />
                 </div>
               </div>
@@ -871,18 +872,32 @@ import { traducciones } from '../i18n.js';
    ESTADO GENERAL
 ========================================================= */
 
+const fechaLocal=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const form = reactive({
+  nombres: '',
+  apellidoP: '',
+  apellidoM: '',
+  fechaNacimiento: '',
+  celular: '',
+  email: '',
+  peso: '',
+  altura: '',
+  tipoMembresia: 'mes',
+  fechaInscripcion: fechaLocal(),
+  fechaCorte: ''
+});
 const activeModal = ref(null);
 const guardando = ref(false);
 const tarifas = ref([]);
 const idPrecio = ref('');
-const base = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
 const clientesApi = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/clientes`;
 const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
 const authHeaders = () => ({Accept:'application/json',Authorization:`Bearer ${sessionStorage.getItem('auth_token') || ''}`});
-const cargarTarifas = async () => {idPrecio.value='';tarifas.value=[];const sede=sedeActual();if(!sede)return;try{const res=await fetch(`${clientesApi}/tarifas?sede_id=${sede}`,{headers:authHeaders()});const data=await res.json();if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);tarifas.value=data;if(tarifasFiltradas.value.length===1)idPrecio.value=String(tarifasFiltradas.value[0].ID_Precio);}catch(e){toastRef.value?.notify(e.message,'error');}};
+const cargarTarifas = async () => {idPrecio.value='';tarifas.value=[];const sede=sedeActual();if(!sede)return;try{const res=await fetch(`${clientesApi}/tarifas?sede_id=${sede}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error HTTP ${res.status} al consultar tarifas`);tarifas.value=Array.isArray(data)?data:(Array.isArray(data.data)?data.data:[]);if(tarifasFiltradas.value.length===1)idPrecio.value=String(tarifasFiltradas.value[0].ID_Precio);}catch(e){toastRef.value?.notify(e.message,'error');}};
 const tarifasFiltradas=computed(()=>tarifas.value.filter(p=>form.tipoMembresia==='mes'?String(p.Periodo).toLowerCase()==='mensual':String(p.Periodo).toLowerCase()==='semanal'));
 let versionCalculo=0;
-const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';if(!idPrecio.value||!sedeActual())return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value)});if(form.fechaInscripcion)q.set('fechaInscripcion',form.fechaInscripcion);const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`HTTP ${res.status}`);if(version===versionCalculo)form.fechaCorte=data.fecha_vencimiento;}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
+const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';if(!idPrecio.value||!sedeActual())return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value)});if(form.fechaInscripcion)q.set('fechaInscripcion',form.fechaInscripcion);const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message&&data.message!=='Server Error'?data.message:`Error HTTP ${res.status} al calcular vencimiento`);if(version===versionCalculo)form.fechaCorte=data.fecha_vencimiento||'';}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
 watch(()=>form.tipoMembresia,()=>{if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value))idPrecio.value='';});
 watch([idPrecio,()=>form.fechaInscripcion],calcularVencimiento);
 const qrModal=ref(null),qrUrl=ref(''),qrError=ref(''),qrCargando=ref(false);
@@ -913,19 +928,7 @@ const handleLangChange = (event) => {
    FORMULARIO
 ========================================================= */
 
-const form = reactive({
-  nombres: '',
-  apellidoP: '',
-  apellidoM: '',
-  fechaNacimiento: '',
-  celular: '',
-  email: '',
-  peso: '',
-  altura: '',
-  tipoMembresia: 'mes',
-  fechaInscripcion: '',
-  fechaCorte: ''
-});
+
 
 const clientName = computed(() =>
   [
@@ -983,7 +986,7 @@ const handleFileChange = (event) => {
 
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
+  if (!file.type.startsWith('image/') || file.size > 4*1024*1024) {
     toastRef.value?.notify(
       currentLang.value === 'en'
         ? 'Select a valid image.'
@@ -1358,10 +1361,10 @@ const saveRegistration = async () => {
     if(avatarFile.value)data.append('foto',avatarFile.value);
     const res=await fetch(clientesApi,{method:'POST',headers:authHeaders(),body:data});
     const result=await res.json().catch(()=>({}));
-    if(!res.ok)throw new Error(result.message || Object.values(result.errors||{}).flat().join(' ') || `HTTP ${res.status}`);
+    if(!res.ok){console.error('Error API registro de cliente',{status:res.status,response:result});throw new Error(Object.values(result.errors||{}).flat().join(' ') || (result.message&&result.message!=='Server Error'?result.message:'') || `Error HTTP ${res.status}: revisa los logs de Laravel en Railway`);}
     toastRef.value?.notify(result.message||'Cliente registrado correctamente.','success');
     if(result.ID_Inscripto)await mostrarQR(result);
-    Object.assign(form,{nombres:'',apellidoP:'',apellidoM:'',fechaNacimiento:'',celular:'',email:'',peso:'',altura:'',tipoMembresia:'mes',fechaInscripcion:'',fechaCorte:''});
+    Object.assign(form,{nombres:'',apellidoP:'',apellidoM:'',fechaNacimiento:'',celular:'',email:'',peso:'',altura:'',tipoMembresia:'mes',fechaInscripcion:fechaLocal(),fechaCorte:''});
     if(avatarPreview.value?.startsWith('blob:'))URL.revokeObjectURL(avatarPreview.value);
     avatarPreview.value=null;avatarFile.value=null;idPrecio.value='';
     window.dispatchEvent(new CustomEvent('factorfit:clientes-changed',{detail:{sede_id:sedeActual()}}));
@@ -1374,6 +1377,7 @@ const saveRegistration = async () => {
 ========================================================= */
 
 onMounted(() => {
+  if(!form.fechaInscripcion)form.fechaInscripcion=fechaLocal();
   window.addEventListener(
     'idioma-changed',
     handleLangChange
@@ -2545,6 +2549,15 @@ input:focus {
     height: 19px;
   }
 }
+
+.profile-card,.profile-section,.profile-content,.profile-summary,.summary-item{min-width:0;max-width:100%;}
+.profile-summary{overflow:hidden;}
+.summary-item{min-width:0;}
+.summary-item dt{flex:0 0 auto;}
+.summary-item dd{flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:anywhere;}
+.date-content{min-width:0;}
+.date-content input[type="date"]{display:block;width:100%;min-width:0;color:var(--color-texto-input,#fff);color-scheme:dark;}
+@media(max-width:850px){.profile-card{grid-template-columns:minmax(0,1fr)}.profile-content{width:100%;min-width:0}}
 </style>
 <style scoped>
 .ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}.ff-qr-card{position:relative;width:min(420px,100%);padding:30px 22px;border-radius:22px;background:#191b25;border:1px solid #454654;text-align:center;color:#f8fafc;box-shadow:0 20px 70px #0009}.ff-qr-card h2{font-size:24px;font-weight:750;margin:0 0 8px}.ff-qr-card p{margin:8px 0;color:#cbd5e1}.ff-qr-card .ff-qr-status{font-size:13px;color:#fbbf24}.ff-qr-image{width:min(290px,100%);aspect-ratio:1;object-fit:contain;background:white;padding:12px;border-radius:14px;margin:14px auto}.ff-qr-close{position:absolute;top:8px;right:14px;border:0;background:none;color:white;font-size:28px;cursor:pointer}.ff-qr-error{color:#fca5a5!important}.ff-qr-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}.ff-qr-actions button{border:1px solid #666;border-radius:10px;padding:10px 16px;background:#334155;color:white;cursor:pointer}.ff-qr-actions button:first-child{background:#2563eb;border-color:#2563eb}.ff-qr-actions button:disabled{opacity:.5;cursor:not-allowed}
