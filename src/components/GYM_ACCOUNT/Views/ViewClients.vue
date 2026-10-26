@@ -84,13 +84,7 @@
           <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
         </div>
-        <div
-          v-for="(user, index) in pagedUsers"
-          :key="user.id"
-          class="user-card"
-          :class="getStatusClass(user.status)"
-          :id="index === 0 ? 'tutorial-step-1' : null"
-        >
+        <div v-for="(user, index) in pagedUsers" :key="user.id" class="user-card" :class="getStatusClass(user.status)" :id="index === 0 ? 'tutorial-step-1' : null">
           <div class="card-top-section">
             <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div>
             <div class="card-user-titles">
@@ -170,11 +164,11 @@
                 <line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
             </div>
-            <h2>{{ t('modalDeleteTitle') }}</h2>
-            <p>{{ t('modalDeleteDescPart1') }} <span class="highlight-name">{{ selectedUser?.name }}</span> {{ t('modalDeleteDescPart2') }}</p>
+            <h2>Retirar cliente</h2>
+            <p>¿Retirar temporalmente a <span class="highlight-name">{{ selectedUser?.name }}</span> de esta sucursal? Sus datos se conservarán para una futura renovación.</p>
             <div class="modal-buttons">
               <button class="btn-modal secondary" @click="showDelete = false">{{ t('modalCancel') }}</button>
-              <button class="btn-modal danger" @click="executeDelete">{{ t('modalConfirm') }}</button>
+              <button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? 'Procesando...' : 'Confirmar retiro' }}</button>
             </div>
           </div>
         </div>
@@ -293,6 +287,7 @@ onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-change
 onUnmounted(()=>window.removeEventListener('factorfit:branch-changed',cargarClientes));
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
+    if(user.status === 'Eliminado temporal') return false;
     const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
     const matchStatus = selectedStatus.value ? user.status === selectedStatus.value : true;
     const term = searchQuery.value.toLowerCase();
@@ -375,9 +370,18 @@ const confirmDelete = (user) => {
   selectedUser.value = user;
   showDelete.value = true;
 };
-const executeDelete=()=>{
-  showDelete.value=false;
-  toastRef.value?.notify('La eliminación requiere una ruta DELETE en Laravel. No se borró ningún registro.','warning');
+const deleting=ref(false);
+const executeDelete=async()=>{
+  if(!selectedUser.value||deleting.value)return;
+  deleting.value=true;
+  try{
+    const user=selectedUser.value;
+    await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${user.sedeId||obtenerSedeId()}`,{method:'DELETE'});
+    users.value=users.value.filter(u=>u.id!==user.id);
+    showDelete.value=false;selectedUser.value=null;
+    toastRef.value?.notify('Cliente retirado temporalmente. Sus datos se conservan para una futura renovación.','success');
+  }catch(e){toastRef.value?.notify(e.message||'No se pudo retirar al cliente.','error');}
+  finally{deleting.value=false;}
 };
 const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-usuario/${users.value.find(u=>u.id===id)?.clienteId||id}`);
 const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(numero)window.open(`https://wa.me/${numero}`,'_blank','noopener,noreferrer');else toastRef.value?.notify('Este cliente no tiene teléfono','warning'); };
