@@ -6,14 +6,14 @@ import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 const router = useRouter();
 const route = useRoute();
-const clienteId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
+const clienteId=ref(null), clienteSedeId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
 const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
-const sedeId=()=>{const keys=['sede_id','ID_Sede','id_sede','selected_sede_id','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
+const sedeId=()=>{const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
 const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const t=storage.getItem(key);if(t)return t.replace(/^Bearer\s+/i,'');}for(const key of ['auth','user','session','gymAccount','gym_account']){try{const v=JSON.parse(storage.getItem(key)||'null');if(v?.token||v?.access_token||v?.accessToken)return v.token||v.access_token||v.accessToken;}catch{}}}return '';};
-const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.message||`Error HTTP ${response.status}`);return data;};
+const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok){const errors=data?.errors?Object.values(data.errors).flat().join(' '):'';throw new Error(response.status===403?'No tienes autorización para modificar clientes de esta sucursal. Verifica que la sede seleccionada pertenezca a tu gimnasio.':errors||data?.message||`Error HTTP ${response.status}`);}return data;};
 const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
 const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
-const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||sessionStorage.getItem('selected_sede_nombre')||`Sede ${c.ID_Sede}`,status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
 const chooseClient=async(c)=>{showSuggestions.value=false;searchQuery.value='';const id=String(c.ID_Cliente);if(String(route.params.id)===id)await loadClient(id);else await router.push(`/GYM_ACCOUNT/editar-usuario/${id}`);};
 const toastRef = ref(null);
 const searchQuery = ref('');
@@ -229,9 +229,9 @@ const capturePhoto = () => {
   );
 };
 /* ============================ GUARDAR ============================ */
-const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');saving.value=true;try{const fd=new FormData();const values={sede_id:sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
 watch(()=>route.params.id,id=>{if(id)loadClient(id);});
-const handleBranchChange=()=>{clienteId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
+const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', handleBranchChange);
@@ -293,10 +293,14 @@ onUnmounted(() => {
               @focus="showSuggestions=true" @input="showSuggestions=true" @keyup.enter="handleSearch"
             />
           </div>
-          <div v-if="showSuggestions && searchQuery.trim()" style="position:absolute;z-index:100;background:var(--bg-cards,#121416);border:1px solid #42425b;border-radius:12px;max-height:260px;overflow:auto;width:min(370px,90vw);box-shadow:0 12px 30px #0007">
-            <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" @click="chooseClient(c)" style="display:block;width:100%;padding:12px;color:white;text-align:left;background:transparent;border:0;border-bottom:1px solid #343449;cursor:pointer">{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }} · #{{ c.ID_Cliente }}</button>
-            <p v-if="!suggestions.length" style="padding:12px;color:#aaa">No se encontraron clientes en esta sucursal.</p>
-          </div>
+          <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
+              <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
+                <span class="suggestion-avatar">{{ String(c.Nombre||'?').charAt(0).toUpperCase() }}</span>
+                <span class="suggestion-info"><strong>{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }}</strong><small>{{ c.Correo_Electronico || c.Celular || 'Cliente registrado' }}</small></span>
+                <span class="suggestion-id">#{{ c.ID_Cliente }}</span>
+              </button>
+              <p v-if="!suggestions.length" class="suggestion-empty">No se encontraron clientes en esta sucursal.</p>
+            </div>
         </div>
       </header>
       <!-- ==================== PERFIL COMPLETO ==================== -->
@@ -944,6 +948,20 @@ onUnmounted(() => {
   </HeadingGYM_ACCOUNT>
 </template>
 <style scoped>
+/* Buscador de clientes: panel alineado con el campo, sin estilos inline */
+.page-header{position:relative;z-index:20;isolation:isolate}
+.search-small{position:relative;z-index:21}
+.client-suggestions{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:50;max-height:310px;overflow-y:auto;border:1px solid #39394e;border-radius:12px;background:#1b1b2b;box-shadow:0 18px 42px rgba(0,0,0,.45);padding:5px;box-sizing:border-box}
+.client-suggestion{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:#f5f5fa;text-align:left;cursor:pointer;font-family:inherit}
+.client-suggestion:hover,.client-suggestion:focus-visible{background:#303047;outline:none}
+.suggestion-avatar{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;background:rgba(238,80,126,.15);color:#ff789f;font-size:13px;font-weight:700}
+.suggestion-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.suggestion-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.suggestion-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#a8a9c2}
+.suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
+.suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
+@media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
+
 .avatar-fallback{display:grid;place-items:center;width:100%;height:100%;font-size:3rem;font-weight:700;color:var(--color-texto-general,#fff)}
 .search-small{position:relative}
 .btn-primary:disabled{opacity:.55;cursor:not-allowed}

@@ -11,7 +11,14 @@ const base=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'');
 const api=`${base}${base.endsWith('/api')?'':'/api'}/gym/precios`;
 const notify=(message,type='info')=>toastRef.value?.notify?.(message,type);
 const request=async(path='',options={})=>{const token=sessionStorage.getItem('auth_token');if(!token)throw new Error('Inicia sesión nuevamente.');const response=await fetch(api+path,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||Object.values(data.errors||{}).flat().join(' ')||`Error ${response.status}`);return data;};
-const preciosSistema=computed(()=>registros.value.filter(x=>x.Periodo!=='Promocion').map(x=>({id:x.ID_Precio,concepto:x.Nombre_Paquete,monto:Number(x.Precio),duracion:x.Periodo==='Semanal'?'1 semana':x.Cantidad_Meses?`${x.Cantidad_Meses} mes(es)`:'',periodo:x.Periodo,meses:x.Cantidad_Meses,estado:x.Estado_Paquete})));
+
+const duracionTexto=(x)=>{
+  if(x.Periodo==='Semanal')return '1 semana';
+  if(x.Periodo==='Quincenal')return '1 quincena';
+  if(x.Cantidad_Meses)return `${x.Cantidad_Meses} mes(es)`;
+  return '';
+};
+const preciosSistema=computed(()=>registros.value.filter(x=>x.Periodo!=='Promocion').map(x=>({id:x.ID_Precio,concepto:x.Nombre_Paquete,monto:Number(x.Precio),duracion:duracionTexto(x),periodo:x.Periodo,meses:x.Cantidad_Meses,estado:x.Estado_Paquete})));
 const promociones=computed(()=>registros.value.filter(x=>x.Periodo==='Promocion').map(x=>({id:x.ID_Precio,nombre:x.Nombre_Paquete,meses:Number(x.Cantidad_Meses||1),precio:Number(x.Precio)})));
 const precioMensual=computed(()=>preciosSistema.value.find(x=>x.periodo==='Mensual')?.monto||0);
 const precioSemanal=computed(()=>preciosSistema.value.find(x=>x.periodo==='Semanal')?.monto||0);
@@ -35,11 +42,12 @@ const handleBranchChange=()=>{selectedSede.value=sessionStorage.getItem('selecte
 onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);window.addEventListener('factorfit:branch-changed',handleBranchChange);if(!selectedSede.value){try{const account=JSON.parse(sessionStorage.getItem('gym_account')||'{}');selectedSede.value=String((account.usuario||account).sedes?.[0]?.ID_Sede||'');if(selectedSede.value)sessionStorage.setItem('selected_sede_id',selectedSede.value);}catch{}}obtenerPrecios();});
 onUnmounted(()=>{window.removeEventListener('idioma-changed',handleLangChange);window.removeEventListener('factorfit:branch-changed',handleBranchChange);});
 </script>
+
 <template>
 <HeadingGYM_ACCOUNT>
 <NotificationSystem ref="toastRef" />
 <main class="commercial-page">
-<header class="page-header "id="tutorial-step-0">
+<header class="page-header" id="tutorial-step-0">
 <div class="page-heading">
 <div class="heading-icon">
 <svg
@@ -92,7 +100,12 @@ stroke-linecap="round"
 <span>{{ t('newPromotion') }}</span>
 </button>
 </header>
-<div class="global-prices-action"><span>Los precios y promociones se administran por sucursal.</span><button type="button" class="new-promo-btn" :disabled="copiando||loading" @click="copiarConfiguracion">{{ copiando ? 'Copiando...' : 'Copiar configuración a todas las sedes' }}</button></div>
+
+<div class="global-prices-action">
+<span>Los precios y promociones se administran por sucursal.</span>
+<button type="button" class="new-promo-btn" :disabled="copiando||loading" @click="copiarConfiguracion">{{ copiando ? 'Copiando...' : 'Copiar configuración a todas las sedes' }}</button>
+</div>
+
 <section class="metrics-grid">
 <article class="metric-card tone-blue">
 <div class="metric-head">
@@ -156,6 +169,7 @@ stroke-linecap="round"
 </div>
 </article>
 </section>
+
 <section class="management-grid">
 <article class="management-panel tone-blue" id="tutorial-step-1">
 <header class="section-header">
@@ -271,6 +285,7 @@ class="action-btn delete"
 </button>
 </div>
 </article>
+
 <article class="management-panel tone-violet" id="tutorial-step-2">
 <header class="section-header">
 <div class="section-title">
@@ -286,12 +301,20 @@ class="action-btn delete"
 <p>{{ t('pricesDescription') }}</p>
 </div>
 </div>
-<div class="tariff-header-actions"><button type="button" class="new-promo-btn" @click="abrirModalAgregarPrecio">+ Agregar tarifa</button>
+<div class="tariff-header-actions">
+<button type="button" class="new-promo-btn" @click="abrirModalAgregarPrecio">+ Agregar tarifa</button>
 <span class="counter violet-counter">
 {{ preciosSistema.length }}
-</span></div>
+</span>
+</div>
 </header>
-<div v-if="loading" class="empty-state"><p>Cargando tarifas...</p></div><div v-else-if="!preciosSistema.length" class="empty-state"><h3>No hay tarifas registradas en esta sucursal.</h3><p>Agrega una tarifa mensual o semanal para comenzar.</p><button type="button" @click="abrirModalAgregarPrecio">+ Agregar tarifa</button></div><div v-else class="prices-list">
+<div v-if="loading" class="empty-state"><p>Cargando tarifas...</p></div>
+<div v-else-if="!preciosSistema.length" class="empty-state">
+<h3>No hay tarifas registradas en esta sucursal.</h3>
+<p>Agrega una tarifa mensual o semanal para comenzar.</p>
+<button type="button" @click="abrirModalAgregarPrecio">+ Agregar tarifa</button>
+</div>
+<div v-else class="prices-list">
 <article
 v-for="precio in preciosSistema"
 :key="precio.id"
@@ -332,6 +355,7 @@ class="price-edit"
 </article>
 </section>
 </main>
+
 <transition name="pop">
 <div
 v-if="modalConfig.isOpen"
@@ -424,7 +448,18 @@ placeholder="0.00"
 required
 />
 </div>
-<div class="input-group"><label>Frecuencia</label><select v-model="modalConfig.form.periodo" required><option value="Mensual">Mensual</option><option value="Semanal">Semanal</option><option value="Quincenal">Quincenal</option></select></div><div v-if="modalConfig.form.periodo === 'Mensual'" class="input-group"><label>Cantidad de meses</label><input type="number" min="1" max="120" v-model.number="modalConfig.form.meses" required /></div>
+<div class="input-group">
+<label>Frecuencia</label>
+<select v-model="modalConfig.form.periodo" required>
+<option value="Mensual">Mensual</option>
+<option value="Semanal">Semanal</option>
+<option value="Quincenal">Quincenal</option>
+</select>
+</div>
+<div v-if="modalConfig.form.periodo === 'Mensual'" class="input-group">
+<label>Cantidad de meses</label>
+<input type="number" min="1" max="120" v-model.number="modalConfig.form.meses" required />
+</div>
 </template>
 <div class="modal-actions">
 <button
@@ -445,6 +480,7 @@ class="btn-primary"
 </div>
 </div>
 </transition>
+
 <transition name="pop">
 <div
 v-if="deleteModalConfig.isOpen"
@@ -485,12 +521,15 @@ class="btn-danger"
 </transition>
 </HeadingGYM_ACCOUNT>
 </template>
+
 <style scoped>
+@import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+
 .global-prices-action{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px;font-size:.8rem;color:var(--text)}
 .global-prices-action .new-promo-btn{min-height:38px}
 .all-branches-checkbox{display:flex;align-items:center;gap:9px;margin:14px 0;color:var(--text);font-size:.78rem;cursor:pointer}
 .all-branches-checkbox input{accent-color:#8b5cf6;width:16px;height:16px}
-@import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');.commercial-page, .modal-wrapper{--accent: var(--color-highlight, #3b82f6);--panel: var(--bg-cards, #121416);--input: var(--bg-input, #0c0e10);--text: var(--color-texto-general, #e5e7eb);--title: var(--color-titulos, #ffffff);--muted: color-mix(in srgb, var(--text) 62%, transparent);--line: color-mix(in srgb, var(--text) 15%, transparent);--line-soft: color-mix(in srgb, var(--text) 9%, transparent);--green: #34d399;--violet: #8b5cf6;--orange: #f59e0b;--red: #f87171;}
+.commercial-page, .modal-wrapper{--accent: var(--color-highlight, #3b82f6);--panel: var(--bg-cards, #121416);--input: var(--bg-input, #0c0e10);--text: var(--color-texto-general, #e5e7eb);--title: var(--color-titulos, #ffffff);--muted: color-mix(in srgb, var(--text) 62%, transparent);--line: color-mix(in srgb, var(--text) 15%, transparent);--line-soft: color-mix(in srgb, var(--text) 9%, transparent);--green: #34d399;--violet: #8b5cf6;--orange: #f59e0b;--red: #f87171;}
 .commercial-page{width: 100%;max-width: 1450px;margin: 0 auto;padding: 30px 32px 56px;box-sizing: border-box;color: var(--text);font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;-webkit-font-smoothing: antialiased;}
 .commercial-page *, .modal-wrapper *{box-sizing: border-box;}
 .tone-blue{--tone: var(--accent);}
@@ -527,7 +566,7 @@ class="btn-danger"
 .metric-bottom{display: flex;align-items: center;gap: 7px;color: var(--muted);font-size: .66rem;}
 .metric-bottom .status-dot{color: var(--green);}
 .management-grid{display: grid;grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);gap: 18px;align-items: start;}
-.management-panel{position: relative;overflow: hidden;border: 1px solid var(--line);border-radius: var(--app-border-radius, 16px);background: var(--panel);box-shadow: 0 16px 40px rgba(0, 0, 0, .18);}
+.management-panel{position: relative;min-width: 0;overflow: hidden;border: 1px solid var(--line);border-radius: var(--app-border-radius, 16px);background: var(--panel);box-shadow: 0 16px 40px rgba(0, 0, 0, .18);}
 .management-panel::before{content: '';position: absolute;z-index: 2;top: 0;left: 0;right: 0;height: 2px;background: linear-gradient(90deg, transparent, var(--tone), transparent);opacity: .8;pointer-events: none;}
 .section-header{min-height: 80px;display: flex;align-items: center;justify-content: space-between;gap: 16px;padding: 17px 20px;border-bottom: 1px solid var(--line-soft);background: linear-gradient(180deg, color-mix(in srgb, var(--text) 2.5%, transparent), transparent);}
 .section-title{min-width: 0;display: flex;align-items: center;gap: 12px;}
@@ -568,7 +607,7 @@ class="btn-danger"
 .prices-list{display: flex;flex-direction: column;gap: 10px;padding: 16px;}
 .price-card{position: relative;display: flex;align-items: center;justify-content: space-between;gap: 12px;padding: 14px 15px;border: 1px solid var(--line-soft);border-radius: 13px;background: color-mix(in srgb, var(--text) 1.5%, transparent);transition: border-color .17s ease, background .17s ease;}
 .price-card:hover{border-color: rgba(139, 92, 246, .34);background: rgba(139, 92, 246, .045);}
-.price-content{min-width: 0;display: flex;align-items: center;gap: 12px;}
+.price-content{flex: 1;min-width: 0;display: flex;align-items: center;gap: 12px;}
 .price-icon{width: 40px;height: 40px;display: flex;align-items: center;justify-content: center;flex-shrink: 0;border: 1px solid rgba(139, 92, 246, .26);border-radius: 11px;background: rgba(139, 92, 246, .09);color: var(--violet);}
 .price-icon svg{width: 18px;height: 18px;fill: none;stroke: currentColor;stroke-width: 1.8;stroke-linecap: round;stroke-linejoin: round;}
 .price-info{min-width: 0;}
@@ -604,6 +643,8 @@ class="btn-danger"
 .input-group input:disabled{opacity: .55;cursor: not-allowed;}
 .input-group input[type='number']{-moz-appearance: textfield;appearance: textfield;}
 .input-group input[type='number']::-webkit-inner-spin-button, .input-group input[type='number']::-webkit-outer-spin-button{margin: 0;-webkit-appearance: none;}
+.input-group select{width: 100%;min-height: 45px;padding: 0 13px;outline: none;border: 1px solid var(--line);border-radius: 10px;background: var(--input);color: var(--color-texto-input, var(--text));font-family: 'Inter', sans-serif;font-size: .8rem;font-weight: 500;transition: border-color .16s ease, box-shadow .16s ease;}
+.input-group select:focus{border-color: var(--accent);box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);}
 .form-grid-modal{display: grid;grid-template-columns: 1fr 1fr;gap: 12px;}
 .modal-actions{display: flex;gap: 10px;margin-top: 22px;}
 .btn-primary, .btn-secondary, .btn-danger{flex: 1;min-height: 46px;border-radius: 10px;font-family: 'Inter', sans-serif;font-size: .76rem;font-weight: 700;cursor: pointer;transition: background .16s ease, border-color .16s ease, filter .16s ease, transform .16s ease;}
@@ -623,12 +664,20 @@ class="btn-danger"
 .pop-enter-active .custom-modal-card, .pop-leave-active .custom-modal-card{transition: transform .2s ease, opacity .2s ease;}
 .pop-enter-from, .pop-leave-to{opacity: 0;}
 .pop-enter-from .custom-modal-card, .pop-leave-to .custom-modal-card{opacity: 0;transform: translateY(10px) scale(.985);}
+
+/* ===== Encabezado de "Tarifas del sistema" (corrección de diseño) ===== */
+.management-panel.tone-violet .section-header{flex-wrap: wrap;align-items: center;row-gap: 12px;}
+.management-panel.tone-violet .section-title{flex: 1 1 200px;min-width: 0;}
+.tariff-header-actions{display: flex;align-items: center;gap: 10px;flex: 0 0 auto;margin-left: auto;}
+.tariff-header-actions .new-promo-btn{min-height: 34px;padding: 0 12px;font-size: .7rem;white-space: nowrap;}
+.tariff-header-actions .counter{flex-shrink: 0;}
+
 @media (max-width: 1100px){.metrics-grid{grid-template-columns: repeat(2, minmax(0, 1fr));}
 .management-grid{grid-template-columns: 1fr;}
 }
 @media (max-width: 700px){.commercial-page{padding: 20px 18px 40px;}
 .page-header{align-items: stretch;flex-direction: column;gap: 18px;}
-.new-promo-btn{width: 100%;}
+.page-header .new-promo-btn{width: 100%;}
 }
 @media (max-width: 560px){.commercial-page{padding: 16px 13px 36px;}
 .heading-icon{width: 42px;height: 42px;border-radius: 11px;}
@@ -649,6 +698,7 @@ class="btn-danger"
 .promo-meta{gap: 10px 14px;}
 .form-grid-modal{grid-template-columns: 1fr;gap: 0;}
 .custom-modal-card{padding: 22px 18px 20px;}
+.tariff-header-actions{width: 100%;justify-content: space-between;}
 }
 @media (max-width: 380px){.commercial-page{padding: 12px 10px 32px;}
 .metrics-grid{grid-template-columns: 1fr;}
@@ -661,7 +711,4 @@ class="btn-danger"
 }
 @media (prefers-reduced-motion: reduce){.new-promo-btn, .metric-card, .promotion-card, .price-card, .action-btn, .price-edit, .btn-primary, .btn-secondary, .btn-danger, .empty-state button, .pop-enter-active, .pop-leave-active, .pop-enter-active .custom-modal-card, .pop-leave-active .custom-modal-card{transition: none !important;}
 }
-.tariff-header-actions{display:flex;align-items:center;gap:10px}
-.tariff-header-actions .new-promo-btn{min-height:34px;padding:0 12px;font-size:.7rem}
-.input-group select{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--input);color:var(--text)}
 </style>
