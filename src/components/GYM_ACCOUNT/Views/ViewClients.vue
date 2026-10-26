@@ -266,7 +266,7 @@ const formatDate=(date)=>{
   return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
 };
 const obtenerSedeId=()=>{
-  const keys=['sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+  const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
   for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
   return null;
 };
@@ -289,7 +289,8 @@ const cargarClientes=async()=>{
   }catch(e){errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
   finally{loadingUsers.value=false;}
 };
-onMounted(cargarClientes);
+onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);});
+onUnmounted(()=>window.removeEventListener('factorfit:branch-changed',cargarClientes));
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
     const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
