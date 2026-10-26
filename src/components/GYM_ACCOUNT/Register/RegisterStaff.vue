@@ -354,6 +354,8 @@
                         {{ L('Todas las sedes', 'All locations', 'Tous les sites', 'Todas as unidades') }}
                       </span>
                     </div>
+                    <div v-if="sedesCargando && !listaSedes.length" class="dropdown-option-item">Cargando sucursales...</div>
+                    <div v-else-if="!listaSedes.length" class="dropdown-option-item">No hay sucursales disponibles</div>
                     <div
                       v-for="sede in listaSedes"
                       :key="sede.id"
@@ -1185,12 +1187,41 @@ const scheduleSummary = computed(() => {
 /* =========================================================
    SEDES
 ========================================================= */
-const listaSedes = ref([]);
+const leerSedesSesion = () => {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem('gym_account') || '{}');
+    const account = raw.usuario || raw;
+    return (Array.isArray(account.sedes) ? account.sedes : []).map(s => ({
+      id: Number(s.ID_Sede ?? s.id),
+      nombre: String(s.Sede_Colonia ?? s.nombre ?? s.Nombre ?? `Sucursal ${s.ID_Sede ?? s.id}`)
+    })).filter(s => Number.isFinite(s.id) && s.id > 0);
+  } catch { return []; }
+};
+const listaSedes = ref(leerSedesSesion());
+const sedesCargando = ref(false);
+const sedesError = ref('');
 const cargarSedes = async () => {
-  const response = await fetch('/api/personal/sedes', { credentials: 'include', headers: { Accept: 'application/json' } });
-  if (!response.ok) throw new Error('No se pudieron cargar las sedes');
-  const json = await response.json();
-  listaSedes.value = (json.sedes || []).map(s => ({ id: Number(s.ID_Sede), nombre: s.nombre }));
+  sedesCargando.value = true;
+  sedesError.value = '';
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  const url = `${base}${base.endsWith('/api') ? '' : '/api'}/personal/sedes`;
+  const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('token') || localStorage.getItem('token');
+  try {
+    const response = await fetch(url, { headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+    const type = response.headers.get('content-type') || '';
+    if (!type.includes('application/json')) throw new Error('La API devolvió HTML en lugar de JSON. Revisa VITE_API_URL y /api/personal/sedes.');
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.message || `Error HTTP ${response.status} al cargar sucursales`);
+    const items = Array.isArray(json) ? json : (json.sedes ?? json.data ?? []);
+    if (!Array.isArray(items)) throw new Error('Formato de sucursales no válido');
+    const sedes = items.map(x => ({ id: Number(x.ID_Sede ?? x.id), nombre: String(x.Sede_Colonia ?? x.nombre ?? x.Nombre ?? `Sucursal ${x.ID_Sede ?? x.id}`) })).filter(x => Number.isFinite(x.id) && x.id > 0);
+    listaSedes.value = sedes;
+    form.sedes = form.sedes.filter(id => sedes.some(x => x.id === id));
+  } catch (e) {
+    sedesError.value = e.message;
+    // Si falla la API, conservar las sucursales del login como en HeadingGYM_ACCOUNT.
+    if (!listaSedes.value.length) console.error('Error al cargar sucursales:', e);
+  } finally { sedesCargando.value = false; }
 };
 const isDropdownOpen = ref(false);
 const dropdownRef = ref(null);
@@ -1797,9 +1828,13 @@ const saveRegistration = async () => {
       else if (key === 'horario') { if (value) payload.append('horario', JSON.stringify(value)); }
       else if (value !== null && value !== undefined) payload.append(key, String(value));
     }
-    const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    const response = await fetch('/api/personal', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) }, body: payload });
-    const result = await response.json().catch(() => ({}));
+    const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+    const url = `${base}${base.endsWith('/api') ? '' : '/api'}/personal`;
+    const bearer = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('token') || localStorage.getItem('token');
+    const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) }, body: payload });
+    const type = response.headers.get('content-type') || '';
+    if (!type.includes('application/json')) throw new Error(`El servidor devolvió HTML (HTTP ${response.status}). Revisa VITE_API_URL y /api/personal.`);
+    const result = await response.json();
     if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'No se pudo registrar al personal.');
     toastRef.value?.notify(
       L(
@@ -1822,7 +1857,7 @@ const saveRegistration = async () => {
    CICLO DE VIDA
 ========================================================= */
 onMounted(() => {
-  cargarSedes().catch(e => toastRef.value?.notify(e.message, 'error'));
+  cargarSedes();
   /*
     Cambio global de idioma.
   */
