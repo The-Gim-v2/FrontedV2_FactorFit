@@ -1,70 +1,62 @@
 <script setup>
-import { reactive, ref, nextTick, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { reactive, ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-
 const router = useRouter();
+const route = useRoute();
+const clienteId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
+const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const sedeId=()=>{const keys=['sede_id','ID_Sede','id_sede','selected_sede_id','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
+const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const t=storage.getItem(key);if(t)return t.replace(/^Bearer\s+/i,'');}for(const key of ['auth','user','session','gymAccount','gym_account']){try{const v=JSON.parse(storage.getItem(key)||'null');if(v?.token||v?.access_token||v?.accessToken)return v.token||v.access_token||v.accessToken;}catch{}}}return '';};
+const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.message||`Error HTTP ${response.status}`);return data;};
+const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
+const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||sessionStorage.getItem('selected_sede_nombre')||`Sede ${c.ID_Sede}`,status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const chooseClient=(c)=>{showSuggestions.value=false;router.push(`/GYM_ACCOUNT/editar-usuario/${c.ID_Cliente}`);};
 const toastRef = ref(null);
 const searchQuery = ref('');
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
-
 const t = (key) => {
   const langTable = traducciones[currentLang.value] || traducciones.es;
   return langTable?.[key] || traducciones.es?.[key] || key;
 };
-
 const txt = (es, en) => (currentLang.value === 'en' ? en : es);
-
 const handleLangChange = (event) => {
   if (event.detail?.idioma) currentLang.value = event.detail.idioma;
 };
-
 /* ============================ FORMULARIO ============================ */
-
 const form = reactive({
-  nombres: 'José Luis',
-  apellidoPaterno: 'Ramírez',
+  nombres: '',
+  apellidoPaterno: '',
   apellidoMaterno: '',
   fechaNacimiento: '',
   celular: '',
   correo: '',
   peso: '',
   altura: '',
-  sede: 'Matriz',
-  status: 'Activo'
+  sede: '',
+  status: ''
 });
-
-const handleSearch = () => {
-  if (!searchQuery.value.trim()) return;
-  console.log('Buscando cliente:', searchQuery.value);
-};
-
+const handleSearch=()=>{if(suggestions.value.length===1)chooseClient(suggestions.value[0]);else showSuggestions.value=true;};
 const goToStatistics = () => {
-  router.push({ name: 'statistics', params: { id: 'GymPer001' } });
+  if(!clienteId.value)return;
+  router.push({ name: 'statistics', params: { id: String(clienteId.value||'') } });
 };
-
 /* ============================ FOTO / GALERÍA ============================ */
-
 const fileInput = ref(null);
 const avatarFile = ref(null);
-
-const avatarSrc = ref(
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3'
-);
-
+const avatarSrc = ref('');
 const showPhotoOptions = ref(false);
-const openPhotoOptions = () => (showPhotoOptions.value = true);
+const openPhotoOptions = () => {if(clienteId.value)showPhotoOptions.value = true;};
 const closePhotoOptions = () => (showPhotoOptions.value = false);
-
 const selectPhoto = () => {
   showPhotoOptions.value = false;
   if (!fileInput.value) return;
   fileInput.value.value = '';
   fileInput.value.click();
 };
-
 const setAvatarFile = (file) => {
   if (!file) return;
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
@@ -73,11 +65,9 @@ const setAvatarFile = (file) => {
   avatarFile.value = file;
   avatarSrc.value = URL.createObjectURL(file);
 };
-
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-
   if (!file.type.startsWith('image/')) {
     toastRef.value?.notify(
       txt('Selecciona una imagen válida.', 'Select a valid image.'),
@@ -86,7 +76,6 @@ const handleFileChange = (event) => {
     event.target.value = '';
     return;
   }
-
   setAvatarFile(file);
   toastRef.value?.notify(
     txt('Foto seleccionada correctamente.', 'Photo selected successfully.'),
@@ -94,16 +83,13 @@ const handleFileChange = (event) => {
   );
   event.target.value = '';
 };
-
 /* ============================ CÁMARA REAL ============================ */
-
 const showCamera = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
 const cameraStream = ref(null);
 const cameraFacingMode = ref('user');
 const switchingCamera = ref(false);
-
 const stopCamera = () => {
   if (cameraStream.value) {
     cameraStream.value.getTracks().forEach((track) => track.stop());
@@ -111,10 +97,8 @@ const stopCamera = () => {
   }
   if (videoRef.value) videoRef.value.srcObject = null;
 };
-
 const startCamera = async () => {
   stopCamera();
-
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
@@ -123,21 +107,16 @@ const startCamera = async () => {
       height: { ideal: 720 }
     }
   });
-
   cameraStream.value = stream;
   await nextTick();
-
   if (!videoRef.value) {
     throw new Error('No se encontró el elemento de video.');
   }
-
   videoRef.value.srcObject = stream;
   await videoRef.value.play();
 };
-
 const takePhoto = async () => {
   showPhotoOptions.value = false;
-
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     toastRef.value?.notify(
       txt(
@@ -148,20 +127,16 @@ const takePhoto = async () => {
     );
     return;
   }
-
   cameraFacingMode.value = 'user';
   showCamera.value = true;
   await nextTick();
-
   try {
     await startCamera();
   } catch (error) {
     console.error(error);
     stopCamera();
     showCamera.value = false;
-
     let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
-
     if (error?.name === 'NotAllowedError') {
       message = txt(
         'Permiso de cámara rechazado. Actívalo en el navegador.',
@@ -180,30 +155,24 @@ const takePhoto = async () => {
         'The camera is being used by another application.'
       );
     }
-
     toastRef.value?.notify(message, 'warning');
   }
 };
-
 const switchCamera = async () => {
   if (switchingCamera.value) return;
   switchingCamera.value = true;
-
   const previous = cameraFacingMode.value;
   cameraFacingMode.value = previous === 'user' ? 'environment' : 'user';
-
   try {
     await startCamera();
   } catch (error) {
     console.error(error);
     cameraFacingMode.value = previous;
-
     try {
       await startCamera();
     } catch {
       closeCamera();
     }
-
     toastRef.value?.notify(
       txt('La cámara seleccionada no está disponible.', 'The selected camera is not available.'),
       'warning'
@@ -212,19 +181,15 @@ const switchCamera = async () => {
     switchingCamera.value = false;
   }
 };
-
 const closeCamera = () => {
   stopCamera();
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
 const capturePhoto = () => {
   if (switchingCamera.value) return;
-
   const video = videoRef.value;
   const canvas = canvasRef.value;
-
   if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
     toastRef.value?.notify(
       txt('La cámara todavía no está lista.', 'The camera is not ready yet.'),
@@ -232,13 +197,10 @@ const capturePhoto = () => {
     );
     return;
   }
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
   const context = canvas.getContext('2d');
   if (!context) return;
-
   /* Cámara frontal: se refleja la foto final para que coincida con el visor */
   if (cameraFacingMode.value === 'user') {
     context.save();
@@ -249,18 +211,14 @@ const capturePhoto = () => {
   } else {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
-
   canvas.toBlob(
     (blob) => {
       if (!blob) return;
-
       const file = new File([blob], `cliente-${Date.now()}.jpg`, {
         type: 'image/jpeg'
       });
-
       setAvatarFile(file);
       closeCamera();
-
       toastRef.value?.notify(
         txt('Foto tomada correctamente.', 'Photo captured successfully.'),
         'success'
@@ -270,38 +228,24 @@ const capturePhoto = () => {
     0.92
   );
 };
-
 /* ============================ GUARDAR ============================ */
-
-const saveChanges = () => {
-  console.log('Guardando cambios...', { ...form, foto: avatarFile.value });
-
-  toastRef.value?.notify(
-    txt('Guardado correctamente', 'Saved successfully'),
-    'success'
-  );
-};
-
-/* ============================ CICLO DE VIDA ============================ */
-
+const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');saving.value=true;try{const fd=new FormData();const values={sede_id:sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+watch(()=>route.params.id,id=>{if(id)loadClient(id);});
+const handleBranchChange=()=>{clienteId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');avatarSrc.value='';loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
-  window.addEventListener('idioma-changed', handleLangChange);
+  window\.addEventListener('idioma-changed', handleLangChange);
 });
-
 onUnmounted(() => {
-  window.removeEventListener('idioma-changed', handleLangChange);
+  window\.removeEventListener('idioma-changed', handleLangChange);
   stopCamera();
-
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
     URL.revokeObjectURL(avatarSrc.value);
   }
 });
 </script>
-
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-
     <main class="main-content">
       <!-- ==================== ENCABEZADO ==================== -->
       <header class="page-header">
@@ -309,12 +253,10 @@ onUnmounted(() => {
           <span class="eyebrow">
             {{ txt('GESTIÓN DE CLIENTE', 'CLIENT MANAGEMENT') }}
           </span>
-
           <h1>
             {{ txt('Perfil del', 'Client') }}
             <span>{{ txt('cliente', 'profile') }}</span>
           </h1>
-
           <p>
             {{
               txt(
@@ -324,13 +266,11 @@ onUnmounted(() => {
             }}
           </p>
         </div>
-
         <!-- TUTOR 0: BUSCAR CLIENTE -->
         <div id="tutor-0" class="search-small input-group">
           <label for="client-search">
             {{ t('searchClientLabel') }}
           </label>
-
           <div class="search-input-wrapper">
             <svg
               viewBox="0 0 24 24"
@@ -341,18 +281,20 @@ onUnmounted(() => {
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-
             <input
               id="client-search"
               v-model="searchQuery"
               type="text"
               :placeholder="t('searchPlaceholder')"
-              @keyup.enter="handleSearch"
+              @focus="showSuggestions=true" @input="showSuggestions=true" @keyup.enter="handleSearch"
             />
+          </div>
+          <div v-if="showSuggestions && searchQuery.trim()" style="position:absolute;z-index:100;background:var(--bg-cards,#121416);border:1px solid #42425b;border-radius:12px;max-height:260px;overflow:auto;width:min(370px,90vw);box-shadow:0 12px 30px #0007">
+            <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" @click="chooseClient(c)" style="display:block;width:100%;padding:12px;color:white;text-align:left;background:transparent;border:0;border-bottom:1px solid #343449;cursor:pointer">{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }} · #{{ c.ID_Cliente }}</button>
+            <p v-if="!suggestions.length" style="padding:12px;color:#aaa">No se encontraron clientes en esta sucursal.</p>
           </div>
         </div>
       </header>
-
       <!-- ==================== PERFIL COMPLETO ==================== -->
       <div class="profile-card">
         <!-- ================================================== -->
@@ -369,12 +311,11 @@ onUnmounted(() => {
               :aria-label="txt('Cambiar foto', 'Change photo')"
               @click="openPhotoOptions"
             >
-              <img
-                :src="avatarSrc"
+              <img v-if="avatarSrc"
+                :src="avatarSrc" @error="avatarSrc=''"
                 :alt="t('avatarAlt')"
               />
-
-              <span class="avatar-overlay">
+              <span v-if="!avatarSrc" class="avatar-fallback">{{ (form.nombres?.[0]||'?').toUpperCase() }}</span><span class="avatar-overlay">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -386,11 +327,9 @@ onUnmounted(() => {
                   />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-
                 {{ txt('Cambiar foto', 'Change photo') }}
               </span>
             </button>
-
             <!-- TUTOR 3: VER ESTADÍSTICAS -->
             <button
               id="tutor-3"
@@ -411,7 +350,6 @@ onUnmounted(() => {
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
             </button>
-
             <!-- TUTOR 4: CAMBIAR FOTO -->
             <button
               id="tutor-4"
@@ -433,7 +371,6 @@ onUnmounted(() => {
                 <circle cx="12" cy="13" r="4" />
               </svg>
             </button>
-
             <input
               ref="fileInput"
               type="file"
@@ -442,19 +379,16 @@ onUnmounted(() => {
               @change="handleFileChange"
             />
           </div>
-
           <!-- ==================== NOMBRE ==================== -->
           <h2 class="main-title">
             {{ form.nombres || '—' }}
             <span>{{ form.apellidoPaterno || '—' }}</span>
           </h2>
-
           <!-- ==================== ESTADO ==================== -->
           <span class="status-badge">
             <i></i>
-            {{ t('statusActive') }}
+            {{ form.status || '—' }}
           </span>
-
           <p class="photo-hint">
             {{
               txt(
@@ -463,27 +397,23 @@ onUnmounted(() => {
               )
             }}
           </p>
-
           <!-- ==================== RESUMEN ==================== -->
           <dl class="profile-meta">
             <!-- TUTOR 5: INFORMACIÓN DEL CLIENTE -->
             <div id="tutor-5">
               <dt>ID</dt>
-              <dd>GymPer001</dd>
+              <dd>{{ clienteId || "—" }}</dd>
             </div>
-
             <div>
               <dt>{{ txt('Sede', 'Location') }}</dt>
               <dd>{{ form.sede || '—' }}</dd>
             </div>
-
             <div>
               <dt>{{ txt('Estado', 'Status') }}</dt>
               <dd>{{ form.status || '—' }}</dd>
             </div>
           </dl>
         </aside>
-
         <!-- ==================== FORMULARIOS ==================== -->
         <div class="forms-wrapper">
           <!-- ================================================== -->
@@ -505,24 +435,20 @@ onUnmounted(() => {
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </span>
-
                 <h3 class="section-title">
                   {{ t('personalDataTitle') }}
                 </h3>
               </div>
-
               <span class="card-subtitle">
                 {{ t('clientDataSubtitle') }}
               </span>
             </div>
-
             <div class="form-grid-3">
               <!-- NOMBRES -->
               <div class="input-group">
                 <label for="f-nombres">
                   {{ t('namesLabel') }}
                 </label>
-
                 <input
                   id="f-nombres"
                   v-model="form.nombres"
@@ -531,13 +457,11 @@ onUnmounted(() => {
                   placeholder="José Luis"
                 />
               </div>
-
               <!-- APELLIDO PATERNO -->
               <div class="input-group">
                 <label for="f-paterno">
                   {{ t('lastNamePaternalLabel') }}
                 </label>
-
                 <input
                   id="f-paterno"
                   v-model="form.apellidoPaterno"
@@ -546,13 +470,11 @@ onUnmounted(() => {
                   placeholder="Ramírez"
                 />
               </div>
-
               <!-- APELLIDO MATERNO -->
               <div class="input-group">
                 <label for="f-materno">
                   {{ t('lastNameMaternalLabel') }}
                 </label>
-
                 <input
                   id="f-materno"
                   v-model="form.apellidoMaterno"
@@ -560,26 +482,22 @@ onUnmounted(() => {
                   placeholder="García"
                 />
               </div>
-
               <!-- FECHA DE NACIMIENTO -->
               <div class="input-group">
                 <label for="f-fecha">
                   {{ t('birthDateLabel') }}
                 </label>
-
                 <input
                   id="f-fecha"
                   v-model="form.fechaNacimiento"
                   type="date"
                 />
               </div>
-
               <!-- CELULAR -->
               <div class="input-group">
                 <label for="f-celular">
                   {{ t('phoneLabel') }}
                 </label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -591,7 +509,6 @@ onUnmounted(() => {
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
-
                   <input
                     id="f-celular"
                     v-model="form.celular"
@@ -601,13 +518,11 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-
               <!-- CORREO -->
               <div class="input-group">
                 <label for="f-correo">
                   {{ t('emailLabel') }}
                 </label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -620,7 +535,6 @@ onUnmounted(() => {
                     />
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
-
                   <input
                     id="f-correo"
                     v-model="form.correo"
@@ -632,7 +546,6 @@ onUnmounted(() => {
               </div>
             </div>
           </section>
-
           <!-- ==================== BLOQUE INFERIOR ==================== -->
           <div class="lower-grid">
             <!-- ================================================== -->
@@ -653,20 +566,17 @@ onUnmounted(() => {
                       />
                     </svg>
                   </span>
-
                   <h3 class="section-title">
                     {{ t('physicalTrackingTitle') }}
                   </h3>
                 </div>
               </div>
-
               <div class="measurement-grid">
                 <!-- PESO -->
                 <div class="input-group">
                   <label for="f-peso">
                     {{ t('initialWeightLabel') }}
                   </label>
-
                   <div class="unit-input">
                     <input
                       id="f-peso"
@@ -676,17 +586,14 @@ onUnmounted(() => {
                       step="0.1"
                       placeholder="70"
                     />
-
                     <span>kg</span>
                   </div>
                 </div>
-
                 <!-- ALTURA -->
                 <div class="input-group">
                   <label for="f-altura">
                     {{ t('initialHeightLabel') }}
                   </label>
-
                   <div class="unit-input">
                     <input
                       id="f-altura"
@@ -696,13 +603,11 @@ onUnmounted(() => {
                       step="1"
                       placeholder="175"
                     />
-
                     <span>cm</span>
                   </div>
                 </div>
               </div>
             </section>
-
             <!-- ================================================== -->
             <!-- TUTOR 8: MEMBRESÍA -->
             <!-- ================================================== -->
@@ -726,45 +631,39 @@ onUnmounted(() => {
                       <line x1="2" y1="10" x2="22" y2="10" />
                     </svg>
                   </span>
-
                   <h3 class="section-title">
                     {{ t('membershipTitle') }}
                   </h3>
                 </div>
               </div>
-
               <div class="form-grid-2">
                 <!-- SEDE -->
                 <div class="input-group">
                   <label for="f-sede">
                     {{ t('locationLabel') }}
                   </label>
-
                   <input
                     id="f-sede"
-                    v-model="form.sede"
-                    type="text"
+                    v-model="form.sede" readonly
+                    type="text" readonly
                     placeholder="Matriz"
                   />
                 </div>
-
                 <!-- ESTADO -->
                 <div class="input-group">
                   <label for="f-status">
                     {{ t('statusLabel') }}
                   </label>
-
                   <input
                     id="f-status"
-                    v-model="form.status"
-                    type="text"
+                    v-model="form.status" readonly
+                    type="text" readonly
                     placeholder="Activo"
                   />
                 </div>
               </div>
             </section>
           </div>
-
           <!-- ================================================== -->
           <!-- TUTOR 9: GUARDAR CAMBIOS -->
           <!-- ================================================== -->
@@ -773,6 +672,7 @@ onUnmounted(() => {
               id="tutor-9"
               type="button"
               class="btn-primary"
+              :disabled="saving || loadingProfile || !clienteId"
               @click="saveChanges"
             >
               <svg
@@ -787,14 +687,12 @@ onUnmounted(() => {
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
-
               {{ t('saveChangesBtn') }}
             </button>
           </footer>
         </div>
       </div>
     </main>
-
     <!-- ====================================================== -->
     <!-- MODAL: OPCIONES DE FOTO -->
     <!-- ====================================================== -->
@@ -819,7 +717,6 @@ onUnmounted(() => {
                   )
                 }}
               </h3>
-
               <p>
                 {{
                   txt(
@@ -829,7 +726,6 @@ onUnmounted(() => {
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close"
@@ -839,7 +735,6 @@ onUnmounted(() => {
               ×
             </button>
           </div>
-
           <div class="photo-options">
             <!-- TOMAR FOTO -->
             <button
@@ -860,12 +755,10 @@ onUnmounted(() => {
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </span>
-
               <span>
                 <strong>
                   {{ txt('Tomar foto', 'Take photo') }}
                 </strong>
-
                 <small>
                   {{
                     txt(
@@ -875,10 +768,8 @@ onUnmounted(() => {
                   }}
                 </small>
               </span>
-
               <b>›</b>
             </button>
-
             <!-- SELECCIONAR GALERÍA -->
             <button
               type="button"
@@ -903,7 +794,6 @@ onUnmounted(() => {
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
               </span>
-
               <span>
                 <strong>
                   {{
@@ -913,7 +803,6 @@ onUnmounted(() => {
                     )
                   }}
                 </strong>
-
                 <small>
                   {{
                     txt(
@@ -923,11 +812,9 @@ onUnmounted(() => {
                   }}
                 </small>
               </span>
-
               <b>›</b>
             </button>
           </div>
-
           <button
             type="button"
             class="cancel-btn"
@@ -938,7 +825,6 @@ onUnmounted(() => {
         </div>
       </div>
     </transition>
-
     <!-- ====================================================== -->
     <!-- MODAL: CÁMARA -->
     <!-- ====================================================== -->
@@ -958,7 +844,6 @@ onUnmounted(() => {
               <h3>
                 {{ txt('Tomar fotografía', 'Take photo') }}
               </h3>
-
               <p>
                 {{
                   cameraFacingMode === 'user'
@@ -967,7 +852,6 @@ onUnmounted(() => {
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close"
@@ -977,7 +861,6 @@ onUnmounted(() => {
               ×
             </button>
           </div>
-
           <!-- ==================== VISTA DE CÁMARA ==================== -->
           <div class="camera-preview">
             <video
@@ -990,7 +873,6 @@ onUnmounted(() => {
                   cameraFacingMode === 'user'
               }"
             ></video>
-
             <!-- CAMBIAR CÁMARA -->
             <button
               type="button"
@@ -1011,16 +893,13 @@ onUnmounted(() => {
                   d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
                 />
               </svg>
-
               {{
                 cameraFacingMode === 'user'
                   ? txt('Trasera', 'Rear')
                   : txt('Frontal', 'Front')
               }}
             </button>
-
             <div class="face-guide"></div>
-
             <!-- CARGANDO CÁMARA -->
             <div
               v-if="switchingCamera"
@@ -1029,12 +908,10 @@ onUnmounted(() => {
               <span></span>
             </div>
           </div>
-
           <canvas
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
-
           <!-- ==================== ACCIONES CÁMARA ==================== -->
           <div class="camera-actions">
             <button
@@ -1044,7 +921,6 @@ onUnmounted(() => {
             >
               {{ txt('Cancelar', 'Cancel') }}
             </button>
-
             <button
               type="button"
               class="capture-btn"
@@ -1054,7 +930,6 @@ onUnmounted(() => {
               <i>
                 <span></span>
               </i>
-
               {{ txt('Tomar foto', 'Take photo') }}
             </button>
           </div>
@@ -1063,10 +938,8 @@ onUnmounted(() => {
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
 .main-content {
   --accent: var(--color-highlight, #3b82f6);
   --card: var(--bg-cards, #121416);
@@ -1076,7 +949,6 @@ onUnmounted(() => {
   --line: color-mix(in srgb, var(--text) 10%, transparent);
   --input: color-mix(in srgb, var(--card) 90%, #ffffff);
   --radius: 14px;
-
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
@@ -1085,9 +957,7 @@ onUnmounted(() => {
   color: var(--text);
   font-family: 'Inter', sans-serif;
 }
-
 /* ============================ ENCABEZADO ============================ */
-
 .page-header {
   display: flex;
   align-items: flex-end;
@@ -1095,11 +965,9 @@ onUnmounted(() => {
   gap: 28px;
   margin-bottom: 26px;
 }
-
 .page-heading {
   min-width: 0;
 }
-
 .eyebrow {
   display: block;
   margin-bottom: 6px;
@@ -1108,11 +976,9 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0.12em;
 }
-
 .page-header h1 span {
   color: var(--accent);
 }
-
 .page-header h1 {
   margin: 0;
   color: var(--title);
@@ -1123,7 +989,6 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
-
 .page-header p {
   max-width: 560px;
   margin: 8px 0 0;
@@ -1131,28 +996,23 @@ onUnmounted(() => {
   font-size: 0.8rem;
   line-height: 1.55;
 }
-
 /* ============================ BÚSQUEDA / INPUTS ============================ */
-
 .search-small {
   width: min(100%, 320px);
   flex-shrink: 0;
 }
-
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;
 }
-
 .input-group label {
   color: color-mix(in srgb, var(--text) 78%, transparent);
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.2;
 }
-
 .search-input-wrapper,
 .input-with-icon,
 .unit-input {
@@ -1160,7 +1020,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
 }
-
 .search-input-wrapper svg,
 .input-with-icon svg {
   position: absolute;
@@ -1171,12 +1030,10 @@ onUnmounted(() => {
   color: var(--muted);
   pointer-events: none;
 }
-
 .search-input-wrapper input,
 .input-with-icon input {
   padding-left: 38px !important;
 }
-
 .input-group input {
   width: 100%;
   height: 44px;
@@ -1192,40 +1049,32 @@ onUnmounted(() => {
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-
 .input-group input::placeholder {
   color: color-mix(in srgb, var(--muted) 70%, transparent);
   font-weight: 400;
 }
-
 .input-group input:hover {
   border-color: color-mix(in srgb, var(--text) 24%, transparent);
 }
-
 .input-group input:focus {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--input) 90%, var(--accent));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
-
 .input-group input[type='date'] {
   color-scheme: dark;
 }
-
 .input-group input[type='date']::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.7;
 }
-
 /* ============================ ESTRUCTURA ============================ */
-
 .profile-card {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
-
 .profile-section,
 .login-card {
   box-sizing: border-box;
@@ -1233,9 +1082,7 @@ onUnmounted(() => {
   border-radius: var(--radius);
   background: var(--card);
 }
-
 /* ============================ PERFIL ============================ */
-
 .profile-section {
   position: sticky;
   top: 20px;
@@ -1244,13 +1091,11 @@ onUnmounted(() => {
   align-items: center;
   padding: 28px 22px 22px;
 }
-
 .avatar-wrapper {
   position: relative;
   width: 148px;
   margin-bottom: 20px;
 }
-
 .avatar-circle {
   position: relative;
   display: block;
@@ -1264,14 +1109,12 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
 }
-
 .avatar-circle img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .avatar-overlay {
   position: absolute;
   right: 0;
@@ -1289,17 +1132,14 @@ onUnmounted(() => {
   transform: translateY(100%);
   transition: transform 0.2s ease;
 }
-
 .avatar-circle:hover .avatar-overlay,
 .avatar-circle:focus-visible .avatar-overlay {
   transform: translateY(0);
 }
-
 .avatar-overlay svg {
   width: 14px;
   height: 14px;
 }
-
 .avatar-action {
   position: absolute;
   width: 36px;
@@ -1314,32 +1154,26 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
 }
-
 .avatar-action:hover {
   transform: scale(1.08);
   filter: brightness(1.08);
 }
-
 .avatar-action svg {
   width: 16px;
   height: 16px;
 }
-
 .btn-stats {
   top: 4px;
   left: -6px;
 }
-
 .btn-camera {
   right: -6px;
   bottom: 4px;
 }
-
 .hidden-input,
 .hidden-canvas {
   display: none;
 }
-
 .main-title {
   margin: 0 0 12px;
   color: var(--title);
@@ -1350,16 +1184,13 @@ onUnmounted(() => {
   text-align: center;
   text-transform: uppercase;
 }
-
 .main-title span {
   display: block;
   color: var(--accent);
 }
-
 .profile-section {
   overflow: hidden;
 }
-
 .profile-section::before {
   content: '';
   position: absolute;
@@ -1369,7 +1200,6 @@ onUnmounted(() => {
   height: 3px;
   background: var(--accent);
 }
-
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1382,14 +1212,12 @@ onUnmounted(() => {
   font-size: 0.66rem;
   font-weight: 600;
 }
-
 .status-badge i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
-
 .photo-hint {
   margin: 16px 0 20px;
   color: var(--muted);
@@ -1397,14 +1225,12 @@ onUnmounted(() => {
   line-height: 1.5;
   text-align: center;
 }
-
 .profile-meta {
   width: 100%;
   margin: 0;
   padding-top: 6px;
   border-top: 1px solid var(--line);
 }
-
 .profile-meta > div {
   display: flex;
   align-items: center;
@@ -1413,17 +1239,14 @@ onUnmounted(() => {
   padding: 11px 2px;
   border-bottom: 1px solid var(--line);
 }
-
 .profile-meta > div:last-child {
   padding-bottom: 2px;
   border-bottom: 0;
 }
-
 .profile-meta dt {
   color: var(--muted);
   font-size: 0.72rem;
 }
-
 .profile-meta dd {
   margin: 0;
   overflow: hidden;
@@ -1433,20 +1256,16 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 /* ============================ FORMULARIOS ============================ */
-
 .forms-wrapper {
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
 }
-
 .login-card {
   padding: 24px;
 }
-
 .card-header-flex {
   display: flex;
   align-items: center;
@@ -1454,13 +1273,11 @@ onUnmounted(() => {
   gap: 16px;
   margin-bottom: 20px;
 }
-
 .card-title-group {
   display: flex;
   align-items: center;
   gap: 11px;
 }
-
 .card-icon {
   width: 32px;
   height: 32px;
@@ -1471,12 +1288,10 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
-
 .card-icon svg {
   width: 16px;
   height: 16px;
 }
-
 .section-title {
   margin: 0;
   color: var(--title);
@@ -1486,35 +1301,29 @@ onUnmounted(() => {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
-
 .card-subtitle {
   color: var(--muted);
   font-size: 0.72rem;
 }
-
 .form-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
-
 .form-grid-2,
 .measurement-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-
 .lower-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
-
 .unit-input input {
   padding-right: 44px;
 }
-
 .unit-input span {
   position: absolute;
   right: 13px;
@@ -1522,14 +1331,11 @@ onUnmounted(() => {
   font-size: 0.7rem;
   pointer-events: none;
 }
-
 /* ============================ GUARDAR ============================ */
-
 .action-footer {
   display: flex;
   justify-content: flex-end;
 }
-
 .btn-primary {
   min-height: 46px;
   display: inline-flex;
@@ -1547,23 +1353,18 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
 }
-
 .btn-primary:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-
 .btn-primary:active {
   transform: translateY(0);
 }
-
 .btn-primary svg {
   width: 16px;
   height: 16px;
 }
-
 /* ============================ FOCO VISIBLE ============================ */
-
 .avatar-circle:focus-visible,
 .avatar-action:focus-visible,
 .btn-primary:focus-visible,
@@ -1576,9 +1377,7 @@ onUnmounted(() => {
   outline: 2px solid var(--color-highlight, #3b82f6);
   outline-offset: 2px;
 }
-
 /* ============================ MODALES ============================ */
-
 .modal-overlay {
   position: fixed;
   z-index: 4000;
@@ -1590,12 +1389,10 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(3px);
 }
-
 .camera-overlay {
   z-index: 4100;
   background: rgba(0, 0, 0, 0.92);
 }
-
 .photo-modal,
 .camera-modal {
   width: min(100%, 440px);
@@ -1606,11 +1403,9 @@ onUnmounted(() => {
   background: var(--bg-cards, #121416);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
 }
-
 .camera-modal {
   width: min(100%, 620px);
 }
-
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -1618,7 +1413,6 @@ onUnmounted(() => {
   gap: 16px;
   margin-bottom: 20px;
 }
-
 .modal-header h3 {
   margin: 0;
   color: var(--color-titulos, #ffffff);
@@ -1627,14 +1421,12 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
 }
-
 .modal-header p {
   margin: 6px 0 0;
   color: #8b95a7;
   font-size: 0.74rem;
   line-height: 1.5;
 }
-
 .modal-close {
   width: 34px;
   height: 34px;
@@ -1648,19 +1440,15 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease;
 }
-
 .modal-close:hover {
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.09);
 }
-
 /* ============================ OPCIONES FOTO ============================ */
-
 .photo-options {
   display: grid;
   gap: 10px;
 }
-
 .photo-option {
   width: 100%;
   display: grid;
@@ -1676,12 +1464,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
-
 .photo-option:hover {
   border-color: var(--color-highlight, #3b82f6);
   background: color-mix(in srgb, var(--color-highlight, #3b82f6) 7%, transparent);
 }
-
 .option-icon {
   width: 44px;
   height: 44px;
@@ -1691,30 +1477,25 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--color-highlight, #3b82f6) 13%, transparent);
   color: var(--color-highlight, #60a5fa);
 }
-
 .option-icon svg {
   width: 20px;
   height: 20px;
 }
-
 .photo-option strong {
   display: block;
   color: var(--color-titulos, #ffffff);
   font-size: 0.8rem;
 }
-
 .photo-option small {
   display: block;
   margin-top: 3px;
   color: #8b95a7;
   font-size: 0.68rem;
 }
-
 .photo-option b {
   color: #8b95a7;
   font-size: 1.2rem;
 }
-
 .cancel-btn,
 .camera-cancel {
   height: 42px;
@@ -1729,20 +1510,16 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
-
 .cancel-btn:hover,
 .camera-cancel:hover {
   background: rgba(255, 255, 255, 0.05);
   color: #ffffff;
 }
-
 .cancel-btn {
   width: 100%;
   margin-top: 14px;
 }
-
 /* ============================ CÁMARA ============================ */
-
 .camera-preview {
   position: relative;
   width: 100%;
@@ -1752,18 +1529,15 @@ onUnmounted(() => {
   border-radius: 14px;
   background: #000000;
 }
-
 .camera-preview video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .camera-mirrored {
   transform: scaleX(-1);
 }
-
 .face-guide {
   position: absolute;
   top: 50%;
@@ -1775,7 +1549,6 @@ onUnmounted(() => {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-
 .switch-camera-btn {
   position: absolute;
   z-index: 3;
@@ -1794,18 +1567,15 @@ onUnmounted(() => {
   font-weight: 600;
   cursor: pointer;
 }
-
 .switch-camera-btn:disabled,
 .capture-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
-
 .switch-camera-btn svg {
   width: 15px;
   height: 15px;
 }
-
 .camera-loading {
   position: absolute;
   z-index: 4;
@@ -1814,7 +1584,6 @@ onUnmounted(() => {
   place-items: center;
   background: rgba(0, 0, 0, 0.25);
 }
-
 .camera-loading span {
   width: 34px;
   height: 34px;
@@ -1823,13 +1592,11 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 .camera-actions {
   display: flex;
   align-items: center;
@@ -1837,7 +1604,6 @@ onUnmounted(() => {
   gap: 14px;
   margin-top: 18px;
 }
-
 .capture-btn {
   display: flex;
   align-items: center;
@@ -1853,12 +1619,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: filter 0.18s ease, transform 0.18s ease;
 }
-
 .capture-btn:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-
 .capture-btn i {
   width: 34px;
   height: 34px;
@@ -1867,35 +1631,28 @@ onUnmounted(() => {
   border: 2px solid #ffffff;
   border-radius: 50%;
 }
-
 .capture-btn i span {
   width: 23px;
   height: 23px;
   border-radius: 50%;
   background: #ffffff;
 }
-
 /* ============================ TRANSICIONES ============================ */
-
 .photo-menu-enter-active,
 .photo-menu-leave-active {
   transition: opacity 0.18s ease;
 }
-
 .photo-menu-enter-from,
 .photo-menu-leave-to {
   opacity: 0;
 }
-
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
 }
-
 /* ============================ NOTIFICACIONES ============================ */
-
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important;
@@ -1906,128 +1663,100 @@ onUnmounted(() => {
   box-sizing: border-box !important;
   transform: translateX(-50%) !important;
 }
-
 /* ============================ TABLET ============================ */
-
 @media (max-width: 1100px) {
   .profile-card {
     grid-template-columns: 250px minmax(0, 1fr);
   }
-
   .form-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
   .lower-grid {
     grid-template-columns: 1fr;
   }
 }
-
 /* ============================ MÓVIL / TABLET ============================ */
-
 @media (max-width: 900px) {
   .main-content {
     padding: 22px 18px 40px;
   }
-
   .page-header {
     align-items: stretch;
     flex-direction: column;
   }
-
   .search-small {
     width: 100%;
   }
-
   .profile-card {
     grid-template-columns: 1fr;
   }
-
   .profile-section {
     position: relative;
     top: auto;
   }
-
   .forms-wrapper {
     gap: 16px;
   }
 }
-
 /* ============================ TELÉFONO ============================ */
-
 @media (max-width: 600px) {
   .main-content {
     padding: 16px 12px 32px;
   }
-
   .page-header {
     margin-bottom: 18px;
   }
-
   .page-header h1 {
     font-size: 1.45rem;
   }
-
   .profile-section {
     padding: 22px 16px 16px;
   }
-
   .login-card {
     padding: 18px 16px;
   }
-
   .form-grid-3,
   .form-grid-2,
   .measurement-grid {
     grid-template-columns: 1fr;
   }
-
   .card-header-flex {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
   }
-
   .action-footer {
     justify-content: stretch;
   }
-
   .btn-primary {
     width: 100%;
   }
-
   .modal-overlay {
     align-items: flex-end;
     padding: 8px;
   }
-
   .photo-modal,
   .camera-modal {
     padding: 18px 16px;
     border-radius: 16px;
   }
-
   .camera-overlay {
     align-items: center;
   }
-
   .camera-actions {
     align-items: stretch;
     flex-direction: column-reverse;
   }
-
   .camera-cancel,
   .capture-btn {
     width: 100%;
     justify-content: center;
   }
-
   .face-guide {
     width: 52%;
     height: 68%;
   }
 }
-
 @media (max-width: 380px) {
   .main-content {
     padding-right: 8px;
