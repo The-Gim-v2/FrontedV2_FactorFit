@@ -1,7 +1,7 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR"><section class="ff-qr-card"><button type="button" class="ff-qr-close" @click="cerrarQR">×</button><h2>Inscripción registrada</h2><p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p><p class="ff-qr-status">Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.</p><p v-if="qrCargando">Cargando código QR...</p><p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p><img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" /><div class="ff-qr-actions"><button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button><button type="button" @click="cerrarQR">Cerrar</button></div></section></div>
+    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR"><section class="ff-qr-card"><button type="button" class="ff-qr-close" @click="cerrarQR">×</button><h2>Inscripción registrada</h2><p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p><p class="ff-qr-status" :class="{ 'ff-qr-paid': qrPagoConfirmado }">{{ qrPagoConfirmado ? 'Pago confirmado · Membresía activa.' : 'Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.' }}</p><p v-if="qrCargando">Cargando código QR...</p><p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p><img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" /><div class="ff-qr-actions"><button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button><button type="button" @click="cerrarQR">Cerrar</button></div></section></div>
 
     <main class="main-content">
       <div class="profile-card">
@@ -89,7 +89,7 @@
               <input
                 ref="fileInput"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 class="hidden-input"
                 @change="handleFileChange"
               />
@@ -601,6 +601,47 @@
             </div>
           </section>
 
+          <!-- COBRO INICIAL -->
+          <section class="login-card ff-payment-card" id="tutorial-step-4">
+            <header class="card-header">
+              <div class="card-header-text">
+                <h3 class="section-title">{{ currentLang === 'en' ? 'Initial payment' : 'Pago inicial' }}</h3>
+                <p class="section-description">{{ currentLang === 'en' ? 'Charge the first membership or leave it pending.' : 'Cobra la primera membresía o déjala pendiente.' }}</p>
+              </div>
+            </header>
+            <div class="ff-payment-summary">
+              <span>{{ currentLang === 'en' ? 'Membership total' : 'Total de membresía' }}</span>
+              <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
+            </div>
+            <div class="ff-payment-choice">
+              <label :class="{ selected: cobrarAhora }">
+                <input v-model="cobrarAhora" type="radio" :value="true" />
+                {{ currentLang === 'en' ? 'Register and charge now' : 'Registrar y cobrar ahora' }}
+              </label>
+              <label :class="{ selected: !cobrarAhora }">
+                <input v-model="cobrarAhora" type="radio" :value="false" />
+                {{ currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente de pago' }}
+              </label>
+            </div>
+            <div v-if="cobrarAhora" class="ff-payment-fields">
+              <div class="input-group">
+                <label>{{ currentLang === 'en' ? 'Payment method' : 'Método de pago' }} <span class="required">*</span></label>
+                <select v-model="metodoPagoRegistro" class="ff-payment-input">
+                  <option value="">{{ currentLang === 'en' ? 'Select a method' : 'Selecciona un método' }}</option>
+                  <option value="Efectivo">{{ currentLang === 'en' ? 'Cash' : 'Efectivo' }}</option>
+                  <option value="Transferencia">{{ currentLang === 'en' ? 'Bank transfer' : 'Transferencia' }}</option>
+                  <option value="Tarjeta">{{ currentLang === 'en' ? 'Card' : 'Tarjeta' }}</option>
+                </select>
+              </div>
+              <div v-if="metodoPagoRegistro && metodoPagoRegistro !== 'Efectivo'" class="input-group">
+                <label>{{ currentLang === 'en' ? 'Payment reference' : 'Referencia de pago' }} <span class="required">*</span></label>
+                <input v-model.trim="referenciaPagoRegistro" class="ff-payment-input" maxlength="120" placeholder="Folio / referencia" />
+              </div>
+              <p class="ff-payment-note">{{ currentLang === 'en' ? 'Access will only be enabled after the server confirms payment.' : 'El acceso solo se habilitará cuando el servidor confirme el pago.' }}</p>
+            </div>
+            <p v-else class="ff-payment-note">{{ currentLang === 'en' ? 'The QR will not grant access until payment is confirmed.' : 'El QR no dará acceso hasta que se confirme el pago.' }}</p>
+          </section>
+
           <!-- GUARDAR -->
           <div class="registration-footer">
             <div class="required-hint">
@@ -631,7 +672,7 @@
                 <polyline points="7 3 7 8 15 8" />
               </svg>
 
-              {{ t('finishButton') }}
+              {{ guardando ? (currentLang === 'en' ? 'Saving...' : 'Guardando...') : cobrarAhora ? (currentLang === 'en' ? 'Register and charge' : 'Registrar y cobrar') : (currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente') }}
             </button>
           </div>
         </div>
@@ -996,6 +1037,10 @@ const form = reactive({
 });
 const activeModal = ref(null);
 const guardando = ref(false);
+const cobrarAhora = ref(true);
+const metodoPagoRegistro = ref('');
+const referenciaPagoRegistro = ref('');
+const qrPagoConfirmado = ref(false);
 const tarifas = ref([]);
 const idPrecio = ref('');
 const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
@@ -1041,7 +1086,7 @@ const cerrarTarifaAlClickFuera = (event) => {
 
 const qrModal=ref(null),qrUrl=ref(''),qrError=ref(''),qrCargando=ref(false);
 let qrVersion=0;
-const cerrarQR=()=>{qrVersion++;qrModal.value=null;qrUrl.value='';qrError.value='';qrCargando.value=false;};
+const cerrarQR=()=>{qrPagoConfirmado.value=false;qrVersion++;qrModal.value=null;qrUrl.value='';qrError.value='';qrCargando.value=false;};
 const mostrarQR=async registro=>{const version=++qrVersion;qrModal.value=registro;qrUrl.value='';qrError.value='';qrCargando.value=true;try{const res=await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error ${res.status}`);if(version===qrVersion){if(!data.qr_url)throw new Error('El servidor no devolvió la imagen QR.');qrUrl.value=data.qr_url;}}catch(e){if(version===qrVersion)qrError.value=e.message||'No se pudo consultar el QR.';}finally{if(version===qrVersion)qrCargando.value=false;}};
 const descargarQR=async()=>{if(!qrModal.value)return;try{const res=await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`,{headers:authHeaders()});if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error(data.message||`Error ${res.status}`);}const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${qrModal.value.ID_Inscripto}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR.','error');}};
 const toastRef = ref(null);
@@ -1080,6 +1125,23 @@ const clientName = computed(() =>
 /* =========================================================
    FOTO / GALERÍA
 ========================================================= */
+
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+const isValidImage = (file) =>
+  !!file &&
+  ALLOWED_IMAGE_TYPES.includes(file.type) &&
+  file.size <= MAX_IMAGE_SIZE;
+
+const notifyInvalidImage = () => {
+  toastRef.value?.notify(
+    currentLang.value === 'en'
+      ? 'Select an image of up to 4 MB.'
+      : 'Selecciona una imagen de máximo 4 MB.',
+    'warning'
+  );
+};
 
 const fileInput = ref(null);
 const avatarPreview = ref(null);
@@ -1123,13 +1185,8 @@ const handleFileChange = (event) => {
 
   if (!file) return;
 
-  if (!file.type.startsWith('image/') || file.size > 4*1024*1024) {
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'Select a valid image.'
-        : 'Selecciona una imagen válida.',
-      'warning'
-    );
+  if (!isValidImage(file)) {
+    notifyInvalidImage();
 
     event.target.value = '';
     return;
@@ -1465,6 +1522,11 @@ const capturePhoto = () => {
         }
       );
 
+      if (!isValidImage(file)) {
+        notifyInvalidImage();
+        return;
+      }
+
       setAvatarFile(file);
 
       closeCamera();
@@ -1486,27 +1548,95 @@ const capturePhoto = () => {
 ========================================================= */
 
 const saveRegistration = async () => {
-  if(guardando.value)return;
-  if(!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value){toastRef.value?.notify('Nombre, apellido paterno y tarifa son obligatorios.','warning');return;}
-  if(!sedeActual()){toastRef.value?.notify('Selecciona una sucursal.','warning');return;}
-  if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value)){toastRef.value?.notify('La tarifa no coincide con el tipo de membresía.','warning');return;}
-  guardando.value=true;
+  if (guardando.value) return;
+  const avisar = (mensaje, tipo = 'warning') => toastRef.value?.notify(mensaje, tipo);
+  if (!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value) {
+    avisar('Nombre, apellido paterno y tarifa son obligatorios.'); return;
+  }
+  if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
+  if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
+  if (!form.fechaInscripcion || !form.fechaCorte) {
+    avisar('Espera a que se calcule la fecha de vencimiento.'); return;
+  }
+  if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
+  if (cobrarAhora.value) {
+    if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
+    if (metodoPagoRegistro.value !== 'Efectivo' && !referenciaPagoRegistro.value.trim()) {
+      avisar('Ingresa la referencia del pago.'); return;
+    }
+    if (!(Number(tarifaSeleccionada.value.Precio) > 0)) {
+      avisar('La tarifa debe tener un precio válido.'); return;
+    }
+  }
+
+  guardando.value = true;
   try {
-    const data=new FormData();
-    const values={sede_id:sedeActual(),id_precio:idPrecio.value,nombres:form.nombres.trim(),apellidoP:form.apellidoP.trim(),apellidoM:form.apellidoM.trim(),fechaNacimiento:form.fechaNacimiento,celular:form.celular.trim(),email:form.email.trim(),peso:form.peso,altura:form.altura,fechaInscripcion:form.fechaInscripcion};
-    Object.entries(values).forEach(([key,value])=>{if(value!==''&&value!==null&&value!==undefined)data.append(key,String(value));});
-    if(avatarFile.value)data.append('foto',avatarFile.value);
-    const res=await fetch(clientesApi,{method:'POST',headers:authHeaders(),body:data});
-    const result=await res.json().catch(()=>({}));
-    if(!res.ok){console.error('Error API registro de cliente',{status:res.status,response:result});throw new Error(Object.values(result.errors||{}).flat().join(' ') || (result.message&&result.message!=='Server Error'?result.message:'') || `Error HTTP ${res.status}: revisa los logs de Laravel en Railway`);}
-    toastRef.value?.notify(result.message||'Cliente registrado correctamente.','success');
-    if(result.ID_Inscripto)await mostrarQR(result);
-    Object.assign(form,{nombres:'',apellidoP:'',apellidoM:'',fechaNacimiento:'',celular:'',email:'',peso:'',altura:'',tipoMembresia:'mes',fechaInscripcion:fechaLocal(),fechaCorte:''});
-    if(avatarPreview.value?.startsWith('blob:'))URL.revokeObjectURL(avatarPreview.value);
-    avatarPreview.value=null;avatarFile.value=null;idPrecio.value='';
-    window.dispatchEvent(new CustomEvent('factorfit:clientes-changed',{detail:{sede_id:sedeActual()}}));
-  }catch(error){toastRef.value?.notify(error.message||'No se pudo registrar el cliente.','error');}
-  finally{guardando.value=false;}
+    const data = new FormData();
+    const values = {
+      sede_id: sedeActual(), id_precio: idPrecio.value,
+      nombres: form.nombres.trim(), apellidoP: form.apellidoP.trim(),
+      apellidoM: form.apellidoM.trim(), fechaNacimiento: form.fechaNacimiento,
+      celular: form.celular.trim(), email: form.email.trim(),
+      peso: form.peso, altura: form.altura, fechaInscripcion: form.fechaInscripcion
+    };
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) data.append(key, String(value));
+    });
+    if (avatarFile.value) data.append('foto', avatarFile.value);
+
+    // Contrato propuesto: Laravel debe aceptar y procesar estos campos.
+    data.append('cobrar_ahora', cobrarAhora.value ? '1' : '0');
+    if (cobrarAhora.value) {
+      data.append('metodo_pago', metodoPagoRegistro.value);
+      if (metodoPagoRegistro.value !== 'Efectivo') {
+        data.append('referencia_pago', referenciaPagoRegistro.value.trim());
+      }
+    }
+
+    const res = await fetch(clientesApi, {
+      method: 'POST', headers: authHeaders(), body: data
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('Error API registro de cliente', { status: res.status, response: result });
+      throw new Error(
+        Object.values(result.errors || {}).flat().join(' ') ||
+        (result.message && result.message !== 'Server Error' ? result.message : '') ||
+        `Error HTTP ${res.status}: revisa los logs de Laravel.`
+      );
+    }
+
+    // Nunca inferir pago exitoso de HTTP 200/201 ni de un mensaje genérico.
+    // Laravel debe devolver pago_confirmado === true y membresia_activa === true.
+    const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
+    qrPagoConfirmado.value = cobrarAhora.value && pagoConfirmado;
+    if (cobrarAhora.value && !pagoConfirmado) {
+      avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
+    } else {
+      avisar(result.message || (pagoConfirmado ? 'Cliente registrado y pago confirmado.' : 'Cliente registrado pendiente de pago.'), 'success');
+    }
+
+    if (result.ID_Inscripto) await mostrarQR(result);
+    Object.assign(form, {
+      nombres: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '',
+      email: '', peso: '', altura: '', tipoMembresia: 'mes',
+      fechaInscripcion: fechaLocal(), fechaCorte: ''
+    });
+    if (avatarPreview.value?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
+    avatarPreview.value = null;
+    avatarFile.value = null;
+    idPrecio.value = '';
+    metodoPagoRegistro.value = '';
+    referenciaPagoRegistro.value = '';
+    cobrarAhora.value = true;
+    window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', {
+      detail: { sede_id: sedeActual() }
+    }));
+  } catch (error) {
+    avisar(error.message || 'No se pudo registrar el cliente.', 'error');
+  } finally {
+    guardando.value = false;
+  }
 };
 
 /* =========================================================
@@ -1546,6 +1676,21 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* COBRO INICIAL: utiliza las variables visuales del sistema */
+.ff-payment-card { display: grid; gap: 18px; }
+.ff-payment-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; border-radius: 14px; background: var(--bg-cards, #17191f); border: 1px solid var(--border-cards, rgba(255,255,255,.12)); }
+.ff-payment-summary span { color: var(--color-texto-general, #ddd); font-size: .9rem; }
+.ff-payment-summary strong { color: var(--color-highlight, #60a5fa); font-size: 1.4rem; }
+.ff-payment-choice { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.ff-payment-choice label { display: flex; align-items: center; gap: 10px; padding: 15px; cursor: pointer; border: 1px solid var(--border-cards, rgba(255,255,255,.15)); border-radius: 12px; color: var(--color-texto-general, #eee); }
+.ff-payment-choice label.selected { border-color: var(--color-highlight, #3b82f6); background: color-mix(in srgb, var(--color-highlight, #3b82f6) 10%, transparent); }
+.ff-payment-choice input { accent-color: var(--color-highlight, #3b82f6); }
+.ff-payment-fields { display: grid; gap: 14px; }
+.ff-payment-input { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-cards, rgba(255,255,255,.18)); background: var(--bg-cards, #17191f); color: var(--color-texto-general, #eee); }
+.ff-payment-note { margin: 0; font-size: .82rem; opacity: .8; }
+.ff-qr-paid { color: #22c55e; }
+@media(max-width: 640px) { .ff-payment-choice { grid-template-columns: 1fr; } .ff-payment-summary { flex-wrap: wrap; } }
+
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
 
 * {

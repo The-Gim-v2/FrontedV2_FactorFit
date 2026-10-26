@@ -45,6 +45,15 @@ const goToStatistics = () => {
   router.push({ name: 'statistics', params: { id: String(clienteId.value||'') } });
 };
 /* ============================ FOTO / GALERÍA ============================ */
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const isValidImage = (file) =>
+  !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
+const notifyInvalidImage = () =>
+  toastRef.value?.notify(
+    txt('Selecciona una imagen de máximo 4 MB.', 'Select an image of up to 4 MB.'),
+    'warning'
+  );
 const fileInput = ref(null);
 const avatarFile = ref(null);
 const avatarSrc = ref('');
@@ -68,11 +77,8 @@ const setAvatarFile = (file) => {
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    toastRef.value?.notify(
-      txt('Selecciona una imagen válida.', 'Select a valid image.'),
-      'warning'
-    );
+  if (!isValidImage(file)) {
+    notifyInvalidImage();
     event.target.value = '';
     return;
   }
@@ -217,6 +223,10 @@ const capturePhoto = () => {
       const file = new File([blob], `cliente-${Date.now()}.jpg`, {
         type: 'image/jpeg'
       });
+      if (!isValidImage(file)) {
+        notifyInvalidImage();
+        return;
+      }
       setAvatarFile(file);
       closeCamera();
       toastRef.value?.notify(
@@ -229,7 +239,7 @@ const capturePhoto = () => {
   );
 };
 /* ============================ GUARDAR ============================ */
-const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
 watch(()=>route.params.id,id=>{if(id)loadClient(id);});
 const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
@@ -383,7 +393,7 @@ onUnmounted(() => {
             <input
               ref="fileInput"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               class="hidden-input"
               @change="handleFileChange"
             />
