@@ -713,7 +713,7 @@
                     />
                   </div>
                   <small v-if="esEfectivo" class="ff-field-help">
-                    {{ currentLang === 'en' ? 'The folio is generated automatically.' : 'El folio se genera automáticamente.' }}
+                    {{ currentLang === 'en' ? 'The server generates a unique folio after payment.' : 'Laravel genera el folio único al confirmar el pago.' }}
                   </small>
                 </div>
               </div>
@@ -1151,17 +1151,12 @@ const authHeaders = () => ({
   Authorization: `Bearer ${sessionStorage.getItem('auth_token') || ''}`
 });
 
-/* =========================================================
-   FOLIO AUTOMÁTICO (efectivo)
-   Mismo formato que la pantalla de cobros: OP-XXXXXXXX
-========================================================= */
-
-const generarFolio = () => `OP-${Date.now().toString().slice(-8)}`;
+/* El folio de efectivo lo genera Laravel, no el navegador. */
 const esEfectivo = computed(() => metodoPagoRegistro.value === 'Efectivo');
 
 watch(metodoPagoRegistro, (metodo) => {
   if (metodo === 'Efectivo') {
-    referenciaPagoRegistro.value = generarFolio();
+    referenciaPagoRegistro.value = '';
   } else if (referenciaPagoRegistro.value.startsWith('OP-')) {
     // Venía de efectivo: se limpia para capturar la referencia real.
     referenciaPagoRegistro.value = '';
@@ -1837,11 +1832,6 @@ const saveRegistration = async () => {
   if (cobrarAhora.value) {
     if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
 
-    // Efectivo: el folio siempre existe (se autogenera).
-    if (esEfectivo.value && !referenciaPagoRegistro.value) {
-      referenciaPagoRegistro.value = generarFolio();
-    }
-
     if (!esEfectivo.value && !referenciaPagoRegistro.value.trim()) {
       avisar('Ingresa la referencia del pago.');
       return;
@@ -1908,7 +1898,7 @@ const saveRegistration = async () => {
     // Laravel debe devolver pago_confirmado === true y membresia_activa === true.
     const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
     qrPagoConfirmado.value = cobrarAhora.value && pagoConfirmado;
-    qrFolio.value = result.folio || folioEnviado;
+    qrFolio.value = result.folio || '';
 
     if (cobrarAhora.value && !pagoConfirmado) {
       avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
