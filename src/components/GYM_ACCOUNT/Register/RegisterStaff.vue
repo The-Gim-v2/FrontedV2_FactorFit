@@ -1,38 +1,31 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-
     <main class="main-content">
       <div class="profile-card">
-
         <!-- =====================================================
              PERFIL / FOTO
         ====================================================== -->
         <aside class="profile-section" id="tutorial-step-0">
           <div class="profile-content">
-
             <h1 class="main-title">
               <template v-if="currentLang === 'es'">
                 Registra a tu <br>
                 <span class="highlight">Personal</span>
               </template>
-
               <template v-else-if="currentLang === 'en'">
                 Register your <br>
                 <span class="highlight">Staff</span>
               </template>
-
               <template v-else-if="currentLang === 'fr'">
                 Enregistrez votre <br>
                 <span class="highlight">Personnel</span>
               </template>
-
               <template v-else-if="currentLang === 'pt'">
                 Registre sua <br>
                 <span class="highlight">Equipe</span>
               </template>
             </h1>
-
             <!-- FOTO DE PERFIL -->
             <div class="avatar-wrapper">
               <div class="avatar-ring">
@@ -47,7 +40,6 @@
                     :alt="t('altEmployeePreview')"
                     class="avatar-img"
                   />
-
                   <svg
                     v-else
                     viewBox="0 0 24 24"
@@ -59,7 +51,6 @@
                   </svg>
                 </div>
               </div>
-
               <button
                 type="button"
                 class="avatar-action btn-camera"
@@ -78,7 +69,6 @@
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </button>
-
               <!--
                 Este input se usa ÚNICAMENTE cuando el usuario
                 selecciona "Subir una foto".
@@ -86,21 +76,18 @@
               <input
                 type="file"
                 ref="fileInput"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 style="display: none"
                 @change="handleFileChange"
               />
             </div>
-
             <p class="profile-hint">
               {{ t('hintEmployeePhoto') }}
             </p>
-
             <!-- RESUMEN -->
             <dl class="profile-summary">
               <div class="summary-item">
                 <dt>{{ t('names') }}</dt>
-
                 <dd
                   :class="{
                     empty: !form.nombres && !form.apellidoP
@@ -117,10 +104,8 @@
                   }}
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('systemRole') }}</dt>
-
                 <dd>
                   <span
                     v-if="form.rol"
@@ -128,7 +113,6 @@
                   >
                     {{ roleLabel }}
                   </span>
-
                   <span
                     v-else
                     class="empty"
@@ -137,18 +121,14 @@
                   </span>
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('allowedLocations') }}</dt>
-
                 <dd :class="{ empty: sedesSummary.empty }">
                   {{ sedesSummary.text }}
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('workSchedule') }}</dt>
-
                 <dd :class="{ empty: scheduleSummary.empty }">
                   {{ scheduleSummary.text }}
                 </dd>
@@ -156,12 +136,10 @@
             </dl>
           </div>
         </aside>
-
         <!-- =====================================================
              FORMULARIOS
         ====================================================== -->
         <div class="forms-wrapper">
-
           <!-- CREDENCIALES Y ROL -->
           <section
             class="login-card"
@@ -172,16 +150,13 @@
                 {{ t('credentialsAndRole') }}
               </h3>
             </header>
-
             <div class="form-grid">
-
               <!-- ROL -->
               <div class="input-group">
                 <label>
                   {{ t('systemRole') }}
                   <span class="required">*</span>
                 </label>
-
                 <select
                   v-model="form.rol"
                   class="custom-select"
@@ -192,32 +167,26 @@
                   >
                     {{ t('selectRole') }}
                   </option>
-
-                  <option value="propietario">
+                  <option value="GYM_ADMIN">
                     {{ L('Propietario', 'Owner', 'Propriétaire', 'Proprietário') }}
                   </option>
-
-                  <option value="gerente">
+                  <option value="GYM_MANAGER">
                     Gerente
                   </option>
-
-                  <option value="entrenador">
+                  <option value="GYM_COACH">
                     {{ t('roleTrainer') }}
                   </option>
-
-                  <option value="recepcion">
+                  <option value="GYM_RECEPCIONIST">
                     {{ t('roleReception') }}
                   </option>
                 </select>
               </div>
-
               <!-- CORREO -->
               <div class="input-group">
                 <label>
                   {{ t('email') }}
                   <span class="required">*</span>
                 </label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -232,7 +201,6 @@
                       points="22,6 12,13 2,6"
                     />
                   </svg>
-
                   <input
                     type="email"
                     v-model="form.email"
@@ -240,7 +208,6 @@
                   >
                 </div>
               </div>
-
               <!-- CONTRASEÑAS -->
               <template v-if="needsPassword">
                 <div class="input-group">
@@ -248,20 +215,17 @@
                     {{ t('password') }}
                     <span class="required">*</span>
                   </label>
-
                   <input
                     type="password"
                     v-model="form.password"
                     placeholder="••••••••"
                   >
                 </div>
-
                 <div class="input-group">
                   <label>
                     {{ t('confirmPassword') }}
                     <span class="required">*</span>
                   </label>
-
                   <input
                     type="password"
                     v-model="form.confirmPassword"
@@ -269,7 +233,6 @@
                   >
                 </div>
               </template>
-
               <!-- ESPECIALIDAD -->
               <div
                 class="input-group"
@@ -279,14 +242,12 @@
                   {{ t('specialty') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.especialidad"
                   :placeholder="t('placeholderSpecialty')"
                 >
               </div>
-
               <!-- SEDES -->
               <div
                 class="input-group"
@@ -299,7 +260,6 @@
                     class="required"
                   >*</span>
                 </label>
-
                 <!-- PROPIETARIO: todas las sucursales, sin selector -->
                 <div
                   v-if="isOwner"
@@ -318,19 +278,16 @@
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </div>
-
                   <div class="sedes-static-text">
                     <strong>
                       {{ L('Todas las sucursales', 'All locations', 'Tous les sites', 'Todas as unidades') }}
                     </strong>
-
                     <span>
                       {{ listaSedes.length }}
                       {{ L('sedes, incluidas las futuras', 'locations, including future ones', 'sites, y compris les futurs', 'unidades, incluindo as futuras') }}
                     </span>
                   </div>
                 </div>
-
                 <!-- OTROS ROLES -->
                 <div
                   v-else
@@ -354,7 +311,6 @@
                     >
                       {{ getSedesDisplayText() }}
                     </span>
-
                     <svg
                       class="dropdown-arrow"
                       :class="{
@@ -372,7 +328,6 @@
                       />
                     </svg>
                   </div>
-
                   <div
                     class="dropdown-options-list"
                     v-if="isDropdownOpen"
@@ -395,12 +350,10 @@
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </div>
-
                       <span>
                         {{ L('Todas las sedes', 'All locations', 'Tous les sites', 'Todas as unidades') }}
                       </span>
                     </div>
-
                     <div
                       v-for="sede in listaSedes"
                       :key="sede.id"
@@ -426,7 +379,6 @@
                         >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-
                         <span
                           v-else-if="
                             form.sedes.includes(sede.id) &&
@@ -435,14 +387,12 @@
                           class="radio-dot"
                         ></span>
                       </div>
-
                       <span>
                         {{ sede.nombre }}
                       </span>
                     </div>
                   </div>
                 </div>
-
                 <p
                   v-if="sedesHint"
                   class="field-hint"
@@ -450,10 +400,8 @@
                   {{ sedesHint }}
                 </p>
               </div>
-
             </div>
           </section>
-
           <!-- =================================================
                DATOS PERSONALES
           ================================================== -->
@@ -466,75 +414,62 @@
                 {{ L('Datos personales', 'Personal data', 'Données personnelles', 'Dados pessoais') }}
               </h3>
             </header>
-
             <div class="form-grid">
-
               <div class="input-group span-full">
                 <label>
                   {{ t('curp') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.curp"
                   placeholder="Ej. ABCD010101HDF000"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('names') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.nombres"
                   :placeholder="t('placeholderName')"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('lastNameP') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.apellidoP"
                   :placeholder="t('placeholderLastNameP')"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('lastNameM') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.apellidoM"
                   :placeholder="t('placeholderLastNameM')"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('birthDate') }}
                 </label>
-
                 <input
                   type="date"
                   v-model="form.fechaNacimiento"
                 >
               </div>
-
               <div class="input-group">
                 <label>
-                  {{ t('cellphone') }}
+                  {{ t('cellphone') }} <span class="required">*</span>
                 </label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -546,7 +481,6 @@
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
-
                   <input
                     type="text"
                     v-model="form.celular"
@@ -554,10 +488,8 @@
                   >
                 </div>
               </div>
-
             </div>
           </section>
-
           <!-- =================================================
                REDES SOCIALES (solo entrenador)
           ================================================== -->
@@ -569,54 +501,45 @@
               <h3 class="section-title">
                 {{ L('Redes sociales', 'Social networks', 'Réseaux sociaux', 'Redes sociais') }}
               </h3>
-
               <span class="card-badge">
                 {{ L('Opcional', 'Optional', 'Facultatif', 'Opcional') }}
               </span>
             </header>
-
             <div class="form-grid">
               <div class="input-group">
                 <label>
                   {{ t('facebook') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.facebook"
                   placeholder="usuario_fb"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('instagram') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.instagram"
                   placeholder="@usuario_ig"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('tiktok') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.tiktok"
                   placeholder="@usuario_tt"
                 >
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('otherApps') }}
                 </label>
-
                 <input
                   type="text"
                   v-model="form.otrasApps"
@@ -625,7 +548,6 @@
               </div>
             </div>
           </section>
-
           <!-- =================================================
                HORARIO DE TRABAJO
                - Recepción: obligatorio
@@ -640,14 +562,12 @@
               <h3 class="section-title">
                 {{ t('workSchedule') }}
               </h3>
-
               <span
                 v-if="scheduleMode === 'required'"
                 class="card-badge required-badge"
               >
                 {{ L('Obligatorio', 'Required', 'Obligatoire', 'Obrigatório') }}
               </span>
-
               <span
                 v-else-if="scheduleMode === 'optional'"
                 class="card-badge"
@@ -655,7 +575,6 @@
                 {{ L('Opcional', 'Optional', 'Facultatif', 'Opcional') }}
               </span>
             </header>
-
             <!-- Sin horario -->
             <div
               v-if="scheduleMode === 'idle' || scheduleMode === 'none'"
@@ -673,10 +592,8 @@
                 <line x1="12" y1="16" x2="12" y2="12" />
                 <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
-
               <span>{{ scheduleNote }}</span>
             </div>
-
             <!-- Con horario -->
             <div
               v-else
@@ -693,18 +610,15 @@
                   >
                   <span class="slider-round"></span>
                 </span>
-
                 <span class="switch-copy">
                   <strong>
                     {{ L('Asignar horario de trabajo', 'Assign work schedule', 'Attribuer un horaire de travail', 'Atribuir horário de trabalho') }}
                   </strong>
-
                   <small>
                     {{ L('Actívalo solo si este entrenador tiene un horario fijo.', 'Turn it on only if this trainer has a fixed schedule.', 'Activez-le uniquement si cet entraîneur a un horaire fixe.', 'Ative apenas se este treinador tiver horário fixo.') }}
                   </small>
                 </span>
               </label>
-
               <div
                 v-if="showTimes"
                 class="form-grid"
@@ -721,7 +635,6 @@
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
                   </div>
-
                   <div class="date-content">
                     <label>
                       {{ t('entryTime') }}
@@ -730,14 +643,12 @@
                         class="required"
                       >*</span>
                     </label>
-
                     <input
                       type="time"
                       v-model="form.horaEntrada"
                     >
                   </div>
                 </div>
-
                 <div class="date-field">
                   <div class="date-icon">
                     <svg
@@ -750,7 +661,6 @@
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
                   </div>
-
                   <div class="date-content">
                     <label>
                       {{ t('exitTime') }}
@@ -759,7 +669,6 @@
                         class="required"
                       >*</span>
                     </label>
-
                     <input
                       type="time"
                       v-model="form.horaSalida"
@@ -769,15 +678,12 @@
               </div>
             </div>
           </section>
-
           <!-- BOTÓN REGISTRAR -->
           <div class="registration-footer">
             <div class="required-hint">
               <span class="required">*</span>
-
               {{ L('Campos obligatorios', 'Required fields', 'Champs obligatoires', 'Campos obrigatórios') }}
             </div>
-
             <button
               type="button"
               class="btn-primary"
@@ -799,15 +705,12 @@
                   points="7 3 7 8 15 8"
                 />
               </svg>
-
               {{ t('finishButtonStaff') }}
             </button>
           </div>
-
         </div>
       </div>
     </main>
-
     <!-- =====================================================
          SELECCIONAR CÁMARA O GALERÍA
     ====================================================== -->
@@ -819,13 +722,11 @@
       >
         <div class="photo-options-modal">
           <div class="photo-options-handle"></div>
-
           <div class="photo-options-header">
             <div>
               <span class="photo-options-eyebrow">
                 {{ currentLang === 'en' ? 'PROFILE PHOTO' : 'FOTO DE PERFIL' }}
               </span>
-
               <h3>
                 {{
                   currentLang === 'en'
@@ -833,7 +734,6 @@
                     : 'Agregar foto del personal'
                 }}
               </h3>
-
               <p>
                 {{
                   currentLang === 'en'
@@ -842,7 +742,6 @@
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close-btn"
@@ -851,7 +750,6 @@
               ×
             </button>
           </div>
-
           <div class="photo-options-grid">
             <!-- CÁMARA -->
             <button
@@ -872,12 +770,10 @@
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </div>
-
               <div class="photo-option-text">
                 <strong>
                   {{ currentLang === 'en' ? 'Take photo' : 'Tomar foto' }}
                 </strong>
-
                 <span>
                   {{
                     currentLang === 'en'
@@ -886,7 +782,6 @@
                   }}
                 </span>
               </div>
-
               <svg
                 class="photo-option-arrow"
                 viewBox="0 0 24 24"
@@ -897,7 +792,6 @@
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
-
             <!-- GALERÍA -->
             <button
               type="button"
@@ -916,7 +810,6 @@
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
               </div>
-
               <div class="photo-option-text">
                 <strong>
                   {{
@@ -925,7 +818,6 @@
                       : 'Subir desde galería'
                   }}
                 </strong>
-
                 <span>
                   {{
                     currentLang === 'en'
@@ -934,7 +826,6 @@
                   }}
                 </span>
               </div>
-
               <svg
                 class="photo-option-arrow"
                 viewBox="0 0 24 24"
@@ -946,7 +837,6 @@
               </svg>
             </button>
           </div>
-
           <button
             type="button"
             class="photo-cancel"
@@ -957,7 +847,6 @@
         </div>
       </div>
     </transition>
-
     <!-- =====================================================
          CÁMARA REAL
     ====================================================== -->
@@ -973,7 +862,6 @@
               <span class="camera-eyebrow">
                 {{ currentLang === 'en' ? 'CAMERA' : 'CÁMARA' }}
               </span>
-
               <h3>
                 {{
                   currentLang === 'en'
@@ -981,7 +869,6 @@
                     : 'Tomar foto del personal'
                 }}
               </h3>
-
               <p>
                 {{
                   cameraFacingMode === 'user'
@@ -998,7 +885,6 @@
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close-btn"
@@ -1007,7 +893,6 @@
               ×
             </button>
           </div>
-
           <!-- VISOR -->
           <div class="camera-preview">
             <video
@@ -1019,7 +904,6 @@
                 'camera-mirrored': cameraFacingMode === 'user'
               }"
             ></video>
-
             <!-- CAMBIAR CÁMARA -->
             <button
               type="button"
@@ -1039,7 +923,6 @@
                 <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
                 <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
               </svg>
-
               <span>
                 {{
                   cameraFacingMode === 'user'
@@ -1056,11 +939,9 @@
                 }}
               </span>
             </button>
-
             <div class="camera-guide">
               <div class="face-guide"></div>
             </div>
-
             <div
               v-if="switchingCamera"
               class="camera-switching"
@@ -1068,12 +949,10 @@
               <span class="camera-loader"></span>
             </div>
           </div>
-
           <canvas
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
-
           <div class="camera-actions">
             <button
               type="button"
@@ -1082,7 +961,6 @@
             >
               {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
             </button>
-
             <button
               type="button"
               class="capture-btn"
@@ -1092,7 +970,6 @@
               <span class="capture-circle">
                 <span></span>
               </span>
-
               {{
                 currentLang === 'en'
                   ? 'Take photo'
@@ -1105,7 +982,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import {
   ref,
@@ -1116,37 +992,29 @@ import {
   onUnmounted,
   nextTick
 } from 'vue';
-
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 /* =========================================================
    NOTIFICACIONES
 ========================================================= */
-
 const toastRef = ref(null);
-
 /* =========================================================
    IDIOMA
 ========================================================= */
-
 const currentLang = ref(
   localStorage.getItem('GYM_ACCOUNT-idioma') || 'es'
 );
-
 const t = (key) => {
   const langTable =
     traducciones[currentLang.value] ||
     traducciones.es;
-
   return (
     langTable?.[key] ||
     traducciones.es?.[key] ||
     key
   );
 };
-
 /*
   Texto en 4 idiomas para las cadenas nuevas.
   Si falta fr/pt se usa el inglés.
@@ -1158,34 +1026,27 @@ const L = (es, en, fr, pt) => {
     fr: fr ?? en,
     pt: pt ?? en
   };
-
   return texts[currentLang.value] ?? es;
 };
-
 const handleLangChange = (event) => {
   if (event.detail?.idioma) {
     currentLang.value =
       event.detail.idioma;
   }
 };
-
 /* =========================================================
    FORMULARIO
 ========================================================= */
-
 const form = reactive({
   /* CREDENCIALES */
   rol: '',
   email: '',
   password: '',
   confirmPassword: '',
-
   /* ENTRENADOR */
   especialidad: '',
-
   /* SEDES */
   sedes: [],
-
   /* DATOS PERSONALES */
   curp: '',
   nombres: '',
@@ -1193,19 +1054,16 @@ const form = reactive({
   apellidoM: '',
   fechaNacimiento: '',
   celular: '',
-
   /* REDES (solo entrenador) */
   facebook: '',
   instagram: '',
   tiktok: '',
   otrasApps: '',
-
   /* HORARIO */
   tieneHorario: false,
   horaEntrada: '',
   horaSalida: ''
 });
-
 /* =========================================================
    REGLAS POR ROL
    - propietario : todas las sedes · sin horario · con contraseña
@@ -1213,21 +1071,15 @@ const form = reactive({
    - recepcion   : UNA sola sede · horario obligatorio · con contraseña
    - entrenador  : varias sedes · horario opcional · sin contraseña
 ========================================================= */
-
-const isOwner = computed(() => form.rol === 'propietario');
-const isManager = computed(() => form.rol === 'gerente');
-const isTrainer = computed(() => form.rol === 'entrenador');
-const isReception = computed(() => form.rol === 'recepcion');
-
-const needsPassword = computed(
-  () => isOwner.value || isManager.value || isReception.value
-);
-
+const isOwner = computed(() => form.rol === 'GYM_ADMIN');
+const isManager = computed(() => form.rol === 'GYM_MANAGER');
+const isTrainer = computed(() => form.rol === 'GYM_COACH');
+const isReception = computed(() => form.rol === 'GYM_RECEPCIONIST');
+const needsPassword = computed(() => true);
 /* Roles que pueden elegir varias sedes */
 const multiSedes = computed(
   () => isManager.value || isTrainer.value
 );
-
 /*
   required = recepción
   optional = entrenador
@@ -1240,25 +1092,20 @@ const scheduleMode = computed(() => {
   if (form.rol) return 'none';
   return 'idle';
 });
-
 const showTimes = computed(
   () =>
     scheduleMode.value === 'required' ||
     (scheduleMode.value === 'optional' && form.tieneHorario)
 );
-
 const roleLabel = computed(() => {
   if (isOwner.value) {
     return L('Propietario', 'Owner', 'Propriétaire', 'Proprietário');
   }
-
   if (isManager.value) return 'Gerente';
   if (isTrainer.value) return t('roleTrainer');
   if (isReception.value) return t('roleReception');
-
   return '';
 });
-
 const scheduleNote = computed(() =>
   scheduleMode.value === 'idle'
     ? L(
@@ -1274,7 +1121,6 @@ const scheduleNote = computed(() =>
         'Esta função não tem horário de trabalho.'
       )
 );
-
 const sedesHint = computed(() => {
   if (!form.rol) {
     return L(
@@ -1284,7 +1130,6 @@ const sedesHint = computed(() => {
       'Selecione primeiro uma função.'
     );
   }
-
   if (isReception.value) {
     return L(
       'Recepción solo puede tener una sede.',
@@ -1293,7 +1138,6 @@ const sedesHint = computed(() => {
       'A recepção só pode ter uma unidade.'
     );
   }
-
   if (multiSedes.value) {
     return L(
       'Puede tener una, varias o todas las sedes.',
@@ -1302,10 +1146,8 @@ const sedesHint = computed(() => {
       'Pode ter uma, várias ou todas as unidades.'
     );
   }
-
   return '';
 });
-
 /* Resumen del panel lateral */
 const sedesSummary = computed(() => {
   if (isOwner.value) {
@@ -1314,14 +1156,11 @@ const sedesSummary = computed(() => {
       empty: false
     };
   }
-
   if (form.sedes.length === 0) {
     return { text: '—', empty: true };
   }
-
   return { text: String(form.sedes.length), empty: false };
 });
-
 const scheduleSummary = computed(() => {
   if (scheduleMode.value === 'none') {
     return {
@@ -1329,58 +1168,41 @@ const scheduleSummary = computed(() => {
       empty: true
     };
   }
-
   if (scheduleMode.value === 'optional' && !form.tieneHorario) {
     return {
       text: L('Sin horario asignado', 'No schedule assigned', 'Aucun horaire attribué', 'Sem horário atribuído'),
       empty: true
     };
   }
-
   if (showTimes.value && form.horaEntrada && form.horaSalida) {
     return {
       text: `${form.horaEntrada} – ${form.horaSalida}`,
       empty: false
     };
   }
-
   return { text: '—', empty: true };
 });
-
 /* =========================================================
    SEDES
 ========================================================= */
-
-const listaSedes = ref([
-  {
-    id: 1,
-    nombre: 'Sucursal Centro'
-  },
-  {
-    id: 2,
-    nombre: 'Sucursal Norte'
-  },
-  {
-    id: 3,
-    nombre: 'Sucursal Sur'
-  }
-]);
-
+const listaSedes = ref([]);
+const cargarSedes = async () => {
+  const response = await fetch('/api/personal/sedes', { credentials: 'include', headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error('No se pudieron cargar las sedes');
+  const json = await response.json();
+  listaSedes.value = (json.sedes || []).map(s => ({ id: Number(s.ID_Sede), nombre: s.nombre }));
+};
 const isDropdownOpen = ref(false);
 const dropdownRef = ref(null);
-
 const allSedesSelected = computed(
   () =>
     listaSedes.value.length > 0 &&
     form.sedes.length === listaSedes.value.length
 );
-
 const toggleDropdown = () => {
   if (!form.rol) return;
-
   isDropdownOpen.value = !isDropdownOpen.value;
 };
-
 /*
   Recepción: una sola sede (se reemplaza y se cierra).
   Gerente / entrenador: se agrega o se quita.
@@ -1391,22 +1213,18 @@ const toggleSede = (id) => {
     isDropdownOpen.value = false;
     return;
   }
-
   const index = form.sedes.indexOf(id);
-
   if (index === -1) {
     form.sedes.push(id);
   } else {
     form.sedes.splice(index, 1);
   }
 };
-
 const toggleAllSedes = () => {
   form.sedes = allSedesSelected.value
     ? []
     : listaSedes.value.map((sede) => sede.id);
 };
-
 /*
   Texto que aparece en el selector de sedes.
 */
@@ -1419,7 +1237,6 @@ const getSedesDisplayText = () => {
       'Selecione primeiro uma função'
     );
   }
-
   if (form.sedes.length === 0) {
     return L(
       isReception.value ? 'Seleccionar sede' : 'Seleccionar sedes',
@@ -1428,7 +1245,6 @@ const getSedesDisplayText = () => {
       isReception.value ? 'Selecionar unidade' : 'Selecionar unidades'
     );
   }
-
   if (allSedesSelected.value && multiSedes.value) {
     return L(
       'Todas las sedes',
@@ -1437,30 +1253,23 @@ const getSedesDisplayText = () => {
       'Todas as unidades'
     );
   }
-
   if (form.sedes.length === 1) {
     const sede = listaSedes.value.find(
       (item) => item.id === form.sedes[0]
     );
-
     return sede?.nombre || '1';
   }
-
   if (currentLang.value === 'en') {
     return `${form.sedes.length} locations selected`;
   }
-
   if (currentLang.value === 'fr') {
     return `${form.sedes.length} sites sélectionnés`;
   }
-
   if (currentLang.value === 'pt') {
     return `${form.sedes.length} unidades selecionadas`;
   }
-
   return `${form.sedes.length} sedes seleccionadas`;
 };
-
 /*
   Cierra el dropdown cuando se hace
   clic fuera de él.
@@ -1473,7 +1282,6 @@ const handleClickOutside = (event) => {
     isDropdownOpen.value = false;
   }
 };
-
 /*
   Al cambiar de rol se ajustan sedes y horario
   para que siempre cumplan las reglas.
@@ -1482,7 +1290,6 @@ watch(
   () => form.rol,
   (rol, previous) => {
     isDropdownOpen.value = false;
-
     /* SEDES */
     if (rol === 'propietario') {
       form.sedes = listaSedes.value.map((sede) => sede.id);
@@ -1491,14 +1298,12 @@ watch(
     } else if (rol === 'recepcion' && form.sedes.length > 1) {
       form.sedes = [form.sedes[0]];
     }
-
     /* HORARIO */
     form.horaEntrada = '';
     form.horaSalida = '';
     form.tieneHorario = rol === 'recepcion';
   }
 );
-
 /*
   Si el entrenador desactiva el horario, se limpian las horas.
 */
@@ -1511,95 +1316,72 @@ watch(
     }
   }
 );
-
 /* =========================================================
    FOTO / GALERÍA
 ========================================================= */
-
 const fileInput = ref(null);
 const avatarPreview = ref(null);
 const avatarFile = ref(null);
-
 const showPhotoOptions = ref(false);
-
 const openPhotoOptions = () => {
   showPhotoOptions.value = true;
 };
-
 const closePhotoOptions = () => {
   showPhotoOptions.value = false;
 };
-
 const selectPhoto = () => {
   showPhotoOptions.value = false;
-
   if (!fileInput.value) return;
-
   fileInput.value.value = '';
   fileInput.value.click();
 };
-
 const setAvatarFile = (file) => {
   if (!file) return;
-
   if (
     avatarPreview.value &&
     avatarPreview.value.startsWith('blob:')
   ) {
     URL.revokeObjectURL(avatarPreview.value);
   }
-
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) { toastRef.value?.notify('Foto JPG, PNG o WEBP de máximo 4 MiB.', 'warning'); return; }
   avatarFile.value = file;
   avatarPreview.value = URL.createObjectURL(file);
 };
-
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
-
   if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 4 * 1024 * 1024) {
     toastRef.value?.notify(
       currentLang.value === 'en'
         ? 'Select a valid image.'
         : 'Selecciona una imagen válida.',
       'warning'
     );
-
     event.target.value = '';
     return;
   }
-
   setAvatarFile(file);
-
   toastRef.value?.notify(
     currentLang.value === 'en'
       ? 'Photo added successfully.'
       : 'Foto agregada correctamente.',
     'success'
   );
-
   event.target.value = '';
 };
-
 /* =========================================================
    CÁMARA
 ========================================================= */
-
 const showCamera = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
-
 const cameraStream = ref(null);
-
 /*
   user        = frontal
   environment = trasera
 */
 const cameraFacingMode = ref('user');
-
 const switchingCamera = ref(false);
-
 /*
   Detiene todos los tracks activos.
 */
@@ -1610,21 +1392,17 @@ const stopCamera = () => {
       .forEach((track) => {
         track.stop();
       });
-
     cameraStream.value = null;
   }
-
   if (videoRef.value) {
     videoRef.value.srcObject = null;
   }
 };
-
 /*
   Inicia la cámara correspondiente.
 */
 const startCamera = async () => {
   stopCamera();
-
   const constraints = {
     audio: false,
     video: {
@@ -1639,33 +1417,25 @@ const startCamera = async () => {
       }
     }
   };
-
   const stream =
     await navigator.mediaDevices.getUserMedia(
       constraints
     );
-
   cameraStream.value = stream;
-
   await nextTick();
-
   if (!videoRef.value) {
     throw new Error(
       'No se encontró el elemento de video.'
     );
   }
-
   videoRef.value.srcObject = stream;
-
   await videoRef.value.play();
 };
-
 /*
   Abre el modal y solicita permiso de cámara.
 */
 const takePhoto = async () => {
   showPhotoOptions.value = false;
-
   if (
     !navigator.mediaDevices ||
     !navigator.mediaDevices.getUserMedia
@@ -1676,15 +1446,11 @@ const takePhoto = async () => {
         : 'Este navegador no permite utilizar la cámara.',
       'warning'
     );
-
     return;
   }
-
   cameraFacingMode.value = 'user';
   showCamera.value = true;
-
   await nextTick();
-
   try {
     await startCamera();
   } catch (error) {
@@ -1692,61 +1458,49 @@ const takePhoto = async () => {
       'No se pudo abrir la cámara:',
       error
     );
-
     stopCamera();
     showCamera.value = false;
-
     let message =
       currentLang.value === 'en'
         ? 'Could not access the camera.'
         : 'No se pudo acceder a la cámara.';
-
     if (error?.name === 'NotAllowedError') {
       message =
         currentLang.value === 'en'
           ? 'Camera permission was denied. Enable camera permission in your browser.'
           : 'El permiso de cámara fue rechazado. Activa el permiso de cámara en tu navegador.';
     }
-
     if (error?.name === 'NotFoundError') {
       message =
         currentLang.value === 'en'
           ? 'No camera was found on this device.'
           : 'No se encontró una cámara en este dispositivo.';
     }
-
     if (error?.name === 'NotReadableError') {
       message =
         currentLang.value === 'en'
           ? 'The camera is being used by another application.'
           : 'La cámara está siendo utilizada por otra aplicación.';
     }
-
     toastRef.value?.notify(
       message,
       'warning'
     );
   }
 };
-
 /*
   Cambia entre frontal y trasera.
 */
 const switchCamera = async () => {
   if (switchingCamera.value) return;
-
   switchingCamera.value = true;
-
   const previousMode =
     cameraFacingMode.value;
-
   const nextMode =
     previousMode === 'user'
       ? 'environment'
       : 'user';
-
   cameraFacingMode.value = nextMode;
-
   try {
     await startCamera();
   } catch (error) {
@@ -1754,13 +1508,11 @@ const switchCamera = async () => {
       'No se pudo cambiar de cámara:',
       error
     );
-
     /*
       Regresamos a la cámara anterior.
     */
     cameraFacingMode.value =
       previousMode;
-
     try {
       await startCamera();
     } catch (restoreError) {
@@ -1768,10 +1520,8 @@ const switchCamera = async () => {
         'No se pudo restaurar la cámara:',
         restoreError
       );
-
       closeCamera();
     }
-
     toastRef.value?.notify(
       currentLang.value === 'en'
         ? 'The selected camera is not available.'
@@ -1782,7 +1532,6 @@ const switchCamera = async () => {
     switchingCamera.value = false;
   }
 };
-
 /*
   Cierra modal y apaga cámara.
 */
@@ -1791,18 +1540,14 @@ const closeCamera = () => {
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
 /*
   Captura el frame actual.
 */
 const capturePhoto = () => {
   if (switchingCamera.value) return;
-
   const video = videoRef.value;
   const canvas = canvasRef.value;
-
   if (!video || !canvas) return;
-
   if (
     !video.videoWidth ||
     !video.videoHeight
@@ -1813,16 +1558,12 @@ const capturePhoto = () => {
         : 'La cámara todavía no está lista.',
       'warning'
     );
-
     return;
   }
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
   const context =
     canvas.getContext('2d');
-
   if (!context) {
     toastRef.value?.notify(
       currentLang.value === 'en'
@@ -1830,17 +1571,14 @@ const capturePhoto = () => {
         : 'No se pudo procesar la fotografía.',
       'error'
     );
-
     return;
   }
-
   context.clearRect(
     0,
     0,
     canvas.width,
     canvas.height
   );
-
   /*
     Frontal:
     guardamos la imagen como se ve
@@ -1848,14 +1586,11 @@ const capturePhoto = () => {
   */
   if (cameraFacingMode.value === 'user') {
     context.save();
-
     context.translate(
       canvas.width,
       0
     );
-
     context.scale(-1, 1);
-
     context.drawImage(
       video,
       0,
@@ -1863,7 +1598,6 @@ const capturePhoto = () => {
       canvas.width,
       canvas.height
     );
-
     context.restore();
   } else {
     /*
@@ -1878,7 +1612,6 @@ const capturePhoto = () => {
       canvas.height
     );
   }
-
   canvas.toBlob(
     (blob) => {
       if (!blob) {
@@ -1888,10 +1621,8 @@ const capturePhoto = () => {
             : 'No se pudo capturar la fotografía.',
           'error'
         );
-
         return;
       }
-
       const file = new File(
         [blob],
         `personal-${Date.now()}.jpg`,
@@ -1899,11 +1630,8 @@ const capturePhoto = () => {
           type: 'image/jpeg'
         }
       );
-
       setAvatarFile(file);
-
       closeCamera();
-
       toastRef.value?.notify(
         currentLang.value === 'en'
           ? 'Photo captured successfully.'
@@ -1915,16 +1643,13 @@ const capturePhoto = () => {
     0.92
   );
 };
-
 /* =========================================================
    VALIDACIÓN
 ========================================================= */
-
 const warn = (message) => {
   toastRef.value?.notify(message, 'warning');
   return false;
 };
-
 const validateForm = () => {
   /* DATOS PERSONALES */
   if (
@@ -1940,7 +1665,8 @@ const validateForm = () => {
       )
     );
   }
-
+  if (!form.celular.trim()) return warn('El celular es obligatorio.');
+  if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return warn('Correo electrónico inválido.');
   /* ROL */
   if (!form.rol) {
     return warn(
@@ -1952,7 +1678,6 @@ const validateForm = () => {
       )
     );
   }
-
   /* CORREO */
   if (!form.email.trim()) {
     return warn(
@@ -1964,7 +1689,6 @@ const validateForm = () => {
       )
     );
   }
-
   /* CONTRASEÑA: propietario, gerente y recepción */
   if (needsPassword.value) {
     if (!form.password || !form.confirmPassword) {
@@ -1977,7 +1701,6 @@ const validateForm = () => {
         )
       );
     }
-
     if (form.password !== form.confirmPassword) {
       return warn(
         L(
@@ -1989,19 +1712,6 @@ const validateForm = () => {
       );
     }
   }
-
-  /* ENTRENADOR: especialidad */
-  if (isTrainer.value && !form.especialidad.trim()) {
-    return warn(
-      L(
-        'Ingresa la especialidad del entrenador.',
-        'Enter the trainer specialty.',
-        'Entrez la spécialité de l’entraîneur.',
-        'Digite a especialidade do treinador.'
-      )
-    );
-  }
-
   /* SEDES (el propietario tiene todas automáticamente) */
   if (!isOwner.value && form.sedes.length === 0) {
     return warn(
@@ -2021,79 +1731,49 @@ const validateForm = () => {
       )
     );
   }
-
-  /* HORARIO: obligatorio en recepción, y en entrenador si lo activó */
-  if (
-    showTimes.value &&
-    (!form.horaEntrada || !form.horaSalida)
-  ) {
-    return warn(
-      L(
-        'Ingresa la hora de entrada y de salida.',
-        'Enter the entry and exit time.',
-        'Entrez l’heure d’entrée et de sortie.',
-        'Informe o horário de entrada e de saída.'
-      )
-    );
-  }
-
+  if (showTimes.value && (form.horaEntrada || form.horaSalida) && (!form.horaEntrada || !form.horaSalida)) return warn('Completa ambas horas o deja ambas vacías.');
   return true;
 };
-
 /* =========================================================
    GUARDAR REGISTRO
 ========================================================= */
-
-const saveRegistration = () => {
+const saveRegistration = async () => {
   if (!validateForm()) {
     return;
   }
-
   try {
     /*
       Solo se envía lo que aplica al rol:
       - contraseña: propietario, gerente, recepción
       - especialidad y redes: entrenador
       - horario: recepción (siempre) y entrenador (si lo activó)
-
       avatarFile contiene tanto la foto subida
       desde galería como la tomada con cámara.
     */
     const data = {
       rol:
         form.rol,
-
       email:
         form.email.trim(),
-
       ...(needsPassword.value && {
         password: form.password
       }),
-
       sedes:
         [...form.sedes],
-
       todasLasSedes:
         isOwner.value || allSedesSelected.value,
-
       curp:
         form.curp.trim(),
-
       nombres:
         form.nombres.trim(),
-
       apellidoP:
         form.apellidoP.trim(),
-
       apellidoM:
         form.apellidoM.trim(),
-
       fechaNacimiento:
         form.fechaNacimiento,
-
       celular:
         form.celular.trim(),
-
       ...(isTrainer.value && {
         especialidad: form.especialidad.trim(),
         facebook: form.facebook.trim(),
@@ -2101,28 +1781,26 @@ const saveRegistration = () => {
         tiktok: form.tiktok.trim(),
         otrasApps: form.otrasApps.trim()
       }),
-
       horario: showTimes.value
         ? {
             entrada: form.horaEntrada,
             salida: form.horaSalida
           }
         : null,
-
       foto:
         avatarFile.value
     };
-
-    console.log(
-      'Personal a registrar:',
-      data
-    );
-
-    /*
-      Aquí puedes enviar "data"
-      a tu API posteriormente.
-    */
-
+    const payload = new FormData();
+    for (const [key, value] of Object.entries(data)) {
+      if (key === 'foto') { if (value) payload.append('foto', value); }
+      else if (key === 'sedes') value.forEach(id => payload.append('sedes[]', String(id)));
+      else if (key === 'horario') { if (value) payload.append('horario', JSON.stringify(value)); }
+      else if (value !== null && value !== undefined) payload.append(key, String(value));
+    }
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    const response = await fetch('/api/personal', { method: 'POST', credentials: 'include', headers: { Accept: 'application/json', ...(token ? { 'X-CSRF-TOKEN': token } : {}) }, body: payload });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'No se pudo registrar al personal.');
     toastRef.value?.notify(
       L(
         'Personal registrado correctamente.',
@@ -2137,24 +1815,14 @@ const saveRegistration = () => {
       'Error al registrar personal:',
       error
     );
-
-    toastRef.value?.notify(
-      L(
-        'Ocurrió un error al registrar al personal.',
-        'An error occurred while registering the staff member.',
-        'Une erreur s’est produite lors de l’enregistrement du personnel.',
-        'Ocorreu um erro ao registrar o funcionário.'
-      ),
-      'error'
-    );
+    toastRef.value?.notify(error.message || 'Error al registrar personal.', 'error');
   }
 };
-
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
-
 onMounted(() => {
+  cargarSedes().catch(e => toastRef.value?.notify(e.message, 'error'));
   /*
     Cambio global de idioma.
   */
@@ -2162,7 +1830,6 @@ onMounted(() => {
     'idioma-changed',
     handleLangChange
   );
-
   /*
     Cerrar selector de sedes
     haciendo clic afuera.
@@ -2172,18 +1839,15 @@ onMounted(() => {
     handleClickOutside
   );
 });
-
 onUnmounted(() => {
   window.removeEventListener(
     'idioma-changed',
     handleLangChange
   );
-
   document.removeEventListener(
     'click',
     handleClickOutside
   );
-
   /*
     MUY IMPORTANTE:
     Si el usuario cambia de pantalla
@@ -2191,7 +1855,6 @@ onUnmounted(() => {
     apagamos la cámara.
   */
   stopCamera();
-
   /*
     Liberamos la URL temporal
     de la fotografía.
@@ -2201,16 +1864,13 @@ onUnmounted(() => {
   }
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
-
 /* =========================================================
    BASE
 ========================================================= */
 * { box-sizing: border-box; }
 .hidden-canvas { display: none; }
-
 .main-content {
   width: 100%;
   min-height: calc(100vh - 80px);
@@ -2227,7 +1887,6 @@ onUnmounted(() => {
   gap: 24px;
   align-items: start;
 }
-
 /* =========================================================
    PANEL PERFIL
 ========================================================= */
@@ -2251,7 +1910,6 @@ onUnmounted(() => {
   letter-spacing: -.02em;
 }
 .highlight { color: var(--color-highlight, #3b82f6); }
-
 /* ---------- Avatar ---------- */
 .avatar-wrapper { position: relative; width: 132px; height: 132px; margin: 0 auto 15px; }
 .avatar-ring {
@@ -2292,7 +1950,6 @@ onUnmounted(() => {
 .avatar-action:active { transform: scale(.95); }
 .avatar-action svg { width: 18px; height: 18px; }
 .profile-hint { margin: 0 0 25px; text-align: center; color: var(--color-texto-general, #94a3b8); font-size: .73rem; line-height: 1.5; opacity: .65; }
-
 /* ---------- Resumen ---------- */
 .profile-summary { margin: 0; padding: 20px 0 0; border-top: 1px solid rgba(255,255,255,.07); }
 .summary-item { padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,.055); }
@@ -2314,7 +1971,6 @@ onUnmounted(() => {
   color: var(--color-highlight, #60a5fa);
   font-size: .68rem; font-weight: 700;
 }
-
 /* =========================================================
    FORMULARIOS
 ========================================================= */
@@ -2360,7 +2016,6 @@ onUnmounted(() => {
 }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; padding: 22px; }
 .span-full { grid-column: 1 / -1; }
-
 .input-group { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .input-group label, .date-content label {
   color: var(--color-texto-general, #d1d5db);
@@ -2368,7 +2023,6 @@ onUnmounted(() => {
 }
 .required { color: #ef4444; }
 .field-hint { margin: 0; color: var(--color-texto-general, #94a3b8); font-size: .67rem; line-height: 1.45; opacity: .55; }
-
 .input-group input, .input-group select, .date-content input {
   width: 100%; min-height: 43px;
   padding: 0 13px;
@@ -2389,7 +2043,6 @@ onUnmounted(() => {
 }
 .custom-select { cursor: pointer; appearance: auto; }
 .custom-select option { background: #17191e; color: #fff; }
-
 .input-with-icon { position: relative; }
 .input-with-icon svg {
   position: absolute; top: 50%; left: 13px;
@@ -2400,7 +2053,6 @@ onUnmounted(() => {
   transform: translateY(-50%);
 }
 .input-with-icon input { padding-left: 40px; }
-
 /* ---------- Multiselect sedes ---------- */
 .custom-multiselect { position: relative; width: 100%; }
 .select-box-trigger {
@@ -2457,7 +2109,6 @@ onUnmounted(() => {
 .radio-dot { width: 8px; height: 8px; display: block; border-radius: 50%; background: #fff; }
 .dropdown-option-item.selected .option-checkbox { border-color: var(--color-highlight, #3b82f6); background: var(--color-highlight, #3b82f6); color: #fff; }
 .option-checkbox svg { width: 12px; height: 12px; }
-
 /* ---------- Propietario: todas las sedes ---------- */
 .sedes-static {
   min-height: 56px;
@@ -2478,7 +2129,6 @@ onUnmounted(() => {
 .sedes-static-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .sedes-static-text strong { color: var(--color-titulos, #fff); font-size: .8rem; font-weight: 600; }
 .sedes-static-text span { color: var(--color-texto-general, #94a3b8); font-size: .68rem; opacity: .7; }
-
 /* ---------- Horarios ---------- */
 .schedule-note {
   display: flex; align-items: center; gap: 11px;
@@ -2492,7 +2142,6 @@ onUnmounted(() => {
 .schedule-note svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .6; }
 .schedule-body { display: flex; flex-direction: column; gap: 18px; padding: 22px; }
 .schedule-body .form-grid { padding: 0; }
-
 .switch-row {
   display: flex; align-items: center; gap: 14px;
   padding: 13px 14px;
@@ -2519,7 +2168,6 @@ onUnmounted(() => {
 .switch-toggle input:checked + .slider-round { background: var(--color-highlight, #3b82f6); }
 .switch-toggle input:checked + .slider-round::before { transform: translateX(18px); }
 .switch-toggle input:focus-visible + .slider-round { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-highlight, #3b82f6) 25%, transparent); }
-
 .date-field {
   min-height: 78px;
   display: flex; align-items: center; gap: 13px;
@@ -2539,7 +2187,6 @@ onUnmounted(() => {
 .date-content { min-width: 0; flex: 1; }
 .date-content label { display: block; margin-bottom: 6px; }
 .date-content input { min-height: 37px; }
-
 /* ---------- Pie ---------- */
 .registration-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 5px 2px 18px; }
 .required-hint { color: var(--color-texto-general, #94a3b8); font-size: .7rem; opacity: .6; }
@@ -2557,7 +2204,6 @@ onUnmounted(() => {
 .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 9px 22px color-mix(in srgb, var(--color-botones, #3b82f6) 27%, transparent); }
 .btn-primary:active { transform: scale(.98); }
 .btn-primary svg { width: 17px; height: 17px; }
-
 /* =========================================================
    PANEL DE FOTO Y CÁMARA (idéntico al registro de clientes)
 ========================================================= */
@@ -2568,7 +2214,6 @@ onUnmounted(() => {
   background: rgba(0,0,0,.78);
 }
 .camera-overlay { z-index: 4000; background: rgba(0,0,0,.9); }
-
 .photo-options-modal, .camera-modal {
   width: 100%; max-width: 440px;
   padding: 24px;
@@ -2579,7 +2224,6 @@ onUnmounted(() => {
 }
 .camera-modal { max-width: 620px; }
 .photo-options-handle { display: none; }
-
 .photo-options-header, .camera-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 18px; margin-bottom: 20px;
@@ -2609,7 +2253,6 @@ onUnmounted(() => {
   background: rgba(255,255,255,.04);
   color: #fff; cursor: pointer; font-size: 1.3rem;
 }
-
 /* ---------- Opciones ---------- */
 .photo-options-grid { display: flex; flex-direction: column; gap: 9px; }
 .photo-option {
@@ -2639,7 +2282,6 @@ onUnmounted(() => {
   background: transparent;
   color: var(--color-texto-general, #94a3b8); cursor: pointer;
 }
-
 /* ---------- Visor ---------- */
 .camera-preview {
   position: relative; width: 100%;
@@ -2649,10 +2291,8 @@ onUnmounted(() => {
 }
 .camera-preview video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .camera-preview video.camera-mirrored { transform: scaleX(-1); }
-
 .camera-guide { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .face-guide { width: 47%; height: 70%; border: 2px dashed rgba(255,255,255,.45); border-radius: 50%; }
-
 .switch-camera-btn {
   position: absolute; z-index: 10; top: 14px; right: 14px;
   display: flex; align-items: center; gap: 7px;
@@ -2667,10 +2307,8 @@ onUnmounted(() => {
 .switch-camera-btn svg { width: 16px; height: 16px; }
 .switch-camera-btn svg.rotating { animation: cameraRotate .7s linear infinite; }
 @keyframes cameraRotate { to { transform: rotate(360deg); } }
-
 .camera-switching { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.28); pointer-events: none; }
 .camera-loader { width: 38px; height: 38px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: cameraRotate .7s linear infinite; }
-
 /* ---------- Capturar ---------- */
 .camera-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; }
 .camera-cancel-btn {
@@ -2691,7 +2329,6 @@ onUnmounted(() => {
 .capture-circle { width: 38px; height: 38px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; }
 .capture-circle span { width: 27px; height: 27px; display: block; border-radius: 50%; background: #fff; transition: transform .15s ease; }
 .capture-btn:hover:not(:disabled) .capture-circle span { transform: scale(.85); }
-
 /* ---------- Transición ---------- */
 .photo-menu-enter-active, .photo-menu-leave-active { transition: opacity .2s ease; }
 .photo-menu-enter-active .photo-options-modal, .photo-menu-leave-active .photo-options-modal,
@@ -2699,7 +2336,6 @@ onUnmounted(() => {
 .photo-menu-enter-from, .photo-menu-leave-to { opacity: 0; }
 .photo-menu-enter-from .photo-options-modal, .photo-menu-leave-to .photo-options-modal,
 .photo-menu-enter-from .camera-modal, .photo-menu-leave-to .camera-modal { opacity: 0; transform: translateY(10px) scale(.97); }
-
 /* =========================================================
    RESPONSIVE (formulario del personal)
 ========================================================= */
@@ -2759,7 +2395,6 @@ onUnmounted(() => {
   .switch-camera-btn { width: 40px; height: 40px; padding: 0; justify-content: center; }
   .switch-camera-btn svg { width: 19px; height: 19px; }
 }
-
 /* =========================================================
    RESPONSIVE (panel de foto / cámara, igual que clientes)
 ========================================================= */
@@ -2767,7 +2402,6 @@ onUnmounted(() => {
   .photo-options-overlay { align-items: flex-end; padding: 0; }
   .photo-options-modal { max-width: none; padding: 12px 17px 20px; border-radius: 22px 22px 0 0; }
   .photo-options-handle { width: 38px; height: 4px; display: block; margin: 0 auto 17px; border-radius: 999px; background: rgba(255,255,255,.16); }
-
   .camera-overlay { align-items: flex-end; padding: 0; }
   .camera-modal { max-width: none; padding: 17px 14px calc(18px + env(safe-area-inset-bottom)); border-radius: 24px 24px 0 0; }
   .camera-preview { aspect-ratio: 3 / 4; }
@@ -2775,7 +2409,6 @@ onUnmounted(() => {
   .camera-actions { flex-direction: column-reverse; }
   .camera-cancel-btn, .capture-btn { width: 100%; justify-content: center; }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .avatar-circle, .avatar-action, .btn-primary, .capture-circle span, .slider-round, .slider-round::before { transition: none; }
   .camera-loader, .switch-camera-btn svg.rotating { animation-duration: 1.4s; }
