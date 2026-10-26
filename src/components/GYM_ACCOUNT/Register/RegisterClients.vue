@@ -1,345 +1,77 @@
-<script setup>
-import { reactive, ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
-import { traducciones } from '../i18n.js';
-import NotificationSystem from '../../Modals/NotificationSystem.vue';
-const router = useRouter();
-const route = useRoute();
-const clienteId=ref(null), clienteSedeId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
-const sedeId=()=>{const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
-const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const t=storage.getItem(key);if(t)return t.replace(/^Bearer\s+/i,'');}for(const key of ['auth','user','session','gymAccount','gym_account']){try{const v=JSON.parse(storage.getItem(key)||'null');if(v?.token||v?.access_token||v?.accessToken)return v.token||v.access_token||v.accessToken;}catch{}}}return '';};
-const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok){const errors=data?.errors?Object.values(data.errors).flat().join(' '):'';throw new Error(response.status===403?'No tienes autorización para modificar clientes de esta sucursal. Verifica que la sede seleccionada pertenezca a tu gimnasio.':errors||data?.message||`Error HTTP ${response.status}`);}return data;};
-const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
-const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
-const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
-const chooseClient=async(c)=>{showSuggestions.value=false;searchQuery.value='';const id=String(c.ID_Cliente);if(String(route.params.id)===id)await loadClient(id);else await router.push(`/GYM_ACCOUNT/editar-usuario/${id}`);};
-const toastRef = ref(null);
-const searchQuery = ref('');
-const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
-const t = (key) => {
-  const langTable = traducciones[currentLang.value] || traducciones.es;
-  return langTable?.[key] || traducciones.es?.[key] || key;
-};
-const txt = (es, en) => (currentLang.value === 'en' ? en : es);
-const handleLangChange = (event) => {
-  if (event.detail?.idioma) currentLang.value = event.detail.idioma;
-};
-/* ============================ FORMULARIO ============================ */
-const form = reactive({
-  nombres: '',
-  apellidoPaterno: '',
-  apellidoMaterno: '',
-  fechaNacimiento: '',
-  celular: '',
-  correo: '',
-  peso: '',
-  altura: '',
-  sede: '',
-  status: ''
-});
-const handleSearch=()=>{if(suggestions.value.length===1)chooseClient(suggestions.value[0]);else showSuggestions.value=true;};
-const goToStatistics = () => {
-  if(!clienteId.value)return;
-  router.push({ name: 'statistics', params: { id: String(clienteId.value||'') } });
-};
-/* ============================ FOTO / GALERÍA ============================ */
-const fileInput = ref(null);
-const avatarFile = ref(null);
-const avatarSrc = ref('');
-const showPhotoOptions = ref(false);
-const openPhotoOptions = () => {if(clienteId.value)showPhotoOptions.value = true;};
-const closePhotoOptions = () => (showPhotoOptions.value = false);
-const selectPhoto = () => {
-  showPhotoOptions.value = false;
-  if (!fileInput.value) return;
-  fileInput.value.value = '';
-  fileInput.value.click();
-};
-const setAvatarFile = (file) => {
-  if (!file) return;
-  if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
-    URL.revokeObjectURL(avatarSrc.value);
-  }
-  avatarFile.value = file;
-  avatarSrc.value = URL.createObjectURL(file);
-};
-const handleFileChange = (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) {
-    toastRef.value?.notify(
-      txt('Selecciona una imagen válida.', 'Select a valid image.'),
-      'warning'
-    );
-    event.target.value = '';
-    return;
-  }
-  setAvatarFile(file);
-  toastRef.value?.notify(
-    txt('Foto seleccionada correctamente.', 'Photo selected successfully.'),
-    'success'
-  );
-  event.target.value = '';
-};
-/* ============================ CÁMARA REAL ============================ */
-const showCamera = ref(false);
-const videoRef = ref(null);
-const canvasRef = ref(null);
-const cameraStream = ref(null);
-const cameraFacingMode = ref('user');
-const switchingCamera = ref(false);
-const stopCamera = () => {
-  if (cameraStream.value) {
-    cameraStream.value.getTracks().forEach((track) => track.stop());
-    cameraStream.value = null;
-  }
-  if (videoRef.value) videoRef.value.srcObject = null;
-};
-const startCamera = async () => {
-  stopCamera();
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      facingMode: { ideal: cameraFacingMode.value },
-      width: { ideal: 1280 },
-      height: { ideal: 720 }
-    }
-  });
-  cameraStream.value = stream;
-  await nextTick();
-  if (!videoRef.value) {
-    throw new Error('No se encontró el elemento de video.');
-  }
-  videoRef.value.srcObject = stream;
-  await videoRef.value.play();
-};
-const takePhoto = async () => {
-  showPhotoOptions.value = false;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    toastRef.value?.notify(
-      txt(
-        'Este navegador no permite utilizar la cámara.',
-        'Camera is not supported by this browser.'
-      ),
-      'warning'
-    );
-    return;
-  }
-  cameraFacingMode.value = 'user';
-  showCamera.value = true;
-  await nextTick();
-  try {
-    await startCamera();
-  } catch (error) {
-    console.error(error);
-    stopCamera();
-    showCamera.value = false;
-    let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
-    if (error?.name === 'NotAllowedError') {
-      message = txt(
-        'Permiso de cámara rechazado. Actívalo en el navegador.',
-        'Camera permission was denied. Enable it in your browser.'
-      );
-    }
-    if (error?.name === 'NotFoundError') {
-      message = txt(
-        'No se encontró una cámara en este dispositivo.',
-        'No camera was found on this device.'
-      );
-    }
-    if (error?.name === 'NotReadableError') {
-      message = txt(
-        'La cámara está siendo utilizada por otra aplicación.',
-        'The camera is being used by another application.'
-      );
-    }
-    toastRef.value?.notify(message, 'warning');
-  }
-};
-const switchCamera = async () => {
-  if (switchingCamera.value) return;
-  switchingCamera.value = true;
-  const previous = cameraFacingMode.value;
-  cameraFacingMode.value = previous === 'user' ? 'environment' : 'user';
-  try {
-    await startCamera();
-  } catch (error) {
-    console.error(error);
-    cameraFacingMode.value = previous;
-    try {
-      await startCamera();
-    } catch {
-      closeCamera();
-    }
-    toastRef.value?.notify(
-      txt('La cámara seleccionada no está disponible.', 'The selected camera is not available.'),
-      'warning'
-    );
-  } finally {
-    switchingCamera.value = false;
-  }
-};
-const closeCamera = () => {
-  stopCamera();
-  showCamera.value = false;
-  switchingCamera.value = false;
-};
-const capturePhoto = () => {
-  if (switchingCamera.value) return;
-  const video = videoRef.value;
-  const canvas = canvasRef.value;
-  if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
-    toastRef.value?.notify(
-      txt('La cámara todavía no está lista.', 'The camera is not ready yet.'),
-      'warning'
-    );
-    return;
-  }
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const context = canvas.getContext('2d');
-  if (!context) return;
-  /* Cámara frontal: se refleja la foto final para que coincida con el visor */
-  if (cameraFacingMode.value === 'user') {
-    context.save();
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    context.restore();
-  } else {
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-  }
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const file = new File([blob], `cliente-${Date.now()}.jpg`, {
-        type: 'image/jpeg'
-      });
-      setAvatarFile(file);
-      closeCamera();
-      toastRef.value?.notify(
-        txt('Foto tomada correctamente.', 'Photo captured successfully.'),
-        'success'
-      );
-    },
-    'image/jpeg',
-    0.92
-  );
-};
-/* ============================ GUARDAR ============================ */
-const saveChanges=async()=>{
-  if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');
-  if(saving.value)return;
-  saving.value=true;
-  try{
-    const fd=new FormData();
-    const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};
-    Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});
-    if(avatarFile.value)fd.append('foto',avatarFile.value);
-    const resultado=await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});
-    toastRef.value?.notify(resultado?.message||'Cambios guardados correctamente.','success');
-    // La recarga es independiente: no convertir un guardado exitoso en error.
-    await Promise.allSettled([loadClient(clienteId.value),loadSearch()]);
-  }catch(e){toastRef.value?.notify(e.message||'No se pudieron guardar los cambios.','error');}
-  finally{saving.value=false;}
-};
-watch(()=>route.params.id,id=>{if(id)loadClient(id);});
-const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
-onMounted(() => {
-  window.addEventListener('idioma-changed', handleLangChange);
-  window.addEventListener('factorfit:branch-changed', handleBranchChange);
-  loadSearch();
-  if(route.params.id)loadClient(route.params.id);
-});
-onUnmounted(() => {
-  window.removeEventListener('idioma-changed', handleLangChange);
-  window.removeEventListener('factorfit:branch-changed', handleBranchChange);
-  stopCamera();
-  if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
-    URL.revokeObjectURL(avatarSrc.value);
-  }
-});
-</script>
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
+    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR"><section class="ff-qr-card"><button type="button" class="ff-qr-close" @click="cerrarQR">×</button><h2>Inscripción registrada</h2><p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p><p class="ff-qr-status">Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.</p><p v-if="qrCargando">Cargando código QR...</p><p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p><img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" /><div class="ff-qr-actions"><button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button><button type="button" @click="cerrarQR">Cerrar</button></div></section></div>
+
     <main class="main-content">
-      <!-- ==================== ENCABEZADO ==================== -->
-      <header class="page-header">
-        <div class="page-heading">
-          <span class="eyebrow">
-            {{ txt('GESTIÓN DE CLIENTE', 'CLIENT MANAGEMENT') }}
-          </span>
-          <h1>
-            {{ txt('Perfil del', 'Client') }}
-            <span>{{ txt('cliente', 'profile') }}</span>
-          </h1>
-          <p>
-            {{
-              txt(
-                'Consulta y actualiza la información personal, física y de membresía.',
-                'Review and update personal, physical and membership information.'
-              )
-            }}
-          </p>
-        </div>
-        <!-- TUTOR 0: BUSCAR CLIENTE -->
-        <div id="tutor-0" class="search-small input-group">
-          <label for="client-search">
-            {{ t('searchClientLabel') }}
-          </label>
-          <div class="search-input-wrapper">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              id="client-search"
-              v-model="searchQuery"
-              type="text"
-              :placeholder="t('searchPlaceholder')"
-              @focus="showSuggestions=true" @input="showSuggestions=true" @keyup.enter="handleSearch"
-            />
-          </div>
-          <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
-              <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
-                <span class="suggestion-avatar">{{ String(c.Nombre||'?').charAt(0).toUpperCase() }}</span>
-                <span class="suggestion-info"><strong>{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }}</strong><small>{{ c.Correo_Electronico || c.Celular || 'Cliente registrado' }}</small></span>
-                <span class="suggestion-id">#{{ c.ID_Cliente }}</span>
-              </button>
-              <p v-if="!suggestions.length" class="suggestion-empty">No se encontraron clientes en esta sucursal.</p>
-            </div>
-        </div>
-      </header>
-      <!-- ==================== PERFIL COMPLETO ==================== -->
       <div class="profile-card">
-        <!-- ================================================== -->
-        <!-- TUTOR 1: PERFIL DEL CLIENTE -->
-        <!-- ================================================== -->
-        <aside id="tutor-1" class="profile-section">
-          <!-- ================================================== -->
-          <!-- TUTOR 2: FOTOGRAFÍA -->
-          <!-- ================================================== -->
-          <div id="tutor-2" class="avatar-wrapper">
-            <button
-              type="button"
-              class="avatar-circle"
-              :aria-label="txt('Cambiar foto', 'Change photo')"
-              @click="openPhotoOptions"
-            >
-              <img v-if="avatarSrc"
-                :src="avatarSrc" @error="avatarSrc=''"
-                :alt="t('avatarAlt')"
-              />
-              <span v-if="!avatarSrc" class="avatar-fallback">{{ (form.nombres?.[0]||'?').toUpperCase() }}</span>
-              <span class="avatar-overlay">
+        <!-- =====================================================
+             PERFIL
+        ====================================================== -->
+        <aside class="profile-section" id="tutorial-step-0">
+          <div class="profile-content">
+            <span class="profile-label">{{ t('personalData') }}</span>
+
+            <h1 class="main-title">
+              {{ t('title1') }}<br />
+              <span class="highlight">{{ t('title2') }}</span>
+            </h1>
+
+            <!-- FOTO -->
+            <div class="avatar-wrapper">
+              <div class="avatar-ring">
+                <div
+                  class="avatar-circle"
+                  role="button"
+                  tabindex="0"
+                  @click="openPhotoOptions"
+                  @keydown.enter="openPhotoOptions"
+                  @keydown.space.prevent="openPhotoOptions"
+                >
+                  <img
+                    v-if="avatarPreview"
+                    :src="avatarPreview"
+                    :alt="t('altPreview')"
+                    class="avatar-img"
+                  />
+
+                  <svg
+                    v-else
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    class="default-avatar"
+                  >
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+
+                  <div class="avatar-overlay">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                      />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg>
+
+                    <span>
+                      {{ currentLang === 'en' ? 'Change photo' : 'Cambiar foto' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="avatar-action"
+                @click="openPhotoOptions"
+                :title="t('titleAvatar')"
+              >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -351,177 +83,144 @@ onUnmounted(() => {
                   />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-                {{ txt('Cambiar foto', 'Change photo') }}
-              </span>
-            </button>
-            <!-- TUTOR 3: VER ESTADÍSTICAS -->
-            <button
-              id="tutor-3"
-              type="button"
-              class="avatar-action btn-stats"
-              :title="t('viewStatsTitle')"
-              :aria-label="t('viewStatsTitle')"
-              @click="goToStatistics"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-            </button>
-            <!-- TUTOR 4: CAMBIAR FOTO -->
-            <button
-              id="tutor-4"
-              type="button"
-              class="avatar-action btn-camera"
-              :title="t('changePhotoTitle')"
-              :aria-label="t('changePhotoTitle')"
-              @click="openPhotoOptions"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
-            </button>
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/*"
-              class="hidden-input"
-              @change="handleFileChange"
-            />
+              </button>
+
+              <!-- ÚNICAMENTE PARA GALERÍA/ARCHIVOS -->
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/*"
+                class="hidden-input"
+                @change="handleFileChange"
+              />
+            </div>
+
+            <p class="profile-hint">
+              {{
+                currentLang === 'en'
+                  ? 'Take a photo or select one from your device.'
+                  : 'Toma una foto o selecciona una desde tu dispositivo.'
+              }}
+            </p>
+
+            <dl class="profile-summary">
+              <div class="summary-item">
+                <dt>{{ currentLang === 'en' ? 'Client' : 'Cliente' }}</dt>
+                <dd :class="{ empty: !clientName }">
+                  {{
+                    clientName ||
+                    (currentLang === 'en' ? 'New client' : 'Nuevo cliente')
+                  }}
+                </dd>
+              </div>
+
+              <div class="summary-item">
+                <dt>{{ t('membershipData') }}</dt>
+                <dd>
+                  <span class="plan-chip">
+                    {{
+                      form.tipoMembresia === 'mes'
+                        ? t('month')
+                        : t('week')
+                    }}
+                  </span>
+                </dd>
+              </div>
+
+              <div class="summary-item">
+                <dt>{{ t('enrollmentDate') }}</dt>
+                <dd :class="{ empty: !form.fechaInscripcion }">
+                  {{ form.fechaInscripcion || '—' }}
+                </dd>
+              </div>
+
+              <div class="summary-item">
+                <dt>{{ t('dueDate') }}</dt>
+                <dd :class="{ empty: !form.fechaCorte }">
+                  {{ form.fechaCorte || '—' }}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <!-- ==================== NOMBRE ==================== -->
-          <h2 class="main-title">
-            {{ form.nombres || '—' }}
-            <span>{{ form.apellidoPaterno || '—' }}</span>
-          </h2>
-          <!-- ==================== ESTADO ==================== -->
-          <span class="status-badge">
-            <i></i>
-            {{ form.status || '—' }}
-          </span>
-          <p class="photo-hint">
-            {{
-              txt(
-                'Toma una foto o selecciónala desde la galería.',
-                'Take a photo or choose one from the gallery.'
-              )
-            }}
-          </p>
-          <!-- ==================== RESUMEN ==================== -->
-          <dl class="profile-meta">
-            <!-- TUTOR 5: INFORMACIÓN DEL CLIENTE -->
-            <div id="tutor-5">
-              <dt>ID</dt>
-              <dd>{{ clienteId || "—" }}</dd>
-            </div>
-            <div>
-              <dt>{{ txt('Sede', 'Location') }}</dt>
-              <dd>{{ form.sede || '—' }}</dd>
-            </div>
-            <div>
-              <dt>{{ txt('Estado', 'Status') }}</dt>
-              <dd>{{ form.status || '—' }}</dd>
-            </div>
-          </dl>
         </aside>
-        <!-- ==================== FORMULARIOS ==================== -->
+
+        <!-- =====================================================
+             FORMULARIOS
+        ====================================================== -->
         <div class="forms-wrapper">
-          <!-- ================================================== -->
-          <!-- TUTOR 6: DATOS PERSONALES -->
-          <!-- ================================================== -->
-          <section id="tutor-6" class="login-card">
-            <div class="card-header-flex">
-              <div class="card-title-group">
-                <span class="card-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                    />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </span>
-                <h3 class="section-title">
-                  {{ t('personalDataTitle') }}
-                </h3>
+          <!-- DATOS PERSONALES -->
+          <section class="login-card" id="tutorial-step-1">
+            <header class="card-header">
+              <div class="card-header-text">
+                <h3 class="section-title">{{ t('personalData') }}</h3>
+
+                <p class="section-description">
+                  {{
+                    currentLang === 'en'
+                      ? 'Basic client information'
+                      : 'Información básica del cliente'
+                  }}
+                </p>
               </div>
-              <span class="card-subtitle">
-                {{ t('clientDataSubtitle') }}
-              </span>
-            </div>
-            <div class="form-grid-3">
-              <!-- NOMBRES -->
+            </header>
+
+            <div class="form-grid form-grid-3">
               <div class="input-group">
-                <label for="f-nombres">
-                  {{ t('namesLabel') }}
+                <label>
+                  {{ t('names') }}
+                  <span class="required">*</span>
                 </label>
+
                 <input
-                  id="f-nombres"
+                  type="text"
                   v-model="form.nombres"
-                  type="text"
+                  :placeholder="t('placeholderName')"
                   autocomplete="given-name"
-                  placeholder="José Luis"
                 />
               </div>
-              <!-- APELLIDO PATERNO -->
+
               <div class="input-group">
-                <label for="f-paterno">
-                  {{ t('lastNamePaternalLabel') }}
+                <label>
+                  {{ t('lastNameP') }}
+                  <span class="required">*</span>
                 </label>
+
                 <input
-                  id="f-paterno"
-                  v-model="form.apellidoPaterno"
                   type="text"
+                  v-model="form.apellidoP"
+                  :placeholder="t('placeholderLastNameP')"
                   autocomplete="family-name"
-                  placeholder="Ramírez"
                 />
               </div>
-              <!-- APELLIDO MATERNO -->
+
               <div class="input-group">
-                <label for="f-materno">
-                  {{ t('lastNameMaternalLabel') }}
+                <label>
+                  {{ t('lastNameM') }}
+                  <span class="required">*</span>
                 </label>
+
                 <input
-                  id="f-materno"
-                  v-model="form.apellidoMaterno"
                   type="text"
-                  placeholder="García"
+                  v-model="form.apellidoM"
+                  :placeholder="t('placeholderLastNameM')"
                 />
               </div>
-              <!-- FECHA DE NACIMIENTO -->
+
               <div class="input-group">
-                <label for="f-fecha">
-                  {{ t('birthDateLabel') }}
+                <label>
+                  {{ t('birthDate') }}
+                  <span class="required">*</span>
                 </label>
+
                 <input
-                  id="f-fecha"
-                  v-model="form.fechaNacimiento"
                   type="date"
+                  v-model="form.fechaNacimiento"
                 />
               </div>
-              <!-- CELULAR -->
+
               <div class="input-group">
-                <label for="f-celular">
-                  {{ t('phoneLabel') }}
-                </label>
+                <label>{{ t('cellphone') }}</label>
+
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -533,20 +232,19 @@ onUnmounted(() => {
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
+
                   <input
-                    id="f-celular"
-                    v-model="form.celular"
                     type="tel"
-                    autocomplete="tel"
+                    v-model="form.celular"
                     placeholder="+52 000 000 0000"
+                    autocomplete="tel"
                   />
                 </div>
               </div>
-              <!-- CORREO -->
+
               <div class="input-group">
-                <label for="f-correo">
-                  {{ t('emailLabel') }}
-                </label>
+                <label>{{ t('email') }}</label>
+
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -559,145 +257,366 @@ onUnmounted(() => {
                     />
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
+
                   <input
-                    id="f-correo"
-                    v-model="form.correo"
                     type="email"
-                    autocomplete="email"
+                    v-model="form.email"
                     placeholder="ejemplo@correo.com"
+                    autocomplete="email"
                   />
                 </div>
               </div>
             </div>
           </section>
-          <!-- ==================== BLOQUE INFERIOR ==================== -->
-          <div class="lower-grid">
-            <!-- ================================================== -->
-            <!-- TUTOR 7: SEGUIMIENTO FÍSICO -->
-            <!-- ================================================== -->
-            <section id="tutor-7" class="login-card">
-              <div class="card-header-flex">
-                <div class="card-title-group">
-                  <span class="card-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <polyline
-                        points="22 12 18 12 15 21 9 3 6 12 2 12"
-                      />
-                    </svg>
-                  </span>
-                  <h3 class="section-title">
-                    {{ t('physicalTrackingTitle') }}
-                  </h3>
-                </div>
+
+          <!-- REGISTRO FÍSICO -->
+          <section
+            class="login-card physical-card"
+            id="tutorial-step-2"
+          >
+            <header class="card-header">
+              <div class="card-header-text">
+                <h3 class="section-title">{{ t('physicalRecord') }}</h3>
+
+                <p class="section-description">
+                  {{
+                    currentLang === 'en'
+                      ? 'Initial physical measurements'
+                      : 'Medidas físicas iniciales'
+                  }}
+                </p>
               </div>
-              <div class="measurement-grid">
-                <!-- PESO -->
-                <div class="input-group">
-                  <label for="f-peso">
-                    {{ t('initialWeightLabel') }}
-                  </label>
-                  <div class="unit-input">
+            </header>
+
+            <div class="physical-grid">
+              <div class="measurement-field">
+                <div class="measurement-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 3h12l3 18H3L6 3z" />
+                    <path d="M9 8a3 3 0 0 1 6 0" />
+                  </svg>
+                </div>
+
+                <div class="measurement-content">
+                  <label>{{ t('weight') }}</label>
+
+                  <div class="measurement-input">
                     <input
-                      id="f-peso"
-                      v-model="form.peso"
                       type="number"
-                      min="0"
                       step="0.1"
+                      min="0"
+                      v-model="form.peso"
                       placeholder="70"
                     />
                     <span>kg</span>
                   </div>
                 </div>
-                <!-- ALTURA -->
-                <div class="input-group">
-                  <label for="f-altura">
-                    {{ t('initialHeightLabel') }}
-                  </label>
-                  <div class="unit-input">
+              </div>
+
+              <div class="measurement-field">
+                <div class="measurement-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M6 2v20" />
+                    <path d="M6 4h5" />
+                    <path d="M6 8h3" />
+                    <path d="M6 12h5" />
+                    <path d="M6 16h3" />
+                    <path d="M6 20h5" />
+                    <path d="M15 4v16" />
+                    <path d="m12 7 3-3 3 3" />
+                    <path d="m12 17 3 3 3-3" />
+                  </svg>
+                </div>
+
+                <div class="measurement-content">
+                  <label>{{ t('height') }}</label>
+
+                  <div class="measurement-input">
                     <input
-                      id="f-altura"
-                      v-model="form.altura"
                       type="number"
                       min="0"
-                      step="1"
+                      v-model="form.altura"
                       placeholder="175"
                     />
                     <span>cm</span>
                   </div>
                 </div>
               </div>
-            </section>
-            <!-- ================================================== -->
-            <!-- TUTOR 8: MEMBRESÍA -->
-            <!-- ================================================== -->
-            <section id="tutor-8" class="login-card">
-              <div class="card-header-flex">
-                <div class="card-title-group">
-                  <span class="card-icon">
+            </div>
+          </section>
+
+          <!-- MEMBRESÍA -->
+          <section class="login-card" id="tutorial-step-3">
+            <header class="card-header membership-header">
+              <div class="card-header-text">
+                <h3 class="section-title">{{ t('membershipData') }}</h3>
+
+                <p class="section-description">
+                  {{
+                    currentLang === 'en'
+                      ? 'Select the membership period and registration dates.'
+                      : 'Selecciona el periodo de membresía y las fechas del cliente.'
+                  }}
+                </p>
+              </div>
+
+              <div class="membership-actions-row">
+                <div
+                  class="toggle-group-small"
+                  :data-active="form.tipoMembresia"
+                >
+                  <button
+                    type="button"
+                    class="btn-toggle-small"
+                    :class="{ active: form.tipoMembresia === 'mes' }"
+                    @click="form.tipoMembresia = 'mes'"
+                  >
+                    {{ t('month') }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-toggle-small"
+                    :class="{ active: form.tipoMembresia === 'semana' }"
+                    @click="form.tipoMembresia = 'semana'"
+                  >
+                    {{ t('week') }}
+                  </button>
+                </div>
+
+                <div class="actions-group">
+                  <button
+                    type="button"
+                    class="action-btn"
+                    :title="t('titleCut')"
+                    @click="activeModal = 'corte'"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.2"
+                    >
+                      <path
+                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                      />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="action-btn"
+                    :title="t('titleHelp')"
+                    @click="activeModal = 'help'"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.2"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path
+                        d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+                      />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            <!-- TARIFA DE INSCRIPCIÓN (selector personalizado) -->
+            <div class="input-group tarifa-group">
+              <label id="tarifa-label">
+                {{ currentLang === 'en' ? 'Enrollment rate' : 'Tarifa de inscripción' }}
+                <span class="required">*</span>
+              </label>
+
+              <div
+                ref="tarifaRef"
+                class="ff-select"
+                :class="{ open: tarifaOpen }"
+              >
+                <button
+                  type="button"
+                  class="ff-select-trigger"
+                  aria-haspopup="listbox"
+                  aria-labelledby="tarifa-label"
+                  :aria-expanded="tarifaOpen"
+                  @click="tarifaOpen = !tarifaOpen"
+                  @keydown.esc="tarifaOpen = false"
+                >
+                  <span class="ff-select-icon">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
                     >
-                      <rect
-                        x="2"
-                        y="5"
-                        width="20"
-                        height="14"
-                        rx="2"
-                      />
-                      <line x1="2" y1="10" x2="22" y2="10" />
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <path d="M3 10h18" />
+                      <path d="M7 15h3" />
                     </svg>
                   </span>
-                  <h3 class="section-title">
-                    {{ t('membershipTitle') }}
-                  </h3>
-                </div>
+
+                  <span
+                    class="ff-select-value"
+                    :class="{ placeholder: !tarifaSeleccionada }"
+                  >
+                    <template v-if="tarifaSeleccionada">
+                      <strong>{{ tarifaSeleccionada.Nombre_Paquete }}</strong>
+                      <em>{{ formatoPrecio(tarifaSeleccionada.Precio) }}</em>
+                    </template>
+                    <template v-else>
+                      {{ currentLang === 'en' ? 'Select a rate' : 'Selecciona una tarifa' }}
+                    </template>
+                  </span>
+
+                  <svg
+                    class="ff-select-chevron"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                <transition name="ff-dd">
+                  <ul
+                    v-if="tarifaOpen"
+                    class="ff-select-menu"
+                    role="listbox"
+                    aria-labelledby="tarifa-label"
+                  >
+                    <li
+                      v-if="!tarifasFiltradas.length"
+                      class="ff-select-empty"
+                    >
+                      {{
+                        currentLang === 'en'
+                          ? 'No rates available for this period.'
+                          : 'No hay tarifas disponibles para este periodo.'
+                      }}
+                    </li>
+
+                    <li
+                      v-for="p in tarifasFiltradas"
+                      :key="p.ID_Precio"
+                      role="option"
+                      :aria-selected="String(p.ID_Precio) === String(idPrecio)"
+                      :class="{ selected: String(p.ID_Precio) === String(idPrecio) }"
+                      @click="elegirTarifa(p)"
+                    >
+                      <span class="opt-name">{{ p.Nombre_Paquete }}</span>
+                      <span class="opt-price">{{ formatoPrecio(p.Precio) }}</span>
+
+                      <svg
+                        v-if="String(p.ID_Precio) === String(idPrecio)"
+                        class="opt-check"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </li>
+                  </ul>
+                </transition>
               </div>
-              <div class="form-grid-2">
-                <!-- SEDE -->
-                <div class="input-group">
-                  <label for="f-sede">
-                    {{ t('locationLabel') }}
-                  </label>
+            </div>
+
+            <div class="membership-date-grid">
+              <div class="date-field">
+                <div class="date-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+
+                <div class="date-content">
+                  <label>{{ t('enrollmentDate') }}</label>
                   <input
-                    id="f-sede"
-                    v-model="form.sede"
-                    type="text" readonly
-                    placeholder="Matriz"
+                    type="date"
+                    v-model="form.fechaInscripcion"
+                    :max="fechaLocal()"
                   />
                 </div>
-                <!-- ESTADO -->
-                <div class="input-group">
-                  <label for="f-status">
-                    {{ t('statusLabel') }}
-                  </label>
+              </div>
+
+              <div class="date-field">
+                <div class="date-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+
+                <div class="date-content">
+                  <label>{{ t('dueDate') }}</label>
                   <input
-                    id="f-status"
-                    v-model="form.status"
-                    type="text" readonly
-                    placeholder="Activo"
+                    type="date"
+                    v-model="form.fechaCorte"
+                    readonly
                   />
                 </div>
               </div>
-            </section>
-          </div>
-          <!-- ================================================== -->
-          <!-- TUTOR 9: GUARDAR CAMBIOS -->
-          <!-- ================================================== -->
-          <footer class="action-footer">
+            </div>
+          </section>
+
+          <!-- GUARDAR -->
+          <div class="registration-footer">
+            <div class="required-hint">
+              <span class="required">*</span>
+              {{
+                currentLang === 'en'
+                  ? 'Required fields'
+                  : 'Campos obligatorios'
+              }}
+            </div>
+
             <button
-              id="tutor-9"
               type="button"
               class="btn-primary"
-              :disabled="saving || loadingProfile || !clienteId"
-              @click="saveChanges"
+              @click="saveRegistration"
+              :disabled="guardando"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -711,62 +630,89 @@ onUnmounted(() => {
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
-              {{ t('saveChangesBtn') }}
+
+              {{ t('finishButton') }}
             </button>
-          </footer>
+          </div>
         </div>
       </div>
     </main>
-    <!-- ====================================================== -->
-    <!-- MODAL: OPCIONES DE FOTO -->
-    <!-- ====================================================== -->
+
+    <!-- =====================================================
+         MODALES EXISTENTES
+    ====================================================== -->
+    <transition name="pop">
+      <div
+        v-if="activeModal === 'corte'"
+        class="modal-wrapper"
+        @click.self="activeModal = null"
+      >
+        <AddCorteComponent @close="activeModal = null" />
+      </div>
+    </transition>
+
+    <transition name="pop">
+      <div
+        v-if="activeModal === 'help'"
+        class="modal-wrapper"
+        @click.self="activeModal = null"
+      >
+        <Help @close="activeModal = null" />
+      </div>
+    </transition>
+
+    <!-- =====================================================
+         SELECCIONAR CÁMARA O GALERÍA
+    ====================================================== -->
     <transition name="photo-menu">
       <div
         v-if="showPhotoOptions"
-        class="modal-overlay"
+        class="photo-options-overlay"
         @click.self="closePhotoOptions"
       >
-        <div
-          class="photo-modal"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div class="modal-header">
+        <div class="photo-options-modal">
+          <div class="photo-options-handle"></div>
+
+          <div class="photo-options-header">
             <div>
+              <span class="photo-options-eyebrow">
+                {{ currentLang === 'en' ? 'PROFILE PHOTO' : 'FOTO DE PERFIL' }}
+              </span>
+
               <h3>
                 {{
-                  txt(
-                    'Actualizar fotografía',
-                    'Update photo'
-                  )
+                  currentLang === 'en'
+                    ? 'Add client photo'
+                    : 'Agregar foto del cliente'
                 }}
               </h3>
+
               <p>
                 {{
-                  txt(
-                    'Selecciona cómo quieres agregar la fotografía del cliente.',
-                    'Choose how you want to add the client photo.'
-                  )
+                  currentLang === 'en'
+                    ? 'Choose how you want to add the image.'
+                    : 'Selecciona cómo quieres agregar la imagen.'
                 }}
               </p>
             </div>
+
             <button
               type="button"
-              class="modal-close"
-              :aria-label="txt('Cerrar', 'Close')"
+              class="modal-close-btn"
               @click="closePhotoOptions"
             >
               ×
             </button>
           </div>
-          <div class="photo-options">
-            <!-- TOMAR FOTO -->
+
+          <div class="photo-options-grid">
+            <!-- CÁMARA -->
             <button
               type="button"
               class="photo-option"
               @click="takePhoto"
             >
-              <span class="option-icon">
+              <div class="photo-option-icon">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -778,114 +724,144 @@ onUnmounted(() => {
                   />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-              </span>
-              <span>
+              </div>
+
+              <div class="photo-option-text">
                 <strong>
-                  {{ txt('Tomar foto', 'Take photo') }}
+                  {{ currentLang === 'en' ? 'Take photo' : 'Tomar foto' }}
                 </strong>
-                <small>
+
+                <span>
                   {{
-                    txt(
-                      'Utilizar la cámara de este dispositivo',
-                      'Use this device camera'
-                    )
+                    currentLang === 'en'
+                      ? 'Open your device camera'
+                      : 'Abrir la cámara del dispositivo'
                   }}
-                </small>
-              </span>
-              <b>›</b>
+                </span>
+              </div>
+
+              <svg
+                class="photo-option-arrow"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </button>
-            <!-- SELECCIONAR GALERÍA -->
+
+            <!-- GALERÍA -->
             <button
               type="button"
               class="photo-option"
               @click="selectPhoto"
             >
-              <span class="option-icon">
+              <div class="photo-option-icon">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <rect
-                    x="3"
-                    y="3"
-                    width="18"
-                    height="18"
-                    rx="2"
-                  />
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
-              </span>
-              <span>
+              </div>
+
+              <div class="photo-option-text">
                 <strong>
                   {{
-                    txt(
-                      'Seleccionar de galería',
-                      'Choose from gallery'
-                    )
+                    currentLang === 'en'
+                      ? 'Choose image'
+                      : 'Subir desde galería'
                   }}
                 </strong>
-                <small>
+
+                <span>
                   {{
-                    txt(
-                      'Seleccionar una imagen existente',
-                      'Select an existing image'
-                    )
+                    currentLang === 'en'
+                      ? 'Select an existing image'
+                      : 'Seleccionar una imagen existente'
                   }}
-                </small>
-              </span>
-              <b>›</b>
+                </span>
+              </div>
+
+              <svg
+                class="photo-option-arrow"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
             </button>
           </div>
+
           <button
             type="button"
-            class="cancel-btn"
+            class="photo-cancel"
             @click="closePhotoOptions"
           >
-            {{ txt('Cancelar', 'Cancel') }}
+            {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
           </button>
         </div>
       </div>
     </transition>
-    <!-- ====================================================== -->
-    <!-- MODAL: CÁMARA -->
-    <!-- ====================================================== -->
+
+    <!-- =====================================================
+         CÁMARA REAL
+    ====================================================== -->
     <transition name="photo-menu">
       <div
         v-if="showCamera"
-        class="modal-overlay camera-overlay"
+        class="camera-overlay"
         @click.self="closeCamera"
       >
-        <div
-          class="camera-modal"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div class="modal-header">
+        <div class="camera-modal">
+          <div class="camera-header">
             <div>
+              <span class="camera-eyebrow">
+                {{ currentLang === 'en' ? 'CAMERA' : 'CÁMARA' }}
+              </span>
+
               <h3>
-                {{ txt('Tomar fotografía', 'Take photo') }}
+                {{
+                  currentLang === 'en'
+                    ? 'Take client photo'
+                    : 'Tomar foto del cliente'
+                }}
               </h3>
+
               <p>
                 {{
                   cameraFacingMode === 'user'
-                    ? txt('Cámara frontal', 'Front camera')
-                    : txt('Cámara trasera', 'Rear camera')
+                    ? (
+                      currentLang === 'en'
+                        ? 'Front camera'
+                        : 'Cámara frontal'
+                    )
+                    : (
+                      currentLang === 'en'
+                        ? 'Rear camera'
+                        : 'Cámara trasera'
+                    )
                 }}
               </p>
             </div>
+
             <button
               type="button"
-              class="modal-close"
-              :aria-label="txt('Cerrar', 'Close')"
+              class="modal-close-btn"
               @click="closeCamera"
             >
               ×
             </button>
           </div>
-          <!-- ==================== VISTA DE CÁMARA ==================== -->
+
+          <!-- VISOR -->
           <div class="camera-preview">
             <video
               ref="videoRef"
@@ -893,10 +869,10 @@ onUnmounted(() => {
               playsinline
               muted
               :class="{
-                'camera-mirrored':
-                  cameraFacingMode === 'user'
+                'camera-mirrored': cameraFacingMode === 'user'
               }"
             ></video>
+
             <!-- CAMBIAR CÁMARA -->
             <button
               type="button"
@@ -905,56 +881,76 @@ onUnmounted(() => {
               @click.stop="switchCamera"
             >
               <svg
+                :class="{ rotating: switchingCamera }"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
-                <path
-                  d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4"
-                />
-                <path
-                  d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
-                />
+                <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
               </svg>
-              {{
-                cameraFacingMode === 'user'
-                  ? txt('Trasera', 'Rear')
-                  : txt('Frontal', 'Front')
-              }}
+
+              <span>
+                {{
+                  cameraFacingMode === 'user'
+                    ? (
+                      currentLang === 'en'
+                        ? 'Rear'
+                        : 'Trasera'
+                    )
+                    : (
+                      currentLang === 'en'
+                        ? 'Front'
+                        : 'Frontal'
+                    )
+                }}
+              </span>
             </button>
-            <div class="face-guide"></div>
-            <!-- CARGANDO CÁMARA -->
+
+            <div class="camera-guide">
+              <div class="face-guide"></div>
+            </div>
+
             <div
               v-if="switchingCamera"
-              class="camera-loading"
+              class="camera-switching"
             >
-              <span></span>
+              <span class="camera-loader"></span>
             </div>
           </div>
+
           <canvas
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
-          <!-- ==================== ACCIONES CÁMARA ==================== -->
+
           <div class="camera-actions">
             <button
               type="button"
-              class="camera-cancel"
+              class="camera-cancel-btn"
               @click="closeCamera"
             >
-              {{ txt('Cancelar', 'Cancel') }}
+              {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
             </button>
+
             <button
               type="button"
               class="capture-btn"
               :disabled="switchingCamera"
               @click="capturePhoto"
             >
-              <i>
+              <span class="capture-circle">
                 <span></span>
-              </i>
-              {{ txt('Tomar foto', 'Take photo') }}
+              </span>
+
+              {{
+                currentLang === 'en'
+                  ? 'Take photo'
+                  : 'Tomar foto'
+              }}
             </button>
           </div>
         </div>
@@ -962,682 +958,1718 @@ onUnmounted(() => {
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-<style scoped>
-/* Buscador de clientes: panel alineado con el campo, sin estilos inline */
-.page-header{position:relative;z-index:20;isolation:isolate}
-.search-small{position:relative;z-index:21}
-.client-suggestions{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:50;max-height:310px;overflow-y:auto;border:1px solid #39394e;border-radius:12px;background:#1b1b2b;box-shadow:0 18px 42px rgba(0,0,0,.45);padding:5px;box-sizing:border-box}
-.client-suggestion{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:#f5f5fa;text-align:left;cursor:pointer;font-family:inherit}
-.client-suggestion:hover,.client-suggestion:focus-visible{background:#303047;outline:none}
-.suggestion-avatar{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;background:rgba(238,80,126,.15);color:#ff789f;font-size:13px;font-weight:700}
-.suggestion-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
-.suggestion-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
-.suggestion-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#a8a9c2}
-.suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
-.suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
-@media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
 
-.avatar-fallback{display:grid;place-items:center;width:100%;height:100%;font-size:3rem;font-weight:700;color:var(--color-texto-general,#fff)}
-.search-small{position:relative}
-.btn-primary:disabled{opacity:.55;cursor:not-allowed}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-.main-content {
-  --accent: var(--color-highlight, #3b82f6);
-  --card: var(--bg-cards, #121416);
-  --text: var(--color-texto-general, #e5e7eb);
-  --title: var(--color-titulos, #ffffff);
-  --muted: #8b95a7;
-  --line: color-mix(in srgb, var(--text) 10%, transparent);
-  --input: color-mix(in srgb, var(--card) 90%, #ffffff);
-  --radius: 14px;
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 32px 36px 56px;
+<script setup>
+import {
+  ref,
+  reactive,
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  onUnmounted
+} from 'vue';
+
+import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
+import AddCorteComponent from '../Componets/Cut.vue';
+import Help from '../Componets/Help.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { traducciones } from '../i18n.js';
+
+/* =========================================================
+   ESTADO GENERAL
+========================================================= */
+
+const fechaLocal=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const form = reactive({
+  nombres: '',
+  apellidoP: '',
+  apellidoM: '',
+  fechaNacimiento: '',
+  celular: '',
+  email: '',
+  peso: '',
+  altura: '',
+  tipoMembresia: 'mes',
+  fechaInscripcion: fechaLocal(),
+  fechaCorte: ''
+});
+const activeModal = ref(null);
+const guardando = ref(false);
+const tarifas = ref([]);
+const idPrecio = ref('');
+const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
+const clientesApi = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/clientes`;
+const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
+const authHeaders = () => ({Accept:'application/json',Authorization:`Bearer ${sessionStorage.getItem('auth_token') || ''}`});
+const cargarTarifas = async () => {idPrecio.value='';tarifas.value=[];const sede=sedeActual();if(!sede)return;try{const res=await fetch(`${clientesApi}/tarifas?sede_id=${sede}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error HTTP ${res.status} al consultar tarifas`);tarifas.value=Array.isArray(data)?data:(Array.isArray(data.data)?data.data:[]);if(tarifasFiltradas.value.length===1)idPrecio.value=String(tarifasFiltradas.value[0].ID_Precio);}catch(e){toastRef.value?.notify(e.message,'error');}};
+const tarifasFiltradas=computed(()=>tarifas.value.filter(p=>form.tipoMembresia==='mes'?String(p.Periodo).toLowerCase()==='mensual':String(p.Periodo).toLowerCase()==='semanal'));
+let versionCalculo=0;
+const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';if(!idPrecio.value||!sedeActual())return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value)});if(form.fechaInscripcion)q.set('fechaInscripcion',form.fechaInscripcion);const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message&&data.message!=='Server Error'?data.message:`Error HTTP ${res.status} al calcular vencimiento`);if(version===versionCalculo)form.fechaCorte=data.fecha_vencimiento||'';}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
+watch(()=>form.tipoMembresia,()=>{tarifaOpen.value=false;if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value))idPrecio.value='';});
+watch([idPrecio,()=>form.fechaInscripcion],calcularVencimiento);
+
+/* =========================================================
+   SELECTOR DE TARIFA (dropdown personalizado)
+========================================================= */
+
+const tarifaOpen = ref(false);
+const tarifaRef = ref(null);
+
+const tarifaSeleccionada = computed(() =>
+  tarifasFiltradas.value.find(
+    (p) => String(p.ID_Precio) === String(idPrecio.value)
+  ) || null
+);
+
+const elegirTarifa = (p) => {
+  idPrecio.value = String(p.ID_Precio);
+  tarifaOpen.value = false;
+};
+
+const formatoPrecio = (value) =>
+  new Intl.NumberFormat(
+    currentLang.value === 'en' ? 'en-US' : 'es-MX',
+    { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }
+  ).format(Number(value || 0));
+
+const cerrarTarifaAlClickFuera = (event) => {
+  if (tarifaRef.value && !tarifaRef.value.contains(event.target)) {
+    tarifaOpen.value = false;
+  }
+};
+
+const qrModal=ref(null),qrUrl=ref(''),qrError=ref(''),qrCargando=ref(false);
+let qrVersion=0;
+const cerrarQR=()=>{qrVersion++;qrModal.value=null;qrUrl.value='';qrError.value='';qrCargando.value=false;};
+const mostrarQR=async registro=>{const version=++qrVersion;qrModal.value=registro;qrUrl.value='';qrError.value='';qrCargando.value=true;try{const res=await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error ${res.status}`);if(version===qrVersion){if(!data.qr_url)throw new Error('El servidor no devolvió la imagen QR.');qrUrl.value=data.qr_url;}}catch(e){if(version===qrVersion)qrError.value=e.message||'No se pudo consultar el QR.';}finally{if(version===qrVersion)qrCargando.value=false;}};
+const descargarQR=async()=>{if(!qrModal.value)return;try{const res=await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`,{headers:authHeaders()});if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error(data.message||`Error ${res.status}`);}const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${qrModal.value.ID_Inscripto}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR.','error');}};
+const toastRef = ref(null);
+
+const currentLang = ref(
+  localStorage.getItem('GYM_ACCOUNT-idioma') || 'es'
+);
+
+const t = (key) => {
+  const langTable =
+    traducciones[currentLang.value] || traducciones.es;
+
+  return langTable[key] || traducciones.es[key] || key;
+};
+
+const handleLangChange = (event) => {
+  if (event.detail?.idioma) {
+    currentLang.value = event.detail.idioma;
+  }
+};
+
+/* =========================================================
+   FORMULARIO
+========================================================= */
+
+const clientName = computed(() =>
+  [
+    form.nombres,
+    form.apellidoP,
+    form.apellidoM
+  ]
+    .filter(Boolean)
+    .join(' ')
+);
+
+/* =========================================================
+   FOTO / GALERÍA
+========================================================= */
+
+const fileInput = ref(null);
+const avatarPreview = ref(null);
+const avatarFile = ref(null);
+
+const showPhotoOptions = ref(false);
+
+const openPhotoOptions = () => {
+  showPhotoOptions.value = true;
+};
+
+const closePhotoOptions = () => {
+  showPhotoOptions.value = false;
+};
+
+const selectPhoto = () => {
+  showPhotoOptions.value = false;
+
+  if (!fileInput.value) return;
+
+  fileInput.value.value = '';
+  fileInput.value.click();
+};
+
+const setAvatarFile = (file) => {
+  if (!file) return;
+
+  if (
+    avatarPreview.value &&
+    avatarPreview.value.startsWith('blob:')
+  ) {
+    URL.revokeObjectURL(avatarPreview.value);
+  }
+
+  avatarFile.value = file;
+  avatarPreview.value = URL.createObjectURL(file);
+};
+
+const handleFileChange = (event) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  if (!file.type.startsWith('image/') || file.size > 4*1024*1024) {
+    toastRef.value?.notify(
+      currentLang.value === 'en'
+        ? 'Select a valid image.'
+        : 'Selecciona una imagen válida.',
+      'warning'
+    );
+
+    event.target.value = '';
+    return;
+  }
+
+  setAvatarFile(file);
+
+  toastRef.value?.notify(
+    currentLang.value === 'en'
+      ? 'Photo added successfully.'
+      : 'Foto agregada correctamente.',
+    'success'
+  );
+
+  event.target.value = '';
+};
+
+/* =========================================================
+   CÁMARA
+========================================================= */
+
+const showCamera = ref(false);
+const videoRef = ref(null);
+const canvasRef = ref(null);
+
+const cameraStream = ref(null);
+
+/*
+  user        = frontal
+  environment = trasera
+*/
+const cameraFacingMode = ref('user');
+
+const switchingCamera = ref(false);
+
+/*
+  Detiene todos los tracks activos.
+*/
+const stopCamera = () => {
+  if (cameraStream.value) {
+    cameraStream.value
+      .getTracks()
+      .forEach((track) => {
+        track.stop();
+      });
+
+    cameraStream.value = null;
+  }
+
+  if (videoRef.value) {
+    videoRef.value.srcObject = null;
+  }
+};
+
+/*
+  Inicia la cámara correspondiente.
+*/
+const startCamera = async () => {
+  stopCamera();
+
+  const constraints = {
+    audio: false,
+    video: {
+      facingMode: {
+        ideal: cameraFacingMode.value
+      },
+      width: {
+        ideal: 1280
+      },
+      height: {
+        ideal: 720
+      }
+    }
+  };
+
+  const stream =
+    await navigator.mediaDevices.getUserMedia(
+      constraints
+    );
+
+  cameraStream.value = stream;
+
+  await nextTick();
+
+  if (!videoRef.value) {
+    throw new Error(
+      'No se encontró el elemento de video.'
+    );
+  }
+
+  videoRef.value.srcObject = stream;
+
+  await videoRef.value.play();
+};
+
+/*
+  Abre el modal y solicita permiso de cámara.
+*/
+const takePhoto = async () => {
+  showPhotoOptions.value = false;
+
+  if (
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia
+  ) {
+    toastRef.value?.notify(
+      currentLang.value === 'en'
+        ? 'Camera is not supported by this browser.'
+        : 'Este navegador no permite utilizar la cámara.',
+      'warning'
+    );
+
+    return;
+  }
+
+  cameraFacingMode.value = 'user';
+  showCamera.value = true;
+
+  await nextTick();
+
+  try {
+    await startCamera();
+  } catch (error) {
+    console.error(
+      'No se pudo abrir la cámara:',
+      error
+    );
+
+    stopCamera();
+    showCamera.value = false;
+
+    let message =
+      currentLang.value === 'en'
+        ? 'Could not access the camera.'
+        : 'No se pudo acceder a la cámara.';
+
+    if (error?.name === 'NotAllowedError') {
+      message =
+        currentLang.value === 'en'
+          ? 'Camera permission was denied. Enable camera permission in your browser.'
+          : 'El permiso de cámara fue rechazado. Activa el permiso de cámara en tu navegador.';
+    }
+
+    if (error?.name === 'NotFoundError') {
+      message =
+        currentLang.value === 'en'
+          ? 'No camera was found on this device.'
+          : 'No se encontró una cámara en este dispositivo.';
+    }
+
+    if (error?.name === 'NotReadableError') {
+      message =
+        currentLang.value === 'en'
+          ? 'The camera is being used by another application.'
+          : 'La cámara está siendo utilizada por otra aplicación.';
+    }
+
+    toastRef.value?.notify(
+      message,
+      'warning'
+    );
+  }
+};
+
+/*
+  Cambia entre frontal y trasera.
+*/
+const switchCamera = async () => {
+  if (switchingCamera.value) return;
+
+  switchingCamera.value = true;
+
+  const previousMode =
+    cameraFacingMode.value;
+
+  const nextMode =
+    previousMode === 'user'
+      ? 'environment'
+      : 'user';
+
+  cameraFacingMode.value = nextMode;
+
+  try {
+    await startCamera();
+  } catch (error) {
+    console.error(
+      'No se pudo cambiar de cámara:',
+      error
+    );
+
+    /*
+      Regresamos a la cámara anterior.
+    */
+    cameraFacingMode.value =
+      previousMode;
+
+    try {
+      await startCamera();
+    } catch (restoreError) {
+      console.error(
+        'No se pudo restaurar la cámara:',
+        restoreError
+      );
+
+      closeCamera();
+    }
+
+    toastRef.value?.notify(
+      currentLang.value === 'en'
+        ? 'The selected camera is not available.'
+        : 'La cámara seleccionada no está disponible.',
+      'warning'
+    );
+  } finally {
+    switchingCamera.value = false;
+  }
+};
+
+/*
+  Cierra modal y apaga cámara.
+*/
+const closeCamera = () => {
+  stopCamera();
+  showCamera.value = false;
+  switchingCamera.value = false;
+};
+
+/*
+  Captura el frame actual.
+*/
+const capturePhoto = () => {
+  if (switchingCamera.value) return;
+
+  const video = videoRef.value;
+  const canvas = canvasRef.value;
+
+  if (!video || !canvas) return;
+
+  if (
+    !video.videoWidth ||
+    !video.videoHeight
+  ) {
+    toastRef.value?.notify(
+      currentLang.value === 'en'
+        ? 'The camera is not ready yet.'
+        : 'La cámara todavía no está lista.',
+      'warning'
+    );
+
+    return;
+  }
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  const context =
+    canvas.getContext('2d');
+
+  if (!context) {
+    toastRef.value?.notify(
+      currentLang.value === 'en'
+        ? 'Could not process the photo.'
+        : 'No se pudo procesar la fotografía.',
+      'error'
+    );
+
+    return;
+  }
+
+  context.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  /*
+    Frontal:
+    guardamos la imagen como se ve
+    en la vista previa (espejo).
+  */
+  if (cameraFacingMode.value === 'user') {
+    context.save();
+
+    context.translate(
+      canvas.width,
+      0
+    );
+
+    context.scale(-1, 1);
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    context.restore();
+  } else {
+    /*
+      Trasera:
+      orientación normal.
+    */
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
+
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) {
+        toastRef.value?.notify(
+          currentLang.value === 'en'
+            ? 'Could not capture the photo.'
+            : 'No se pudo capturar la fotografía.',
+          'error'
+        );
+
+        return;
+      }
+
+      const file = new File(
+        [blob],
+        `cliente-${Date.now()}.jpg`,
+        {
+          type: 'image/jpeg'
+        }
+      );
+
+      setAvatarFile(file);
+
+      closeCamera();
+
+      toastRef.value?.notify(
+        currentLang.value === 'en'
+          ? 'Photo captured successfully.'
+          : 'Foto tomada correctamente.',
+        'success'
+      );
+    },
+    'image/jpeg',
+    0.92
+  );
+};
+
+/* =========================================================
+   REGISTRO
+========================================================= */
+
+const saveRegistration = async () => {
+  if(guardando.value)return;
+  if(!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value){toastRef.value?.notify('Nombre, apellido paterno y tarifa son obligatorios.','warning');return;}
+  if(!sedeActual()){toastRef.value?.notify('Selecciona una sucursal.','warning');return;}
+  if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value)){toastRef.value?.notify('La tarifa no coincide con el tipo de membresía.','warning');return;}
+  guardando.value=true;
+  try {
+    const data=new FormData();
+    const values={sede_id:sedeActual(),id_precio:idPrecio.value,nombres:form.nombres.trim(),apellidoP:form.apellidoP.trim(),apellidoM:form.apellidoM.trim(),fechaNacimiento:form.fechaNacimiento,celular:form.celular.trim(),email:form.email.trim(),peso:form.peso,altura:form.altura,fechaInscripcion:form.fechaInscripcion};
+    Object.entries(values).forEach(([key,value])=>{if(value!==''&&value!==null&&value!==undefined)data.append(key,String(value));});
+    if(avatarFile.value)data.append('foto',avatarFile.value);
+    const res=await fetch(clientesApi,{method:'POST',headers:authHeaders(),body:data});
+    const result=await res.json().catch(()=>({}));
+    if(!res.ok){console.error('Error API registro de cliente',{status:res.status,response:result});throw new Error(Object.values(result.errors||{}).flat().join(' ') || (result.message&&result.message!=='Server Error'?result.message:'') || `Error HTTP ${res.status}: revisa los logs de Laravel en Railway`);}
+    toastRef.value?.notify(result.message||'Cliente registrado correctamente.','success');
+    if(result.ID_Inscripto)await mostrarQR(result);
+    Object.assign(form,{nombres:'',apellidoP:'',apellidoM:'',fechaNacimiento:'',celular:'',email:'',peso:'',altura:'',tipoMembresia:'mes',fechaInscripcion:fechaLocal(),fechaCorte:''});
+    if(avatarPreview.value?.startsWith('blob:'))URL.revokeObjectURL(avatarPreview.value);
+    avatarPreview.value=null;avatarFile.value=null;idPrecio.value='';
+    window.dispatchEvent(new CustomEvent('factorfit:clientes-changed',{detail:{sede_id:sedeActual()}}));
+  }catch(error){toastRef.value?.notify(error.message||'No se pudo registrar el cliente.','error');}
+  finally{guardando.value=false;}
+};
+
+/* =========================================================
+   CICLO DE VIDA
+========================================================= */
+
+onMounted(() => {
+  if(!form.fechaInscripcion)form.fechaInscripcion=fechaLocal();
+  window.addEventListener(
+    'idioma-changed',
+    handleLangChange
+  );
+  window.addEventListener('factorfit:branch-changed',cargarTarifas);
+  document.addEventListener('click', cerrarTarifaAlClickFuera);
+  cargarTarifas();
+});
+
+onUnmounted(() => {
+  window.removeEventListener(
+    'idioma-changed',
+    handleLangChange
+  );
+
+  stopCamera();cerrarQR();
+  window.removeEventListener('factorfit:branch-changed',cargarTarifas);
+  document.removeEventListener('click', cerrarTarifaAlClickFuera);
+
+  if (
+    avatarPreview.value &&
+    avatarPreview.value.startsWith('blob:')
+  ) {
+    URL.revokeObjectURL(
+      avatarPreview.value
+    );
+  }
+});
+</script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
+
+* {
   box-sizing: border-box;
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
 }
-/* ============================ ENCABEZADO ============================ */
-.page-header {
+
+.hidden-input,
+.hidden-canvas {
+  display: none;
+}
+
+.main-content {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 28px;
-  margin-bottom: 26px;
+  justify-content: center;
+  width: 100%;
+  padding: 36px clamp(16px, 3vw, 40px) 56px;
+  color: var(--color-texto-general, #e5e5e5);
 }
-.page-heading {
-  min-width: 0;
+
+.highlight {
+  color: var(--color-highlight, #3b82f6);
 }
-.eyebrow {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--accent);
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+
+.profile-card {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  align-items: start;
 }
-.page-header h1 span {
-  color: var(--accent);
+
+/* =========================================================
+   PERFIL
+========================================================= */
+
+.profile-section {
+  position: relative;
+  align-self: start;
+  overflow: hidden;
+  padding: 34px 24px 26px;
+  text-align: center;
+  border: 1px solid var(--border-cards, rgba(255, 255, 255, .1));
+  border-radius: var(--app-border-radius, 24px);
+  background: var(--bg-cards, rgba(18, 18, 18, .75));
 }
-.page-header h1 {
-  margin: 0;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: clamp(1.7rem, 2.6vw, 2.25rem);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: 0.01em;
+
+.profile-section::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 210px;
+  background:
+    radial-gradient(
+      ellipse 70% 100% at 50% 0%,
+      color-mix(
+        in srgb,
+        var(--color-botones, #1c4fd6) 32%,
+        transparent
+      ),
+      transparent 75%
+    );
+  pointer-events: none;
+}
+
+.profile-content {
+  position: relative;
+  width: 100%;
+}
+
+.profile-label {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 4px 11px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 35%,
+      transparent
+    );
+  border-radius: 999px;
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 10%,
+      transparent
+    );
+  color: var(--color-highlight, #60a5fa);
+  font: 600 .66rem 'Inter', sans-serif;
+  letter-spacing: .3px;
+}
+
+.main-title {
+  margin: 0 0 26px;
+  color: var(--color-titulos, #fff);
+  font-family: 'Anton', sans-serif;
+  font-size: 1.85rem;
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: .4px;
   text-transform: uppercase;
 }
-.page-header p {
-  max-width: 560px;
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.55;
+
+/* =========================================================
+   AVATAR
+========================================================= */
+
+.avatar-wrapper {
+  position: relative;
+  width: 140px;
+  margin: 0 auto 14px;
 }
-/* ============================ BÚSQUEDA / INPUTS ============================ */
-.search-small {
-  width: min(100%, 320px);
-  flex-shrink: 0;
+
+.avatar-ring {
+  padding: 4px;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 210deg,
+      var(--color-botones, #1c4fd6),
+      var(--color-highlight, #60a5fa),
+      var(--color-botones, #1c4fd6)
+    );
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .4);
 }
+
+.avatar-circle {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  border: 4px solid var(--bg-cards, #121212);
+  border-radius: 50%;
+  outline: none;
+  background: #17191f;
+}
+
+.default-avatar {
+  width: 52px;
+  height: 52px;
+  color: #fff;
+  opacity: .55;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, .58);
+  color: #fff;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.avatar-overlay svg {
+  width: 23px;
+  height: 23px;
+}
+
+.avatar-overlay span {
+  font: 600 .6rem 'Inter', sans-serif;
+}
+
+.avatar-circle:hover .avatar-overlay,
+.avatar-circle:focus-visible .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-circle:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-highlight, #3b82f6);
+}
+
+.avatar-action {
+  position: absolute;
+  z-index: 3;
+  right: 2px;
+  bottom: 4px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  border: 3px solid var(--bg-cards, #121212);
+  border-radius: 50%;
+  background: var(--color-highlight, #3b82f6);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .35);
+  transition:
+    transform .2s ease,
+    filter .2s ease;
+}
+
+.avatar-action:hover {
+  transform: scale(1.08);
+  filter: brightness(1.08);
+}
+
+.avatar-action svg {
+  width: 17px;
+  height: 17px;
+}
+
+.profile-hint {
+  max-width: 230px;
+  margin: 0 auto;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .76rem/1.5 'Inter', sans-serif;
+  opacity: .7;
+}
+
+/* =========================================================
+   RESUMEN
+========================================================= */
+
+.profile-summary {
+  display: grid;
+  gap: 2px;
+  margin: 26px 0 0;
+  padding: 6px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: var(--app-border-radius, 14px);
+  background: rgba(255, 255, 255, .025);
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.summary-item + .summary-item {
+  border-top: 1px solid rgba(255, 255, 255, .05);
+}
+
+.summary-item dt {
+  color: var(--color-texto-general, #94a3b8);
+  font: 500 .7rem 'Inter', sans-serif;
+  opacity: .7;
+}
+
+.summary-item dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-titulos, #fff);
+  font: 600 .78rem 'Inter', sans-serif;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-item dd.empty {
+  opacity: .4;
+}
+
+.plan-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 18%,
+      transparent
+    );
+  color: var(--color-highlight, #60a5fa);
+}
+
+/* =========================================================
+   FORMULARIOS
+========================================================= */
+
+.forms-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  min-width: 0;
+}
+
+.login-card {
+  width: 100%;
+  padding: 26px 28px 28px;
+  border: 1px solid var(--border-cards, rgba(255, 255, 255, .12));
+  border-radius: var(--app-border-radius, 24px);
+  background: var(--bg-cards, rgba(18, 18, 18, .75));
+  backdrop-filter: blur(12px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+.card-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--color-titulos, #fff);
+  font-family: 'Anton', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.section-title::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--color-highlight, #3b82f6);
+}
+
+.section-description {
+  margin: 3px 0 0;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .74rem/1.4 'Inter', sans-serif;
+  opacity: .6;
+}
+
+.form-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.form-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;
 }
-.input-group label {
-  color: color-mix(in srgb, var(--text) 78%, transparent);
-  font-size: 0.72rem;
-  font-weight: 500;
-  line-height: 1.2;
+
+label {
+  color: var(--color-texto-general, #f5f5f4);
+  font: 600 .78rem 'Oswald', sans-serif;
+  letter-spacing: .4px;
 }
-.search-input-wrapper,
-.input-with-icon,
-.unit-input {
+
+.required {
+  color: var(--color-highlight, #3b82f6);
+}
+
+input {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1.5px solid var(--border-input, rgba(255, 255, 255, .12));
+  border-radius: var(--app-border-radius, 12px);
+  outline: none;
+  background: var(--bg-input, rgba(255, 255, 255, .03));
+  color: var(--color-texto-input, var(--color-texto-general, #fff));
+  color-scheme: var(--color-scheme, dark);
+  font: 400 .88rem 'Inter', sans-serif;
+}
+
+input:focus {
+  border-color: var(--color-highlight, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
+}
+
+.input-with-icon {
   position: relative;
-  display: flex;
-  align-items: center;
 }
-.search-input-wrapper svg,
-.input-with-icon svg {
+
+.input-with-icon > svg {
   position: absolute;
   z-index: 2;
-  left: 13px;
+  top: 50%;
+  left: 14px;
   width: 16px;
   height: 16px;
-  color: var(--muted);
-  pointer-events: none;
+  transform: translateY(-50%);
+  color: var(--color-texto-general, #94a3b8);
+  opacity: .55;
 }
-.search-input-wrapper input,
+
 .input-with-icon input {
-  padding-left: 38px !important;
+  padding-left: 40px;
 }
-.input-group input {
-  width: 100%;
-  height: 44px;
-  box-sizing: border-box;
-  padding: 0 13px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--input);
-  color: var(--color-texto-input, var(--text));
-  font-family: 'Inter', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 500;
-  outline: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-.input-group input::placeholder {
-  color: color-mix(in srgb, var(--muted) 70%, transparent);
-  font-weight: 400;
-}
-.input-group input:hover {
-  border-color: color-mix(in srgb, var(--text) 24%, transparent);
-}
-.input-group input:focus {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--input) 90%, var(--accent));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
-}
-.input-group input[type='date'] {
-  color-scheme: dark;
-}
-.input-group input[type='date']::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.7;
-}
-/* ============================ ESTRUCTURA ============================ */
-.profile-card {
+
+/* =========================================================
+   MEDIDAS
+========================================================= */
+
+.physical-grid,
+.membership-date-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
-.profile-section,
-.login-card {
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-}
-/* ============================ PERFIL ============================ */
-.profile-section {
-  position: sticky;
-  top: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 28px 22px 22px;
-}
-.avatar-wrapper {
-  position: relative;
-  width: 148px;
-  margin-bottom: 20px;
-}
-.avatar-circle {
-  position: relative;
-  display: block;
-  width: 148px;
-  height: 148px;
-  padding: 0;
-  overflow: hidden;
-  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
-  border-radius: 50%;
-  background: #080a0d;
-  cursor: pointer;
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
-}
-.avatar-circle img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-overlay {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
+
+.measurement-field,
+.date-field {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 8px 14px;
-  background: rgba(0, 0, 0, 0.72);
-  color: #ffffff;
-  font-size: 0.66rem;
-  font-weight: 600;
-  transform: translateY(100%);
-  transition: transform 0.2s ease;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: var(--app-border-radius, 14px);
+  background: rgba(255, 255, 255, .02);
 }
-.avatar-circle:hover .avatar-overlay,
-.avatar-circle:focus-visible .avatar-overlay {
-  transform: translateY(0);
-}
-.avatar-overlay svg {
-  width: 14px;
-  height: 14px;
-}
-.avatar-action {
-  position: absolute;
-  width: 36px;
-  height: 36px;
+
+.measurement-icon,
+.date-icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
-  padding: 0;
-  border: 3px solid var(--card);
-  border-radius: 50%;
-  background: var(--color-botones, var(--accent));
-  color: var(--color-texto-botones, #ffffff);
+  border-radius: 12px;
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 14%,
+      transparent
+    );
+  color: var(--color-highlight, #60a5fa);
+}
+
+.measurement-icon svg,
+.date-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.measurement-content,
+.date-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.measurement-content label,
+.date-content label {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.measurement-input {
+  position: relative;
+}
+
+.measurement-input input {
+  padding-right: 46px;
+}
+
+.measurement-input span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  color: var(--color-texto-general, #94a3b8);
+  font: 600 .74rem 'Inter', sans-serif;
+}
+
+/* =========================================================
+   MEMBRESÍA
+========================================================= */
+
+.membership-header {
+  flex-wrap: wrap;
+}
+
+.membership-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-group-small {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .05);
+}
+
+.toggle-group-small::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  border-radius: 9px;
+  background: var(--color-highlight, #3b82f6);
+  transition: transform .25s ease;
+}
+
+.toggle-group-small[data-active='semana']::before {
+  transform: translateX(100%);
+}
+
+.btn-toggle-small {
+  position: relative;
+  z-index: 1;
+  min-width: 84px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: #a1a1aa;
   cursor: pointer;
-  transition: transform 0.18s ease, filter 0.18s ease;
 }
-.avatar-action:hover {
-  transform: scale(1.08);
-  filter: brightness(1.08);
+
+.btn-toggle-small.active {
+  color: #fff;
 }
-.avatar-action svg {
+
+.actions-group {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .05);
+  color: var(--color-texto-general, #cbd5e1);
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  background: var(--color-highlight, #3b82f6);
+  color: #fff;
+}
+
+.action-btn svg {
   width: 16px;
   height: 16px;
 }
-.btn-stats {
-  top: 4px;
-  left: -6px;
+
+/* =========================================================
+   SELECTOR DE TARIFA
+========================================================= */
+
+.tarifa-group {
+  margin-bottom: 16px;
 }
-.btn-camera {
-  right: -6px;
-  bottom: 4px;
+
+.ff-select {
+  position: relative;
 }
-.hidden-input,
-.hidden-canvas {
-  display: none;
+
+.ff-select.open {
+  z-index: 60;
 }
-.main-title {
-  margin: 0 0 12px;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.15;
-  text-align: center;
-  text-transform: uppercase;
-}
-.main-title span {
-  display: block;
-  color: var(--accent);
-}
-.profile-section {
-  overflow: hidden;
-}
-.profile-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 3px;
-  background: var(--accent);
-}
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
-  border: 1px solid rgba(52, 211, 153, 0.25);
-  border-radius: 999px;
-  background: rgba(52, 211, 153, 0.08);
-  color: #34d399;
-  font-size: 0.66rem;
-  font-weight: 600;
-}
-.status-badge i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.photo-hint {
-  margin: 16px 0 20px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1.5;
-  text-align: center;
-}
-.profile-meta {
+
+.ff-select-trigger {
   width: 100%;
-  margin: 0;
-  padding-top: 6px;
-  border-top: 1px solid var(--line);
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px 0 10px;
+  border: 1.5px solid var(--border-input, rgba(255, 255, 255, .12));
+  border-radius: var(--app-border-radius, 12px);
+  background: var(--bg-input, rgba(255, 255, 255, .03));
+  color: var(--color-texto-input, var(--color-texto-general, #fff));
+  font: 500 .88rem 'Inter', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color .18s ease,
+    box-shadow .18s ease,
+    background .18s ease;
 }
-.profile-meta > div {
+
+.ff-select-trigger:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 55%,
+      transparent
+    );
+}
+
+.ff-select.open .ff-select-trigger,
+.ff-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-highlight, #3b82f6);
+  box-shadow:
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 20%,
+      transparent
+    );
+}
+
+.ff-select-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 14%,
+      transparent
+    );
+  color: var(--color-highlight, #60a5fa);
+}
+
+.ff-select-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ff-select-value {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 2px;
-  border-bottom: 1px solid var(--line);
 }
-.profile-meta > div:last-child {
-  padding-bottom: 2px;
-  border-bottom: 0;
+
+.ff-select-value.placeholder {
+  justify-content: flex-start;
+  opacity: .55;
+  font-weight: 400;
 }
-.profile-meta dt {
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-.profile-meta dd {
-  margin: 0;
+
+.ff-select-value strong {
+  min-width: 0;
   overflow: hidden;
-  color: var(--title);
-  font-size: 0.76rem;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* ============================ FORMULARIOS ============================ */
-.forms-wrapper {
+
+.ff-select-value em {
+  flex-shrink: 0;
+  color: #34d399;
+  font: 600 .95rem 'Oswald', sans-serif;
+  font-style: normal;
+  letter-spacing: .3px;
+}
+
+.ff-select-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: .65;
+  transition: transform .2s ease;
+}
+
+.ff-select.open .ff-select-chevron {
+  transform: rotate(180deg);
+}
+
+.ff-select-menu {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border-cards, rgba(255, 255, 255, .14));
+  border-radius: var(--app-border-radius, 14px);
+  background:
+    linear-gradient(
+      var(--bg-cards, #151515),
+      var(--bg-cards, #151515)
+    ),
+    #12141a;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5);
+  backdrop-filter: blur(14px);
+}
+
+.ff-select-menu li {
   display: flex;
-  flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: var(--color-texto-general, #e5e7eb);
+  font: 500 .84rem 'Inter', sans-serif;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.ff-select-menu li + li {
+  margin-top: 2px;
+}
+
+.ff-select-menu li:hover {
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 13%,
+      transparent
+    );
+}
+
+.ff-select-menu li.selected {
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 18%,
+      transparent
+    );
+  color: var(--color-titulos, #fff);
+}
+
+.opt-name {
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.login-card {
-  padding: 24px;
+
+.opt-price {
+  flex-shrink: 0;
+  color: #34d399;
+  font: 600 .92rem 'Oswald', sans-serif;
+  letter-spacing: .3px;
 }
-.card-header-flex {
+
+.opt-check {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-highlight, #60a5fa);
+}
+
+.ff-select-menu li.ff-select-empty {
+  justify-content: center;
+  padding: 16px 12px;
+  color: var(--color-texto-general, #94a3b8);
+  font-size: .76rem;
+  font-weight: 400;
+  opacity: .7;
+  cursor: default;
+}
+
+.ff-select-menu li.ff-select-empty:hover {
+  background: transparent;
+}
+
+.ff-dd-enter-active,
+.ff-dd-leave-active {
+  transition:
+    opacity .16s ease,
+    transform .16s ease;
+}
+
+.ff-dd-enter-from,
+.ff-dd-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* =========================================================
+   GUARDAR
+========================================================= */
+
+.registration-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
 }
-.card-title-group {
-  display: flex;
-  align-items: center;
-  gap: 11px;
+
+.required-hint {
+  color: var(--color-texto-general, #94a3b8);
+  font: 500 .74rem 'Inter', sans-serif;
 }
-.card-icon {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent);
-}
-.card-icon svg {
-  width: 16px;
-  height: 16px;
-}
-.section-title {
-  margin: 0;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.02rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-.card-subtitle {
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-.form-grid-3 {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-.form-grid-2,
-.measurement-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-.lower-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-.unit-input input {
-  padding-right: 44px;
-}
-.unit-input span {
-  position: absolute;
-  right: 13px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  pointer-events: none;
-}
-/* ============================ GUARDAR ============================ */
-.action-footer {
-  display: flex;
-  justify-content: flex-end;
-}
+
 .btn-primary {
-  min-height: 46px;
+  min-width: 240px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
-  padding: 0 28px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--color-botones, var(--accent));
-  color: var(--color-texto-botones, #ffffff);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 600;
+  padding: 14px 30px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-botones, #1c4fd6);
+  color: var(--color-texto-botones, #fff);
   cursor: pointer;
-  transition: transform 0.18s ease, filter 0.18s ease;
+  font: 700 .95rem 'Oswald', sans-serif;
 }
-.btn-primary:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-.btn-primary:active {
-  transform: translateY(0);
-}
+
 .btn-primary svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
-/* ============================ FOCO VISIBLE ============================ */
-.avatar-circle:focus-visible,
-.avatar-action:focus-visible,
-.btn-primary:focus-visible,
-.photo-option:focus-visible,
-.modal-close:focus-visible,
-.cancel-btn:focus-visible,
-.camera-cancel:focus-visible,
-.capture-btn:focus-visible,
-.switch-camera-btn:focus-visible {
-  outline: 2px solid var(--color-highlight, #3b82f6);
-  outline-offset: 2px;
-}
-/* ============================ MODALES ============================ */
-.modal-overlay {
+
+/* =========================================================
+   MODALES
+========================================================= */
+
+.modal-wrapper,
+.photo-options-overlay,
+.camera-overlay {
   position: fixed;
-  z-index: 4000;
+  z-index: 3000;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 18px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, .78);
 }
+
 .camera-overlay {
-  z-index: 4100;
-  background: rgba(0, 0, 0, 0.92);
+  z-index: 4000;
+  background: rgba(0, 0, 0, .9);
 }
-.photo-modal,
+
+.photo-options-modal,
 .camera-modal {
-  width: min(100%, 440px);
-  box-sizing: border-box;
+  width: 100%;
+  max-width: 440px;
   padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  background: var(--bg-cards, #121416);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 20px;
+  background: var(--bg-cards, #151515);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
 }
+
 .camera-modal {
-  width: min(100%, 620px);
+  max-width: 620px;
 }
-.modal-header {
+
+.photo-options-handle {
+  display: none;
+}
+
+.photo-options-header,
+.camera-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
   margin-bottom: 20px;
 }
-.modal-header h3 {
+
+.photo-options-eyebrow,
+.camera-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--color-highlight, #3b82f6);
+  font: 700 .6rem 'Inter', sans-serif;
+  letter-spacing: 1px;
+}
+
+.photo-options-header h3,
+.camera-header h3 {
   margin: 0;
-  color: var(--color-titulos, #ffffff);
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.15rem;
-  font-weight: 600;
+  color: var(--color-titulos, #fff);
+  font: 400 1.25rem 'Anton', sans-serif;
   text-transform: uppercase;
 }
-.modal-header p {
-  margin: 6px 0 0;
-  color: #8b95a7;
-  font-size: 0.74rem;
-  line-height: 1.5;
+
+.photo-options-header p,
+.camera-header p {
+  margin: 5px 0 0;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .74rem/1.5 'Inter', sans-serif;
+  opacity: .7;
 }
-.modal-close {
+
+.modal-close-btn {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
-  font-size: 1.2rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
-}
-.modal-close:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.09);
-}
-/* ============================ OPCIONES FOTO ============================ */
-.photo-options {
   display: grid;
-  gap: 10px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .04);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.3rem;
 }
+
+/* =========================================================
+   OPCIONES FOTO
+========================================================= */
+
+.photo-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
 .photo-option {
   width: 100%;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  min-height: 72px;
+  display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.025);
+  gap: 13px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .025);
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease;
 }
+
 .photo-option:hover {
   border-color: var(--color-highlight, #3b82f6);
-  background: color-mix(in srgb, var(--color-highlight, #3b82f6) 7%, transparent);
 }
-.option-icon {
+
+.photo-option-icon {
   width: 44px;
   height: 44px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 11px;
-  background: color-mix(in srgb, var(--color-highlight, #3b82f6) 13%, transparent);
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 13%,
+      transparent
+    );
   color: var(--color-highlight, #60a5fa);
 }
-.option-icon svg {
+
+.photo-option-icon svg {
   width: 20px;
   height: 20px;
 }
-.photo-option strong {
-  display: block;
-  color: var(--color-titulos, #ffffff);
-  font-size: 0.8rem;
+
+.photo-option-text {
+  flex: 1;
 }
-.photo-option small {
+
+.photo-option-text strong {
+  display: block;
+  color: var(--color-titulos, #fff);
+  font: 600 .8rem 'Inter', sans-serif;
+}
+
+.photo-option-text span {
   display: block;
   margin-top: 3px;
-  color: #8b95a7;
-  font-size: 0.68rem;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .68rem 'Inter', sans-serif;
 }
-.photo-option b {
-  color: #8b95a7;
-  font-size: 1.2rem;
+
+.photo-option-arrow {
+  width: 16px;
+  color: var(--color-texto-general, #94a3b8);
 }
-.cancel-btn,
-.camera-cancel {
-  height: 42px;
-  padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+
+.photo-cancel {
+  width: 100%;
+  height: 40px;
+  margin-top: 13px;
+  border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 10px;
   background: transparent;
-  color: #aab2c0;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.74rem;
-  font-weight: 600;
+  color: var(--color-texto-general, #94a3b8);
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease;
 }
-.cancel-btn:hover,
-.camera-cancel:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-}
-.cancel-btn {
-  width: 100%;
-  margin-top: 14px;
-}
-/* ============================ CÁMARA ============================ */
+
+/* =========================================================
+   CÁMARA
+========================================================= */
+
 .camera-preview {
   position: relative;
   width: 100%;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  background: #000000;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 18px;
+  background: #000;
 }
+
 .camera-preview video {
-  display: block;
   width: 100%;
   height: 100%;
+  display: block;
   object-fit: cover;
 }
-.camera-mirrored {
+
+.camera-preview video.camera-mirrored {
   transform: scaleX(-1);
 }
-.face-guide {
+
+/* GUÍA DEL ROSTRO */
+
+.camera-guide {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 46%;
-  height: 70%;
-  border: 2px dashed rgba(255, 255, 255, 0.38);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-.switch-camera-btn {
-  position: absolute;
-  z-index: 3;
-  top: 12px;
-  right: 12px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #ffffff;
-  font-size: 0.7rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.switch-camera-btn:disabled,
-.capture-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.switch-camera-btn svg {
-  width: 15px;
-  height: 15px;
-}
-.camera-loading {
-  position: absolute;
-  z-index: 4;
+  z-index: 2;
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
 }
-.camera-loading span {
-  width: 34px;
-  height: 34px;
-  border: 3px solid rgba(255, 255, 255, 0.25);
-  border-top-color: #ffffff;
+
+.face-guide {
+  width: 47%;
+  height: 70%;
+  border: 2px dashed rgba(255, 255, 255, .45);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
 }
-@keyframes spin {
+
+/* =========================================================
+   CAMBIAR CÁMARA
+========================================================= */
+
+.switch-camera-btn {
+  position: absolute;
+  z-index: 10;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font: 600 .7rem 'Inter', sans-serif;
+  cursor: pointer;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .3);
+}
+
+.switch-camera-btn:hover {
+  background: rgba(0, 0, 0, .8);
+}
+
+.switch-camera-btn:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.switch-camera-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.switch-camera-btn svg.rotating {
+  animation: cameraRotate .7s linear infinite;
+}
+
+@keyframes cameraRotate {
   to {
     transform: rotate(360deg);
   }
 }
+
+/* LOADER AL CAMBIAR */
+
+.camera-switching {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, .28);
+  pointer-events: none;
+}
+
+.camera-loader {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(255, 255, 255, .25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: cameraRotate .7s linear infinite;
+}
+
+/* =========================================================
+   CAPTURAR
+========================================================= */
+
 .camera-actions {
   display: flex;
   align-items: center;
@@ -1645,163 +2677,256 @@ onUnmounted(() => {
   gap: 14px;
   margin-top: 18px;
 }
+
+.camera-cancel-btn {
+  min-width: 110px;
+  padding: 11px 18px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .04);
+  color: var(--color-texto-general, #cbd5e1);
+  cursor: pointer;
+}
+
 .capture-btn {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 18px 7px 7px;
-  border: 0;
+  padding: 8px 18px 8px 8px;
+  border: none;
   border-radius: 999px;
-  background: var(--color-botones, #2563eb);
-  color: #ffffff;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.76rem;
-  font-weight: 600;
+  background: var(--color-botones, #1c4fd6);
+  color: var(--color-texto-botones, #fff);
+  font: 700 .78rem 'Inter', sans-serif;
   cursor: pointer;
-  transition: filter 0.18s ease, transform 0.18s ease;
 }
-.capture-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
+
+.capture-btn:disabled {
+  cursor: wait;
+  opacity: .6;
 }
-.capture-btn i {
-  width: 34px;
-  height: 34px;
+
+.capture-circle {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border: 2px solid #ffffff;
+  border: 2px solid #fff;
   border-radius: 50%;
 }
-.capture-btn i span {
-  width: 23px;
-  height: 23px;
+
+.capture-circle span {
+  width: 27px;
+  height: 27px;
+  display: block;
   border-radius: 50%;
-  background: #ffffff;
+  background: #fff;
+  transition: transform .15s ease;
 }
-/* ============================ TRANSICIONES ============================ */
+
+.capture-btn:hover:not(:disabled) .capture-circle span {
+  transform: scale(.85);
+}
+
+/* =========================================================
+   ANIMACIONES
+========================================================= */
+
 .photo-menu-enter-active,
 .photo-menu-leave-active {
-  transition: opacity 0.18s ease;
+  transition: opacity .2s ease;
 }
+
+.photo-menu-enter-active .photo-options-modal,
+.photo-menu-leave-active .photo-options-modal,
+.photo-menu-enter-active .camera-modal,
+.photo-menu-leave-active .camera-modal {
+  transition:
+    opacity .2s ease,
+    transform .22s ease;
+}
+
 .photo-menu-enter-from,
 .photo-menu-leave-to {
   opacity: 0;
 }
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+
+.photo-menu-enter-from .photo-options-modal,
+.photo-menu-leave-to .photo-options-modal,
+.photo-menu-enter-from .camera-modal,
+.photo-menu-leave-to .camera-modal {
+  opacity: 0;
+  transform: translateY(10px) scale(.97);
 }
-/* ============================ NOTIFICACIONES ============================ */
-:deep(.notification-container),
-:deep(.toast-container) {
-  width: calc(100% - 32px) !important;
-  max-width: 480px !important;
-  left: 50% !important;
-  right: auto !important;
-  margin: 0 auto !important;
-  box-sizing: border-box !important;
-  transform: translateX(-50%) !important;
+
+.pop-enter-active,
+.pop-leave-active {
+  transition: all .25s ease;
 }
-/* ============================ TABLET ============================ */
-@media (max-width: 1100px) {
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(.95);
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1050px) {
   .profile-card {
-    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-columns: 260px minmax(0, 1fr);
   }
+
   .form-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .lower-grid {
-    grid-template-columns: 1fr;
-  }
 }
-/* ============================ MÓVIL / TABLET ============================ */
-@media (max-width: 900px) {
-  .main-content {
-    padding: 22px 18px 40px;
-  }
-  .page-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .search-small {
-    width: 100%;
-  }
+
+@media (max-width: 850px) {
   .profile-card {
     grid-template-columns: 1fr;
   }
-  .profile-section {
-    position: relative;
-    top: auto;
-  }
-  .forms-wrapper {
-    gap: 16px;
+
+  .profile-content {
+    max-width: 420px;
+    margin: 0 auto;
   }
 }
-/* ============================ TELÉFONO ============================ */
-@media (max-width: 600px) {
+
+@media (max-width: 650px) {
   .main-content {
-    padding: 16px 12px 32px;
+    padding: 14px 12px 30px;
   }
-  .page-header {
-    margin-bottom: 18px;
-  }
-  .page-header h1 {
-    font-size: 1.45rem;
-  }
-  .profile-section {
-    padding: 22px 16px 16px;
-  }
+
   .login-card {
-    padding: 18px 16px;
+    padding: 20px 17px 22px;
   }
+
   .form-grid-3,
-  .form-grid-2,
-  .measurement-grid {
+  .physical-grid,
+  .membership-date-grid {
     grid-template-columns: 1fr;
   }
-  .card-header-flex {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
+
+  .membership-actions-row {
+    width: 100%;
+    justify-content: space-between;
   }
-  .action-footer {
-    justify-content: stretch;
+
+  .registration-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
+
   .btn-primary {
     width: 100%;
+    min-width: 0;
   }
-  .modal-overlay {
+
+  /* MODAL OPCIONES */
+  .photo-options-overlay {
     align-items: flex-end;
-    padding: 8px;
+    padding: 0;
   }
-  .photo-modal,
-  .camera-modal {
-    padding: 18px 16px;
-    border-radius: 16px;
+
+  .photo-options-modal {
+    max-width: none;
+    padding: 12px 17px 20px;
+    border-radius: 22px 22px 0 0;
   }
+
+  .photo-options-handle {
+    width: 38px;
+    height: 4px;
+    display: block;
+    margin: 0 auto 17px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .16);
+  }
+
+  /* CÁMARA PANTALLA INFERIOR */
   .camera-overlay {
-    align-items: center;
+    align-items: flex-end;
+    padding: 0;
   }
+
+  .camera-modal {
+    max-width: none;
+    padding:
+      17px
+      14px
+      calc(18px + env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+  }
+
+  .camera-preview {
+    aspect-ratio: 3 / 4;
+  }
+
+  .switch-camera-btn {
+    top: 11px;
+    right: 11px;
+    min-height: 38px;
+    padding: 0 12px;
+  }
+
   .camera-actions {
-    align-items: stretch;
     flex-direction: column-reverse;
   }
-  .camera-cancel,
+
+  .camera-cancel-btn,
   .capture-btn {
     width: 100%;
     justify-content: center;
   }
-  .face-guide {
-    width: 52%;
-    height: 68%;
+}
+
+@media (max-width: 420px) {
+  .profile-section {
+    padding: 28px 16px 22px;
+  }
+
+  .main-title {
+    font-size: 1.6rem;
+  }
+
+  .measurement-field,
+  .date-field {
+    padding: 13px;
+  }
+
+  .camera-header h3 {
+    font-size: 1.05rem;
+  }
+
+  .switch-camera-btn span {
+    display: none;
+  }
+
+  .switch-camera-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .switch-camera-btn svg {
+    width: 19px;
+    height: 19px;
   }
 }
-@media (max-width: 380px) {
-  .main-content {
-    padding-right: 8px;
-    padding-left: 8px;
-  }
-}
+
+.profile-card,.profile-section,.profile-content,.profile-summary,.summary-item{min-width:0;max-width:100%;}
+.profile-summary{overflow:hidden;}
+.summary-item{min-width:0;}
+.summary-item dt{flex:0 0 auto;}
+.summary-item dd{flex:1 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:anywhere;}
+.date-content{min-width:0;}
+.date-content input[type="date"]{display:block;width:100%;min-width:0;color:var(--color-texto-input,#fff);color-scheme:dark;}
+@media(max-width:850px){.profile-card{grid-template-columns:minmax(0,1fr)}.profile-content{width:100%;min-width:0}}
+</style>
+<style scoped>
+.ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}.ff-qr-card{position:relative;width:min(420px,100%);padding:30px 22px;border-radius:22px;background:#191b25;border:1px solid #454654;text-align:center;color:#f8fafc;box-shadow:0 20px 70px #0009}.ff-qr-card h2{font-size:24px;font-weight:750;margin:0 0 8px}.ff-qr-card p{margin:8px 0;color:#cbd5e1}.ff-qr-card .ff-qr-status{font-size:13px;color:#fbbf24}.ff-qr-image{width:min(290px,100%);aspect-ratio:1;object-fit:contain;background:white;padding:12px;border-radius:14px;margin:14px auto}.ff-qr-close{position:absolute;top:8px;right:14px;border:0;background:none;color:white;font-size:28px;cursor:pointer}.ff-qr-error{color:#fca5a5!important}.ff-qr-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}.ff-qr-actions button{border:1px solid #666;border-radius:10px;padding:10px 16px;background:#334155;color:white;cursor:pointer}.ff-qr-actions button:first-child{background:#2563eb;border-color:#2563eb}.ff-qr-actions button:disabled{opacity:.5;cursor:not-allowed}
 </style>
