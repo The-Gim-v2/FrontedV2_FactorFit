@@ -1,7 +1,24 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR"><section class="ff-qr-card"><button type="button" class="ff-qr-close" @click="cerrarQR">×</button><h2>Inscripción registrada</h2><p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p><p class="ff-qr-status" :class="{ 'ff-qr-paid': qrPagoConfirmado }">{{ qrPagoConfirmado ? 'Pago confirmado · Membresía activa.' : 'Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.' }}</p><p v-if="qrCargando">Cargando código QR...</p><p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p><img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" /><div class="ff-qr-actions"><button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button><button type="button" @click="cerrarQR">Cerrar</button></div></section></div>
+    <div v-if="qrModal" class="ff-qr-overlay" @click.self="cerrarQR">
+      <section class="ff-qr-card">
+        <button type="button" class="ff-qr-close" @click="cerrarQR">×</button>
+        <h2>Inscripción registrada</h2>
+        <p>Cliente #{{ qrModal.ID_Cliente }} · Inscripción #{{ qrModal.ID_Inscripto }}</p>
+        <p v-if="qrFolio" class="ff-qr-folio">Folio: <strong>{{ qrFolio }}</strong></p>
+        <p class="ff-qr-status" :class="{ 'ff-qr-paid': qrPagoConfirmado }">
+          {{ qrPagoConfirmado ? 'Pago confirmado · Membresía activa.' : 'Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.' }}
+        </p>
+        <p v-if="qrCargando">Cargando código QR...</p>
+        <p v-else-if="qrError" class="ff-qr-error">{{ qrError }}</p>
+        <img v-else-if="qrUrl" :src="qrUrl" alt="Código QR de inscripción" class="ff-qr-image" />
+        <div class="ff-qr-actions">
+          <button type="button" @click="descargarQR" :disabled="!qrModal || qrCargando">Descargar PNG</button>
+          <button type="button" @click="cerrarQR">Cerrar</button>
+        </div>
+      </section>
+    </div>
 
     <main class="main-content">
       <div class="profile-card">
@@ -355,7 +372,9 @@
             </div>
           </section>
 
-          <!-- MEMBRESÍA -->
+          <!-- =====================================================
+               MEMBRESÍA + PAGO INICIAL (una sola tarjeta)
+          ====================================================== -->
           <section class="login-card" id="tutorial-step-3">
             <header class="card-header membership-header">
               <div class="card-header-text">
@@ -364,8 +383,8 @@
                 <p class="section-description">
                   {{
                     currentLang === 'en'
-                      ? 'Select the membership period and registration dates.'
-                      : 'Selecciona el periodo de membresía y las fechas del cliente.'
+                      ? 'Select the membership period, dates and initial payment.'
+                      : 'Selecciona el periodo, las fechas y el pago inicial del cliente.'
                   }}
                 </p>
               </div>
@@ -599,47 +618,121 @@
                 </div>
               </div>
             </div>
-          </section>
 
-          <!-- COBRO INICIAL -->
-          <section class="login-card ff-payment-card" id="tutorial-step-4">
-            <header class="card-header">
-              <div class="card-header-text">
-                <h3 class="section-title">{{ currentLang === 'en' ? 'Initial payment' : 'Pago inicial' }}</h3>
-                <p class="section-description">{{ currentLang === 'en' ? 'Charge the first membership or leave it pending.' : 'Cobra la primera membresía o déjala pendiente.' }}</p>
+            <!-- ---------------- PAGO INICIAL (dentro de membresía) ---------------- -->
+            <div class="ff-payment-block">
+              <div class="ff-payment-heading">
+                <h4>{{ currentLang === 'en' ? 'Initial payment' : 'Pago inicial' }}</h4>
+                <p>
+                  {{
+                    currentLang === 'en'
+                      ? 'Charge the first membership or leave it pending.'
+                      : 'Cobra la primera membresía o déjala pendiente.'
+                  }}
+                </p>
               </div>
-            </header>
-            <div class="ff-payment-summary">
-              <span>{{ currentLang === 'en' ? 'Membership total' : 'Total de membresía' }}</span>
-              <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
-            </div>
-            <div class="ff-payment-choice">
-              <label :class="{ selected: cobrarAhora }">
-                <input v-model="cobrarAhora" type="radio" :value="true" />
-                {{ currentLang === 'en' ? 'Register and charge now' : 'Registrar y cobrar ahora' }}
-              </label>
-              <label :class="{ selected: !cobrarAhora }">
-                <input v-model="cobrarAhora" type="radio" :value="false" />
-                {{ currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente de pago' }}
-              </label>
-            </div>
-            <div v-if="cobrarAhora" class="ff-payment-fields">
-              <div class="input-group">
-                <label>{{ currentLang === 'en' ? 'Payment method' : 'Método de pago' }} <span class="required">*</span></label>
-                <select v-model="metodoPagoRegistro" class="ff-payment-input">
-                  <option value="">{{ currentLang === 'en' ? 'Select a method' : 'Selecciona un método' }}</option>
-                  <option value="Efectivo">{{ currentLang === 'en' ? 'Cash' : 'Efectivo' }}</option>
-                  <option value="Transferencia">{{ currentLang === 'en' ? 'Bank transfer' : 'Transferencia' }}</option>
-                  <option value="Tarjeta">{{ currentLang === 'en' ? 'Card' : 'Tarjeta' }}</option>
-                </select>
+
+              <div class="ff-payment-summary">
+                <span>{{ currentLang === 'en' ? 'Membership total' : 'Total de membresía' }}</span>
+                <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
               </div>
-              <div v-if="metodoPagoRegistro && metodoPagoRegistro !== 'Efectivo'" class="input-group">
-                <label>{{ currentLang === 'en' ? 'Payment reference' : 'Referencia de pago' }} <span class="required">*</span></label>
-                <input v-model.trim="referenciaPagoRegistro" class="ff-payment-input" maxlength="120" placeholder="Folio / referencia" />
+
+              <div class="ff-payment-choice" role="radiogroup">
+                <label class="ff-choice" :class="{ selected: cobrarAhora }">
+                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="true" />
+                  <span class="ff-choice-dot"></span>
+                  <span class="ff-choice-text">
+                    <strong>{{ currentLang === 'en' ? 'Register and charge now' : 'Registrar y cobrar ahora' }}</strong>
+                    <small>{{ currentLang === 'en' ? 'Activates the membership' : 'Activa la membresía' }}</small>
+                  </span>
+                </label>
+
+                <label class="ff-choice" :class="{ selected: !cobrarAhora }">
+                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="false" />
+                  <span class="ff-choice-dot"></span>
+                  <span class="ff-choice-text">
+                    <strong>{{ currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente de pago' }}</strong>
+                    <small>{{ currentLang === 'en' ? 'Charge it later' : 'Se cobra después' }}</small>
+                  </span>
+                </label>
               </div>
-              <p class="ff-payment-note">{{ currentLang === 'en' ? 'Access will only be enabled after the server confirms payment.' : 'El acceso solo se habilitará cuando el servidor confirme el pago.' }}</p>
+
+              <div v-if="cobrarAhora" class="ff-payment-fields">
+                <div class="input-group">
+                  <label>
+                    {{ currentLang === 'en' ? 'Payment method' : 'Método de pago' }}
+                    <span class="required">*</span>
+                  </label>
+                  <div class="ff-field-control">
+                    <svg
+                      class="ff-field-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="1" y="4" width="22" height="16" rx="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    <select v-model="metodoPagoRegistro" class="ff-payment-input ff-payment-select">
+                      <option value="">{{ currentLang === 'en' ? 'Select a method' : 'Selecciona un método' }}</option>
+                      <option value="Efectivo">{{ currentLang === 'en' ? 'Cash' : 'Efectivo' }}</option>
+                      <option value="Transferencia">{{ currentLang === 'en' ? 'Bank transfer' : 'Transferencia' }}</option>
+                      <option value="Tarjeta">{{ currentLang === 'en' ? 'Card' : 'Tarjeta' }}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label>
+                    {{ currentLang === 'en' ? 'Folio / reference' : 'Folio / referencia' }}
+                    <span v-if="metodoPagoRegistro && metodoPagoRegistro !== 'Efectivo'" class="required">*</span>
+                  </label>
+                  <div class="ff-field-control" :class="{ 'is-locked': esEfectivo || !metodoPagoRegistro }">
+                    <svg
+                      class="ff-field-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M4 4h16v16H4z" />
+                      <path d="M8 9h8M8 13h5" />
+                    </svg>
+                    <input
+                      v-model.trim="referenciaPagoRegistro"
+                      class="ff-payment-input"
+                      maxlength="120"
+                      :readonly="esEfectivo"
+                      :disabled="!metodoPagoRegistro"
+                      :placeholder="
+                        metodoPagoRegistro
+                          ? (currentLang === 'en' ? 'Folio / reference' : 'Folio / referencia')
+                          : (currentLang === 'en' ? 'Select a method first' : 'Elige primero un método')
+                      "
+                    />
+                  </div>
+                  <small v-if="esEfectivo" class="ff-field-help">
+                    {{ currentLang === 'en' ? 'The folio is generated automatically.' : 'El folio se genera automáticamente.' }}
+                  </small>
+                </div>
+              </div>
+
+              <p v-if="cobrarAhora" class="ff-payment-note">
+                {{
+                  currentLang === 'en'
+                    ? 'Access will only be enabled after the server confirms payment.'
+                    : 'El acceso solo se habilitará cuando el servidor confirme el pago.'
+                }}
+              </p>
+              <p v-else class="ff-payment-note">
+                {{
+                  currentLang === 'en'
+                    ? 'The QR will not grant access until payment is confirmed.'
+                    : 'El QR no dará acceso hasta que se confirme el pago.'
+                }}
+              </p>
             </div>
-            <p v-else class="ff-payment-note">{{ currentLang === 'en' ? 'The QR will not grant access until payment is confirmed.' : 'El QR no dará acceso hasta que se confirme el pago.' }}</p>
           </section>
 
           <!-- GUARDAR -->
@@ -1021,7 +1114,11 @@ import { traducciones } from '../i18n.js';
    ESTADO GENERAL
 ========================================================= */
 
-const fechaLocal=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const fechaLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const form = reactive({
   nombres: '',
   apellidoP: '',
@@ -1035,24 +1132,127 @@ const form = reactive({
   fechaInscripcion: fechaLocal(),
   fechaCorte: ''
 });
+
 const activeModal = ref(null);
 const guardando = ref(false);
 const cobrarAhora = ref(true);
 const metodoPagoRegistro = ref('');
 const referenciaPagoRegistro = ref('');
 const qrPagoConfirmado = ref(false);
+const qrFolio = ref('');
 const tarifas = ref([]);
 const idPrecio = ref('');
+
 const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
 const clientesApi = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/clientes`;
 const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
-const authHeaders = () => ({Accept:'application/json',Authorization:`Bearer ${sessionStorage.getItem('auth_token') || ''}`});
-const cargarTarifas = async () => {idPrecio.value='';tarifas.value=[];const sede=sedeActual();if(!sede)return;try{const res=await fetch(`${clientesApi}/tarifas?sede_id=${sede}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error HTTP ${res.status} al consultar tarifas`);tarifas.value=Array.isArray(data)?data:(Array.isArray(data.data)?data.data:[]);if(tarifasFiltradas.value.length===1)idPrecio.value=String(tarifasFiltradas.value[0].ID_Precio);}catch(e){toastRef.value?.notify(e.message,'error');}};
-const tarifasFiltradas=computed(()=>tarifas.value.filter(p=>form.tipoMembresia==='mes'?String(p.Periodo).toLowerCase()==='mensual':String(p.Periodo).toLowerCase()==='semanal'));
-let versionCalculo=0;
-const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';if(!idPrecio.value||!sedeActual())return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value)});if(form.fechaInscripcion)q.set('fechaInscripcion',form.fechaInscripcion);const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message&&data.message!=='Server Error'?data.message:`Error HTTP ${res.status} al calcular vencimiento`);if(version===versionCalculo)form.fechaCorte=data.fecha_vencimiento||'';}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
-watch(()=>form.tipoMembresia,()=>{tarifaOpen.value=false;if(!tarifasFiltradas.value.some(p=>String(p.ID_Precio)===idPrecio.value))idPrecio.value='';});
-watch([idPrecio,()=>form.fechaInscripcion],calcularVencimiento);
+const authHeaders = () => ({
+  Accept: 'application/json',
+  Authorization: `Bearer ${sessionStorage.getItem('auth_token') || ''}`
+});
+
+/* =========================================================
+   FOLIO AUTOMÁTICO (efectivo)
+   Mismo formato que la pantalla de cobros: OP-XXXXXXXX
+========================================================= */
+
+const generarFolio = () => `OP-${Date.now().toString().slice(-8)}`;
+const esEfectivo = computed(() => metodoPagoRegistro.value === 'Efectivo');
+
+watch(metodoPagoRegistro, (metodo) => {
+  if (metodo === 'Efectivo') {
+    referenciaPagoRegistro.value = generarFolio();
+  } else if (referenciaPagoRegistro.value.startsWith('OP-')) {
+    // Venía de efectivo: se limpia para capturar la referencia real.
+    referenciaPagoRegistro.value = '';
+  }
+});
+
+watch(cobrarAhora, (activo) => {
+  if (!activo) {
+    metodoPagoRegistro.value = '';
+    referenciaPagoRegistro.value = '';
+  }
+});
+
+/* =========================================================
+   TARIFAS Y VENCIMIENTO
+========================================================= */
+
+const tarifasFiltradas = computed(() =>
+  tarifas.value.filter((p) =>
+    form.tipoMembresia === 'mes'
+      ? String(p.Periodo).toLowerCase() === 'mensual'
+      : String(p.Periodo).toLowerCase() === 'semanal'
+  )
+);
+
+const cargarTarifas = async () => {
+  idPrecio.value = '';
+  tarifas.value = [];
+
+  const sede = sedeActual();
+  if (!sede) return;
+
+  try {
+    const res = await fetch(`${clientesApi}/tarifas?sede_id=${sede}`, { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || `Error HTTP ${res.status} al consultar tarifas`);
+    }
+
+    tarifas.value = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+
+    if (tarifasFiltradas.value.length === 1) {
+      idPrecio.value = String(tarifasFiltradas.value[0].ID_Precio);
+    }
+  } catch (e) {
+    toastRef.value?.notify(e.message, 'error');
+  }
+};
+
+let versionCalculo = 0;
+
+const calcularVencimiento = async () => {
+  const version = ++versionCalculo;
+  form.fechaCorte = '';
+
+  if (!idPrecio.value || !sedeActual()) return;
+
+  try {
+    const q = new URLSearchParams({
+      sede_id: String(sedeActual()),
+      id_precio: String(idPrecio.value)
+    });
+
+    if (form.fechaInscripcion) q.set('fechaInscripcion', form.fechaInscripcion);
+
+    const res = await fetch(`${clientesApi}/vencimiento?${q}`, { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(
+        data.message && data.message !== 'Server Error'
+          ? data.message
+          : `Error HTTP ${res.status} al calcular vencimiento`
+      );
+    }
+
+    if (version === versionCalculo) form.fechaCorte = data.fecha_vencimiento || '';
+  } catch (e) {
+    if (version === versionCalculo) toastRef.value?.notify(e.message, 'error');
+  }
+};
+
+watch(() => form.tipoMembresia, () => {
+  tarifaOpen.value = false;
+  if (!tarifasFiltradas.value.some((p) => String(p.ID_Precio) === idPrecio.value)) {
+    idPrecio.value = '';
+  }
+});
+
+watch([idPrecio, () => form.fechaInscripcion], calcularVencimiento);
 
 /* =========================================================
    SELECTOR DE TARIFA (dropdown personalizado)
@@ -1084,12 +1284,82 @@ const cerrarTarifaAlClickFuera = (event) => {
   }
 };
 
-const qrModal=ref(null),qrUrl=ref(''),qrError=ref(''),qrCargando=ref(false);
-let qrVersion=0;
-const cerrarQR=()=>{qrPagoConfirmado.value=false;qrVersion++;qrModal.value=null;qrUrl.value='';qrError.value='';qrCargando.value=false;};
-const mostrarQR=async registro=>{const version=++qrVersion;qrModal.value=registro;qrUrl.value='';qrError.value='';qrCargando.value=true;try{const res=await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`,{headers:authHeaders()});const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.message||`Error ${res.status}`);if(version===qrVersion){if(!data.qr_url)throw new Error('El servidor no devolvió la imagen QR.');qrUrl.value=data.qr_url;}}catch(e){if(version===qrVersion)qrError.value=e.message||'No se pudo consultar el QR.';}finally{if(version===qrVersion)qrCargando.value=false;}};
-const descargarQR=async()=>{if(!qrModal.value)return;try{const res=await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`,{headers:authHeaders()});if(!res.ok){const data=await res.json().catch(()=>({}));throw new Error(data.message||`Error ${res.status}`);}const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${qrModal.value.ID_Inscripto}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR.','error');}};
+/* =========================================================
+   QR
+========================================================= */
+
+const qrModal = ref(null);
+const qrUrl = ref('');
+const qrError = ref('');
+const qrCargando = ref(false);
+let qrVersion = 0;
+
+const cerrarQR = () => {
+  qrPagoConfirmado.value = false;
+  qrFolio.value = '';
+  qrVersion++;
+  qrModal.value = null;
+  qrUrl.value = '';
+  qrError.value = '';
+  qrCargando.value = false;
+};
+
+const mostrarQR = async (registro) => {
+  const version = ++qrVersion;
+  qrModal.value = registro;
+  qrUrl.value = '';
+  qrError.value = '';
+  qrCargando.value = true;
+
+  try {
+    const res = await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`, { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) throw new Error(data.message || `Error ${res.status}`);
+
+    if (version === qrVersion) {
+      if (!data.qr_url) throw new Error('El servidor no devolvió la imagen QR.');
+      qrUrl.value = data.qr_url;
+    }
+  } catch (e) {
+    if (version === qrVersion) qrError.value = e.message || 'No se pudo consultar el QR.';
+  } finally {
+    if (version === qrVersion) qrCargando.value = false;
+  }
+};
+
+const descargarQR = async () => {
+  if (!qrModal.value) return;
+
+  try {
+    const res = await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`, { headers: authHeaders() });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || `Error ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    a.href = url;
+    a.download = `factorfit-qr-${qrModal.value.ID_Inscripto}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    toastRef.value?.notify(e.message || 'No se pudo descargar el QR.', 'error');
+  }
+};
+
 const toastRef = ref(null);
+
+/* =========================================================
+   IDIOMA
+========================================================= */
 
 const currentLang = ref(
   localStorage.getItem('GYM_ACCOUNT-idioma') || 'es'
@@ -1549,54 +1819,82 @@ const capturePhoto = () => {
 
 const saveRegistration = async () => {
   if (guardando.value) return;
+
   const avisar = (mensaje, tipo = 'warning') => toastRef.value?.notify(mensaje, tipo);
+
   if (!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value) {
-    avisar('Nombre, apellido paterno y tarifa son obligatorios.'); return;
+    avisar('Nombre, apellido paterno y tarifa son obligatorios.');
+    return;
   }
   if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
   if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
   if (!form.fechaInscripcion || !form.fechaCorte) {
-    avisar('Espera a que se calcule la fecha de vencimiento.'); return;
+    avisar('Espera a que se calcule la fecha de vencimiento.');
+    return;
   }
   if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
+
   if (cobrarAhora.value) {
     if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
-    if (metodoPagoRegistro.value !== 'Efectivo' && !referenciaPagoRegistro.value.trim()) {
-      avisar('Ingresa la referencia del pago.'); return;
+
+    // Efectivo: el folio siempre existe (se autogenera).
+    if (esEfectivo.value && !referenciaPagoRegistro.value) {
+      referenciaPagoRegistro.value = generarFolio();
+    }
+
+    if (!esEfectivo.value && !referenciaPagoRegistro.value.trim()) {
+      avisar('Ingresa la referencia del pago.');
+      return;
     }
     if (!(Number(tarifaSeleccionada.value.Precio) > 0)) {
-      avisar('La tarifa debe tener un precio válido.'); return;
+      avisar('La tarifa debe tener un precio válido.');
+      return;
     }
   }
 
   guardando.value = true;
+
   try {
     const data = new FormData();
     const values = {
-      sede_id: sedeActual(), id_precio: idPrecio.value,
-      nombres: form.nombres.trim(), apellidoP: form.apellidoP.trim(),
-      apellidoM: form.apellidoM.trim(), fechaNacimiento: form.fechaNacimiento,
-      celular: form.celular.trim(), email: form.email.trim(),
-      peso: form.peso, altura: form.altura, fechaInscripcion: form.fechaInscripcion
+      sede_id: sedeActual(),
+      id_precio: idPrecio.value,
+      nombres: form.nombres.trim(),
+      apellidoP: form.apellidoP.trim(),
+      apellidoM: form.apellidoM.trim(),
+      fechaNacimiento: form.fechaNacimiento,
+      celular: form.celular.trim(),
+      email: form.email.trim(),
+      peso: form.peso,
+      altura: form.altura,
+      fechaInscripcion: form.fechaInscripcion
     };
+
     Object.entries(values).forEach(([key, value]) => {
       if (value !== '' && value !== null && value !== undefined) data.append(key, String(value));
     });
+
     if (avatarFile.value) data.append('foto', avatarFile.value);
 
     // Contrato propuesto: Laravel debe aceptar y procesar estos campos.
     data.append('cobrar_ahora', cobrarAhora.value ? '1' : '0');
+
+    const folioEnviado = cobrarAhora.value ? referenciaPagoRegistro.value.trim() : '';
+
     if (cobrarAhora.value) {
       data.append('metodo_pago', metodoPagoRegistro.value);
-      if (metodoPagoRegistro.value !== 'Efectivo') {
-        data.append('referencia_pago', referenciaPagoRegistro.value.trim());
-      }
+      // Se envía siempre el folio: autogenerado (efectivo) o la referencia capturada.
+      data.append('referencia_pago', folioEnviado);
     }
 
     const res = await fetch(clientesApi, {
-      method: 'POST', headers: authHeaders(), body: data
+      method: 'POST',
+      headers: authHeaders(),
+      body: data
     });
+
     const result = await res.json().catch(() => ({}));
+
     if (!res.ok) {
       console.error('Error API registro de cliente', { status: res.status, response: result });
       throw new Error(
@@ -1610,18 +1908,33 @@ const saveRegistration = async () => {
     // Laravel debe devolver pago_confirmado === true y membresia_activa === true.
     const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
     qrPagoConfirmado.value = cobrarAhora.value && pagoConfirmado;
+    qrFolio.value = result.folio || folioEnviado;
+
     if (cobrarAhora.value && !pagoConfirmado) {
       avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
     } else {
-      avisar(result.message || (pagoConfirmado ? 'Cliente registrado y pago confirmado.' : 'Cliente registrado pendiente de pago.'), 'success');
+      avisar(
+        result.message || (pagoConfirmado ? 'Cliente registrado y pago confirmado.' : 'Cliente registrado pendiente de pago.'),
+        'success'
+      );
     }
 
     if (result.ID_Inscripto) await mostrarQR(result);
+
     Object.assign(form, {
-      nombres: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '',
-      email: '', peso: '', altura: '', tipoMembresia: 'mes',
-      fechaInscripcion: fechaLocal(), fechaCorte: ''
+      nombres: '',
+      apellidoP: '',
+      apellidoM: '',
+      fechaNacimiento: '',
+      celular: '',
+      email: '',
+      peso: '',
+      altura: '',
+      tipoMembresia: 'mes',
+      fechaInscripcion: fechaLocal(),
+      fechaCorte: ''
     });
+
     if (avatarPreview.value?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
     avatarPreview.value = null;
     avatarFile.value = null;
@@ -1629,6 +1942,7 @@ const saveRegistration = async () => {
     metodoPagoRegistro.value = '';
     referenciaPagoRegistro.value = '';
     cobrarAhora.value = true;
+
     window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', {
       detail: { sede_id: sedeActual() }
     }));
@@ -1644,25 +1958,22 @@ const saveRegistration = async () => {
 ========================================================= */
 
 onMounted(() => {
-  if(!form.fechaInscripcion)form.fechaInscripcion=fechaLocal();
-  window.addEventListener(
-    'idioma-changed',
-    handleLangChange
-  );
-  window.addEventListener('factorfit:branch-changed',cargarTarifas);
+  if (!form.fechaInscripcion) form.fechaInscripcion = fechaLocal();
+
+  window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', cargarTarifas);
   document.addEventListener('click', cerrarTarifaAlClickFuera);
+
   cargarTarifas();
 });
 
 onUnmounted(() => {
-  window.removeEventListener(
-    'idioma-changed',
-    handleLangChange
-  );
-
-  stopCamera();cerrarQR();
-  window.removeEventListener('factorfit:branch-changed',cargarTarifas);
+  window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', cargarTarifas);
   document.removeEventListener('click', cerrarTarifaAlClickFuera);
+
+  stopCamera();
+  cerrarQR();
 
   if (
     avatarPreview.value &&
@@ -1676,21 +1987,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* COBRO INICIAL: utiliza las variables visuales del sistema */
-.ff-payment-card { display: grid; gap: 18px; }
-.ff-payment-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; border-radius: 14px; background: var(--bg-cards, #17191f); border: 1px solid var(--border-cards, rgba(255,255,255,.12)); }
-.ff-payment-summary span { color: var(--color-texto-general, #ddd); font-size: .9rem; }
-.ff-payment-summary strong { color: var(--color-highlight, #60a5fa); font-size: 1.4rem; }
-.ff-payment-choice { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
-.ff-payment-choice label { display: flex; align-items: center; gap: 10px; padding: 15px; cursor: pointer; border: 1px solid var(--border-cards, rgba(255,255,255,.15)); border-radius: 12px; color: var(--color-texto-general, #eee); }
-.ff-payment-choice label.selected { border-color: var(--color-highlight, #3b82f6); background: color-mix(in srgb, var(--color-highlight, #3b82f6) 10%, transparent); }
-.ff-payment-choice input { accent-color: var(--color-highlight, #3b82f6); }
-.ff-payment-fields { display: grid; gap: 14px; }
-.ff-payment-input { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-cards, rgba(255,255,255,.18)); background: var(--bg-cards, #17191f); color: var(--color-texto-general, #eee); }
-.ff-payment-note { margin: 0; font-size: .82rem; opacity: .8; }
-.ff-qr-paid { color: #22c55e; }
-@media(max-width: 640px) { .ff-payment-choice { grid-template-columns: 1fr; } .ff-payment-summary { flex-wrap: wrap; } }
-
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
 
 * {
@@ -2492,6 +2788,263 @@ input:focus {
 }
 
 /* =========================================================
+   PAGO INICIAL (dentro de la tarjeta de membresía)
+========================================================= */
+
+.ff-payment-block {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+
+.ff-payment-heading h4 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--color-titulos, #fff);
+  font-family: 'Anton', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.ff-payment-heading h4::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--color-highlight, #3b82f6);
+}
+
+.ff-payment-heading p {
+  margin: 4px 0 0 14px;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .74rem/1.4 'Inter', sans-serif;
+  opacity: .6;
+}
+
+/* Total */
+.ff-payment-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: var(--app-border-radius, 14px);
+  background: rgba(255, 255, 255, .02);
+}
+
+.ff-payment-summary span {
+  color: var(--color-texto-general, #cbd5e1);
+  font: 500 .88rem 'Inter', sans-serif;
+}
+
+.ff-payment-summary strong {
+  color: #34d399;
+  font: 700 1.5rem 'Oswald', sans-serif;
+  letter-spacing: .3px;
+}
+
+/* Opciones de cobro (radio personalizado) */
+.ff-payment-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ff-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 16px;
+  cursor: pointer;
+  border: 1.5px solid var(--border-input, rgba(255, 255, 255, .12));
+  border-radius: var(--app-border-radius, 12px);
+  background: rgba(255, 255, 255, .02);
+  transition:
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
+}
+
+.ff-choice:hover {
+  border-color:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 55%,
+      transparent
+    );
+}
+
+.ff-choice.selected {
+  border-color: var(--color-highlight, #3b82f6);
+  background:
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 10%,
+      transparent
+    );
+}
+
+/* El input real se oculta; se anula el estilo global de "input" */
+.ff-choice input[type='radio'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ff-choice:focus-within {
+  box-shadow:
+    0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--color-highlight, #3b82f6) 22%,
+      transparent
+    );
+}
+
+.ff-choice-dot {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, .3);
+  border-radius: 50%;
+  transition: border-color .18s ease;
+}
+
+.ff-choice-dot::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--color-highlight, #3b82f6);
+  transform: scale(0);
+  transition: transform .18s ease;
+}
+
+.ff-choice.selected .ff-choice-dot {
+  border-color: var(--color-highlight, #3b82f6);
+}
+
+.ff-choice.selected .ff-choice-dot::after {
+  transform: scale(1);
+}
+
+.ff-choice-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.ff-choice-text strong {
+  color: var(--color-titulos, #fff);
+  font: 600 .86rem 'Inter', sans-serif;
+  line-height: 1.25;
+}
+
+.ff-choice-text small {
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .72rem 'Inter', sans-serif;
+  opacity: .7;
+}
+
+/* Método + folio */
+.ff-payment-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ff-field-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.ff-field-icon {
+  position: absolute;
+  z-index: 2;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--color-texto-general, #94a3b8);
+  opacity: .55;
+  pointer-events: none;
+}
+
+.ff-payment-input {
+  width: 100%;
+  height: 46px;
+  min-width: 0;
+  padding: 0 14px 0 40px;
+  border: 1.5px solid var(--border-input, rgba(255, 255, 255, .12));
+  border-radius: var(--app-border-radius, 12px);
+  outline: none;
+  background: var(--bg-input, rgba(255, 255, 255, .03));
+  color: var(--color-texto-input, var(--color-texto-general, #fff));
+  font: 400 .88rem 'Inter', sans-serif;
+}
+
+.ff-payment-input:focus {
+  border-color: var(--color-highlight, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
+}
+
+.ff-payment-select {
+  padding-right: 38px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 15px;
+}
+
+.ff-payment-select option {
+  background: #16181c;
+  color: #fff;
+}
+
+/* Folio autogenerado (efectivo) o bloqueado */
+.ff-field-control.is-locked .ff-payment-input {
+  cursor: not-allowed;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: .5px;
+}
+
+.ff-field-control.is-locked {
+  opacity: .8;
+}
+
+.ff-field-help {
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .72rem 'Inter', sans-serif;
+  opacity: .7;
+}
+
+.ff-payment-note {
+  margin: 0;
+  color: var(--color-texto-general, #94a3b8);
+  font: 400 .78rem/1.5 'Inter', sans-serif;
+  opacity: .75;
+}
+
+/* =========================================================
    GUARDAR
 ========================================================= */
 
@@ -2520,6 +3073,11 @@ input:focus {
   color: var(--color-texto-botones, #fff);
   cursor: pointer;
   font: 700 .95rem 'Oswald', sans-serif;
+}
+
+.btn-primary:disabled {
+  cursor: wait;
+  opacity: .6;
 }
 
 .btn-primary svg {
@@ -2951,8 +3509,14 @@ input:focus {
 
   .form-grid-3,
   .physical-grid,
-  .membership-date-grid {
+  .membership-date-grid,
+  .ff-payment-choice,
+  .ff-payment-fields {
     grid-template-columns: 1fr;
+  }
+
+  .ff-payment-summary {
+    flex-wrap: wrap;
   }
 
   .membership-actions-row {
@@ -3072,6 +3636,22 @@ input:focus {
 .date-content input[type="date"]{display:block;width:100%;min-width:0;color:var(--color-texto-input,#fff);color-scheme:dark;}
 @media(max-width:850px){.profile-card{grid-template-columns:minmax(0,1fr)}.profile-content{width:100%;min-width:0}}
 </style>
+
 <style scoped>
-.ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}.ff-qr-card{position:relative;width:min(420px,100%);padding:30px 22px;border-radius:22px;background:#191b25;border:1px solid #454654;text-align:center;color:#f8fafc;box-shadow:0 20px 70px #0009}.ff-qr-card h2{font-size:24px;font-weight:750;margin:0 0 8px}.ff-qr-card p{margin:8px 0;color:#cbd5e1}.ff-qr-card .ff-qr-status{font-size:13px;color:#fbbf24}.ff-qr-image{width:min(290px,100%);aspect-ratio:1;object-fit:contain;background:white;padding:12px;border-radius:14px;margin:14px auto}.ff-qr-close{position:absolute;top:8px;right:14px;border:0;background:none;color:white;font-size:28px;cursor:pointer}.ff-qr-error{color:#fca5a5!important}.ff-qr-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}.ff-qr-actions button{border:1px solid #666;border-radius:10px;padding:10px 16px;background:#334155;color:white;cursor:pointer}.ff-qr-actions button:first-child{background:#2563eb;border-color:#2563eb}.ff-qr-actions button:disabled{opacity:.5;cursor:not-allowed}
+/* QR */
+.ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}
+.ff-qr-card{position:relative;width:min(420px,100%);padding:30px 22px;border-radius:22px;background:#191b25;border:1px solid #454654;text-align:center;color:#f8fafc;box-shadow:0 20px 70px #0009}
+.ff-qr-card h2{font-size:24px;font-weight:750;margin:0 0 8px}
+.ff-qr-card p{margin:8px 0;color:#cbd5e1}
+.ff-qr-card .ff-qr-status{font-size:13px;color:#fbbf24}
+.ff-qr-card .ff-qr-paid{color:#22c55e}
+.ff-qr-card .ff-qr-folio{font-size:13px}
+.ff-qr-card .ff-qr-folio strong{color:#fff;font-family:'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.5px}
+.ff-qr-image{width:min(290px,100%);aspect-ratio:1;object-fit:contain;background:white;padding:12px;border-radius:14px;margin:14px auto}
+.ff-qr-close{position:absolute;top:8px;right:14px;border:0;background:none;color:white;font-size:28px;cursor:pointer}
+.ff-qr-error{color:#fca5a5!important}
+.ff-qr-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.ff-qr-actions button{border:1px solid #666;border-radius:10px;padding:10px 16px;background:#334155;color:white;cursor:pointer}
+.ff-qr-actions button:first-child{background:#2563eb;border-color:#2563eb}
+.ff-qr-actions button:disabled{opacity:.5;cursor:not-allowed}
 </style>
