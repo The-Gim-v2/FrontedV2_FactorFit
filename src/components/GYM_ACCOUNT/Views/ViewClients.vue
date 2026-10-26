@@ -43,17 +43,17 @@
               <th>{{ t('tableName') }}</th>
               <th>{{ t('tableEmail') }}</th>
               <th>{{ t('tablePhone') }}</th>
-              <th>Sucursal</th><th>Membresía</th><th>Inscripción</th><th>Vencimiento</th><th>{{ t('tableStatus') }}</th>
+              <th>{{ t('tableStatus') }}</th>
               <th class="th-actions">{{ t('tableActions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(user, index) in pagedUsers" :key="user.id" :class="getStatusClass(user.status)">
-              <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }">{{ initials(user.name) }}</div></td>
+              <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div></td>
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
               <td class="text-muted">{{ user.phone }}</td>
-              <td>{{ user.nombreSede || user.sedeId }}</td><td>{{ user.mensualidad }} — ${{ user.precio }}</td><td>{{ user.fechaInscripcion }}</td><td>{{ user.expirationDate }}</td><td><span :class="['status-badge', getStatusClass(user.status)]"><i class="status-dot"></i>{{ user.status }}</span></td>
+              <td><span :class="['status-badge', getStatusClass(user.status)]"><i class="status-dot"></i>{{ user.status }}</span></td>
               <td class="actions-cell" :id="(!isMobile && index === 0) ? 'tutorial-step-2' : null">
                 <button class="icon-btn btn-email" :title="t('actionEmail')" @click="activeModal = 'enviocorreo'">
                   <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -92,7 +92,7 @@
           :id="index === 0 ? 'tutorial-step-1' : null"
         >
           <div class="card-top-section">
-            <div class="avatar-small" :style="{ background: avatarColor(user.name) }">{{ initials(user.name) }}</div>
+            <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div>
             <div class="card-user-titles">
               <div class="text-bold name-text">{{ user.name }}</div>
               <span class="status-badge" :class="getStatusClass(user.status)"><i class="status-dot"></i>{{ user.status }}</span>
@@ -100,7 +100,7 @@
           </div>
           <div class="card-meta">
             <span class="email-text">{{ user.email }}</span>
-            <span class="phone-text">{{ user.phone || "Sin teléfono" }}</span><span class="phone-text">{{ user.nombreSede }} · {{ user.mensualidad }} · ${{ user.precio }}</span><span class="phone-text">Inscripción: {{ user.fechaInscripcion }} · Vence: {{ user.expirationDate }}</span>
+            <span class="phone-text">{{ user.phone || "Sin teléfono" }}</span>
           </div>
           <div class="card-actions" :id="(isMobile && index === 0) ? 'tutorial-step-2' : null">
             <button class="action-chip btn-email-chip" @click="activeModal = 'enviocorreo'">
@@ -265,11 +265,17 @@ const formatDate=(date)=>{
   const match=String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
 };
+const obtenerSedeId=()=>{
+  const keys=['sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+  for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
+  return null;
+};
 const cargarClientes=async()=>{
   loadingUsers.value=true;errorUsers.value='';
   try{
     if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const response=await apiRequest('/api/gym/clientes');
+    const sedeId=obtenerSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
+    const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
     const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
     users.value=rows.map(row=>({
       id:Number(row.ID_Inscripto),clienteId:Number(row.ID_Cliente),sedeId:Number(row.ID_Sede),
@@ -277,7 +283,7 @@ const cargarClientes=async()=>{
       email:row.Correo_Electronico||'',phone:row.Celular||'',status:row.Estatus||'Pendiente',
       mensualidad:row.Nombre_Paquete||'',precio:row.Precio,periodo:row.Periodo||'',
       fechaInscripcion:formatDate(row.Fecha_Inscripcion),expirationDate:formatDate(row.Fecha_Vencimiento),
-      fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.Img_Perfil||null,
+      fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.foto_url||null,
       nombreSede:row.Nombre_Sede||'',peso:row.Peso,altura:row.Altura
     }));
   }catch(e){errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
@@ -378,7 +384,7 @@ const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');.data-message{padding:12px;color:var(--color-texto-general,#fff)}
 .table-container{overflow-x:auto!important}
-.user-table{min-width:1150px}
+.user-table{min-width:800px}
 .main-content, .modal-wrapper{--line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);--line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);--surface-2: color-mix(in srgb, var(--color-texto-general, #94a3b8) 6%, transparent);--accent: var(--color-highlight, #3b82f6);--btn: var(--color-botones, #1c4fd6);--btn-text: var(--color-texto-botones, #fff);--r: var(--app-border-radius, 16px);--r-sm: calc(var(--app-border-radius, 16px) * .55);--muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 85%, transparent)}
 .main-content{width: 100%;max-width: 1500px;margin: 0 auto;padding: 36px 36px 56px;color: var(--color-texto-general, #e5e7eb);font-family: 'Inter', system-ui, sans-serif;-webkit-font-smoothing: antialiased}
 *{box-sizing: border-box}
@@ -421,7 +427,7 @@ const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(
 .th-actions{text-align: left}
 .text-bold{color: var(--color-titulos, #f8fafc);font-weight: 600}
 .text-muted{color: var(--muted)}
-.avatar-small{width: 42px;height: 42px;display: flex;align-items: center;justify-content: center;flex-shrink: 0;border-radius: var(--r-sm);color: #fff;font: 500 .95rem 'Oswald', sans-serif;letter-spacing: .02em}
+.avatar-small img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}.avatar-small{overflow:hidden;width: 42px;height: 42px;display: flex;align-items: center;justify-content: center;flex-shrink: 0;border-radius: var(--r-sm);color: #fff;font: 500 .95rem 'Oswald', sans-serif;letter-spacing: .02em}
 .status-badge{width: fit-content;min-height: 28px;display: inline-flex;align-items: center;gap: 7px;padding: 0 12px;border: 1px solid color-mix(in srgb, var(--tone, #cbd5e1) 35%, transparent);border-radius: 999px;background: color-mix(in srgb, var(--tone, #cbd5e1) 10%, transparent);color: var(--tone, #cbd5e1);font-size: .78rem;font-weight: 700;white-space: nowrap}
 .status-dot{width: 6px;height: 6px;display: inline-block;flex-shrink: 0;border-radius: 50%;background: currentColor}
 .actions-cell{white-space: nowrap}
