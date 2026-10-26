@@ -162,6 +162,7 @@ const cargarClientes = async () => {
     if (current !== requestSequence) return;
     users.value = rows.map(row => ({
       id: Number(row.ID_Inscripto),
+      clienteId: Number(row.ID_Cliente),
       name: [row.Nombre, row.Apellido_P, row.Apellido_M].filter(Boolean).join(' ') || 'Sin nombre',
       email: row.Correo_Electronico || '',
       phone: row.Celular || '',
@@ -198,7 +199,15 @@ const executeDelete = () => {
   toastRef.value?.notify('El retiro requiere conexión con el endpoint de Laravel.', 'error');
 };
 const goToPayments = (id) => router.push(`/GYM_ACCOUNT/pay/${id}`);
-const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-usuario/${id}`);
+// La pantalla de edición y ClienteGymController::show buscan por ID_Cliente, no ID_Inscripto.
+const goToEdit = (id) => {
+  const user = users.value.find(u => u.id === id);
+  if (!user?.clienteId) return toastRef.value?.notify('No se encontró el ID del cliente.', 'error');
+  router.push(`/GYM_ACCOUNT/editar-usuario/${user.clienteId}`);
+};
+const photoUser = ref(null);
+const openPhoto = (user) => { if (user.foto) photoUser.value = user; };
+const closePhoto = () => { photoUser.value = null; };
 // va al final: totalPages depende de `users`, que se declara arriba
 watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 </script>
@@ -257,7 +266,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
           </thead>
           <tbody>
             <tr v-for="(user, index) in pagedUsers" :key="user.id">
-              <td><div class="avatar-small" :style="avatarStyle(user.id)">{{ getInitials(user.name) }}</div></td>
+              <td><div class="avatar-small" :style="avatarStyle(user.id)" :class="{ 'avatar-clickable': user.foto }" :title="user.foto ? 'Ver fotografía' : user.name" @click="openPhoto(user)"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ getInitials(user.name) }}</span></div></td>
               <td class="text-bold">{{user.name}}</td>
               <td class="text-muted">{{user.email}}</td>
               <td class="text-muted">{{user.expirationDate}}</td>
@@ -295,7 +304,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
           :id="isMobile && index === 0 ? 'tutorial-step-1' : null"
         >
           <div class="card-top-section">
-            <div class="avatar-small" :style="avatarStyle(user.id)">{{ getInitials(user.name) }}</div>
+            <div class="avatar-small" :style="avatarStyle(user.id)" :class="{ 'avatar-clickable': user.foto }" :title="user.foto ? 'Ver fotografía' : user.name" @click="openPhoto(user)"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ getInitials(user.name) }}</span></div>
             <div class="card-user-titles">
               <div class="text-bold name-text">{{ user.name }}</div>
               <div class="badges-row">
@@ -362,6 +371,9 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
         <CorreoMasivo @close="activeModal = null" />
       </div>
     </transition>   
+    <div v-if="photoUser" class="photo-viewer" role="dialog" aria-modal="true" :aria-label="`Fotografía de ${photoUser.name}`" @click.self="closePhoto">
+      <div class="photo-viewer-card"><button type="button" class="photo-viewer-close" aria-label="Cerrar" @click="closePhoto">×</button><img :src="photoUser.foto" :alt="photoUser.name" /><p>{{ photoUser.name }}</p></div>
+    </div>
   </HeadingGYM_ACCOUNT>
 </template>
 <style scoped>
@@ -1513,4 +1525,12 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 .pager-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
 .pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
+.avatar-small { overflow: hidden; }
+.avatar-small img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-clickable { cursor: zoom-in; }
+.photo-viewer { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(0,0,0,.82); }
+.photo-viewer-card { position: relative; max-width: min(95vw, 540px); padding: 16px; border-radius: 16px; background: var(--bg-cards, #181a20); color: var(--color-texto-general, #fff); text-align: center; }
+.photo-viewer-card img { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 10px; }
+.photo-viewer-card p { margin: 12px 0 0; font-weight: 600; }
+.photo-viewer-close { position: absolute; top: 4px; right: 8px; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 27px; cursor: pointer; border-radius: 6px; }
 </style>
