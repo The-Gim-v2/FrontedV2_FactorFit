@@ -1,542 +1,1766 @@
+<script setup>
+import { reactive, ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
+import { traducciones } from '../i18n.js';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
+const router = useRouter();
+const route = useRoute();
+const clienteId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
+const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const sedeId=()=>{const keys=['sede_id','ID_Sede','id_sede','selected_sede_id','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
+const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const t=storage.getItem(key);if(t)return t.replace(/^Bearer\s+/i,'');}for(const key of ['auth','user','session','gymAccount','gym_account']){try{const v=JSON.parse(storage.getItem(key)||'null');if(v?.token||v?.access_token||v?.accessToken)return v.token||v.access_token||v.accessToken;}catch{}}}return '';};
+const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.message||`Error HTTP ${response.status}`);return data;};
+const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
+const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||sessionStorage.getItem('selected_sede_nombre')||`Sede ${c.ID_Sede}`,status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const chooseClient=(c)=>{showSuggestions.value=false;router.push(`/GYM_ACCOUNT/editar-usuario/${c.ID_Cliente}`);};
+const toastRef = ref(null);
+const searchQuery = ref('');
+const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
+const t = (key) => {
+  const langTable = traducciones[currentLang.value] || traducciones.es;
+  return langTable?.[key] || traducciones.es?.[key] || key;
+};
+const txt = (es, en) => (currentLang.value === 'en' ? en : es);
+const handleLangChange = (event) => {
+  if (event.detail?.idioma) currentLang.value = event.detail.idioma;
+};
+/* ============================ FORMULARIO ============================ */
+const form = reactive({
+  nombres: '',
+  apellidoPaterno: '',
+  apellidoMaterno: '',
+  fechaNacimiento: '',
+  celular: '',
+  correo: '',
+  peso: '',
+  altura: '',
+  sede: '',
+  status: ''
+});
+const handleSearch=()=>{if(suggestions.value.length===1)chooseClient(suggestions.value[0]);else showSuggestions.value=true;};
+const goToStatistics = () => {
+  if(!clienteId.value)return;
+  router.push({ name: 'statistics', params: { id: String(clienteId.value||'') } });
+};
+/* ============================ FOTO / GALERÍA ============================ */
+const fileInput = ref(null);
+const avatarFile = ref(null);
+const avatarSrc = ref('');
+const showPhotoOptions = ref(false);
+const openPhotoOptions = () => {if(clienteId.value)showPhotoOptions.value = true;};
+const closePhotoOptions = () => (showPhotoOptions.value = false);
+const selectPhoto = () => {
+  showPhotoOptions.value = false;
+  if (!fileInput.value) return;
+  fileInput.value.value = '';
+  fileInput.value.click();
+};
+const setAvatarFile = (file) => {
+  if (!file) return;
+  if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
+    URL.revokeObjectURL(avatarSrc.value);
+  }
+  avatarFile.value = file;
+  avatarSrc.value = URL.createObjectURL(file);
+};
+const handleFileChange = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    toastRef.value?.notify(
+      txt('Selecciona una imagen válida.', 'Select a valid image.'),
+      'warning'
+    );
+    event.target.value = '';
+    return;
+  }
+  setAvatarFile(file);
+  toastRef.value?.notify(
+    txt('Foto seleccionada correctamente.', 'Photo selected successfully.'),
+    'success'
+  );
+  event.target.value = '';
+};
+/* ============================ CÁMARA REAL ============================ */
+const showCamera = ref(false);
+const videoRef = ref(null);
+const canvasRef = ref(null);
+const cameraStream = ref(null);
+const cameraFacingMode = ref('user');
+const switchingCamera = ref(false);
+const stopCamera = () => {
+  if (cameraStream.value) {
+    cameraStream.value.getTracks().forEach((track) => track.stop());
+    cameraStream.value = null;
+  }
+  if (videoRef.value) videoRef.value.srcObject = null;
+};
+const startCamera = async () => {
+  stopCamera();
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      facingMode: { ideal: cameraFacingMode.value },
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
+    }
+  });
+  cameraStream.value = stream;
+  await nextTick();
+  if (!videoRef.value) {
+    throw new Error('No se encontró el elemento de video.');
+  }
+  videoRef.value.srcObject = stream;
+  await videoRef.value.play();
+};
+const takePhoto = async () => {
+  showPhotoOptions.value = false;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toastRef.value?.notify(
+      txt(
+        'Este navegador no permite utilizar la cámara.',
+        'Camera is not supported by this browser.'
+      ),
+      'warning'
+    );
+    return;
+  }
+  cameraFacingMode.value = 'user';
+  showCamera.value = true;
+  await nextTick();
+  try {
+    await startCamera();
+  } catch (error) {
+    console.error(error);
+    stopCamera();
+    showCamera.value = false;
+    let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
+    if (error?.name === 'NotAllowedError') {
+      message = txt(
+        'Permiso de cámara rechazado. Actívalo en el navegador.',
+        'Camera permission was denied. Enable it in your browser.'
+      );
+    }
+    if (error?.name === 'NotFoundError') {
+      message = txt(
+        'No se encontró una cámara en este dispositivo.',
+        'No camera was found on this device.'
+      );
+    }
+    if (error?.name === 'NotReadableError') {
+      message = txt(
+        'La cámara está siendo utilizada por otra aplicación.',
+        'The camera is being used by another application.'
+      );
+    }
+    toastRef.value?.notify(message, 'warning');
+  }
+};
+const switchCamera = async () => {
+  if (switchingCamera.value) return;
+  switchingCamera.value = true;
+  const previous = cameraFacingMode.value;
+  cameraFacingMode.value = previous === 'user' ? 'environment' : 'user';
+  try {
+    await startCamera();
+  } catch (error) {
+    console.error(error);
+    cameraFacingMode.value = previous;
+    try {
+      await startCamera();
+    } catch {
+      closeCamera();
+    }
+    toastRef.value?.notify(
+      txt('La cámara seleccionada no está disponible.', 'The selected camera is not available.'),
+      'warning'
+    );
+  } finally {
+    switchingCamera.value = false;
+  }
+};
+const closeCamera = () => {
+  stopCamera();
+  showCamera.value = false;
+  switchingCamera.value = false;
+};
+const capturePhoto = () => {
+  if (switchingCamera.value) return;
+  const video = videoRef.value;
+  const canvas = canvasRef.value;
+  if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+    toastRef.value?.notify(
+      txt('La cámara todavía no está lista.', 'The camera is not ready yet.'),
+      'warning'
+    );
+    return;
+  }
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  if (!context) return;
+  /* Cámara frontal: se refleja la foto final para que coincida con el visor */
+  if (cameraFacingMode.value === 'user') {
+    context.save();
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    context.restore();
+  } else {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `cliente-${Date.now()}.jpg`, {
+        type: 'image/jpeg'
+      });
+      setAvatarFile(file);
+      closeCamera();
+      toastRef.value?.notify(
+        txt('Foto tomada correctamente.', 'Photo captured successfully.'),
+        'success'
+      );
+    },
+    'image/jpeg',
+    0.92
+  );
+};
+/* ============================ GUARDAR ============================ */
+const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');saving.value=true;try{const fd=new FormData();const values={sede_id:sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+watch(()=>route.params.id,id=>{if(id)loadClient(id);});
+const handleBranchChange=()=>{clienteId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');avatarSrc.value='';loadSearch();if(route.params.id)loadClient(route.params.id);};
+onMounted(() => {
+  window\.addEventListener('idioma-changed', handleLangChange);
+});
+onUnmounted(() => {
+  window\.removeEventListener('idioma-changed', handleLangChange);
+  stopCamera();
+  if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
+    URL.revokeObjectURL(avatarSrc.value);
+  }
+});
+</script>
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
     <main class="main-content">
-      <header class="header-section">
-        <div class="title-wrapper">
-          <h1 class="main-title">{{ t('usersTitle') }}</h1>
-          <p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
+      <!-- ==================== ENCABEZADO ==================== -->
+      <header class="page-header">
+        <div class="page-heading">
+          <span class="eyebrow">
+            {{ txt('GESTIÓN DE CLIENTE', 'CLIENT MANAGEMENT') }}
+          </span>
+          <h1>
+            {{ txt('Perfil del', 'Client') }}
+            <span>{{ txt('cliente', 'profile') }}</span>
+          </h1>
+          <p>
+            {{
+              txt(
+                'Consulta y actualiza la información personal, física y de membresía.',
+                'Review and update personal, physical and membership information.'
+              )
+            }}
+          </p>
         </div>
-        <div class="actions-bar" id="tutorial-step-0">
-          <select class="status-select" v-model="selectedMembership">
-            <option value="">{{ t('membershipAll') }}</option>
-            <option value="Mensual">{{ t('membershipMonthly') }}</option>
-            <option value="Quincenal">{{ t('membershipBiweekly') }}</option>
-          </select>
-          <select class="status-select" v-model="selectedStatus">
-            <option value="">{{ t('statusAll') }}</option>
-            <option value="Activo">{{ t('statusActive') }}</option>
-            <option value="Inactivo">{{ t('statusInactive') }}</option>
-          </select>
-          <button class="btn-bulk" @click="activeModal = 'enviomasivo'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
+        <!-- TUTOR 0: BUSCAR CLIENTE -->
+        <div id="tutor-0" class="search-small input-group">
+          <label for="client-search">
+            {{ t('searchClientLabel') }}
+          </label>
+          <div class="search-input-wrapper">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            {{ t('bulkEmailBtn') }}
-          </button>
-          <div class="search-wrapper">
-            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" class="search-input" :placeholder="t('searchPlaceholder')" v-model="searchQuery" />
+            <input
+              id="client-search"
+              v-model="searchQuery"
+              type="text"
+              :placeholder="t('searchPlaceholder')"
+              @focus="showSuggestions=true" @input="showSuggestions=true" @keyup.enter="handleSearch"
+            />
+          </div>
+          <div v-if="showSuggestions && searchQuery.trim()" style="position:absolute;z-index:100;background:var(--bg-cards,#121416);border:1px solid #42425b;border-radius:12px;max-height:260px;overflow:auto;width:min(370px,90vw);box-shadow:0 12px 30px #0007">
+            <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" @click="chooseClient(c)" style="display:block;width:100%;padding:12px;color:white;text-align:left;background:transparent;border:0;border-bottom:1px solid #343449;cursor:pointer">{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }} · #{{ c.ID_Cliente }}</button>
+            <p v-if="!suggestions.length" style="padding:12px;color:#aaa">No se encontraron clientes en esta sucursal.</p>
           </div>
         </div>
       </header>
-      <p v-if="loadingUsers" class="data-message">Cargando clientes registrados...</p>
-      <p v-if="errorUsers" class="data-message">{{ errorUsers }} <button @click="cargarClientes">Reintentar</button></p>
-      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : null">
-        <table class="user-table" v-if="filteredUsers.length">
-          <thead>
-            <tr>
-              <th>{{ t('tablePhoto') }}</th>
-              <th>{{ t('tableName') }}</th>
-              <th>{{ t('tableEmail') }}</th>
-              <th>{{ t('tablePhone') }}</th>
-              <th>{{ t('tableStatus') }}</th>
-              <th class="th-actions">{{ t('tableActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(user, index) in pagedUsers" :key="user.id" :class="getStatusClass(user.status)">
-              <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div></td>
-              <td class="text-bold">{{ user.name }}</td>
-              <td class="text-muted">{{ user.email }}</td>
-              <td class="text-muted">{{ user.phone }}</td>
-              <td><span :class="['status-badge', getStatusClass(user.status)]"><i class="status-dot"></i>{{ user.status }}</span></td>
-              <td class="actions-cell" :id="(!isMobile && index === 0) ? 'tutorial-step-2' : null">
-                <button class="icon-btn btn-email" :title="t('actionEmail')" @click="activeModal = 'enviocorreo'">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                </button>
-                <button class="icon-btn btn-wa" :title="t('actionWhatsApp')" @click="openWhatsApp(user.phone)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-                </button>
-                <button class="icon-btn btn-qr" :title="t('actionQR')" @click="openQR(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
-                </button>
-                <button class="icon-btn btn-edit" :title="t('actionEdit')" @click="goToEdit(user.id)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="icon-btn btn-delete" :title="t('actionDelete')" @click="confirmDelete(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else class="empty-state">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
-        </div>
-      </div>
-      <div class="mobile-only">
-        <div v-if="!filteredUsers.length" class="empty-state">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
-        </div>
-        <div
-          v-for="(user, index) in pagedUsers"
-          :key="user.id"
-          class="user-card"
-          :class="getStatusClass(user.status)"
-          :id="index === 0 ? 'tutorial-step-1' : null"
-        >
-          <div class="card-top-section">
-            <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div>
-            <div class="card-user-titles">
-              <div class="text-bold name-text">{{ user.name }}</div>
-              <span class="status-badge" :class="getStatusClass(user.status)"><i class="status-dot"></i>{{ user.status }}</span>
+      <!-- ==================== PERFIL COMPLETO ==================== -->
+      <div class="profile-card">
+        <!-- ================================================== -->
+        <!-- TUTOR 1: PERFIL DEL CLIENTE -->
+        <!-- ================================================== -->
+        <aside id="tutor-1" class="profile-section">
+          <!-- ================================================== -->
+          <!-- TUTOR 2: FOTOGRAFÍA -->
+          <!-- ================================================== -->
+          <div id="tutor-2" class="avatar-wrapper">
+            <button
+              type="button"
+              class="avatar-circle"
+              :aria-label="txt('Cambiar foto', 'Change photo')"
+              @click="openPhotoOptions"
+            >
+              <img v-if="avatarSrc"
+                :src="avatarSrc" @error="avatarSrc=''"
+                :alt="t('avatarAlt')"
+              />
+              <span v-if="!avatarSrc" class="avatar-fallback">{{ (form.nombres?.[0]||'?').toUpperCase() }}</span><span class="avatar-overlay">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                  />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                {{ txt('Cambiar foto', 'Change photo') }}
+              </span>
+            </button>
+            <!-- TUTOR 3: VER ESTADÍSTICAS -->
+            <button
+              id="tutor-3"
+              type="button"
+              class="avatar-action btn-stats"
+              :title="t('viewStatsTitle')"
+              :aria-label="t('viewStatsTitle')"
+              @click="goToStatistics"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            </button>
+            <!-- TUTOR 4: CAMBIAR FOTO -->
+            <button
+              id="tutor-4"
+              type="button"
+              class="avatar-action btn-camera"
+              :title="t('changePhotoTitle')"
+              :aria-label="t('changePhotoTitle')"
+              @click="openPhotoOptions"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </button>
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              class="hidden-input"
+              @change="handleFileChange"
+            />
+          </div>
+          <!-- ==================== NOMBRE ==================== -->
+          <h2 class="main-title">
+            {{ form.nombres || '—' }}
+            <span>{{ form.apellidoPaterno || '—' }}</span>
+          </h2>
+          <!-- ==================== ESTADO ==================== -->
+          <span class="status-badge">
+            <i></i>
+            {{ form.status || '—' }}
+          </span>
+          <p class="photo-hint">
+            {{
+              txt(
+                'Toma una foto o selecciónala desde la galería.',
+                'Take a photo or choose one from the gallery.'
+              )
+            }}
+          </p>
+          <!-- ==================== RESUMEN ==================== -->
+          <dl class="profile-meta">
+            <!-- TUTOR 5: INFORMACIÓN DEL CLIENTE -->
+            <div id="tutor-5">
+              <dt>ID</dt>
+              <dd>{{ clienteId || "—" }}</dd>
             </div>
+            <div>
+              <dt>{{ txt('Sede', 'Location') }}</dt>
+              <dd>{{ form.sede || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ txt('Estado', 'Status') }}</dt>
+              <dd>{{ form.status || '—' }}</dd>
+            </div>
+          </dl>
+        </aside>
+        <!-- ==================== FORMULARIOS ==================== -->
+        <div class="forms-wrapper">
+          <!-- ================================================== -->
+          <!-- TUTOR 6: DATOS PERSONALES -->
+          <!-- ================================================== -->
+          <section id="tutor-6" class="login-card">
+            <div class="card-header-flex">
+              <div class="card-title-group">
+                <span class="card-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </span>
+                <h3 class="section-title">
+                  {{ t('personalDataTitle') }}
+                </h3>
+              </div>
+              <span class="card-subtitle">
+                {{ t('clientDataSubtitle') }}
+              </span>
+            </div>
+            <div class="form-grid-3">
+              <!-- NOMBRES -->
+              <div class="input-group">
+                <label for="f-nombres">
+                  {{ t('namesLabel') }}
+                </label>
+                <input
+                  id="f-nombres"
+                  v-model="form.nombres"
+                  type="text"
+                  autocomplete="given-name"
+                  placeholder="José Luis"
+                />
+              </div>
+              <!-- APELLIDO PATERNO -->
+              <div class="input-group">
+                <label for="f-paterno">
+                  {{ t('lastNamePaternalLabel') }}
+                </label>
+                <input
+                  id="f-paterno"
+                  v-model="form.apellidoPaterno"
+                  type="text"
+                  autocomplete="family-name"
+                  placeholder="Ramírez"
+                />
+              </div>
+              <!-- APELLIDO MATERNO -->
+              <div class="input-group">
+                <label for="f-materno">
+                  {{ t('lastNameMaternalLabel') }}
+                </label>
+                <input
+                  id="f-materno"
+                  v-model="form.apellidoMaterno"
+                  type="text"
+                  placeholder="García"
+                />
+              </div>
+              <!-- FECHA DE NACIMIENTO -->
+              <div class="input-group">
+                <label for="f-fecha">
+                  {{ t('birthDateLabel') }}
+                </label>
+                <input
+                  id="f-fecha"
+                  v-model="form.fechaNacimiento"
+                  type="date"
+                />
+              </div>
+              <!-- CELULAR -->
+              <div class="input-group">
+                <label for="f-celular">
+                  {{ t('phoneLabel') }}
+                </label>
+                <div class="input-with-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
+                    />
+                  </svg>
+                  <input
+                    id="f-celular"
+                    v-model="form.celular"
+                    type="tel"
+                    autocomplete="tel"
+                    placeholder="+52 000 000 0000"
+                  />
+                </div>
+              </div>
+              <!-- CORREO -->
+              <div class="input-group">
+                <label for="f-correo">
+                  {{ t('emailLabel') }}
+                </label>
+                <div class="input-with-icon">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                    />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  <input
+                    id="f-correo"
+                    v-model="form.correo"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="ejemplo@correo.com"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+          <!-- ==================== BLOQUE INFERIOR ==================== -->
+          <div class="lower-grid">
+            <!-- ================================================== -->
+            <!-- TUTOR 7: SEGUIMIENTO FÍSICO -->
+            <!-- ================================================== -->
+            <section id="tutor-7" class="login-card">
+              <div class="card-header-flex">
+                <div class="card-title-group">
+                  <span class="card-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline
+                        points="22 12 18 12 15 21 9 3 6 12 2 12"
+                      />
+                    </svg>
+                  </span>
+                  <h3 class="section-title">
+                    {{ t('physicalTrackingTitle') }}
+                  </h3>
+                </div>
+              </div>
+              <div class="measurement-grid">
+                <!-- PESO -->
+                <div class="input-group">
+                  <label for="f-peso">
+                    {{ t('initialWeightLabel') }}
+                  </label>
+                  <div class="unit-input">
+                    <input
+                      id="f-peso"
+                      v-model="form.peso"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="70"
+                    />
+                    <span>kg</span>
+                  </div>
+                </div>
+                <!-- ALTURA -->
+                <div class="input-group">
+                  <label for="f-altura">
+                    {{ t('initialHeightLabel') }}
+                  </label>
+                  <div class="unit-input">
+                    <input
+                      id="f-altura"
+                      v-model="form.altura"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="175"
+                    />
+                    <span>cm</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <!-- ================================================== -->
+            <!-- TUTOR 8: MEMBRESÍA -->
+            <!-- ================================================== -->
+            <section id="tutor-8" class="login-card">
+              <div class="card-header-flex">
+                <div class="card-title-group">
+                  <span class="card-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect
+                        x="2"
+                        y="5"
+                        width="20"
+                        height="14"
+                        rx="2"
+                      />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                  </span>
+                  <h3 class="section-title">
+                    {{ t('membershipTitle') }}
+                  </h3>
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <!-- SEDE -->
+                <div class="input-group">
+                  <label for="f-sede">
+                    {{ t('locationLabel') }}
+                  </label>
+                  <input
+                    id="f-sede"
+                    v-model="form.sede"
+                    type="text" readonly
+                    placeholder="Matriz"
+                  />
+                </div>
+                <!-- ESTADO -->
+                <div class="input-group">
+                  <label for="f-status">
+                    {{ t('statusLabel') }}
+                  </label>
+                  <input
+                    id="f-status"
+                    v-model="form.status"
+                    type="text" readonly
+                    placeholder="Activo"
+                  />
+                </div>
+              </div>
+            </section>
           </div>
-          <div class="card-meta">
-            <span class="email-text">{{ user.email }}</span>
-            <span class="phone-text">{{ user.phone || "Sin teléfono" }}</span>
-          </div>
-          <div class="card-actions" :id="(isMobile && index === 0) ? 'tutorial-step-2' : null">
-            <button class="action-chip btn-email-chip" @click="activeModal = 'enviocorreo'">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <span>Email</span>
+          <!-- ================================================== -->
+          <!-- TUTOR 9: GUARDAR CAMBIOS -->
+          <!-- ================================================== -->
+          <footer class="action-footer">
+            <button
+              id="tutor-9"
+              type="button"
+              class="btn-primary"
+              :disabled="saving || loadingProfile || !clienteId"
+              @click="saveChanges"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              {{ t('saveChangesBtn') }}
             </button>
-            <button class="action-chip btn-wa-chip" @click="openWhatsApp(user.phone)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-              <span>WApp</span>
-            </button>
-            <button class="action-chip btn-qr-chip" @click="openQR(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
-              <span>QR</span>
-            </button>
-            <button class="action-chip btn-edit-chip" @click="goToEdit(user.id)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              <span>{{ t('actionEdit') }}</span>
-            </button>
-            <button class="action-chip btn-delete-chip" @click="confirmDelete(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              <span>{{ t('actionDelete') }}</span>
-            </button>
-          </div>
+          </footer>
         </div>
       </div>
-      <nav v-if="showPager" class="pager" :aria-label="pagerLabel(0)">
-        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="pagerLabel(1)" @click="goPage(page - 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
-        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="pagerLabel(2)" @click="goPage(page + 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </nav>
     </main>
-    <transition name="pop">
-      <div v-if="showQR" class="modal-wrapper" @click.self="closeQR">
-        <div class="custom-modal-card" role="dialog" aria-modal="true">
-          <button type="button" class="modal-x" @click="closeQR" aria-label="Cerrar">×</button>
-          <div class="modal-body-custom">
-            <h2 class="modal-heading-accent">{{ t('modalQrTitle') }}</h2>
-            <p v-if="selectedUser" class="qr-user">{{ selectedUser.name }}</p>
-            <div class="qr-wrapper">
-              <span v-if="qrLoading">Cargando QR...</span><img v-else-if="qrUrl" :src="qrUrl" alt="QR" class="qr-image" /><span v-else>QR no disponible</span>
+    <!-- ====================================================== -->
+    <!-- MODAL: OPCIONES DE FOTO -->
+    <!-- ====================================================== -->
+    <transition name="photo-menu">
+      <div
+        v-if="showPhotoOptions"
+        class="modal-overlay"
+        @click.self="closePhotoOptions"
+      >
+        <div
+          class="photo-modal"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div class="modal-header">
+            <div>
+              <h3>
+                {{
+                  txt(
+                    'Actualizar fotografía',
+                    'Update photo'
+                  )
+                }}
+              </h3>
+              <p>
+                {{
+                  txt(
+                    'Selecciona cómo quieres agregar la fotografía del cliente.',
+                    'Choose how you want to add the client photo.'
+                  )
+                }}
+              </p>
             </div>
-            <p class="modal-subtext">{{ t('modalQrText') }}</p>
-            <button type="button" class="btn-bulk btn-block" @click="downloadQR">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
+            <button
+              type="button"
+              class="modal-close"
+              :aria-label="txt('Cerrar', 'Close')"
+              @click="closePhotoOptions"
+            >
+              ×
+            </button>
+          </div>
+          <div class="photo-options">
+            <!-- TOMAR FOTO -->
+            <button
+              type="button"
+              class="photo-option"
+              @click="takePhoto"
+            >
+              <span class="option-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+                  />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </span>
+              <span>
+                <strong>
+                  {{ txt('Tomar foto', 'Take photo') }}
+                </strong>
+                <small>
+                  {{
+                    txt(
+                      'Utilizar la cámara de este dispositivo',
+                      'Use this device camera'
+                    )
+                  }}
+                </small>
+              </span>
+              <b>›</b>
+            </button>
+            <!-- SELECCIONAR GALERÍA -->
+            <button
+              type="button"
+              class="photo-option"
+              @click="selectPhoto"
+            >
+              <span class="option-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect
+                    x="3"
+                    y="3"
+                    width="18"
+                    height="18"
+                    rx="2"
+                  />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </span>
+              <span>
+                <strong>
+                  {{
+                    txt(
+                      'Seleccionar de galería',
+                      'Choose from gallery'
+                    )
+                  }}
+                </strong>
+                <small>
+                  {{
+                    txt(
+                      'Seleccionar una imagen existente',
+                      'Select an existing image'
+                    )
+                  }}
+                </small>
+              </span>
+              <b>›</b>
+            </button>
+          </div>
+          <button
+            type="button"
+            class="cancel-btn"
+            @click="closePhotoOptions"
+          >
+            {{ txt('Cancelar', 'Cancel') }}
+          </button>
+        </div>
+      </div>
+    </transition>
+    <!-- ====================================================== -->
+    <!-- MODAL: CÁMARA -->
+    <!-- ====================================================== -->
+    <transition name="photo-menu">
+      <div
+        v-if="showCamera"
+        class="modal-overlay camera-overlay"
+        @click.self="closeCamera"
+      >
+        <div
+          class="camera-modal"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div class="modal-header">
+            <div>
+              <h3>
+                {{ txt('Tomar fotografía', 'Take photo') }}
+              </h3>
+              <p>
+                {{
+                  cameraFacingMode === 'user'
+                    ? txt('Cámara frontal', 'Front camera')
+                    : txt('Cámara trasera', 'Rear camera')
+                }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="modal-close"
+              :aria-label="txt('Cerrar', 'Close')"
+              @click="closeCamera"
+            >
+              ×
+            </button>
+          </div>
+          <!-- ==================== VISTA DE CÁMARA ==================== -->
+          <div class="camera-preview">
+            <video
+              ref="videoRef"
+              autoplay
+              playsinline
+              muted
+              :class="{
+                'camera-mirrored':
+                  cameraFacingMode === 'user'
+              }"
+            ></video>
+            <!-- CAMBIAR CÁMARA -->
+            <button
+              type="button"
+              class="switch-camera-btn"
+              :disabled="switchingCamera"
+              @click.stop="switchCamera"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4"
+                />
+                <path
+                  d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
+                />
               </svg>
-              {{ t('modalQrDownload') }}
+              {{
+                cameraFacingMode === 'user'
+                  ? txt('Trasera', 'Rear')
+                  : txt('Frontal', 'Front')
+              }}
+            </button>
+            <div class="face-guide"></div>
+            <!-- CARGANDO CÁMARA -->
+            <div
+              v-if="switchingCamera"
+              class="camera-loading"
+            >
+              <span></span>
+            </div>
+          </div>
+          <canvas
+            ref="canvasRef"
+            class="hidden-canvas"
+          ></canvas>
+          <!-- ==================== ACCIONES CÁMARA ==================== -->
+          <div class="camera-actions">
+            <button
+              type="button"
+              class="camera-cancel"
+              @click="closeCamera"
+            >
+              {{ txt('Cancelar', 'Cancel') }}
+            </button>
+            <button
+              type="button"
+              class="capture-btn"
+              :disabled="switchingCamera"
+              @click="capturePhoto"
+            >
+              <i>
+                <span></span>
+              </i>
+              {{ txt('Tomar foto', 'Take photo') }}
             </button>
           </div>
         </div>
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="showDelete" class="modal-wrapper" @click.self="showDelete = false">
-        <div class="custom-modal-card" role="dialog" aria-modal="true">
-          <div class="modal-body-custom">
-            <div class="modal-icon-container danger-bg">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-            <h2>{{ t('modalDeleteTitle') }}</h2>
-            <p>{{ t('modalDeleteDescPart1') }} <span class="highlight-name">{{ selectedUser?.name }}</span> {{ t('modalDeleteDescPart2') }}</p>
-            <div class="modal-buttons">
-              <button class="btn-modal secondary" @click="showDelete = false">{{ t('modalCancel') }}</button>
-              <button class="btn-modal danger" @click="executeDelete">{{ t('modalConfirm') }}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
-        <CorreoMasivo @close="activeModal = null" />
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviocorreo'" class="modal-wrapper" @click.self="activeModal = null">
-        <EnvioCorreo @close="activeModal = null" />
       </div>
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-<script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
-import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
-import CorreoMasivo from '../Componets/Bulk-Email.vue';
-import EnvioCorreo from '../Componets/Mail.vue';
-import NotificationSystem from '../../Modals/NotificationSystem.vue';
-import { traducciones } from '../i18n.js';
-const activeModal = ref(null);
-const toastRef = ref(null);
-const router = useRouter();
-const showQR = ref(false);
-const showDelete = ref(false);
-const selectedUser = ref(null);
-const searchQuery = ref('');
-const selectedMembership = ref('');
-const selectedStatus = ref('');
-const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
-const t = (key) => {
-  const langTable = traducciones[currentLang.value] || traducciones.es;
-  return langTable[key] || traducciones.es[key] || key;
-};
-const handleLangChange = (e) => {
-  if (e.detail && e.detail.idioma) {
-    currentLang.value = e.detail.idioma;
-  }
-};
-const isMobile = ref(window.innerWidth <= 900);
-const handleResize = () => { isMobile.value = window.innerWidth <= 900; };
-const handleEscape = (e) => {
-  if (e.key !== 'Escape') return;
-  if (showQR.value) { closeQR(); return; }
-  if (showDelete.value) { showDelete.value = false; return; }
-  if (activeModal.value) activeModal.value = null;
-};
-onMounted(() => {
-  window.addEventListener('resize', handleResize);
-  window.addEventListener('idioma-changed', handleLangChange);
-  window.addEventListener('keydown', handleEscape);
-});
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-  window.removeEventListener('idioma-changed', handleLangChange);
-  window.removeEventListener('keydown', handleEscape);
-});
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
-const users=ref([]);
-const loadingUsers=ref(false);
-const errorUsers=ref('');
-const getToken=()=>{
-  for(const storage of [sessionStorage,localStorage]){
-    for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){
-      const value=storage.getItem(key);
-      if(value) return value.replace(/^Bearer\s+/i,'');
-    }
-    for(const key of ['auth','user','session','gymAccount','gym_account']){
-      try{const obj=JSON.parse(storage.getItem(key)||'null');const token=obj?.token||obj?.access_token||obj?.accessToken;if(token)return token;}catch{}
-    }
-  }
-  return '';
-};
-const authHeaders=()=>({Accept:'application/json',Authorization:`Bearer ${getToken()}`});
-const apiRequest=async(path,options={})=>{
-  const response=await fetch(`${API}${path}`,{...options,headers:{...authHeaders(),...(options.headers||{})}});
-  const body=await response.json().catch(()=>null);
-  if(!response.ok)throw new Error(body?.message||`Error HTTP ${response.status}`);
-  return body;
-};
-const formatDate=(date)=>{
-  if(!date)return '—';
-  const match=String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
-};
-const obtenerSedeId=()=>{
-  const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
-  for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
-  return null;
-};
-const cargarClientes=async()=>{
-  loadingUsers.value=true;errorUsers.value='';
-  try{
-    if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const sedeId=obtenerSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
-    const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
-    const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
-    users.value=rows.map(row=>({
-      id:Number(row.ID_Inscripto),clienteId:Number(row.ID_Cliente),sedeId:Number(row.ID_Sede),
-      name:[row.Nombre,row.Apellido_P,row.Apellido_M].filter(Boolean).join(' '),
-      email:row.Correo_Electronico||'',phone:row.Celular||'',status:row.Estatus||'Pendiente',
-      mensualidad:row.Nombre_Paquete||'',precio:row.Precio,periodo:row.Periodo||'',
-      fechaInscripcion:formatDate(row.Fecha_Inscripcion),expirationDate:formatDate(row.Fecha_Vencimiento),
-      fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.foto_url||null,
-      nombreSede:row.Nombre_Sede||'',peso:row.Peso,altura:row.Altura
-    }));
-  }catch(e){errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
-  finally{loadingUsers.value=false;}
-};
-onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);});
-onUnmounted(()=>window.removeEventListener('factorfit:branch-changed',cargarClientes));
-const filteredUsers = computed(() => {
-  return users.value.filter((user) => {
-    const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
-    const matchStatus = selectedStatus.value ? user.status === selectedStatus.value : true;
-    const term = searchQuery.value.toLowerCase();
-    const matchSearch =
-      user.name.toLowerCase().includes(term) ||
-      (user.email||'').toLowerCase().includes(term) ||
-      (user.phone||'').toLowerCase().includes(term) ||
-      (user.mensualidad||'').toLowerCase().includes(term) ||
-      user.status.toLowerCase().includes(term) ||
-      user.id.toString().includes(term);
-    return matchMembership && matchStatus && matchSearch;
-  });
-});
-const PAGE_SIZE = 40;
-const page = ref(1);
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
-const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
-const pagedUsers = computed(() => {
-  const start = (page.value - 1) * PAGE_SIZE;
-  return filteredUsers.value.slice(start, start + PAGE_SIZE);
-});
-const goPage = (n) => {
-  page.value = Math.min(Math.max(1, n), totalPages.value);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-watch([searchQuery, selectedMembership, selectedStatus], () => { page.value = 1; });
-watch(totalPages, (n) => { if (page.value > n) page.value = n; });
-const pagerLabels = {
-  es: ['Paginación', 'Página anterior', 'Página siguiente'],
-  en: ['Pagination', 'Previous page', 'Next page'],
-  fr: ['Pagination', 'Page précédente', 'Page suivante'],
-  pt: ['Paginação', 'Página anterior', 'Próxima página']
-};
-const pagerLabel = (i) => (pagerLabels[currentLang.value] || pagerLabels.es)[i];
-const getStatusClass = (status) => {
-  const classes = {
-    Activo: 'status-green',
-    Inactivo: 'status-red',
-    Pendiente: 'status-orange',
-    'Próximo a vencer': 'status-yellow'
-  };
-  return classes[status] || 'status-default';
-};
-const AVATAR_PALETTE = ['#3b82f6', '#a855f7', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#6366f1', '#ef4444'];
-const initials = (name = '') => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  const first = parts[0][0] || '';
-  const second = parts.length > 1 ? parts[1][0] : '';
-  return (first + second).toUpperCase();
-};
-const avatarColor = (name = '') => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const color = AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
-  return `linear-gradient(135deg, ${color}, ${color}99)`;
-};
-const qrUrl=ref('');
-const qrLoading=ref(false);
-const openQR=async(user)=>{
-  selectedUser.value=user;showQR.value=true;qrUrl.value='';qrLoading.value=true;
-  try{const result=await apiRequest(`/api/gym/clientes/${user.id}/qr`);qrUrl.value=result.qr_url;}
-  catch(e){toastRef.value?.notify(e.message||'No se pudo cargar el QR','error');}
-  finally{qrLoading.value=false;}
-};
-const closeQR = () => {
-  showQR.value = false;
-};
-const downloadQR=async()=>{
-  if(!selectedUser.value)return;
-  try{
-    const response=await fetch(`${API}/api/gym/clientes/${selectedUser.value.id}/qr/descargar`,{headers:authHeaders()});
-    if(!response.ok)throw new Error(`Error HTTP ${response.status}`);
-    const blob=await response.blob();const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${selectedUser.value.id}.png`;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR','error');}
-};
-const confirmDelete = (user) => {
-  selectedUser.value = user;
-  showDelete.value = true;
-};
-const executeDelete=()=>{
-  showDelete.value=false;
-  toastRef.value?.notify('La eliminación requiere una ruta DELETE en Laravel. No se borró ningún registro.','warning');
-};
-const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-usuario/${users.value.find(u=>u.id===id)?.clienteId||id}`);
-const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(numero)window.open(`https://wa.me/${numero}`,'_blank','noopener,noreferrer');else toastRef.value?.notify('Este cliente no tiene teléfono','warning'); };
-</script>
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');.data-message{padding:12px;color:var(--color-texto-general,#fff)}
-.table-container{overflow-x:auto!important}
-.user-table{min-width:800px}
-.main-content, .modal-wrapper{--line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);--line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);--surface-2: color-mix(in srgb, var(--color-texto-general, #94a3b8) 6%, transparent);--accent: var(--color-highlight, #3b82f6);--btn: var(--color-botones, #1c4fd6);--btn-text: var(--color-texto-botones, #fff);--r: var(--app-border-radius, 16px);--r-sm: calc(var(--app-border-radius, 16px) * .55);--muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 85%, transparent)}
-.main-content{width: 100%;max-width: 1500px;margin: 0 auto;padding: 36px 36px 56px;color: var(--color-texto-general, #e5e7eb);font-family: 'Inter', system-ui, sans-serif;-webkit-font-smoothing: antialiased}
-*{box-sizing: border-box}
-.status-green{--tone: #34d399}
-.status-red{--tone: #f87171}
-.status-orange{--tone: #fbbf24}
-.status-yellow{--tone: #facc15}
-.status-default{--tone: #cbd5e1}
-.header-section{display: flex;align-items: flex-end;justify-content: space-between;gap: 24px;margin-bottom: 22px}
-.title-wrapper{min-width: 220px;display: flex;flex-direction: column;gap: 8px}
-.main-title{margin: 0;color: var(--color-titulos, #fff);font-family: 'Anton', sans-serif;font-size: clamp(1.9rem, 3vw, 2.6rem);font-weight: 400;line-height: 1.05;letter-spacing: .01em;text-transform: uppercase}
-.result-count{align-self: flex-start;margin: 0;padding: 4px 12px;border: 1px solid var(--line);border-radius: 999px;background: var(--surface-2);color: var(--muted);font-size: .8rem;font-weight: 600}
-.actions-bar{display: flex;align-items: center;justify-content: flex-end;gap: 10px;flex-wrap: wrap}
-.status-select, .search-input, .btn-bulk{min-height: 44px;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--bg-cards, #15171c);color: var(--color-texto-general, #e5e7eb);font: 500 .86rem 'Inter', sans-serif;outline: none;transition: border-color .15s, background .15s, box-shadow .15s, transform .15s, filter .15s}
-.status-select{min-width: 150px;padding: 0 38px 0 14px;appearance: none;-webkit-appearance: none;cursor: pointer;color-scheme: dark;background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat: no-repeat;background-position: right 13px center;background-size: 16px}
-.status-select:hover, .search-input:hover{border-color: rgba(255,255,255,.2)}
-.status-select:focus, .search-input:focus{border-color: var(--accent);box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)}
-.status-select option{background: var(--bg-cards, #15171c);color: var(--color-texto-general, #fff)}
-.search-wrapper{position: relative;display: flex;align-items: center}
-.search-icon{position: absolute;z-index: 1;left: 14px;width: 17px;height: 17px;pointer-events: none;color: var(--muted)}
-.search-input{width: 250px;padding: 0 14px 0 42px}
-.search-input::placeholder{color: var(--muted);opacity: .6}
-.search-input:focus{width: 280px}
-.btn-bulk{display: inline-flex;align-items: center;justify-content: center;gap: 9px;padding: 0 18px;border-color: transparent;background: var(--btn);color: var(--btn-text);font-weight: 600;white-space: nowrap;cursor: pointer;box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 10px 24px -10px color-mix(in srgb, var(--btn) 70%, transparent)}
-.btn-bulk svg{flex-shrink: 0;width: 18px;height: 18px;color: currentColor}
-.btn-bulk:hover{filter: brightness(1.1);transform: translateY(-1px)}
-.btn-bulk:active{transform: translateY(0)}
-.btn-block{width: 100%}
-.desktop-only{display: block}
-.mobile-only{display: none}
-.table-container{overflow: hidden;border: 1px solid var(--line);border-radius: var(--r);background: var(--bg-cards, #121419)}
-.user-table{width: 100%;border-collapse: collapse;text-align: left;color: var(--color-texto-general, #e5e7eb)}
-.user-table thead{background: var(--surface-2)}
-.user-table th{padding: 16px 20px;border-bottom: 1px solid var(--line);color: var(--muted);font-size: .78rem;font-weight: 600;letter-spacing: .02em;white-space: nowrap}
-.user-table td{padding: 14px 20px;border-top: 1px solid var(--line-soft);font-size: .9rem;vertical-align: middle}
-.user-table tbody tr:first-child td{border-top: 0}
-.user-table td:first-child{box-shadow: inset 4px 0 0 var(--tone, transparent)}
-.user-table tbody tr{transition: background .15s}
-.user-table tbody tr:hover{background: color-mix(in srgb, var(--tone, var(--accent)) 6%, transparent)}
-.th-actions{text-align: left}
-.text-bold{color: var(--color-titulos, #f8fafc);font-weight: 600}
-.text-muted{color: var(--muted)}
-.avatar-small img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}.avatar-small{overflow:hidden;width: 42px;height: 42px;display: flex;align-items: center;justify-content: center;flex-shrink: 0;border-radius: var(--r-sm);color: #fff;font: 500 .95rem 'Oswald', sans-serif;letter-spacing: .02em}
-.status-badge{width: fit-content;min-height: 28px;display: inline-flex;align-items: center;gap: 7px;padding: 0 12px;border: 1px solid color-mix(in srgb, var(--tone, #cbd5e1) 35%, transparent);border-radius: 999px;background: color-mix(in srgb, var(--tone, #cbd5e1) 10%, transparent);color: var(--tone, #cbd5e1);font-size: .78rem;font-weight: 700;white-space: nowrap}
-.status-dot{width: 6px;height: 6px;display: inline-block;flex-shrink: 0;border-radius: 50%;background: currentColor}
-.actions-cell{white-space: nowrap}
-.icon-btn + .icon-btn{margin-left: 6px}
-.icon-btn{width: 38px;height: 38px;display: inline-flex;align-items: center;justify-content: center;padding: 0;cursor: pointer;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--surface-2);color: var(--muted);vertical-align: middle;transition: transform .15s, background .15s, border-color .15s, color .15s}
-.icon-btn svg{width: 18px;height: 18px}
-.icon-btn:hover{transform: translateY(-1px)}
-.icon-btn.btn-email:hover{color: #38bdf8;border-color: rgba(56,189,248,.45);background: rgba(56,189,248,.1)}
-.icon-btn.btn-wa:hover{color: #4ade80;border-color: rgba(74,222,128,.45);background: rgba(74,222,128,.1)}
-.icon-btn.btn-qr:hover{color: #c084fc;border-color: rgba(192,132,252,.45);background: rgba(192,132,252,.1)}
-.icon-btn.btn-edit:hover{color: #fbbf24;border-color: rgba(251,191,36,.45);background: rgba(251,191,36,.1)}
-.icon-btn.btn-delete:hover{color: #f87171;border-color: rgba(248,113,113,.45);background: rgba(248,113,113,.1)}
-.empty-state{min-height: 330px;display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 12px;padding: 50px 20px;text-align: center;color: var(--muted)}
-.empty-state svg{opacity: .4}
-.empty-state p{margin: 0;font-size: .95rem}
-.modal-wrapper{position: fixed;z-index: 9999;inset: 0;display: flex;align-items: center;justify-content: center;padding: 20px;overflow-y: auto;background: rgba(0,0,0,.72);font-family: 'Inter', system-ui, sans-serif}
-.custom-modal-card{position: relative;width: min(100%, 400px);padding: 32px 28px 28px;border: 1px solid rgba(255,255,255,.1);border-radius: var(--r);background: var(--bg-cards, #181a20);box-shadow: 0 30px 80px rgba(0,0,0,.55)}
-.modal-body-custom{color: var(--color-texto-general, #fff);text-align: center}
-.modal-body-custom h2{margin: 0 0 10px;color: var(--color-titulos, #fff);font: 500 1.3rem 'Oswald', sans-serif;letter-spacing: .02em}
-.modal-body-custom p{margin: 0 0 22px;color: var(--muted);font-size: .9rem;line-height: 1.55}
-.modal-x{position: absolute;top: 14px;right: 14px;width: 36px;height: 36px;display: grid;place-items: center;padding: 0;cursor: pointer;border: 1px solid var(--line);border-radius: 10px;background: var(--surface-2);color: var(--color-texto-general, #fff);font-size: 1.4rem;line-height: 1;transition: background .15s, border-color .15s}
-.modal-x:hover{background: rgba(255,255,255,.1);border-color: rgba(255,255,255,.25)}
-.modal-body-custom h2.modal-heading-accent{margin-bottom: 6px;padding: 0 30px;color: var(--accent);font-family: 'Anton', sans-serif;font-weight: 400;font-size: 1.45rem;text-transform: uppercase}
-.qr-user{margin: 0 0 18px !important;font-size: .86rem !important;font-weight: 600;color: var(--color-titulos, #fff) !important}
-.qr-wrapper{width: fit-content;margin: 0 auto;padding: 14px;border-radius: var(--r-sm);background: #fff;box-shadow: 0 10px 30px rgba(0,0,0,.35)}
-.qr-image{width: 200px;max-width: 100%;display: block}
-.modal-body-custom p.modal-subtext{margin: 20px 0 22px;font-size: .86rem}
-.highlight-name{color: var(--color-titulos, #fff);font-weight: 600}
-.modal-icon-container{width: 58px;height: 58px;display: flex;align-items: center;justify-content: center;margin: 0 auto 16px;border-radius: 50%}
-.danger-bg{background: rgba(239,68,68,.12);box-shadow: 0 0 0 6px rgba(239,68,68,.06)}
-.modal-buttons{display: flex;gap: 10px}
-.btn-modal{min-height: 46px;flex: 1;padding: 0 16px;cursor: pointer;border: 1px solid transparent;border-radius: var(--r-sm);font: 600 .88rem 'Inter', sans-serif;transition: transform .15s, filter .15s, background .15s}
-.btn-modal:hover{transform: translateY(-1px)}
-.btn-modal.secondary{border-color: var(--line);background: transparent;color: #d1d5db}
-.btn-modal.secondary:hover{background: var(--surface-2)}
-.btn-modal.danger{background: #dc2626;color: #fff}
-.btn-modal.danger:hover{filter: brightness(1.1)}
-:deep(.notification-container), :deep(.toast-container){width: calc(100% - 32px) !important;max-width: 480px !important;box-sizing: border-box !important;left: 50% !important;right: auto !important;margin: 0 auto !important;transform: translateX(-50%) !important}
-.pop-enter-active, .pop-leave-active{transition: opacity .2s ease}
-.pop-enter-active > :deep(*), .pop-leave-active > :deep(*){transition: transform .2s ease, opacity .2s ease}
-.pop-enter-from, .pop-leave-to{opacity: 0}
-.pop-enter-from > :deep(*), .pop-leave-to > :deep(*){opacity: 0;transform: translateY(10px) scale(.98)}
-.btn-bulk:focus-visible, .icon-btn:focus-visible, .action-chip:focus-visible, .btn-modal:focus-visible, .modal-x:focus-visible{outline: 2px solid var(--accent);outline-offset: 2px}
-@media (max-width: 1100px){.main-content{padding: 28px 22px 44px}
-.header-section{align-items: flex-start;flex-direction: column;gap: 16px}
-.actions-bar{width: 100%;justify-content: flex-start}
-.search-wrapper{flex: 1;min-width: 200px}
-.search-input, .search-input:focus{width: 100%}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+.main-content {
+  --accent: var(--color-highlight, #3b82f6);
+  --card: var(--bg-cards, #121416);
+  --text: var(--color-texto-general, #e5e7eb);
+  --title: var(--color-titulos, #ffffff);
+  --muted: #8b95a7;
+  --line: color-mix(in srgb, var(--text) 10%, transparent);
+  --input: color-mix(in srgb, var(--card) 90%, #ffffff);
+  --radius: 14px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px 36px 56px;
+  box-sizing: border-box;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
 }
-@media (max-width: 900px){.desktop-only{display: none}
-.mobile-only{display: flex;flex-direction: column;gap: 12px}
-.main-content{padding: 18px 14px calc(36px + env(safe-area-inset-bottom))}
-.header-section{gap: 16px;margin-bottom: 16px}
-.title-wrapper{width: 100%;flex-direction: row;align-items: center;justify-content: space-between;gap: 12px;min-width: 0}
-.main-title{font-size: 1.8rem}
-.result-count{align-self: center;white-space: nowrap}
-.actions-bar{width: 100%;display: grid;grid-template-columns: 1fr 1fr;gap: 10px}
-.search-wrapper{grid-column: 1 / -1;grid-row: 1;width: 100%}
-.search-input, .search-input:focus{width: 100%;min-height: 48px;font-size: 1rem}
-.status-select{width: 100%;min-width: 0;min-height: 48px;font-size: .95rem}
-.actions-bar > .btn-bulk{grid-column: 1 / -1;width: 100%;min-height: 48px;font-size: .95rem}
-.user-card{position: relative;padding: 16px 16px 14px 20px;overflow: hidden;border: 1px solid var(--line);border-radius: var(--r);background: var(--bg-cards, #14161b);box-shadow: inset 4px 0 0 var(--tone, var(--accent))}
-.card-top-section{display: flex;align-items: center;gap: 13px;margin-bottom: 14px}
-.user-card .avatar-small{width: 48px;height: 48px;font-size: 1rem}
-.card-user-titles{min-width: 0;flex: 1;display: flex;flex-direction: column;align-items: flex-start;gap: 7px}
-.name-text{width: 100%;color: var(--color-titulos, #fff);font-size: 1rem;line-height: 1.25;white-space: normal;display: -webkit-box;-webkit-line-clamp: 2;-webkit-box-orient: vertical;overflow: hidden}
-.card-meta{display: grid;gap: 9px;margin-bottom: 14px;padding: 12px 14px;border: 1px solid var(--line-soft);border-radius: var(--r-sm);background: var(--surface-2);font-size: .9rem}
-.email-text, .phone-text{display: block;overflow: hidden;text-overflow: ellipsis;white-space: nowrap}
-.email-text{color: var(--color-texto-general, #cbd5e1)}
-.phone-text{color: var(--muted)}
-.email-text::before, .phone-text::before{content: '';display: inline-block;width: 16px;height: 16px;margin-right: 10px;vertical-align: -3px;background: currentColor;opacity: .6;-webkit-mask-repeat: no-repeat;mask-repeat: no-repeat;-webkit-mask-position: center;mask-position: center;-webkit-mask-size: contain;mask-size: contain}
-.email-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e")}
-.phone-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e")}
-.card-actions{display: grid;grid-template-columns: repeat(5, minmax(0, 1fr));gap: 7px;padding-top: 14px;border-top: 1px solid var(--line-soft)}
-.action-chip{min-width: 0;min-height: 60px;display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 6px;padding: 8px 2px;cursor: pointer;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--surface-2);font: 600 .7rem 'Inter', sans-serif;-webkit-tap-highlight-color: transparent;transition: background .15s, border-color .15s, transform .15s}
-.action-chip span{max-width: 100%;overflow: hidden;text-overflow: ellipsis;white-space: nowrap}
-.action-chip:active{transform: scale(.95)}
-.action-chip svg{width: 20px;height: 20px}
-.btn-email-chip{color: #38bdf8}
-.btn-wa-chip{color: #4ade80}
-.btn-qr-chip{color: #c084fc}
-.btn-edit-chip{color: #fbbf24}
-.btn-delete-chip{color: #f87171}
-.btn-email-chip:active{background: rgba(56,189,248,.14);border-color: rgba(56,189,248,.4)}
-.btn-wa-chip:active{background: rgba(74,222,128,.14);border-color: rgba(74,222,128,.4)}
-.btn-qr-chip:active{background: rgba(192,132,252,.14);border-color: rgba(192,132,252,.4)}
-.btn-edit-chip:active{background: rgba(251,191,36,.14);border-color: rgba(251,191,36,.4)}
-.btn-delete-chip:active{background: rgba(248,113,113,.14);border-color: rgba(248,113,113,.4)}
-.empty-state{min-height: 260px;border: 1px dashed var(--line);border-radius: var(--r);background: var(--bg-cards, #14161b)}
-.modal-wrapper{padding: 14px}
-.modal-wrapper:has(> .custom-modal-card){align-items: flex-end;padding: 0}
-.custom-modal-card{width: 100%;max-width: none;padding: 30px 20px calc(24px + env(safe-area-inset-bottom));border-radius: 22px 22px 0 0;border-bottom: 0}
-.modal-buttons{flex-direction: column-reverse}
-.btn-modal{min-height: 50px}
-.btn-block{min-height: 50px}
+/* ============================ ENCABEZADO ============================ */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 26px;
 }
-@media (max-width: 380px){.main-title{font-size: 1.55rem}
-.card-actions{gap: 5px}
-.action-chip{font-size: .62rem}
-.action-chip svg{width: 18px;height: 18px}
+.page-heading {
+  min-width: 0;
 }
-@media (prefers-reduced-motion: reduce){.main-content *, .modal-wrapper *{transition: none !important}
+.eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
-.pager{display: flex;align-items: center;justify-content: center;gap: 14px;margin-top: 18px}
-.pager-btn{width: 40px;height: 40px;display: grid;place-items: center;padding: 0;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--bg-cards, #14161b);color: var(--color-texto-general, #e5e7eb);cursor: pointer;transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease}
-.pager-btn:hover:not(:disabled){border-color: var(--accent);background: color-mix(in srgb, var(--accent) 12%, transparent);color: var(--color-titulos, #ffffff);transform: translateY(-1px)}
-.pager-btn:disabled{opacity: 0.35;cursor: not-allowed}
-.pager-btn:focus-visible{outline: 2px solid var(--accent);outline-offset: 2px}
-.pager-info{min-width: 64px;color: var(--muted);font-size: 0.8rem;font-weight: 600;text-align: center}
-.pager-info b{color: var(--color-titulos, #ffffff);font-weight: 700}
+.page-header h1 span {
+  color: var(--accent);
+}
+.page-header h1 {
+  margin: 0;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: clamp(1.7rem, 2.6vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.page-header p {
+  max-width: 560px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+/* ============================ BÚSQUEDA / INPUTS ============================ */
+.search-small {
+  width: min(100%, 320px);
+  flex-shrink: 0;
+}
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.input-group label {
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.search-input-wrapper,
+.input-with-icon,
+.unit-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-input-wrapper svg,
+.input-with-icon svg {
+  position: absolute;
+  z-index: 2;
+  left: 13px;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.search-input-wrapper input,
+.input-with-icon input {
+  padding-left: 38px !important;
+}
+.input-group input {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input);
+  color: var(--color-texto-input, var(--text));
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.input-group input::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  font-weight: 400;
+}
+.input-group input:hover {
+  border-color: color-mix(in srgb, var(--text) 24%, transparent);
+}
+.input-group input:focus {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--input) 90%, var(--accent));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.input-group input[type='date'] {
+  color-scheme: dark;
+}
+.input-group input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+/* ============================ ESTRUCTURA ============================ */
+.profile-card {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.profile-section,
+.login-card {
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+/* ============================ PERFIL ============================ */
+.profile-section {
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 22px 22px;
+}
+.avatar-wrapper {
+  position: relative;
+  width: 148px;
+  margin-bottom: 20px;
+}
+.avatar-circle {
+  position: relative;
+  display: block;
+  width: 148px;
+  height: 148px;
+  padding: 0;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 50%;
+  background: #080a0d;
+  cursor: pointer;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.avatar-circle img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px 14px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 600;
+  transform: translateY(100%);
+  transition: transform 0.2s ease;
+}
+.avatar-circle:hover .avatar-overlay,
+.avatar-circle:focus-visible .avatar-overlay {
+  transform: translateY(0);
+}
+.avatar-overlay svg {
+  width: 14px;
+  height: 14px;
+}
+.avatar-action {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--color-botones, var(--accent));
+  color: var(--color-texto-botones, #ffffff);
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.avatar-action:hover {
+  transform: scale(1.08);
+  filter: brightness(1.08);
+}
+.avatar-action svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-stats {
+  top: 4px;
+  left: -6px;
+}
+.btn-camera {
+  right: -6px;
+  bottom: 4px;
+}
+.hidden-input,
+.hidden-canvas {
+  display: none;
+}
+.main-title {
+  margin: 0 0 12px;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  text-transform: uppercase;
+}
+.main-title span {
+  display: block;
+  color: var(--accent);
+}
+.profile-section {
+  overflow: hidden;
+}
+.profile-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.08);
+  color: #34d399;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+.status-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.photo-hint {
+  margin: 16px 0 20px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  text-align: center;
+}
+.profile-meta {
+  width: 100%;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.profile-meta > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.profile-meta > div:last-child {
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+.profile-meta dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.profile-meta dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--title);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ============================ FORMULARIOS ============================ */
+.forms-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.login-card {
+  padding: 24px;
+}
+.card-header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.card-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+.card-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.section-title {
+  margin: 0;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.card-subtitle {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.form-grid-2,
+.measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.lower-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.unit-input input {
+  padding-right: 44px;
+}
+.unit-input span {
+  position: absolute;
+  right: 13px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+/* ============================ GUARDAR ============================ */
+.action-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-primary {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-botones, var(--accent));
+  color: var(--color-texto-botones, #ffffff);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary svg {
+  width: 16px;
+  height: 16px;
+}
+/* ============================ FOCO VISIBLE ============================ */
+.avatar-circle:focus-visible,
+.avatar-action:focus-visible,
+.btn-primary:focus-visible,
+.photo-option:focus-visible,
+.modal-close:focus-visible,
+.cancel-btn:focus-visible,
+.camera-cancel:focus-visible,
+.capture-btn:focus-visible,
+.switch-camera-btn:focus-visible {
+  outline: 2px solid var(--color-highlight, #3b82f6);
+  outline-offset: 2px;
+}
+/* ============================ MODALES ============================ */
+.modal-overlay {
+  position: fixed;
+  z-index: 4000;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(3px);
+}
+.camera-overlay {
+  z-index: 4100;
+  background: rgba(0, 0, 0, 0.92);
+}
+.photo-modal,
+.camera-modal {
+  width: min(100%, 440px);
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: var(--bg-cards, #121416);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+.camera-modal {
+  width: min(100%, 620px);
+}
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-titulos, #ffffff);
+  font-family: 'Oswald', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.modal-header p {
+  margin: 6px 0 0;
+  color: #8b95a7;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+.modal-close {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.modal-close:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.09);
+}
+/* ============================ OPCIONES FOTO ============================ */
+.photo-options {
+  display: grid;
+  gap: 10px;
+}
+.photo-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.photo-option:hover {
+  border-color: var(--color-highlight, #3b82f6);
+  background: color-mix(in srgb, var(--color-highlight, #3b82f6) 7%, transparent);
+}
+.option-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-highlight, #3b82f6) 13%, transparent);
+  color: var(--color-highlight, #60a5fa);
+}
+.option-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.photo-option strong {
+  display: block;
+  color: var(--color-titulos, #ffffff);
+  font-size: 0.8rem;
+}
+.photo-option small {
+  display: block;
+  margin-top: 3px;
+  color: #8b95a7;
+  font-size: 0.68rem;
+}
+.photo-option b {
+  color: #8b95a7;
+  font-size: 1.2rem;
+}
+.cancel-btn,
+.camera-cancel {
+  height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: transparent;
+  color: #aab2c0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.cancel-btn:hover,
+.camera-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+.cancel-btn {
+  width: 100%;
+  margin-top: 14px;
+}
+/* ============================ CÁMARA ============================ */
+.camera-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #000000;
+}
+.camera-preview video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.camera-mirrored {
+  transform: scaleX(-1);
+}
+.face-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 46%;
+  height: 70%;
+  border: 2px dashed rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.switch-camera-btn {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 12px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.switch-camera-btn:disabled,
+.capture-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.switch-camera-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.camera-loading {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.25);
+}
+.camera-loading span {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.camera-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 18px;
+}
+.capture-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px 7px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-botones, #2563eb);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+.capture-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.capture-btn i {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+}
+.capture-btn i span {
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+/* ============================ TRANSICIONES ============================ */
+.photo-menu-enter-active,
+.photo-menu-leave-active {
+  transition: opacity 0.18s ease;
+}
+.photo-menu-enter-from,
+.photo-menu-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* ============================ NOTIFICACIONES ============================ */
+:deep(.notification-container),
+:deep(.toast-container) {
+  width: calc(100% - 32px) !important;
+  max-width: 480px !important;
+  left: 50% !important;
+  right: auto !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+  transform: translateX(-50%) !important;
+}
+/* ============================ TABLET ============================ */
+@media (max-width: 1100px) {
+  .profile-card {
+    grid-template-columns: 250px minmax(0, 1fr);
+  }
+  .form-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* ============================ MÓVIL / TABLET ============================ */
+@media (max-width: 900px) {
+  .main-content {
+    padding: 22px 18px 40px;
+  }
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .search-small {
+    width: 100%;
+  }
+  .profile-card {
+    grid-template-columns: 1fr;
+  }
+  .profile-section {
+    position: relative;
+    top: auto;
+  }
+  .forms-wrapper {
+    gap: 16px;
+  }
+}
+/* ============================ TELÉFONO ============================ */
+@media (max-width: 600px) {
+  .main-content {
+    padding: 16px 12px 32px;
+  }
+  .page-header {
+    margin-bottom: 18px;
+  }
+  .page-header h1 {
+    font-size: 1.45rem;
+  }
+  .profile-section {
+    padding: 22px 16px 16px;
+  }
+  .login-card {
+    padding: 18px 16px;
+  }
+  .form-grid-3,
+  .form-grid-2,
+  .measurement-grid {
+    grid-template-columns: 1fr;
+  }
+  .card-header-flex {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .action-footer {
+    justify-content: stretch;
+  }
+  .btn-primary {
+    width: 100%;
+  }
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 8px;
+  }
+  .photo-modal,
+  .camera-modal {
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+  .camera-overlay {
+    align-items: center;
+  }
+  .camera-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .camera-cancel,
+  .capture-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .face-guide {
+    width: 52%;
+    height: 68%;
+  }
+}
+@media (max-width: 380px) {
+  .main-content {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+}
 </style>
