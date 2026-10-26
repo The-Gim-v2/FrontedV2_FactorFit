@@ -644,7 +644,7 @@ onUnmounted(() => {
                   </label>
                   <input
                     id="f-sede"
-                    v-model="form.sede" readonly
+                    v-model="form.sede"
                     type="text" readonly
                     placeholder="Matriz"
                   />
@@ -656,7 +656,7 @@ onUnmounted(() => {
                   </label>
                   <input
                     id="f-status"
-                    v-model="form.status" readonly
+                    v-model="form.status"
                     type="text" readonly
                     placeholder="Activo"
                   />
