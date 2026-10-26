@@ -430,7 +430,10 @@
                   autocomplete="off"
                   autocapitalize="characters"
                   style="text-transform: uppercase;"
+                  :aria-invalid="!!form.curp && !curpValidation.valid"
+                  aria-describedby="curp-validation-message"
                 >
+                <small v-if="form.curp" id="curp-validation-message" :style="{color: curpValidation.valid ? '#16a34a' : '#ef4444', display: 'block', marginTop: '6px'}" aria-live="polite">{{ curpValidation.valid ? '✓ CURP válida en formato y dígito verificador (no verifica RENAPO)' : '✕ ' + curpValidation.message }}</small>
               </div>
               <div class="input-group">
                 <label>
@@ -1686,8 +1689,37 @@ const warn = (message) => {
   toastRef.value?.notify(message, 'warning');
   return false;
 };
+/* CURP opcional: estructura, fecha real, entidad y dígito verificador. No consulta RENAPO. */
+const validarCURP = (entrada) => {
+  const curp = String(entrada || '').trim().toUpperCase();
+  if (!curp) return { valid: true, message: '' };
+  if (curp.length !== 18) return { valid: false, message: 'La CURP debe tener exactamente 18 caracteres.' };
+  const patron = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
+  if (!patron.test(curp)) return { valid: false, message: 'La estructura de la CURP no es válida.' };
+  const yy = Number(curp.slice(4, 6));
+  const mm = Number(curp.slice(6, 8));
+  const dd = Number(curp.slice(8, 10));
+  const year = (/[0-9]/.test(curp[16]) ? 1900 : 2000) + yy;
+  const fecha = new Date(Date.UTC(year, mm - 1, dd));
+  const hoy = new Date();
+  if (fecha.getUTCFullYear() !== year || fecha.getUTCMonth() !== mm - 1 || fecha.getUTCDate() !== dd || fecha.getTime() > hoy.getTime()) {
+    return { valid: false, message: 'La fecha de nacimiento dentro de la CURP es inválida.' };
+  }
+  const alfabeto = '0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ';
+  let suma = 0;
+  for (let i = 0; i < 17; i++) {
+    const valor = alfabeto.indexOf(curp[i]);
+    if (valor < 0) return { valid: false, message: 'La CURP contiene caracteres no permitidos.' };
+    suma += valor * (18 - i);
+  }
+  const digito = (10 - (suma % 10)) % 10;
+  if (digito !== Number(curp[17])) return { valid: false, message: 'El dígito verificador de la CURP es incorrecto.' };
+  return { valid: true, message: '' };
+};
+const curpValidation = computed(() => validarCURP(form.curp));
 const validateForm = () => {
   /* DATOS PERSONALES */
+  if (!curpValidation.value.valid) return warn(curpValidation.value.message);
   if (
     !form.nombres.trim() ||
     !form.apellidoP.trim()
@@ -1799,7 +1831,7 @@ const saveRegistration = async () => {
       todasLasSedes:
         isOwner.value || allSedesSelected.value,
       curp:
-        form.curp.trim(),
+        form.curp.trim().toUpperCase(),
       nombres:
         form.nombres.trim(),
       apellidoP:
