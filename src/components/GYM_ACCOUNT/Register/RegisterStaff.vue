@@ -424,7 +424,12 @@
                 <input
                   type="text"
                   v-model="form.curp"
+                  @input="form.curp = $event.target.value.toUpperCase()"
                   placeholder="Ej. ABCD010101HDF000"
+                  maxlength="18"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  style="text-transform: uppercase;"
                 >
               </div>
               <div class="input-group">
