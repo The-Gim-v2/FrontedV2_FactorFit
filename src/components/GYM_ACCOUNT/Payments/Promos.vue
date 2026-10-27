@@ -16,7 +16,8 @@
       </button>
     </div>
     <div class="form-body">
-      <div v-if="cargando" class="empty-state">{{ t('loading') }}</div>
+      <div v-if="estaCargando" class="empty-state">{{ t('loading') }}</div>
+      <div v-else-if="errorCarga" class="empty-state" role="alert">{{ errorCarga }} <button type="button" class="retry-btn" @click="obtenerPromociones">{{ t('retry') }}</button></div>
       <div v-else-if="ofertasValidas.length === 0" class="empty-state">{{ t('empty') }}</div>
       <div v-else class="oferta-list">
         <button
@@ -45,38 +46,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 interface OfertaItem {
   id?: number | string;
   nombre: string;
   precio: number;
+  meses?: number;
   [key: string]: unknown;
+}
+interface PrecioApi {
+  ID_Precio: number | string;
+  Nombre_Paquete: string;
+  Precio: number | string;
+  Cantidad_Meses?: number | string | null;
+  Periodo: string;
+  Estado_Paquete?: string | null;
 }
 const props = withDefaults(defineProps<{
   ofertas?: OfertaItem[];
   cargando?: boolean;
-}>(), { ofertas: () => [], cargando: false });
-
+  sedeId?: number | string | null;
+}>(), { cargando: false });
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'select-oferta', oferta: OfertaItem): void;
 }>();
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const idioma = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
+const promocionesApi = ref<OfertaItem[]>([]);
+const cargandoApi = ref(false);
+const errorCarga = ref('');
+const sedeSeleccionada = ref('');
+let peticion: AbortController | null = null;
 const translations: Record<string, Record<string, string>> = {
-  es: { offerTitle: 'SELECCIONAR', offerHighlight: 'OFERTA', offerSubtitle: 'Elige un plan o paquete disponible', close: 'Cerrar modal', selectedPrefix: 'Seleccionaste: ', empty: 'No hay ofertas disponibles para esta sucursal.', loading: 'Cargando ofertas...' },
-  en: { offerTitle: 'SELECT', offerHighlight: 'OFFER', offerSubtitle: 'Choose an available plan or package', close: 'Close modal', selectedPrefix: 'Selected: ', empty: 'No offers available for this branch.', loading: 'Loading offers...' }
+  es: { offerTitle: 'SELECCIONAR', offerHighlight: 'OFERTA', offerSubtitle: 'Elige un plan o paquete disponible', close: 'Cerrar modal', selectedPrefix: 'Seleccionaste: ', empty: 'No hay ofertas disponibles para esta sucursal.', loading: 'Cargando ofertas...', retry: 'Reintentar', noSede: 'Selecciona una sucursal para consultar las promociones.', noSession: 'Inicia sesión nuevamente para consultar las promociones.', failed: 'No se pudieron cargar las promociones.' },
+  en: { offerTitle: 'SELECT', offerHighlight: 'OFFER', offerSubtitle: 'Choose an available plan or package', close: 'Close modal', selectedPrefix: 'Selected: ', empty: 'No offers available for this branch.', loading: 'Loading offers...', retry: 'Retry', noSede: 'Select a branch to load promotions.', noSession: 'Sign in again to load promotions.', failed: 'Could not load promotions.' }
 };
 const offerNameMap: Record<string, Record<string, string>> = {
   es: { '3 Meses': '3 Meses', '1 Semana': '1 Semana', '12 Meses': '12 Meses', '1 Mes': '1 Mes' },
   en: { '3 Meses': '3 Months', '1 Semana': '1 Week', '12 Meses': '12 Months', '1 Mes': '1 Month' }
 };
 const t = (key: string) => translations[idioma.value]?.[key] ?? translations['es']?.[key] ?? key;
-const getLocalizedOfferName = (nombre: string) => offerNameMap[idioma.value]?.[nombre] || nombre;
-const ofertasValidas = computed(() => (props.ofertas || []).filter(o =>
-  o && typeof o.nombre === 'string' && o.nombre.trim() &&
+const getLocalizedOfferName = (nombre: string) => offerNameMap[idioma.value]?.[nombre] ?? nombre;
+const usaOfertasExternas = computed(() => props.ofertas !== undefined);
+const estaCargando = computed(() => props.cargando || (!usaOfertasExternas.value && cargandoApi.value));
+const ofertasValidas = computed(() => (usaOfertasExternas.value ? props.ofertas ?? [] : promocionesApi.value).filter(o =>
+  o && typeof o.nombre === 'string' && !!o.nombre.trim() &&
   o.precio !== null && o.precio !== undefined &&
   Number.isFinite(Number(o.precio)) && Number(o.precio) >= 0
 ));
@@ -88,12 +105,79 @@ const seleccionar = (oferta: OfertaItem) => {
   toastRef.value?.notify?.(`${t('selectedPrefix')}${getLocalizedOfferName(oferta.nombre)}`, 'success');
   emit('select-oferta', oferta);
 };
+const leerSede = (): string => {
+  if (props.sedeId !== null && props.sedeId !== undefined && String(props.sedeId) !== '') return String(props.sedeId);
+  const guardada = sessionStorage.getItem('selected_sede_id');
+  if (guardada) return guardada;
+  try {
+    const cuenta = JSON.parse(sessionStorage.getItem('gym_account') || '{}');
+    const sede = (cuenta.usuario ?? cuenta).sedes?.[0]?.ID_Sede;
+    if (sede !== null && sede !== undefined) return String(sede);
+  } catch { /* No hay cuenta almacenada */ }
+  return '';
+};
+const obtenerPromociones = async () => {
+  if (usaOfertasExternas.value) return;
+  peticion?.abort();
+  const controller = new AbortController();
+  peticion = controller;
+  errorCarga.value = '';
+  promocionesApi.value = [];
+  sedeSeleccionada.value = leerSede();
+  if (!sedeSeleccionada.value) { errorCarga.value = t('noSede'); return; }
+  const token = sessionStorage.getItem('auth_token');
+  if (!token) { errorCarga.value = t('noSession'); return; }
+  const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const url = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/precios?sede_id=${encodeURIComponent(sedeSeleccionada.value)}`;
+  cargandoApi.value = true;
+  try {
+    const respuesta = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+    });
+    const datos: unknown = await respuesta.json().catch(() => null);
+    if (!respuesta.ok) {
+      const mensaje = datos && typeof datos === 'object' && 'message' in datos ? String(datos.message) : `Error HTTP ${respuesta.status}`;
+      throw new Error(mensaje);
+    }
+    const filas: unknown = Array.isArray(datos) ? datos :
+      datos && typeof datos === 'object' && 'data' in datos ? datos.data : [];
+    if (!Array.isArray(filas)) throw new Error(t('failed'));
+    promocionesApi.value = (filas as PrecioApi[])
+      .filter(p => p && String(p.Periodo || '').trim().toLowerCase() === 'promocion' &&
+        String(p.Estado_Paquete ?? 'Activo').trim().toLowerCase() === 'activo')
+      .map(p => ({
+        id: p.ID_Precio,
+        nombre: String(p.Nombre_Paquete || '').trim(),
+        precio: Number(p.Precio),
+        meses: Number(p.Cantidad_Meses || 1),
+        ID_Precio: p.ID_Precio,
+        Periodo: p.Periodo
+      }));
+  } catch (e: unknown) {
+    if (controller.signal.aborted) return;
+    errorCarga.value = e instanceof Error ? e.message : t('failed');
+  } finally {
+    if (peticion === controller) cargandoApi.value = false;
+  }
+};
 const idiomaChanged = (e: Event) => {
   const valor = (e as CustomEvent<{ idioma?: string }>).detail?.idioma;
   if (valor) idioma.value = valor;
 };
-onMounted(() => window.addEventListener('idioma-changed', idiomaChanged));
-onUnmounted(() => window.removeEventListener('idioma-changed', idiomaChanged));
+const sedeChanged = () => { void obtenerPromociones(); };
+watch(() => props.sedeId, () => { void obtenerPromociones(); });
+watch(() => props.ofertas, () => { if (!usaOfertasExternas.value) void obtenerPromociones(); });
+onMounted(() => {
+  window.addEventListener('idioma-changed', idiomaChanged);
+  window.addEventListener('factorfit:branch-changed', sedeChanged);
+  void obtenerPromociones();
+});
+onUnmounted(() => {
+  peticion?.abort();
+  window.removeEventListener('idioma-changed', idiomaChanged);
+  window.removeEventListener('factorfit:branch-changed', sedeChanged);
+});
 </script>
 
 <style scoped>
@@ -124,4 +208,5 @@ onUnmounted(() => window.removeEventListener('idioma-changed', idiomaChanged));
 .empty-state{padding:22px 12px;text-align:center;color:var(--color-texto-secundario,#aaa);font-size:.85rem}
 @media(max-width:380px){.form-panel{padding:18px}.nombre-oferta{font-size:.9rem}.precio{font-size:.95rem}.header-icon-badge{width:36px;height:36px}}
 @media(prefers-reduced-motion:reduce){.oferta-item,.arrow-wrapper,.oferta-item::before{transition:none!important}}
+.retry-btn{display:inline-block;margin-left:8px;padding:5px 9px;border:1px solid var(--accent-blue-border);border-radius:8px;background:transparent;color:var(--accent-blue);cursor:pointer}
 </style>
