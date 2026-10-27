@@ -433,7 +433,7 @@
                   :aria-invalid="!!form.curp && !curpValidation.valid"
                   aria-describedby="curp-validation-message"
                 >
-                <small v-if="form.curp" id="curp-validation-message" :style="{color: curpValidation.valid ? '#16a34a' : '#ef4444', display: 'block', marginTop: '6px'}" aria-live="polite">{{ curpValidation.valid ? '✓ CURP válida en formato y dígito verificador (no verifica RENAPO)' : '✕ ' + curpValidation.message }}</small>
+                <small v-if="form.curp" id="curp-validation-message" :style="{color: curpValidation.valid ? '#16a34a' : '#ef4444', display: 'block', marginTop: '6px'}" aria-live="polite">{{ curpValidation.valid ? '✓ CURP válida en formato y dígito verificador' : '✕ ' + curpValidation.message }}</small>
               </div>
               <div class="input-group">
                 <label>
