@@ -313,9 +313,15 @@ const cargarPersonal = async () => {
   try {
     const token = getToken();
     if (!token) throw new Error('No se encontró el token de sesión.');
-    const response = await fetch(`${API}/api/personal`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
-    });
+    const response = await fetch(
+        `${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`,
+        {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new Error(body?.message || `Error HTTP ${response.status}`);
     const rows = Array.isArray(body) ? body : (Array.isArray(body?.data) ? body.data : []);
