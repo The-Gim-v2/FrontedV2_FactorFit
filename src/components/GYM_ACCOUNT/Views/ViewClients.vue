@@ -259,35 +259,21 @@ const formatDate=(date)=>{
   const match=String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
 };
-const obtenerSedeId = () => {
-  const keys = ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
-  for (const storage of [sessionStorage, localStorage]) {
-    for (const key of keys) {
-      const raw = storage.getItem(key);
-      if (!raw) continue;
-      let value = raw;
-      try {
-        const obj = JSON.parse(raw);
-        value = typeof obj === 'object' ? (obj?.ID_Sede ?? obj?.sede_id ?? obj?.id ?? obj?.value) : obj;
-      } catch {}
-      const id = Number(value);
-      if (Number.isInteger(id) && id > 0) return id;
-    }
-  }
+const obtenerSedeId=()=>{
+  const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+  for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
   return null;
 };
-
-const resolverSedeId = async (token) => {
+const resolverSedeId = async () => {
   let id = obtenerSedeId();
   if (id) return id;
+  // Da tiempo a que el encabezado guarde la sede por defecto
   await new Promise(r => setTimeout(r, 700));
   id = obtenerSedeId();
   if (id) return id;
+  // Si sigue sin haber sede, usa la primera sede disponible
   try {
-    const response = await fetch(`${API}/api/personal/sedes`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
-    });
-    const data = await response.json().catch(() => null);
+    const data = await apiRequest('/api/personal/sedes');
     const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
     const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
     if (Number.isInteger(first) && first > 0) {
@@ -301,7 +287,7 @@ const cargarClientes=async()=>{
   loadingUsers.value=true;errorUsers.value='';
   try{
     if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const sedeId=await resolverSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
+    const sedeId=obtenerSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
     const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
     const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
     users.value=rows.map(row=>({
