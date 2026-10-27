@@ -25,34 +25,53 @@ const generando = ref(false);
 const { lang } = useLang();
 
 const gymInfo = ref({ nombre: '', logo: '' });
-const apiBase = String(import.meta.env.VITE_API_URL || '').replace(/\/(api)\/?$/, '').replace(/\/$/, '');
+const apiBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const gymNombre = computed(() => gymInfo.value.nombre || 'Gimnasio');
 const gymLogo = computed(() => gymInfo.value.logo);
-const inicialGym = computed(() => gymNombre.value.charAt(0).toUpperCase() || 'G');
+const inicialGym = computed(() => gymNombre.value.trim().charAt(0).toUpperCase() || 'G');
 const folioRecibo = computed(() => String(
   props.pago?.folio_referencia ?? props.pago?.folioReferencia ??
   props.pago?.Folio_Referencia ?? props.pago?.folio ?? ''
 ).trim() || '—');
 
+// Misma búsqueda de sesión que RegistroPago.vue.
+const getToken = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken', 'GYM_ACCOUNT-token']) {
+      const value = storage.getItem(key);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const key of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
+      try {
+        const value = JSON.parse(storage.getItem(key) || 'null');
+        const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, '');
+      } catch { /* La entrada no contiene JSON. */ }
+    }
+  }
+  return '';
+};
 const obtenerDatosGym = async () => {
-  // La identidad del gimnasio se obtiene de la sesión autenticada, no de datos fijos.
-  const token = localStorage.getItem('token') ||
-    localStorage.getItem('gym_token') ||
-    localStorage.getItem('GYM_ACCOUNT-token') ||
-    localStorage.getItem('auth_token');
-  if (!token) return;
+  const token = getToken();
+  if (!token) {
+    console.warn('Recibo: no se encontró el token de sesión.');
+    return;
+  }
   try {
     const respuesta = await fetch(`${apiBase}/api/auth/perfil`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     });
-    if (!respuesta.ok) return;
+    if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
     const data = await respuesta.json();
+    const gym = data.gimnasio || data.usuario || data;
+    const nombre = gym.nombre || gym.Nombre_Gym || data.nombre || data.Nombre_Gym;
+    const logo = gym.logo_url || gym.logo || gym.Img_Logo || data.logo_url || data.logo || data.Img_Logo || '';
     gymInfo.value = {
-      nombre: data.nombre || data.Nombre_Gym || data.usuario?.nombre || 'Gimnasio',
-      logo: data.logo_url || data.logo || data.Img_Logo || data.usuario?.logo_url || ''
+      nombre: String(nombre || 'Gimnasio').trim(),
+      logo: String(logo || '').trim()
     };
   } catch (error) {
-    console.warn('No se pudo cargar la identidad del gimnasio:', error);
+    console.warn('Recibo: no se pudo cargar el gimnasio desde /api/auth/perfil:', error);
   }
 };
 watch(() => props.visible, (visible) => { if (visible) obtenerDatosGym(); }, { immediate: true });
