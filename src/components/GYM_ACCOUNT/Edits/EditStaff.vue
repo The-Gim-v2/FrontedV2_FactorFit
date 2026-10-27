@@ -333,6 +333,10 @@ watch(
 
 /* ============================ FOTO ============================ */
 
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const isValidImage = file => !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
+const notifyInvalidImage = () => toastRef.value?.notify('Selecciona una imagen JPG, PNG o WebP de máximo 4 MB.', 'warning');
 const fileInput = ref(null);
 const avatarFile = ref(null);
 const avatarSrc = ref('');
@@ -363,11 +367,8 @@ const handleFileChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
-    toastRef.value?.notify(
-      txt('Selecciona una imagen válida.', 'Select a valid image.'),
-      'warning'
-    );
+  if (!isValidImage(file)) {
+    notifyInvalidImage();
     event.target.value = '';
     return;
   }
@@ -542,6 +543,7 @@ const capturePhoto = () => {
         type: 'image/jpeg'
       });
 
+      if (!isValidImage(file)) { notifyInvalidImage(); return; }
       setAvatarFile(file);
       closeCamera();
 
@@ -642,6 +644,7 @@ const validateForm = () => {
 
 const saveChanges = async () => {
   if (!loaded.value || saving.value || !validateForm()) return;
+  if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
   saving.value = true;
   try {
     const fd = new FormData();
@@ -658,9 +661,9 @@ const saveChanges = async () => {
       facebook: form.facebook.trim(),
       instagram: form.instagram.trim(),
       tiktok: form.tiktok.trim(),
-      otrasApp: form.otrasApp.trim(),
-      horario: JSON.stringify(showTimes.value ? { entrada: form.entrada, salida: form.salida } : null)
+      otrasApp: form.otrasApp.trim()
     };
+    if (showTimes.value) values.horario = JSON.stringify({ entrada: form.entrada, salida: form.salida });
     if (form.password) values.password = form.password;
     for (const [key, value] of Object.entries(values)) fd.append(key, value ?? '');
     const selected = isOwner.value ? ALL_SEDES.value : form.sedes;
