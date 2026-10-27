@@ -38,71 +38,54 @@ const warn = (message) => {
 
 /* ============================ SEDES ============================ */
 
-const listaSedes = ref([
-  { id: 'sede_norte', nombre: 'Sucursal Norte (Centro)' },
-  { id: 'sede_sur', nombre: 'Sucursal Sur (Plaza)' },
-  { id: 'sede_oriente', nombre: 'Sucursal Oriente' },
-  { id: 'sede_poniente', nombre: 'Sucursal Poniente' }
-]);
-
-const ALL_SEDES = listaSedes.value.map((sede) => sede.id);
-
-/* ============================ DATOS DE EJEMPLO ============================
-   Mismos usuarios que la tabla de personal. Cuando conectes la API,
-   reemplaza esto por una petición con el id de la ruta.
-   Roles: propietario | gerente | entrenador | recepcion
-================================================================== */
-
-const staffDB = [
-  {
-    id: 1, rol: 'propietario',
-    nombres: 'Armando Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Armandoluis@gmail.com', celular: '+52 481 1265412',
-    sedes: [...ALL_SEDES]
-  },
-  {
-    id: 2, rol: 'gerente',
-    nombres: 'Francisco Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Francisco.luis@example.com', celular: '+52 4811 243422',
-    sedes: ['sede_norte', 'sede_sur']
-  },
-  {
-    id: 3, rol: 'gerente',
-    nombres: 'Maria Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Maria.luis@example.com', celular: '+52 4811 243423',
-    sedes: [...ALL_SEDES]
-  },
-  {
-    id: 4, rol: 'entrenador',
-    nombres: 'Jorge Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Jorge.luis@example.com', celular: '+52 4811 243424',
-    especialidad: 'Musculación', instagram: '@jorge_fit',
-    sedes: ['sede_norte']
-  },
-  {
-    id: 5, rol: 'entrenador',
-    nombres: 'Mario Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Mario.luis@example.com', celular: '+52 4811 243425',
-    especialidad: 'Crossfit', tiktok: '@mario_cf',
-    entrada: '06:00', salida: '14:00',
-    sedes: ['sede_norte', 'sede_oriente']
-  },
-  {
-    id: 6, rol: 'recepcion',
-    nombres: 'Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Luis.ramires@example.com', celular: '+52 4811 243426',
-    entrada: '08:00', salida: '16:00',
-    sedes: ['sede_norte']
-  },
-  {
-    id: 7, rol: 'recepcion',
-    nombres: 'Ana Sofia', apellidoPaterno: 'Torres', apellidoMaterno: 'Perez',
-    correo: 'Ana.torres@example.com', celular: '+52 4811 243427',
-    entrada: '14:00', salida: '22:00',
-    sedes: ['sede_sur']
+const listaSedes = ref([]);
+const ALL_SEDES = computed(() => listaSedes.value.map(s => s.id));
+const staffDB = ref([]);
+const loadingProfile = ref(false);
+const saving = ref(false);
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const token = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+      const value = store.getItem(key);
+      if (value) return value.replace(/^Bearer\\s+/i, '');
+    }
+    for (const key of ['auth','user','session','gymAccount','gym_account']) {
+      try {
+        const value = JSON.parse(store.getItem(key) || 'null');
+        if (value?.token || value?.access_token || value?.accessToken)
+          return value.token || value.access_token || value.accessToken;
+      } catch {}
+    }
   }
-];
-
+  return '';
+};
+const request = async (path, options = {}) => {
+  const auth = token();
+  if (!auth) throw new Error('Tu sesión ha expirado. Inicia sesión nuevamente.');
+  const response = await fetch(`${API}${path}`, {
+    ...options,
+    headers: { Accept: 'application/json', Authorization: `Bearer ${auth}`, ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errors = Object.values(data?.errors || {}).flat().filter(Boolean).join(' ');
+    throw new Error(errors || data?.message || `Error HTTP ${response.status}`);
+  }
+  return data;
+};
+const fetchSedes = async () => {
+  const data = await request('/api/personal/sedes');
+  const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
+  listaSedes.value = rows.map(x => ({
+    id: Number(x.ID_Sede ?? x.id),
+    nombre: x.Sede_Colonia ?? x.Nombre_Sede ?? x.nombre ?? `Sede ${x.ID_Sede ?? x.id}`
+  })).filter(x => x.id > 0);
+};
+const fetchStaffSearch = async () => {
+  const data = await request('/api/personal');
+  staffDB.value = Array.isArray(data) ? data : (data?.data || []);
+};
 /* ============================ FORMULARIO ============================ */
 
 const emptyForm = () => ({
@@ -221,69 +204,60 @@ const resetAvatar = () => {
   avatarSrc.value = '';
 };
 
-const loadUser = (id) => {
-  const user = staffDB.find((item) => String(item.id) === String(id));
-
-  if (!user) {
-    currentStaffId.value = null;
-    Object.assign(form, emptyForm());
+const loadUser = async (id) => {
+  if (!id) return;
+  loadingProfile.value = true;
+  try {
+    const data = await request(`/api/personal/${encodeURIComponent(id)}`);
+    const user = data?.data || data;
+    const roleMap = { GYM_ADMIN: 'propietario', GYM_MANAGER: 'gerente', GYM_COACH: 'entrenador', GYM_RECEPCIONIST: 'recepcion' };
+    const assigned = user.sedes_asignadas || user.sedes || [];
+    const sedes = assigned.map(x => Number(typeof x === 'object' ? (x.ID_Sede ?? x.id) : x)).filter(x => x > 0);
+    const horario = user.horario || {};
+    Object.assign(form, emptyForm(), {
+      rol: roleMap[user.Nombre_Rol ?? user.rol?.Nombre_Rol] || '',
+      correo: user.Correo_Electronico || '',
+      sedes: sedes.length ? sedes : [Number(user.ID_Sede)].filter(Boolean),
+      curp: user.Curp || '',
+      nombres: user.Nombre || '',
+      apellidoPaterno: user.Apellido_P || '',
+      apellidoMaterno: user.Apellido_M || '',
+      fechaNacimiento: String(user.Fecha_Nacimiento || '').slice(0, 10),
+      celular: user.Celular || '',
+      especialidad: user.Especialidad || user.datos_extras?.Especialidad || '',
+      facebook: user.Facebook || user.datos_extras?.Facebook || '',
+      instagram: user.Instagram || user.datos_extras?.Instagram || '',
+      tiktok: user.TikTok || user.datos_extras?.TikTok || '',
+      otrasApp: user.Otras_App || user.datos_extras?.Otras_App || '',
+      entrada: horario.entrada || user.Horario_Entrada || '',
+      salida: horario.salida || user.Horario_Salida || '',
+      tieneHorario: Boolean(horario.entrada || user.Horario_Entrada)
+    });
+    if (form.rol === 'recepcion') form.sedes = form.sedes.slice(0, 1);
+    currentStaffId.value = Number(user.ID_Personal);
+    isDropdownOpen.value = false;
     resetAvatar();
-    return false;
+    avatarSrc.value = user.foto_url || '';
+  } catch (error) {
+    currentStaffId.value = null;
+    toastRef.value?.notify(error.message, 'error');
+  } finally {
+    loadingProfile.value = false;
   }
-
-  const { id: userId, ...data } = user;
-
-  Object.assign(form, emptyForm(), data, { sedes: [...(data.sedes || [])] });
-
-  /* Recepción siempre una sola sede */
-  if (data.rol === 'recepcion' && form.sedes.length > 1) {
-    form.sedes = [form.sedes[0]];
-  }
-
-  /* Horario: obligatorio en recepción, opcional en entrenador */
-  form.tieneHorario =
-    data.rol === 'recepcion' || Boolean(data.entrada && data.salida);
-
-  currentStaffId.value = userId;
-  isDropdownOpen.value = false;
-  resetAvatar();
-
-  return true;
 };
-
 /* ============================ BÚSQUEDA ============================ */
 
 const handleSearch = () => {
   const term = searchQuery.value.trim().toLowerCase();
   if (!term) return;
-
-  const match = staffDB.find((user) => {
-    const fullName = [user.nombres, user.apellidoPaterno, user.apellidoMaterno]
-      .join(' ')
-      .toLowerCase();
-
-    return (
-      fullName.includes(term) ||
-      user.correo.toLowerCase().includes(term) ||
-      String(user.id) === term
-    );
+  const match = staffDB.value.find(user => {
+    const name = [user.Nombre, user.Apellido_P, user.Apellido_M].filter(Boolean).join(' ').toLowerCase();
+    return name.includes(term) || String(user.Correo_Electronico || '').toLowerCase().includes(term)
+      || String(user.ID_Personal) === term;
   });
-
-  if (!match) {
-    warn(
-      L(
-        'No se encontró personal con esa búsqueda.',
-        'No staff member matches that search.',
-        'Aucun membre du personnel ne correspond à cette recherche.',
-        'Nenhum funcionário corresponde a essa busca.'
-      )
-    );
-    return;
-  }
-
-  router.push(`/GYM_ACCOUNT/editar-staff/${match.id}`);
+  if (!match) return warn('No se encontró personal con esa búsqueda.');
+  router.push(`/GYM_ACCOUNT/editar-staff/${match.ID_Personal}`);
 };
-
 /* ============================ SEDES (SELECTOR) ============================ */
 
 const isDropdownOpen = ref(false);
@@ -313,7 +287,7 @@ const toggleSede = (id) => {
 };
 
 const toggleAllSedes = () => {
-  form.sedes = allSedesSelected.value ? [] : [...ALL_SEDES];
+  form.sedes = allSedesSelected.value ? [] : [...ALL_SEDES.value];
 };
 
 const getSedesDisplayText = () => {
@@ -666,53 +640,42 @@ const validateForm = () => {
 
 /* ============================ GUARDAR ============================ */
 
-const saveChanges = () => {
-  if (!loaded.value || !validateForm()) return;
-
-  /* Solo se envía lo que aplica al rol */
-  const data = {
-    id: currentStaffId.value,
-    rol: form.rol,
-    correo: form.correo.trim(),
-
-    ...(needsPassword.value && form.password && { password: form.password }),
-
-    sedes: isOwner.value ? [...ALL_SEDES] : [...form.sedes],
-    todasLasSedes: isOwner.value || allSedesSelected.value,
-
-    curp: form.curp.trim(),
-    nombres: form.nombres.trim(),
-    apellidoPaterno: form.apellidoPaterno.trim(),
-    apellidoMaterno: form.apellidoMaterno.trim(),
-    fechaNacimiento: form.fechaNacimiento,
-    celular: form.celular.trim(),
-
-    ...(isTrainer.value && {
+const saveChanges = async () => {
+  if (!loaded.value || saving.value || !validateForm()) return;
+  saving.value = true;
+  try {
+    const fd = new FormData();
+    const values = {
+      rol: form.rol,
+      correo: form.correo.trim(),
+      curp: form.curp.trim(),
+      nombres: form.nombres.trim(),
+      apellidoPaterno: form.apellidoPaterno.trim(),
+      apellidoMaterno: form.apellidoMaterno.trim(),
+      fechaNacimiento: form.fechaNacimiento,
+      celular: form.celular.trim(),
       especialidad: form.especialidad.trim(),
       facebook: form.facebook.trim(),
       instagram: form.instagram.trim(),
       tiktok: form.tiktok.trim(),
-      otrasApp: form.otrasApp.trim()
-    }),
-
-    horario: showTimes.value
-      ? { entrada: form.entrada, salida: form.salida }
-      : null,
-
-    foto: avatarFile.value
-  };
-
-  console.log('Guardando cambios...', data);
-
-  form.password = '';
-  form.confirmPassword = '';
-
-  toastRef.value?.notify(
-    txt('Guardado correctamente', 'Saved successfully'),
-    'success'
-  );
+      otrasApp: form.otrasApp.trim(),
+      horario: JSON.stringify(showTimes.value ? { entrada: form.entrada, salida: form.salida } : null)
+    };
+    if (form.password) values.password = form.password;
+    for (const [key, value] of Object.entries(values)) fd.append(key, value ?? '');
+    const selected = isOwner.value ? ALL_SEDES.value : form.sedes;
+    selected.forEach(id => fd.append('sedes[]', String(id)));
+    if (avatarFile.value) fd.append('foto', avatarFile.value);
+    await request(`/api/personal/${currentStaffId.value}`, { method: 'POST', body: fd });
+    await loadUser(currentStaffId.value);
+    await fetchStaffSearch();
+    toastRef.value?.notify('Cambios guardados correctamente.', 'success');
+  } catch (error) {
+    toastRef.value?.notify(error.message || 'No se pudieron guardar los cambios.', 'error');
+  } finally {
+    saving.value = false;
+  }
 };
-
 /* ============================ CICLO DE VIDA ============================ */
 
 /* Carga el usuario según el id de la ruta: /GYM_ACCOUNT/editar-staff/:id */
@@ -728,14 +691,18 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
+onMounted(async () => {
+  try { await Promise.all([fetchSedes(), fetchStaffSearch()]); }
+  catch (error) { toastRef.value?.notify(error.message, 'error'); }
   window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', fetchStaffSearch);
   document.addEventListener('click', handleClickOutside);
   document.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', fetchStaffSearch);
   document.removeEventListener('click', handleClickOutside);
   document.removeEventListener('keydown', handleKeydown);
   stopCamera();
@@ -799,6 +766,7 @@ onUnmounted(() => {
         </div>
       </header>
 
+      <div v-if="loadingProfile" class="login-card">Cargando información del personal...</div>
       <!-- ==================== SIN PERSONAL SELECCIONADO ==================== -->
       <section v-if="!loaded" class="login-card empty-staff">
         <svg
