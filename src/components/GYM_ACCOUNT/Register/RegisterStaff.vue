@@ -1872,7 +1872,21 @@ const saveRegistration = async () => {
     const type = response.headers.get('content-type') || '';
     if (!type.includes('application/json')) throw new Error(`El servidor devolvió HTML (HTTP ${response.status}). Revisa VITE_API_URL y /api/personal.`);
     const result = await response.json();
-    if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'No se pudo registrar al personal.');
+    if (!response.ok) {
+      if (response.status === 422 && result.errors?.curp?.length) {
+        throw new Error('Esta CURP ya está registrada.');
+      }
+
+      const validationMessages = Object.values(result.errors || {})
+        .flat()
+        .filter(Boolean);
+
+      throw new Error(
+        validationMessages.join(' ') ||
+        result.message ||
+        'No se pudo registrar al personal.'
+      );
+    }
     toastRef.value?.notify(
       L(
         'Personal registrado correctamente.',
