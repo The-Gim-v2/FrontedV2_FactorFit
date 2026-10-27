@@ -230,7 +230,12 @@ const executeDelete = async () => {
   deleting.value = false;
  }
 };
-const goToPayments = (id) => router.push(`/GYM_ACCOUNT/pay/${id}`);
+const goToPayments = (id) => {
+  const user = users.value.find(u => u.id === id);
+  if (!user) return toastRef.value?.notify('No se encontró el cliente seleccionado.', 'error');
+  // La ruta utiliza ID_Inscripto, no ID_Cliente.
+  router.push({ path: `/GYM_ACCOUNT/pay/${user.id}`, query: { sede_id: obtenerSedeId() || undefined } });
+};
 // La pantalla de edición y ClienteGymController::show buscan por ID_Cliente, no ID_Inscripto.
 const goToEdit = (id) => {
  const user = users.value.find(u => u.id === id);
@@ -412,7 +417,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
 /* =========================================================
  PANEL DE PAGOS
-========================================================= */
+ ========================================================= */
 .main-content,
 .modal-wrapper {
  --line: color-mix(
@@ -461,7 +466,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  CABECERA
-========================================================= */
+ ========================================================= */
 .header-section {
  display: flex;
  align-items: flex-end;
@@ -501,7 +506,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  BARRA DE ACCIONES
-========================================================= */
+ ========================================================= */
 .actions-bar {
  display: flex;
  align-items: center;
@@ -511,7 +516,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  SELECTS
-========================================================= */
+ ========================================================= */
 .select-wrapper,
 .search-wrapper {
  position: relative;
@@ -586,7 +591,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  BUSCADOR
-========================================================= */
+ ========================================================= */
 .search-input {
  width: 225px;
  padding:
@@ -602,7 +607,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  BOTÓN CORREO MASIVO
-========================================================= */
+ ========================================================= */
 .btn-bulk {
  min-height: 44px;
  display: inline-flex;
@@ -692,7 +697,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  DESKTOP / MOBILE
-========================================================= */
+ ========================================================= */
 .desktop-only {
  display: block;
 }
@@ -701,7 +706,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  TABLA
-========================================================= */
+ ========================================================= */
 .table-container {
  position: relative;
  width: 100%;
@@ -790,7 +795,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  TEXTO DE TABLA
-========================================================= */
+ ========================================================= */
 .text-bold {
  color: var(--color-titulos, #f8fafc);
  font-weight: 600;
@@ -800,7 +805,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  AVATAR
-========================================================= */
+ ========================================================= */
 .avatar-small {
  width: 40px;
  height: 40px;
@@ -822,7 +827,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  ESTADOS
-========================================================= */
+ ========================================================= */
 .status-badge {
  width: fit-content;
  min-height: 27px;
@@ -893,7 +898,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  MEMBRESÍA
-========================================================= */
+ ========================================================= */
 .membership-badge {
  width: fit-content;
  display: inline-flex;
@@ -911,7 +916,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  ACCIONES
-========================================================= */
+ ========================================================= */
 .actions-cell {
  display: flex;
  align-items: center;
@@ -983,7 +988,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  EMPTY STATE
-========================================================= */
+ ========================================================= */
 .empty-state-cell {
  padding: 0 !important;
  border-top: none !important;
@@ -1008,7 +1013,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  MODAL
-========================================================= */
+ ========================================================= */
 .modal-wrapper {
  position: fixed;
  z-index: 9999;
@@ -1061,7 +1066,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  ICONO MODAL
-========================================================= */
+ ========================================================= */
 .modal-icon-container {
  width: 52px;
  height: 52px;
@@ -1080,7 +1085,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  BOTONES MODAL
-========================================================= */
+ ========================================================= */
 .modal-buttons {
  display: flex;
  gap: 10px;
@@ -1140,7 +1145,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  NOTIFICACIONES
-========================================================= */
+ ========================================================= */
 :deep(.notification-container),
 :deep(.toast-container) {
  width: calc(100% - 32px) !important;
@@ -1154,7 +1159,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  TRANSICIÓN MODALES
-========================================================= */
+ ========================================================= */
 .pop-enter-active,
 .pop-leave-active {
  transition:
@@ -1207,7 +1212,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  MÓVIL
-========================================================= */
+ ========================================================= */
 @media (max-width: 900px) {
  .desktop-only {
   display: none !important;
@@ -1471,7 +1476,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  TELÉFONOS
-========================================================= */
+ ========================================================= */
 @media (max-width: 560px) {
  .main-content {
   padding:
@@ -1513,7 +1518,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  TELÉFONOS MUY PEQUEÑOS
-========================================================= */
+ ========================================================= */
 @media (max-width: 380px) {
  .card-actions {
   grid-template-columns: 1fr;
@@ -1527,7 +1532,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 }
 /* =========================================================
  FOCUS / ACCESIBILIDAD
-========================================================= */
+ ========================================================= */
 .icon-btn:focus-visible,
 .action-chip:focus-visible,
 .btn-modal:focus-visible {
