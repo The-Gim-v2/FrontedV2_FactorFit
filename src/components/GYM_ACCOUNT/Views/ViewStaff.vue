@@ -1,4 +1,3 @@
-
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
@@ -10,14 +9,14 @@
         </div>
         <div class="actions-bar">
           <select v-model="selectedRoleFilter" class="status-select">
-            <option value="Todos">{{ t('roleAll') }}</option>
+            <option value="Todos">Status (Todos)</option>
             <option value="Propietario">Propietario</option>
             <option value="Gerente">Gerente</option>
             <option value="Entrenador">{{ t('roleTrainer') }}</option>
             <option value="Recepcionista">{{ t('roleReceptionist') }}</option>
           </select>
           <button class="btn-bulk" @click="activeModal = 'enviomasivo'">
-            <Mail :size="17" /> {{ t('bulkEmailBtn') }}
+            <Mail :size="18" /> Correo Masivo
           </button>
           <div class="search-wrapper">
             <Search :size="18" class="search-icon" />
@@ -25,13 +24,11 @@
           </div>
         </div>
       </header>
-
       <div v-if="loadingUsers" class="data-message">Cargando personal registrado...</div>
       <div v-if="errorUsers" class="data-message error-message" role="alert">
         {{ errorUsers }}
         <button type="button" @click="cargarPersonal">Reintentar</button>
       </div>
-
       <div class="table-container desktop-only">
         <table v-if="filteredUsers.length" class="user-table">
           <thead>
@@ -71,7 +68,6 @@
         </table>
         <div v-else-if="!loadingUsers && !errorUsers" class="empty-state">No hay personal registrado para esta sucursal o filtro.</div>
       </div>
-
       <div class="mobile-only">
         <div v-if="!loadingUsers && !errorUsers && !filteredUsers.length" class="empty-state">No hay personal registrado para esta sucursal o filtro.</div>
         <article v-for="user in pagedUsers" :key="user.id" class="user-card">
@@ -99,14 +95,12 @@
           </div>
         </article>
       </div>
-
       <nav v-if="showPager" class="pager" aria-label="Paginación">
         <button class="pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹</button>
         <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
         <button class="pager-btn" :disabled="page >= totalPages" @click="goPage(page + 1)">›</button>
       </nav>
     </main>
-
     <transition name="pop">
       <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
         <CorreoMasivo @close="activeModal = null" />
@@ -117,7 +111,6 @@
         <EnvioCorreo @close="activeModal = null" />
       </div>
     </transition>
-
     <transition name="pop">
       <div v-if="showDelete" class="modal-wrapper" @click.self="closeDelete">
         <div class="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
@@ -136,7 +129,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -146,7 +138,6 @@ import CorreoMasivo from '../Componets/Bulk-Email.vue';
 import EnvioCorreo from '../Componets/Mail.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 const router = useRouter();
 const toastRef = ref(null);
 const activeModal = ref(null);
@@ -164,7 +155,6 @@ const deleting = ref(false);
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const PAGE_SIZE = 40;
 let requestSequence = 0;
-
 const t = key => traducciones[currentLang.value]?.[key] || traducciones.es?.[key] || key;
 const roleText = role => ({
   Propietario: ({ es: 'Propietario', en: 'Owner', fr: 'Propriétaire', pt: 'Proprietário' })[currentLang.value] || 'Propietario',
@@ -189,7 +179,6 @@ const avatarColor = (name = '') => {
   const color = colors[Math.abs(hash) % colors.length];
   return `linear-gradient(135deg,${color},${color}99)`;
 };
-
 const getToken = () => {
   for (const storage of [sessionStorage, localStorage]) {
     for (const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
@@ -206,12 +195,10 @@ const getToken = () => {
   }
   return '';
 };
-
 const obtenerSedeId = () => {
   const id = Number(sessionStorage.getItem('selected_sede_id'));
   return Number.isInteger(id) && id > 0 ? id : null;
 };
-
 const cargarPersonal = async () => {
   const current = ++requestSequence;
   loadingUsers.value = true;
@@ -260,7 +247,6 @@ const cargarPersonal = async () => {
     if (current === requestSequence) loadingUsers.value = false;
   }
 };
-
 const filteredUsers = computed(() => {
   const term = searchQuery.value.trim().toLocaleLowerCase();
   return users.value.filter(user => {
@@ -274,7 +260,6 @@ const pagedUsers = computed(() => filteredUsers.value.slice((page.value - 1) * P
 const goPage = n => { page.value = Math.min(Math.max(1, n), totalPages.value); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 watch([searchQuery, selectedRoleFilter], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
-
 const openEmail = user => {
   if (!user.email) return toastRef.value?.notify('Este empleado no tiene correo.', 'error');
   activeModal.value = 'enviocorreo';
@@ -320,7 +305,6 @@ const executeDelete = async () => {
 const handleResize = () => { isMobile.value = window.innerWidth <= 900; };
 const handleLangChange = event => { if (event.detail?.idioma) currentLang.value = event.detail.idioma; };
 const handleBranchChange = () => cargarPersonal();
-
 onMounted(() => {
   window.addEventListener('resize', handleResize);
   window.addEventListener('idioma-changed', handleLangChange);
@@ -334,7 +318,6 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', handleBranchChange);
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
 *{box-sizing:border-box}
@@ -344,10 +327,10 @@ onUnmounted(() => {
 .result-count{display:inline-block;border:1px solid rgba(148,163,184,.2);background:rgba(148,163,184,.07);border-radius:30px;padding:5px 12px;font-size:12px;margin:0;color:var(--color-texto-general,#cbd5e1)}
 .actions-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
 .status-select,.search-wrapper{height:44px;background:var(--bg-cards,#1c1d2b);color:var(--color-texto-general,#e2e8f0);border:1px solid rgba(148,163,184,.18);border-radius:13px}
-.status-select{min-width:170px;padding:0 14px;outline:none;cursor:pointer}
-.btn-bulk{height:44px;padding:0 20px;border:0;border-radius:12px;background:var(--color-botones,#e54470);color:var(--color-texto-botones,#fff);font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.status-select{width:150px;min-width:150px;height:44px;padding:0 14px;outline:none;cursor:pointer;font-size:14px}
+.btn-bulk{height:44px;min-width:162px;padding:0 18px;border:0;border-radius:13px;background:var(--color-botones,#e54470);color:var(--color-texto-botones,#fff);font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .btn-bulk:hover{filter:brightness(1.08)}
-.search-wrapper{display:flex;align-items:center;gap:8px;padding:0 13px;min-width:230px}
+.search-wrapper{display:flex;align-items:center;gap:10px;padding:0 14px;width:250px;min-width:250px}
 .search-icon{color:#9ca3af;flex-shrink:0}
 .search-input{width:100%;background:transparent;border:0;outline:0;color:inherit;font:inherit;font-size:13px}
 .search-input::placeholder{color:#8c90a3}
