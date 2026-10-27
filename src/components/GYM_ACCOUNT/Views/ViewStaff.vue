@@ -310,28 +310,83 @@ const getToken = () => {
 const cargarPersonal = async () => {
   loadingUsers.value = true;
   errorUsers.value = '';
+
   try {
     const token = getToken();
-    if (!token) throw new Error('No se encontró el token de sesión.');
-    const response = await fetch(
-        `${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`,
-        {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-    const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.message || `Error HTTP ${response.status}`);
-    const rows = Array.isArray(body) ? body : (Array.isArray(body?.data) ? body.data : []);
-    const roles = {
-      GYM_ADMIN: 'Propietario', GYM_MANAGER: 'Gerente',
-      GYM_COACH: 'Entrenador', GYM_RECEPCIONIST: 'Recepcionista'
+
+    if (!token) {
+      throw new Error('No se encontró el token de sesión.');
+    }
+
+    const headers = {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
     };
+
+    // Obtener las sucursales reales del gimnasio.
+    const sedesResponse = await fetch(`${API}/api/personal/sedes`, {
+      headers
+    });
+
+    const sedesBody = await sedesResponse.json().catch(() => null);
+
+    if (!sedesResponse.ok) {
+      throw new Error(
+        sedesBody?.message ||
+        `Error al obtener sucursales: HTTP ${sedesResponse.status}`
+      );
+    }
+
+    const sedes = Array.isArray(sedesBody?.sedes)
+      ? sedesBody.sedes
+      : [];
+
+    if (!sedes.length) {
+      throw new Error('Tu gimnasio no tiene sucursales registradas.');
+    }
+
+    // Solución temporal: utilizar la primera sede disponible.
+    const sedeId = Number(sedes[0].ID_Sede);
+
+    if (!Number.isInteger(sedeId) || sedeId <= 0) {
+      throw new Error('La sucursal obtenida no tiene un ID válido.');
+    }
+
+    // Consultar el personal de esa sucursal.
+    const response = await fetch(
+      `${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`,
+      { headers }
+    );
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        body?.message ||
+        `Error al obtener personal: HTTP ${response.status}`
+      );
+    }
+
+    const rows = Array.isArray(body)
+      ? body
+      : Array.isArray(body?.data)
+        ? body.data
+        : [];
+
+    const roles = {
+      GYM_ADMIN: 'Propietario',
+      GYM_MANAGER: 'Gerente',
+      GYM_COACH: 'Entrenador',
+      GYM_RECEPCIONIST: 'Recepcionista'
+    };
+
     users.value = rows.map(row => ({
       id: Number(row.ID_Personal),
-      name: [row.Nombre, row.Apellido_P, row.Apellido_M].filter(Boolean).join(' '),
+      name: [
+        row.Nombre,
+        row.Apellido_P,
+        row.Apellido_M
+      ].filter(Boolean).join(' '),
       email: row.Correo_Electronico || '',
       phone: row.Celular || '',
       role: roles[row.Nombre_Rol] || row.Nombre_Rol || 'Sin rol',
@@ -339,10 +394,19 @@ const cargarPersonal = async () => {
       sede: row.Nombre_Sede || '',
       foto: row.foto_url || null
     }));
+
+    console.log('Sede consultada:', sedeId);
+    console.log('Personal recibido:', users.value);
+
   } catch (error) {
     users.value = [];
-    errorUsers.value = error.message || 'No se pudo cargar el personal.';
+    errorUsers.value =
+      error.message || 'No se pudo cargar el personal.';
+
+    console.error('Error al cargar personal:', error);
+
     toastRef.value?.notify(errorUsers.value, 'error');
+
   } finally {
     loadingUsers.value = false;
   }
