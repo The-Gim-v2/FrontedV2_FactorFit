@@ -226,8 +226,42 @@ const getToken = () => {
   return '';
 };
 const obtenerSedeId = () => {
-  const id = Number(sessionStorage.getItem('selected_sede_id'));
-  return Number.isInteger(id) && id > 0 ? id : null;
+  const keys = ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of keys) {
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      let value = raw;
+      try {
+        const obj = JSON.parse(raw);
+        value = typeof obj === 'object' ? (obj?.ID_Sede ?? obj?.sede_id ?? obj?.id ?? obj?.value) : obj;
+      } catch {}
+      const id = Number(value);
+      if (Number.isInteger(id) && id > 0) return id;
+    }
+  }
+  return null;
+};
+
+const resolverSedeId = async (token) => {
+  let id = obtenerSedeId();
+  if (id) return id;
+  await new Promise(r => setTimeout(r, 700));
+  id = obtenerSedeId();
+  if (id) return id;
+  try {
+    const response = await fetch(`${API}/api/personal/sedes`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json().catch(() => null);
+    const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
+    const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
+    if (Number.isInteger(first) && first > 0) {
+      sessionStorage.setItem('selected_sede_id', String(first));
+      return first;
+    }
+  } catch {}
+  return null;
 };
 const cargarPersonal = async () => {
   const current = ++requestSequence;
@@ -238,8 +272,8 @@ const cargarPersonal = async () => {
   try {
     const token = getToken();
     if (!token) throw new Error('No se encontró el token de sesión.');
-    const sedeId = obtenerSedeId();
-    if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
+    const sedeId = await resolverSedeId(token);
+      if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
     const response = await fetch(`${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`, {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
     });
