@@ -73,7 +73,7 @@ const offerNameMap: Record<string, Record<string, string>> = {
   es: { '3 Meses': '3 Meses', '1 Semana': '1 Semana', '12 Meses': '12 Meses', '1 Mes': '1 Mes' },
   en: { '3 Meses': '3 Months', '1 Semana': '1 Week', '12 Meses': '12 Months', '1 Mes': '1 Month' }
 };
-const t = (key: string) => translations[idioma.value]?.[key] || translations.es[key] || key;
+const t = (key: string) => translations[idioma.value]?.[key] ?? translations['es']?.[key] ?? key;
 const getLocalizedOfferName = (nombre: string) => offerNameMap[idioma.value]?.[nombre] || nombre;
 const ofertasValidas = computed(() => (props.ofertas || []).filter(o =>
   o && typeof o.nombre === 'string' && o.nombre.trim() &&
