@@ -301,8 +301,7 @@ const cargarClientes=async()=>{
   loadingUsers.value=true;errorUsers.value='';
   try{
     if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const sedeId = await resolverSedeId(token);
-    if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
+    const sedeId=await resolverSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
     const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
     const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
     users.value=rows.map(row=>({
