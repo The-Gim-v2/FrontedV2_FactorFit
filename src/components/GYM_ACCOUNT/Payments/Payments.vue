@@ -61,7 +61,16 @@ const generarFolio=()=>`OP-${Date.now().toString().slice(-8)}`;
 watch(tipoPago,n=>{if(n==='Efectivo')folioReferencia.value=generarFolio();else if(folioReferencia.value.startsWith('OP-'))folioReferencia.value='';});
 const isButtonDisabled=computed(()=>loading.value||saving.value||!inscripcion.value||!montoRecibir.value||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value!=='Efectivo'&&!folioReferencia.value.trim()));
 const reciboLocale=computed(()=>currentLang.value==='en'?'en-US':'es-MX');
-const montoMostrado=computed(()=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(montoRecibir.value)||0));
+const formatoMoneda=n=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
+// Monto que se escribe en el campo "Monto a recibir" (lo que se registrará).
+const montoMostrado=computed(()=>formatoMoneda(montoRecibir.value));
+// Total a pagar: independiente del campo "Monto a recibir".
+// Solo cambia al elegir una promoción o al cargar el precio de la inscripción.
+const totalAPagar=computed(()=>{
+ const precio=ofertaSeleccionada.value?Number(ofertaSeleccionada.value.precio):Number(inscripcion.value?.Precio);
+ return Number.isFinite(precio)?precio:0;
+});
+const totalMostrado=computed(()=>formatoMoneda(totalAPagar.value));
 const planActual=computed(()=>ofertaSeleccionada.value?.nombre||inscripcion.value?.Nombre_Paquete||t('monthlyOption'));
 const duracionPlan=computed(()=>{const m=Number(ofertaSeleccionada.value?.meses)||1;return `${m} ${m===1?txt('mes','month'):txt('meses','months')}`;});
 const metodoPagoLabel=computed(()=>({Efectivo:txt('Efectivo','Cash'),Transferencia:txt('Transferencia','Transfer'),Tarjeta:txt('Tarjeta','Card')})[tipoPago.value]||txt('Sin seleccionar','Not selected'));
@@ -102,11 +111,14 @@ onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);cargar
 onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
 watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
 </script>
+
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
+
     <main class="payment-page">
       <div class="payment-container">
+
         <!-- ================================================
              ENCABEZADO
         ================================================= -->
@@ -116,10 +128,12 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
               <span></span>
               {{ txt('OPERACIONES / COBROS', 'OPERATIONS / PAYMENTS') }}
             </div>
+
             <h1>
               {{ txt('REGISTRAR', 'REGISTER') }}
               <strong>{{ txt('PAGO', 'PAYMENT') }}</strong>
             </h1>
+
             <p>
               {{
                 txt(
@@ -129,6 +143,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
               }}
             </p>
           </div>
+
           <div class="header-status">
             <span class="status-light"></span>
             <div>
@@ -141,29 +156,47 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
             </div>
           </div>
         </header>
+
+        <!-- ================================================
+             ESTADOS DE CARGA / ERROR
+        ================================================= -->
+        <p v-if="loading" role="status">
+          {{ txt('Cargando información del cliente...', 'Loading client information...') }}
+        </p>
+        <div
+          v-if="errorCarga"
+          role="alert"
+          style="color:#f87171;margin-bottom:16px"
+        >
+          {{ errorCarga }}
+        </div>
+
         <!-- ================================================
              LAYOUT
         ================================================= -->
-        <p v-if="loading" role="status">Cargando información del cliente...</p>
-<div v-if="errorCarga" role="alert" style="color:#f87171;margin-bottom:16px">{{ errorCarga }}</div>
-<div class="payment-layout">
+        <div class="payment-layout">
+
           <!-- ==============================================
                CLIENTE
           =============================================== -->
           <aside class="client-column">
             <article class="client-card">
               <div class="card-top-line"></div>
+
               <div class="client-card-header">
                 <span class="client-label">
                   {{ txt('CLIENTE SELECCIONADO', 'SELECTED CLIENT') }}
                 </span>
+
                 <span class="active-pill">
                   <i></i>
                   {{ cliente.estado }}
                 </span>
               </div>
+
               <div class="avatar-container">
                 <div class="avatar-decoration"></div>
+
                 <div class="avatar">
                   <img
                     :src="cliente.foto"
@@ -171,15 +204,19 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   />
                 </div>
               </div>
+
               <div class="client-name">
                 <h2>{{ cliente.nombre }}</h2>
                 <h2 class="highlight">{{ cliente.apellido }}</h2>
               </div>
+
               <div class="client-id">
                 <span>{{ txt('ID DE CLIENTE', 'CLIENT ID') }}</span>
                 <strong>{{ cliente.id }}</strong>
               </div>
+
               <div class="client-divider"></div>
+
               <div class="client-mini-info">
                 <div>
                   <span>
@@ -187,6 +224,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </span>
                   <strong>{{ planActual }}</strong>
                 </div>
+
                 <div>
                   <span>
                     {{ txt('Próximo corte', 'Next billing') }}
@@ -196,10 +234,12 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
               </div>
             </article>
           </aside>
+
           <!-- ==============================================
                COBRO
           =============================================== -->
           <section class="operations-column">
+
             <!-- BUSCADOR -->
             <div
               id="tutorial-step-0"
@@ -208,6 +248,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
               <label>
                 {{ t('searchClientLabel') }}
               </label>
+
               <div class="search-control">
                 <svg
                   viewBox="0 0 24 24"
@@ -225,19 +266,23 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     y2="16.65"
                   />
                 </svg>
+
                 <input
                   type="text"
                   :placeholder="t('searchClientPlaceholder')"
                 />
+
                 <kbd>⌘ K</kbd>
               </div>
             </div>
+
             <!-- PANEL -->
             <article
               id="tutorial-step-1"
               class="payment-card"
             >
               <div class="card-top-line"></div>
+
               <!-- ENCABEZADO DEL COBRO -->
               <div class="payment-card-header">
                 <div class="payment-title">
@@ -260,6 +305,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       <path d="M2 10h20" />
                     </svg>
                   </span>
+
                   <div>
                     <span class="section-kicker">
                       {{ txt('TRANSACCIÓN', 'TRANSACTION') }}
@@ -269,6 +315,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     </h3>
                   </div>
                 </div>
+
                 <button
                   class="promo-button"
                   type="button"
@@ -287,6 +334,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   {{ t('promosBtn') }}
                 </button>
               </div>
+
               <!-- FECHAS -->
               <div class="billing-dates">
                 <div class="billing-date">
@@ -309,11 +357,13 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       <path d="M16 2v4M8 2v4M3 10h18" />
                     </svg>
                   </span>
+
                   <div>
                     <span>{{ t('nextCutLabel') }}</span>
                     <strong>{{ fechaProximoCorte }}</strong>
                   </div>
                 </div>
+
                 <span class="date-arrow">
                   <svg
                     viewBox="0 0 24 24"
@@ -326,6 +376,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </span>
+
                 <div class="billing-date new-date">
                   <span class="date-icon">
                     <svg
@@ -347,14 +398,16 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       <path d="m9 16 2 2 4-5" />
                     </svg>
                   </span>
+
                   <div>
                     <span>{{ t('newCutLabel') }}</span>
                     <strong>{{ fechaNuevoCorte }}</strong>
                   </div>
                 </div>
               </div>
+
               <!-- ============================================
-                   TOTAL PRINCIPAL
+                   TOTAL PRINCIPAL (independiente del monto a recibir)
               ============================================= -->
               <div class="payment-summary">
                 <div class="summary-main">
@@ -362,15 +415,18 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     <span>
                       {{ t('totalToPayLabel') }}
                     </span>
+
                     <span class="summary-state">
                       {{ txt('POR COBRAR', 'DUE') }}
                     </span>
                   </div>
+
                   <div class="big-amount">
                     <span class="big-currency">$</span>
-                    <strong>{{ montoMostrado }}</strong>
+                    <strong>{{ totalMostrado }}</strong>
                     <span class="currency-code">MXN</span>
                   </div>
+
                   <div class="plan-line">
                     <span class="plan-icon">
                       <svg
@@ -385,11 +441,13 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                         <path d="M4 6v12a2 2 0 0 0 2 2h14v-8H6a2 2 0 0 1-2-2Z" />
                       </svg>
                     </span>
+
                     <strong>{{ planActual }}</strong>
                     <span>•</span>
                     <span>{{ duracionPlan }}</span>
                   </div>
                 </div>
+
                 <div class="summary-side">
                   <div class="surcharge-box">
                     <span>
@@ -399,6 +457,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       + $0.00
                     </strong>
                   </div>
+
                   <div
                     v-if="ofertaSeleccionada"
                     class="promotion-applied"
@@ -417,6 +476,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </div>
                 </div>
               </div>
+
               <!-- ============================================
                    MÉTODO DE PAGO
               ============================================= -->
@@ -437,9 +497,11 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     </small>
                   </div>
                 </div>
+
                 <div class="payment-details-grid">
                   <div class="input-group">
                     <label>{{ t('paymentTypeLabel') }}</label>
+
                     <div class="field-control">
                       <svg
                         class="field-icon"
@@ -464,6 +526,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                           y2="10"
                         />
                       </svg>
+
                       <select
                         v-model="tipoPago"
                         class="field-select"
@@ -481,6 +544,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                           {{ t('cardOption') }}
                         </option>
                       </select>
+
                       <svg
                         class="select-arrow"
                         viewBox="0 0 24 24"
@@ -494,8 +558,10 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       </svg>
                     </div>
                   </div>
+
                   <div class="input-group">
                     <label>{{ t('folioReferenceLabel') }}</label>
+
                     <div
                       class="field-control"
                       :class="{
@@ -515,6 +581,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                         <path d="M4 4h16v16H4z" />
                         <path d="M8 9h8M8 13h5" />
                       </svg>
+
                       <input
                         v-model="folioReferencia"
                         type="text"
@@ -522,6 +589,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                         :disabled="tipoPago === 'Efectivo'"
                       />
                     </div>
+
                     <small
                       v-if="tipoPago === 'Efectivo'"
                       class="field-help"
@@ -536,6 +604,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </div>
                 </div>
               </section>
+
               <!-- ============================================
                    MONTO
               ============================================= -->
@@ -556,9 +625,11 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     </small>
                   </div>
                 </div>
+
                 <div class="amount-input-container">
                   <div class="amount-input-box">
                     <span class="amount-symbol">$</span>
+
                     <input
                       v-model="montoRecibir"
                       type="number"
@@ -566,8 +637,10 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       step="0.01"
                       placeholder="0.00"
                     />
+
                     <span class="amount-mxn">MXN</span>
                   </div>
+
                   <div class="amount-validation">
                     <span
                       class="validation-dot"
@@ -577,6 +650,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                           Number(montoRecibir) > 0
                       }"
                     ></span>
+
                     {{
                       montoRecibir &&
                       Number(montoRecibir) > 0
@@ -592,6 +666,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </div>
                 </div>
               </section>
+
               <!-- ============================================
                    RESUMEN DE TRANSACCIÓN
               ============================================= -->
@@ -610,6 +685,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       }}
                     </strong>
                   </div>
+
                   <span
                     class="review-status"
                     :class="{
@@ -624,6 +700,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     }}
                   </span>
                 </div>
+
                 <div class="review-grid">
                   <div class="review-item">
                     <span>
@@ -631,18 +708,21 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     </span>
                     <strong>{{ clienteActual }}</strong>
                   </div>
+
                   <div class="review-item">
                     <span>
                       {{ txt('Plan', 'Plan') }}
                     </span>
                     <strong>{{ planActual }}</strong>
                   </div>
+
                   <div class="review-item">
                     <span>
                       {{ txt('Método', 'Method') }}
                     </span>
                     <strong>{{ metodoPagoLabel }}</strong>
                   </div>
+
                   <div class="review-item">
                     <span>
                       {{ txt('Total', 'Total') }}
@@ -653,6 +733,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </div>
                 </div>
               </div>
+
               <!-- ============================================
                    ACCIONES
               ============================================= -->
@@ -678,6 +759,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       <path d="M20 6 9 17l-5-5" />
                     </svg>
                   </span>
+
                   <span class="button-text">
                     <strong>
                       {{ t('confirmPaymentBtn') }}
@@ -691,6 +773,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                       }}
                     </small>
                   </span>
+
                   <svg
                     class="button-arrow"
                     viewBox="0 0 24 24"
@@ -703,6 +786,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </button>
+
                 <button
                   type="button"
                   class="receipt-button"
@@ -721,9 +805,11 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     <path d="m7 10 5 5 5-5" />
                     <path d="M5 21h14" />
                   </svg>
+
                   <span>
                     {{ t('downloadReceiptBtn') }}
                   </span>
+
                   <span
                     v-if="ultimoPago"
                     class="receipt-ready"
@@ -733,6 +819,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                   </span>
                 </button>
               </div>
+
               <!-- PAGO CONFIRMADO -->
               <div
                 v-if="ultimoPago"
@@ -750,6 +837,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     <path d="m5 12 4 4L19 6" />
                   </svg>
                 </span>
+
                 <div>
                   <strong>
                     {{
@@ -764,6 +852,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
                     {{ ultimoPago.folio }}
                   </span>
                 </div>
+
                 <strong class="success-amount">
                   ${{ Number(ultimoPago.monto).toFixed(2) }}
                 </strong>
@@ -773,6 +862,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
         </div>
       </div>
     </main>
+
     <!-- ================================================
          PROMOCIONES
     ================================================= -->
@@ -788,6 +878,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
         />
       </div>
     </transition>
+
     <!-- ================================================
          RECIBO
     ================================================= -->
@@ -1956,7 +2047,7 @@ watch(()=>[route.params.id,route.query.sede_id],cargarCliente);
   .avatar-container {
     width: 92px;
     height: 92px;
-    margin: 5px 5px 5px 5px;
+    margin: 5px;
   }
   .avatar-decoration {
     border-radius: 24px;
