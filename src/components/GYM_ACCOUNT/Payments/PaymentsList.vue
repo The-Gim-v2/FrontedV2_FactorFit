@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import CorreoMasivo from '../Componets/Bulk-Email.vue';
-import NotificationSystem from '../../Modals/NotificationSystem.vue'; 
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const t = (key) => {
@@ -34,18 +34,18 @@ const router = useRouter();
 const showDelete = ref(false);
 const selectedUser = ref(null);
 const searchQuery = ref('');
-const selectedMembership = ref(''); 
+const selectedMembership = ref('');
 const selectedStatus = ref('');
 const filteredUsers = computed(() => {
  return users.value.filter(user => {
   const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
   const matchStatus = selectedStatus.value ? user.status === selectedStatus.value : true;
   const term = searchQuery.value.toLowerCase();
-  const matchSearch = user.name.toLowerCase().includes(term) || 
+  const matchSearch = user.name.toLowerCase().includes(term) ||
       user.email.toLowerCase().includes(term) ||
       user.phone.toLowerCase().includes(term) ||
       user.mensualidad.toLowerCase().includes(term) ||
-      user.status.toLowerCase().includes(term) || 
+      user.status.toLowerCase().includes(term) ||
       user.expirationDate.toLowerCase().includes(term) ||
       user.id.toString().includes(term);
   return matchMembership && matchStatus && matchSearch;
@@ -133,7 +133,6 @@ const obtenerSedeId = () => {
   }
   return null;
 };
-
 const resolverSedeId = async (token) => {
   let id = obtenerSedeId();
   if (id) return id;
@@ -176,7 +175,7 @@ const cargarClientes = async () => {
  loadingUsers.value = true;
  errorUsers.value = '';
  try {
-  const sedeId=await resolverSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
+  const sedeId=await resolverSedeId(getToken());if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
   const response = await apiRequest(`/api/gym/clientes?sede_id=${encodeURIComponent(sedeId)}`);
   const rows = Array.isArray(response) ? response : (Array.isArray(response?.data) ? response.data : []);
   if (current !== requestSequence) return;
@@ -207,9 +206,9 @@ onUnmounted(() => {
  requestSequence++;
  window.removeEventListener('factorfit:branch-changed', cargarClientes);
 });
-const confirmDelete = (user) => { 
- selectedUser.value = user; 
- showDelete.value = true; 
+const confirmDelete = (user) => {
+ selectedUser.value = user;
+ showDelete.value = true;
 };
 const deleting = ref(false);
 const executeDelete = async () => {
@@ -217,8 +216,8 @@ const executeDelete = async () => {
  deleting.value = true;
  try {
   const user = selectedUser.value;
-  const sedeId = await resolverSedeId(token);
-  if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
+  const sedeId = await resolverSedeId(getToken());
+  if (!sedeId) throw new Error('Selecciona una sucursal para visualizar sus clientes.');
   // El endpoint debe cambiar Estatus a "Eliminado temporal", SIN borrar filas.
   await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${encodeURIComponent(sedeId)}`, { method: 'DELETE' });
   users.value = users.value.filter(u => u.id !== user.id);
@@ -403,7 +402,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
    <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
     <CorreoMasivo @close="activeModal = null" />
    </div>
-  </transition>   
+  </transition>
   <div v-if="photoUser" class="photo-viewer" role="dialog" aria-modal="true" :aria-label="`Fotografía de ${photoUser.name}`" @click.self="closePhoto">
    <div class="photo-viewer-card"><button type="button" class="photo-viewer-close" aria-label="Cerrar" @click="closePhoto">×</button><img :src="photoUser.foto" :alt="photoUser.name" /><p>{{ photoUser.name }}</p></div>
   </div>

@@ -231,7 +231,7 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleEscape);
 });
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const users=ref([]);
 const loadingUsers=ref(false);
 const errorUsers=ref('');
@@ -283,13 +283,17 @@ const resolverSedeId = async () => {
   } catch {}
   return null;
 };
+let requestSequence = 0;
 const cargarClientes=async()=>{
+  const current = ++requestSequence;
   loadingUsers.value=true;errorUsers.value='';
   try{
     if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const sedeId=obtenerSedeId();if(!sedeId)throw new Error('Selecciona una sucursal para visualizar sus clientes.');
+    const sedeId = await resolverSedeId();
+    if (!sedeId) throw new Error('No se encontró una sucursal disponible para tu cuenta.');
     const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
     const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
+    if (current !== requestSequence) return;
     users.value=rows.map(row=>({
       id:Number(row.ID_Inscripto),clienteId:Number(row.ID_Cliente),sedeId:Number(row.ID_Sede),
       name:[row.Nombre,row.Apellido_P,row.Apellido_M].filter(Boolean).join(' '),
@@ -299,8 +303,8 @@ const cargarClientes=async()=>{
       fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.foto_url||null,
       nombreSede:row.Nombre_Sede||'',peso:row.Peso,altura:row.Altura
     }));
-  }catch(e){errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
-  finally{loadingUsers.value=false;}
+  }catch(e){if(current !== requestSequence)return;errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
+  finally{if(current === requestSequence)loadingUsers.value=false;}
 };
 onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);});
 onUnmounted(()=>window.removeEventListener('factorfit:branch-changed',cargarClientes));
