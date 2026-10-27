@@ -491,12 +491,9 @@
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
-                  <input
-                    type="text"
-                    v-model="form.celular"
-                    placeholder="+52 000 000 0000"
-                  >
+                  <input type="tel" :value="form.celular" @input="onCelularInput" @paste="onCelularPaste" placeholder="481 111 1231" inputmode="numeric" autocomplete="tel-national" maxlength="12" aria-describedby="staff-cell-hint">
                 </div>
+                <small id="staff-cell-hint" class="field-hint">10 dígitos, sin +52. Ejemplo: 481 111 1231.</small>
               </div>
             </div>
           </section>
@@ -1074,6 +1071,30 @@ const form = reactive({
   horaEntrada: '',
   horaSalida: ''
 });
+/* CELULAR: 10 dígitos nacionales, formato XXX XXX XXXX. */
+const celularDigitos = (valor) => String(valor ?? '').replace(/\D/g, '').slice(0, 10);
+const formatoCelular = (valor) => {
+  const d = celularDigitos(valor);
+  return [d.slice(0, 3), d.slice(3, 6), d.slice(6, 10)].filter(Boolean).join(' ');
+};
+const onCelularInput = (event) => {
+  const valor = String(event.target.value ?? '');
+  if (valor.includes('+') || /^\s*52[\s-]/.test(valor)) {
+    warn('No agregues +52. Ingresa solamente los 10 dígitos de tu celular.');
+    form.celular = '';
+    event.target.value = '';
+    return;
+  }
+  form.celular = formatoCelular(valor);
+  event.target.value = form.celular;
+};
+const onCelularPaste = (event) => {
+  const texto = event.clipboardData?.getData('text') ?? '';
+  if (/\+\s*52/.test(texto) || /^\s*52[\s-]/.test(texto)) {
+    event.preventDefault();
+    warn('El número no debe incluir +52. Pega únicamente los 10 dígitos nacionales.');
+  }
+};
 /* =========================================================
    REGLAS POR ROL
    - propietario : todas las sedes · sin horario · con contraseña
@@ -1734,6 +1755,7 @@ const validateForm = () => {
     );
   }
   if (!form.celular.trim()) return warn('El celular es obligatorio.');
+  if (!/^[0-9]{10}$/.test(celularDigitos(form.celular))) return warn('El celular debe tener exactamente 10 dígitos, sin +52. Ejemplo: 481 111 1231.');
   if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return warn('Correo electrónico inválido.');
   /* ROL */
   if (!form.rol) {
@@ -1841,7 +1863,7 @@ const saveRegistration = async () => {
       fechaNacimiento:
         form.fechaNacimiento,
       celular:
-        form.celular.trim(),
+        celularDigitos(form.celular),
       ...(isTrainer.value && {
         especialidad: form.especialidad.trim(),
         facebook: form.facebook.trim(),

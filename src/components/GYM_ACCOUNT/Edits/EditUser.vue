@@ -239,7 +239,7 @@ const capturePhoto = () => {
   );
 };
 /* ============================ GUARDAR ============================ */
-const saveChanges=async()=>{if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+const saveChanges=async()=>{if(saving.value)return;if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
 watch(()=>route.params.id,id=>{if(id)loadClient(id);});
 const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
@@ -694,7 +694,9 @@ onUnmounted(() => {
               :disabled="saving || loadingProfile || !clienteId"
               @click="saveChanges"
             >
+              <span v-if="saving" class="btn-spinner"></span>
               <svg
+                v-else
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -706,7 +708,11 @@ onUnmounted(() => {
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
-              {{ t('saveChangesBtn') }}
+              {{
+                saving
+                  ? txt('Procesando cambios...', 'Processing changes...')
+                  : t('saveChangesBtn')
+              }}
             </button>
           </footer>
         </div>
@@ -958,6 +964,7 @@ onUnmounted(() => {
   </HeadingGYM_ACCOUNT>
 </template>
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
 /* Buscador de clientes: panel alineado con el campo, sin estilos inline */
 .page-header{position:relative;z-index:20;isolation:isolate}
 .search-small{position:relative;z-index:21}
@@ -974,8 +981,6 @@ onUnmounted(() => {
 
 .avatar-fallback{display:grid;place-items:center;width:100%;height:100%;font-size:3rem;font-weight:700;color:var(--color-texto-general,#fff)}
 .search-small{position:relative}
-.btn-primary:disabled{opacity:.55;cursor:not-allowed}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
 .main-content {
   --accent: var(--color-highlight, #3b82f6);
   --card: var(--bg-cards, #121416);
@@ -1399,6 +1404,21 @@ onUnmounted(() => {
 .btn-primary svg {
   width: 16px;
   height: 16px;
+}
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 /* ============================ FOCO VISIBLE ============================ */
 .avatar-circle:focus-visible,

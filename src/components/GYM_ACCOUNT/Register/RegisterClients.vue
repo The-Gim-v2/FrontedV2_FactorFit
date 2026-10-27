@@ -252,9 +252,14 @@
 
                   <input
                     type="tel"
-                    v-model="form.celular"
-                    placeholder="+52 000 000 0000"
-                    autocomplete="tel"
+                    :value="form.celular"
+                    @input="actualizarCelular"
+                    @paste="pegarCelular"
+                    @keydown="bloquearPrefijoCelular"
+                    placeholder="481 111 1231"
+                    inputmode="numeric"
+                    autocomplete="tel-national"
+                    maxlength="12"
                   />
                 </div>
               </div>
@@ -1133,6 +1138,39 @@ const form = reactive({
   fechaCorte: ''
 });
 
+// CELULAR: 10 dígitos nacionales, visualmente 000 000 0000; sin +52.
+const soloDigitosCelular = (valor) => String(valor ?? '').replace(/\D/g, '');
+const formatearCelular = (valor) => {
+  const n = soloDigitosCelular(valor).slice(0, 10);
+  if (n.length <= 3) return n;
+  if (n.length <= 6) return `${n.slice(0, 3)} ${n.slice(3)}`;
+  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+};
+const errorPrefijoCelular = () => toastRef.value?.notify('No incluyas +52. Ingresa solamente los 10 dígitos de tu celular.', 'warning');
+const actualizarCelular = (event) => {
+  const texto = String(event.target.value ?? '');
+  const numeros = soloDigitosCelular(texto);
+  if (texto.includes('+') || numeros.length > 10) {
+    errorPrefijoCelular();
+    event.target.value = form.celular;
+    return;
+  }
+  form.celular = formatearCelular(texto);
+  event.target.value = form.celular;
+};
+const pegarCelular = (event) => {
+  const texto = event.clipboardData?.getData('text') || '';
+  if (texto.includes('+') || soloDigitosCelular(texto).length > 10) {
+    event.preventDefault();
+    errorPrefijoCelular();
+  }
+};
+const bloquearPrefijoCelular = (event) => {
+  if (event.key === '+') { event.preventDefault(); errorPrefijoCelular(); }
+};
+const celularParaGuardar = () => soloDigitosCelular(form.celular);
+const celularValido = () => /^\d{10}$/.test(celularParaGuardar());
+
 const activeModal = ref(null);
 const guardando = ref(false);
 const cobrarAhora = ref(true);
@@ -1821,6 +1859,10 @@ const saveRegistration = async () => {
     avisar('Nombre, apellido paterno y tarifa son obligatorios.');
     return;
   }
+  if (form.celular && !celularValido()) {
+    avisar('El celular debe tener exactamente 10 dígitos, sin +52.');
+    return;
+  }
   if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
   if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
   if (!form.fechaInscripcion || !form.fechaCorte) {
@@ -1853,7 +1895,7 @@ const saveRegistration = async () => {
       apellidoP: form.apellidoP.trim(),
       apellidoM: form.apellidoM.trim(),
       fechaNacimiento: form.fechaNacimiento,
-      celular: form.celular.trim(),
+      celular: celularParaGuardar(),
       email: form.email.trim(),
       peso: form.peso,
       altura: form.altura,

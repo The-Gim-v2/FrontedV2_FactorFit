@@ -12,6 +12,7 @@ const router = useRouter();
 
 const toastRef = ref(null);
 const searchQuery = ref('');
+const showSuggestions = ref(false);
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 
 const t = (key) => {
@@ -48,7 +49,7 @@ const token = () => {
   for (const store of [sessionStorage, localStorage]) {
     for (const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
       const value = store.getItem(key);
-      if (value) return value.replace(/^Bearer\\s+/i, '');
+      if (value) return value.replace(/^Bearer\s+/i, '');
     }
     for (const key of ['auth','user','session','gymAccount','gym_account']) {
       try {
@@ -245,19 +246,33 @@ const loadUser = async (id) => {
     loadingProfile.value = false;
   }
 };
-/* ============================ BÚSQUEDA ============================ */
+
+/* ============================ BÚSQUEDA (CON SUGERENCIAS) ============================ */
+
+const suggestions = computed(() => {
+  const q = searchQuery.value.trim().toLocaleLowerCase();
+  if (!q) return [];
+  return staffDB.value
+    .filter(u =>
+      [u.Nombre, u.Apellido_P, u.Apellido_M, u.Celular, u.Correo_Electronico, u.ID_Personal]
+        .some(v => String(v ?? '').toLocaleLowerCase().includes(q))
+    )
+    .slice(0, 8);
+});
+
+const chooseStaff = async (u) => {
+  showSuggestions.value = false;
+  searchQuery.value = '';
+  const id = String(u.ID_Personal);
+  if (String(route.params.id) === id) await loadUser(id);
+  else await router.push(`/GYM_ACCOUNT/editar-staff/${id}`);
+};
 
 const handleSearch = () => {
-  const term = searchQuery.value.trim().toLowerCase();
-  if (!term) return;
-  const match = staffDB.value.find(user => {
-    const name = [user.Nombre, user.Apellido_P, user.Apellido_M].filter(Boolean).join(' ').toLowerCase();
-    return name.includes(term) || String(user.Correo_Electronico || '').toLowerCase().includes(term)
-      || String(user.ID_Personal) === term;
-  });
-  if (!match) return warn('No se encontró personal con esa búsqueda.');
-  router.push(`/GYM_ACCOUNT/editar-staff/${match.ID_Personal}`);
+  if (suggestions.value.length === 1) chooseStaff(suggestions.value[0]);
+  else showSuggestions.value = true;
 };
+
 /* ============================ SEDES (SELECTOR) ============================ */
 
 const isDropdownOpen = ref(false);
@@ -311,13 +326,17 @@ const getSedesDisplayText = () => {
 };
 
 const handleClickOutside = (event) => {
+  if (!event.target.closest?.('.search-small')) showSuggestions.value = false;
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     isDropdownOpen.value = false;
   }
 };
 
 const handleKeydown = (event) => {
-  if (event.key === 'Escape') isDropdownOpen.value = false;
+  if (event.key === 'Escape') {
+    isDropdownOpen.value = false;
+    showSuggestions.value = false;
+  }
 };
 
 /* Si el entrenador desactiva el horario, se limpian las horas */
@@ -762,14 +781,43 @@ onUnmounted(() => {
               id="staff-search"
               v-model="searchQuery"
               type="text"
+              autocomplete="off"
               :placeholder="t('searchPlaceholder')"
+              @focus="showSuggestions = true"
+              @input="showSuggestions = true"
               @keyup.enter="handleSearch"
             />
+          </div>
+
+          <div
+            v-if="showSuggestions && searchQuery.trim()"
+            class="client-suggestions"
+            role="listbox"
+          >
+            <button
+              v-for="u in suggestions"
+              :key="u.ID_Personal"
+              type="button"
+              class="client-suggestion"
+              role="option"
+              @click="chooseStaff(u)"
+            >
+              <span class="suggestion-avatar">{{ String(u.Nombre || '?').charAt(0).toUpperCase() }}</span>
+              <span class="suggestion-info">
+                <strong>{{ [u.Nombre, u.Apellido_P, u.Apellido_M].filter(Boolean).join(' ') }}</strong>
+                <small>{{ u.Correo_Electronico || u.Celular || 'Personal registrado' }}</small>
+              </span>
+              <span class="suggestion-id">#{{ u.ID_Personal }}</span>
+            </button>
+            <p v-if="!suggestions.length" class="suggestion-empty">
+              No se encontró personal en esta sucursal.
+            </p>
           </div>
         </div>
       </header>
 
       <div v-if="loadingProfile" class="login-card">Cargando información del personal...</div>
+
       <!-- ==================== SIN PERSONAL SELECCIONADO ==================== -->
       <section v-if="!loaded" class="login-card empty-staff">
         <svg
@@ -1803,9 +1851,12 @@ onUnmounted(() => {
               id="tutor-10"
               type="button"
               class="btn-primary"
+              :disabled="saving || loadingProfile"
               @click="saveChanges"
             >
+              <span v-if="saving" class="btn-spinner"></span>
               <svg
+                v-else
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -1818,7 +1869,16 @@ onUnmounted(() => {
                 <polyline points="7 3 7 8 15 8" />
               </svg>
 
-              {{ t('saveChangesBtn') }}
+              {{
+                saving
+                  ? L(
+                      'Procesando cambios...',
+                      'Processing changes...',
+                      'Traitement en cours...',
+                      'Processando alterações...'
+                    )
+                  : t('saveChangesBtn')
+              }}
             </button>
           </footer>
         </div>
@@ -2099,6 +2159,21 @@ onUnmounted(() => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+
+/* ============================ BUSCADOR CON SUGERENCIAS ============================ */
+
+.page-header{position:relative;z-index:20;isolation:isolate}
+.search-small{position:relative;z-index:21}
+.client-suggestions{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:50;max-height:310px;overflow-y:auto;border:1px solid #39394e;border-radius:12px;background:#1b1b2b;box-shadow:0 18px 42px rgba(0,0,0,.45);padding:5px;box-sizing:border-box}
+.client-suggestion{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:#f5f5fa;text-align:left;cursor:pointer;font-family:inherit}
+.client-suggestion:hover,.client-suggestion:focus-visible{background:#303047;outline:none}
+.suggestion-avatar{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;background:rgba(238,80,126,.15);color:#ff789f;font-size:13px;font-weight:700}
+.suggestion-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.suggestion-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.suggestion-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#a8a9c2}
+.suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
+.suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
+@media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
 
 .main-content {
   --accent: var(--color-highlight, #3b82f6);
@@ -3040,6 +3115,23 @@ onUnmounted(() => {
 .btn-primary svg {
   width: 16px;
   height: 16px;
+}
+
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 /* ============================ FOCO VISIBLE ============================ */
