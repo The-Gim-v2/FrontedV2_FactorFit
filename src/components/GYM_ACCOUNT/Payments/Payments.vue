@@ -60,7 +60,7 @@ const fechaNuevoCorte=computed(()=>{
 });
 const generarFolio=()=>`OP-${Date.now().toString().slice(-8)}`;
 watch(tipoPago,n=>{if(n==='Efectivo')folioReferencia.value=generarFolio();else if(folioReferencia.value.startsWith('OP-'))folioReferencia.value='';});
-const isButtonDisabled=computed(()=>loading.value||saving.value||stripeLoading.value||!!stripeQR.value||!inscripcion.value||!Number.isFinite(Number(montoRecibir.value))||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value!=='Efectivo'&&tipoPago.value!=='Stripe'&&!folioReferencia.value.trim()));
+const isButtonDisabled=computed(()=>loading.value||saving.value||stripeLoading.value||!!stripeQR.value||!inscripcion.value||!Number.isFinite(Number(montoRecibir.value))||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value!=='Efectivo'&&tipoPago.value!=='Tarjeta'&&!folioReferencia.value.trim()));
 const reciboLocale=computed(()=>currentLang.value==='en'?'en-US':'es-MX');
 const formatoMoneda=n=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
 // Monto que se escribe en el campo "Monto a recibir" (lo que se registrará).
@@ -74,7 +74,7 @@ const totalAPagar=computed(()=>{
 const totalMostrado=computed(()=>formatoMoneda(totalAPagar.value));
 const planActual=computed(()=>ofertaSeleccionada.value?.nombre||inscripcion.value?.Nombre_Paquete||t('monthlyOption'));
 const duracionPlan=computed(()=>{const m=Number(ofertaSeleccionada.value?.meses)||1;return `${m} ${m===1?txt('mes','month'):txt('meses','months')}`;});
-const metodoPagoLabel=computed(()=>({Efectivo:txt('Efectivo','Cash'),Transferencia:txt('Transferencia','Transfer'),Tarjeta:txt('Tarjeta','Card'),Stripe:'Stripe QR'})[tipoPago.value]||txt('Sin seleccionar','Not selected'));
+const metodoPagoLabel=computed(()=>({Efectivo:txt('Efectivo','Cash'),Transferencia:txt('Transferencia','Transfer'),Tarjeta:txt('Tarjeta (Stripe QR)','Card (Stripe QR)')})[tipoPago.value]||txt('Sin seleccionar','Not selected'));
 const cargarCliente=async()=>{
  loading.value=true;errorCarga.value='';inscripcion.value=null;
  try{
@@ -91,7 +91,7 @@ const cargarCliente=async()=>{
 const handleSelectOferta=oferta=>{ofertaSeleccionada.value=oferta;montoRecibir.value=Number(oferta.precio)||null;activeModal.value=null;toastRef.value?.notify(`${t('offerAppliedToast')} ${oferta.nombre}`,'success');};
 const confirmPayment=async()=>{
  if(isButtonDisabled.value)return;
- if(tipoPago.value==='Stripe'){await crearStripeQR();return;}
+ if(tipoPago.value==='Tarjeta'){ultimoPago.value=null;await crearStripeQR();return;}
  saving.value=true;
  try{
   // El servidor debe registrar Clientes_Pagos, Clientes_Detalle_Pagos y Referencias_Pagos en una transacción.
@@ -111,7 +111,7 @@ const detenerStripe=()=>{if(stripeTimer){clearInterval(stripeTimer);stripeTimer=
 const crearStripeQR=async()=>{if(stripeQR.value){toastRef.value?.notify(txt('Ya existe un QR pendiente. Comprueba su estado antes de generar otro.','There is already a pending QR.'),'error');return;}stripeLoading.value=true;try{const data=await apiRequest(`/api/gym/clientes/${inscripcion.value.ID_Inscripto}/stripe/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sede_id:obtenerSedeId(),monto:Number(montoRecibir.value)})});if(!data?.session_id||!data?.qr_data_url)throw new Error('Stripe no devolvió el QR.');stripeQR.value={...data,monto:Number(montoRecibir.value)};stripeEstado.value='Pendiente';detenerStripe();stripeTimer=setInterval(()=>{consultarEstadoStripe();},5000);toastRef.value?.notify(txt('QR generado. Esperando confirmación de Stripe.','QR created. Waiting for Stripe.'),'success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{stripeLoading.value=false;}};
 const consultarEstadoStripe=async()=>{if(!stripeQR.value)return;try{const data=await apiRequest(`/api/gym/stripe/checkout/${encodeURIComponent(stripeQR.value.session_id)}/estado`);stripeEstado.value=data.estado||'Pendiente';if(data.estado==='Pagado'){const qr=stripeQR.value;detenerStripe();const pagoData=await apiRequest(`/api/gym/clientes/${inscripcion.value.ID_Inscripto}/pagos?sede_id=${obtenerSedeId()}`);const pago=(pagoData.pagos||[]).find(p=>Number(p.ID_Pago)===Number(data.ID_Pago));ultimoPago.value={folio:pago?.Folio_Referencia||`STRIPE-${qr.session_id}`,fecha:fechaSolo(pago?.Fecha_Pagada||new Date().toISOString()),cliente:clienteActual.value,metodo:'Stripe',monto:qr.monto,concepto:'monthly',plan:planActual.value,gimnasio:pagoData.gimnasio};stripeQR.value=null;inscripcion.value=pagoData;cliente.value.estado=pagoData.Estatus;toastRef.value?.notify(txt('Pago confirmado por Stripe.','Stripe payment confirmed.'),'success');}else if(['Fallido','Cancelado','Expirado'].includes(data.estado)){detenerStripe();toastRef.value?.notify(txt('El pago no se completó.','Payment was not completed.'),'error');}}catch(e){detenerStripe();toastRef.value?.notify(e.message,'error');}};
 const cancelarQR=()=>{detenerStripe();stripeQR.value=null;stripeEstado.value='';};
-watch(tipoPago,n=>{if(n==='Stripe')consultarStripeCuenta();});
+watch(tipoPago,n=>{if(n==='Tarjeta')consultarStripeCuenta();});
 const downloadReceipt=()=>{if(!ultimoPago.value){toastRef.value?.notify(lt('confirmBeforeDownload'),'error');return;}reciboVisible.value=true;};
 const handleReciboNotify=payload=>{if(payload)toastRef.value?.notify(payload.message,payload.type);};
 onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);cargarCliente();consultarStripeCuenta();});
@@ -548,7 +548,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                           {{ t('transferOption') }}
                         </option>
                         <option value="Tarjeta">
-                          {{ t('cardOption') }}
+                          {{ txt('Tarjeta (Stripe QR)','Card (Stripe QR)') }}
                         </option>
                       </select>
 
@@ -573,7 +573,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                       class="field-control"
                       :class="{
                         'is-disabled':
-                          tipoPago === 'Efectivo' || tipoPago === 'Stripe'
+                          tipoPago === 'Efectivo' || tipoPago === 'Tarjeta'
                       }"
                     >
                       <svg
@@ -593,7 +593,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                         v-model="folioReferencia"
                         type="text"
                         :placeholder="t('voucherPlaceholder')"
-                        :disabled="tipoPago === 'Efectivo' || tipoPago === 'Stripe'"
+                        :disabled="tipoPago === 'Efectivo' || tipoPago === 'Tarjeta'"
                       />
                     </div>
 
@@ -769,13 +769,13 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 
                   <span class="button-text">
                     <strong>
-                      {{ tipoPago === 'Stripe' ? txt('Generar QR de Stripe','Generate Stripe QR') : t('confirmPaymentBtn') }}
+                      {{ tipoPago === 'Tarjeta' ? txt('Generar QR de Stripe','Generate Stripe QR') : t('confirmPaymentBtn') }}
                     </strong>
                     <small>
                       {{
                         txt(
-                          tipoPago === 'Stripe' ? 'Esperar confirmación del pago' : 'Registrar transacción',
-                          tipoPago === 'Stripe' ? 'Wait for payment confirmation' : 'Register transaction'
+                          tipoPago === 'Tarjeta' ? 'Esperar confirmación del pago' : 'Registrar transacción',
+                          tipoPago === 'Tarjeta' ? 'Wait for payment confirmation' : 'Register transaction'
                         )
                       }}
                     </small>
@@ -827,8 +827,8 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                 </button>
               </div>
 
-              <div v-if="tipoPago === 'Stripe'" class="stripe-box">
-                <strong>Stripe Connect</strong>
+              <div v-if="tipoPago === 'Tarjeta' || stripeQR" class="stripe-box">
+                <strong>{{ txt('Cobro con tarjeta mediante Stripe','Card payment via Stripe') }}</strong>
                 <p v-if="stripeCuenta?.charges_enabled">{{ txt('Cuenta lista para cobrar.','Account ready for payments.') }}</p>
                 <p v-else>{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.','Connect and enable the gym Stripe account before charging.') }}</p>
                 <button v-if="!stripeCuenta?.charges_enabled" type="button" class="stripe-action" :disabled="stripeLoading" @click="conectarStripe">{{ txt('Conectar cuenta Stripe','Connect Stripe account') }}</button>
