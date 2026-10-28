@@ -138,7 +138,9 @@
                     {{
                       form.tipoMembresia === 'mes'
                         ? t('month')
-                        : t('week')
+                        : form.tipoMembresia === 'quincena'
+                          ? (currentLang === 'en' ? 'Fortnight' : 'Quincena')
+                          : t('week')
                     }}
                   </span>
                 </dd>
@@ -415,6 +417,11 @@
                     @click="form.tipoMembresia = 'semana'"
                   >
                     {{ t('week') }}
+                  </button>
+                  <button type="button" class="btn-toggle-small"
+                    :class="{ active: form.tipoMembresia === 'quincena' }"
+                    @click="form.tipoMembresia = 'quincena'">
+                    {{ currentLang === 'en' ? 'Fortnight' : 'Quincena' }}
                   </button>
                 </div>
 
@@ -1212,13 +1219,10 @@ watch(cobrarAhora, (activo) => {
    TARIFAS Y VENCIMIENTO
 ========================================================= */
 
-const tarifasFiltradas = computed(() =>
-  tarifas.value.filter((p) =>
-    form.tipoMembresia === 'mes'
-      ? String(p.Periodo).toLowerCase() === 'mensual'
-      : String(p.Periodo).toLowerCase() === 'semanal'
-  )
-);
+const tarifasFiltradas = computed(() => {
+  const periodos = { mes: 'mensual', semana: 'semanal', quincena: 'quincenal' };
+  return tarifas.value.filter(p => String(p.Periodo || '').trim().toLowerCase() === periodos[form.tipoMembresia]);
+});
 
 const cargarTarifas = async () => {
   idPrecio.value = '';
@@ -1247,32 +1251,35 @@ const cargarTarifas = async () => {
 
 let versionCalculo = 0;
 
+// La primera consulta obtiene el corte vigente. Si el cliente paga ahora,
+// se consulta el siguiente corte usando el día posterior al corte vigente.
+// El backend es quien calcula las fechas; no se suman 15 o 30 días fijos.
+const consultarCorte = async (fecha) => {
+  const q = new URLSearchParams({ sede_id: String(sedeActual()), id_precio: String(idPrecio.value), fechaInscripcion: fecha });
+  const res = await fetch(`${clientesApi}/vencimiento?${q}`, { headers: authHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message && data.message !== 'Server Error' ? data.message : `Error HTTP ${res.status} al calcular vencimiento`);
+  return data.fecha_vencimiento || '';
+};
+const diaPosterior = (fecha) => {
+  const [y, m, d] = fecha.split('-').map(Number);
+  const siguiente = new Date(Date.UTC(y, m - 1, d + 1));
+  return siguiente.toISOString().slice(0, 10);
+};
 const calcularVencimiento = async () => {
   const version = ++versionCalculo;
   form.fechaCorte = '';
-
-  if (!idPrecio.value || !sedeActual()) return;
-
+  if (!idPrecio.value || !sedeActual() || !form.fechaInscripcion) return;
   try {
-    const q = new URLSearchParams({
-      sede_id: String(sedeActual()),
-      id_precio: String(idPrecio.value)
-    });
-
-    if (form.fechaInscripcion) q.set('fechaInscripcion', form.fechaInscripcion);
-
-    const res = await fetch(`${clientesApi}/vencimiento?${q}`, { headers: authHeaders() });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(
-        data.message && data.message !== 'Server Error'
-          ? data.message
-          : `Error HTTP ${res.status} al calcular vencimiento`
-      );
+    const corteActual = await consultarCorte(form.fechaInscripcion);
+    if (!corteActual) throw new Error('El servidor no devolvió la fecha de corte.');
+    let fecha = corteActual;
+    if (cobrarAhora.value) {
+      const siguiente = await consultarCorte(diaPosterior(corteActual));
+      if (!siguiente || siguiente <= corteActual) throw new Error('No se pudo calcular el siguiente corte de la membresía.');
+      fecha = siguiente;
     }
-
-    if (version === versionCalculo) form.fechaCorte = data.fecha_vencimiento || '';
+    if (version === versionCalculo) form.fechaCorte = fecha;
   } catch (e) {
     if (version === versionCalculo) toastRef.value?.notify(e.message, 'error');
   }
@@ -1285,7 +1292,7 @@ watch(() => form.tipoMembresia, () => {
   }
 });
 
-watch([idPrecio, () => form.fechaInscripcion], calcularVencimiento);
+watch([idPrecio, () => form.fechaInscripcion, cobrarAhora], calcularVencimiento);
 
 /* =========================================================
    SELECTOR DE TARIFA (dropdown personalizado)
@@ -2525,7 +2532,7 @@ input:focus {
 .toggle-group-small {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, .07);
   border-radius: 12px;
@@ -2538,7 +2545,7 @@ input:focus {
   top: 4px;
   bottom: 4px;
   left: 4px;
-  width: calc(50% - 4px);
+  width: calc((100% - 8px) / 3);
   border-radius: 9px;
   background: var(--color-highlight, #3b82f6);
   transition: transform .25s ease;
@@ -2546,6 +2553,10 @@ input:focus {
 
 .toggle-group-small[data-active='semana']::before {
   transform: translateX(100%);
+}
+
+.toggle-group-small[data-active='quincena']::before {
+  transform: translateX(200%);
 }
 
 .btn-toggle-small {
@@ -3554,7 +3565,10 @@ input:focus {
   .membership-actions-row {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
+  .toggle-group-small { width: 100%; }
+  .btn-toggle-small { min-width: 0; padding: 8px 5px; }
 
   .registration-footer {
     flex-direction: column-reverse;
