@@ -40,9 +40,9 @@ const obtenerSedeId = () => {
 };
 const apiRequest=async(path,options={})=>{
  const token=getToken();if(!token)throw new Error('No se encontró el token de sesión.');
- const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(options.headers||{})}});
+ let response;try{response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(options.headers||{})}});}catch{throw new Error('No se pudo conectar con el servidor. Comprueba la conexión.');}
  const body=await response.json().catch(()=>null);
- if(!response.ok)throw new Error(body?.message || `Error HTTP ${response.status}`);
+ if(!response.ok){const details=body?.errors?Object.values(body.errors).flat().join(' '):'';const message=details||body?.message;throw new Error(message&&message!=='Server Error'?message:`Error HTTP ${response.status}. Revisa los registros de Laravel en Railway.`);}
  return body;
 };
 const cliente=ref({nombre:'',apellido:'',id:'',foto:new URL('../../../assets/humano.jpg',import.meta.url).href,estado:'Pendiente'});
@@ -58,9 +58,9 @@ const fechaNuevoCorte=computed(()=>{
  const max=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();base.setDate(Math.min(day,max));
  return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`;
 });
-const generarFolio=()=>`OP-${Date.now().toString().slice(-8)}`;
+const generarFolio=()=>`OP-${Date.now().toString().slice(-8)}`; // Referencia visual; el folio definitivo lo devuelve Laravel.
 watch(tipoPago,n=>{if(n==='Efectivo')folioReferencia.value=generarFolio();else if(folioReferencia.value.startsWith('OP-'))folioReferencia.value='';});
-const isButtonDisabled=computed(()=>loading.value||saving.value||stripeLoading.value||!!stripeQR.value||!inscripcion.value||!Number.isFinite(Number(montoRecibir.value))||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value!=='Efectivo'&&tipoPago.value!=='Tarjeta'&&!folioReferencia.value.trim()));
+const isButtonDisabled=computed(()=>loading.value||saving.value||stripeLoading.value||!!stripeQR.value||!inscripcion.value||!Number.isFinite(Number(montoRecibir.value))||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value==='Tarjeta'&&!stripeCuenta.value?.charges_enabled)||(tipoPago.value==='Transferencia'&&!folioReferencia.value.trim()));
 const reciboLocale=computed(()=>currentLang.value==='en'?'en-US':'es-MX');
 const formatoMoneda=n=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
 // Monto que se escribe en el campo "Monto a recibir" (lo que se registrará).
@@ -91,7 +91,7 @@ const cargarCliente=async()=>{
 const handleSelectOferta=oferta=>{ofertaSeleccionada.value=oferta;montoRecibir.value=Number(oferta.precio)||null;activeModal.value=null;toastRef.value?.notify(`${t('offerAppliedToast')} ${oferta.nombre}`,'success');};
 const confirmPayment=async()=>{
  if(isButtonDisabled.value)return;
- if(tipoPago.value==='Tarjeta'){ultimoPago.value=null;await crearStripeQR();return;}
+ if(tipoPago.value==='Tarjeta'){await crearStripeQR();return;}
  saving.value=true;
  try{
   // El servidor debe registrar Clientes_Pagos, Clientes_Detalle_Pagos y Referencias_Pagos en una transacción.
@@ -105,13 +105,55 @@ const confirmPayment=async()=>{
  }catch(e){toastRef.value?.notify(e.message||'No se pudo registrar el pago.','error');}
  finally{saving.value=false;}
 };
-const consultarStripeCuenta=async()=>{try{stripeCuenta.value=await apiRequest('/api/gym/stripe/cuenta');}catch(e){stripeCuenta.value=null;}};
-const conectarStripe=async()=>{stripeLoading.value=true;try{const data=await apiRequest('/api/gym/stripe/conectar',{method:'POST'});if(!data?.url)throw new Error('Stripe no devolvió enlace de conexión.');window.open(data.url,'_blank','noopener,noreferrer');toastRef.value?.notify(txt('Completa la conexión en la pestaña de Stripe.','Complete setup in the Stripe tab.'),'success');await consultarStripeCuenta();}catch(e){toastRef.value?.notify(e.message,'error');}finally{stripeLoading.value=false;}};
+const consultarStripeCuenta=async(silent=true)=>{try{stripeCuenta.value=await apiRequest('/api/gym/stripe/cuenta');return stripeCuenta.value;}catch(e){stripeCuenta.value=null;if(!silent)toastRef.value?.notify(e.message,'error');return null;}};
+const conectarStripe=async()=>{
+ if(stripeLoading.value)return;
+ // Abrir antes del await evita que los navegadores bloqueen la pestaña emergente.
+ const tab=window.open('about:blank','_blank');stripeLoading.value=true;
+ try{
+  const data=await apiRequest('/api/gym/stripe/conectar',{method:'POST'});
+  if(!data?.url||!/^https:\/\//i.test(data.url))throw new Error('Stripe no devolvió un enlace seguro de conexión.');
+  if(tab){tab.opener=null;tab.location.replace(data.url);}else window.location.assign(data.url);
+  toastRef.value?.notify(txt('Completa la conexión en Stripe y luego actualiza el estado.','Finish setup in Stripe and refresh account status.'),'success');
+ }catch(e){if(tab&&!tab.closed)tab.close();toastRef.value?.notify(e.message,'error');}
+ finally{stripeLoading.value=false;}
+};
 const detenerStripe=()=>{if(stripeTimer){clearInterval(stripeTimer);stripeTimer=null;}};
-const crearStripeQR=async()=>{if(stripeQR.value){toastRef.value?.notify(txt('Ya existe un QR pendiente. Comprueba su estado antes de generar otro.','There is already a pending QR.'),'error');return;}stripeLoading.value=true;try{const data=await apiRequest(`/api/gym/clientes/${inscripcion.value.ID_Inscripto}/stripe/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sede_id:obtenerSedeId(),monto:Number(montoRecibir.value)})});if(!data?.session_id||!data?.qr_data_url)throw new Error('Stripe no devolvió el QR.');stripeQR.value={...data,monto:Number(montoRecibir.value)};stripeEstado.value='Pendiente';detenerStripe();stripeTimer=setInterval(()=>{consultarEstadoStripe();},5000);toastRef.value?.notify(txt('QR generado. Esperando confirmación de Stripe.','QR created. Waiting for Stripe.'),'success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{stripeLoading.value=false;}};
-const consultarEstadoStripe=async()=>{if(!stripeQR.value)return;try{const data=await apiRequest(`/api/gym/stripe/checkout/${encodeURIComponent(stripeQR.value.session_id)}/estado`);stripeEstado.value=data.estado||'Pendiente';if(data.estado==='Pagado'){const qr=stripeQR.value;detenerStripe();const pagoData=await apiRequest(`/api/gym/clientes/${inscripcion.value.ID_Inscripto}/pagos?sede_id=${obtenerSedeId()}`);const pago=(pagoData.pagos||[]).find(p=>Number(p.ID_Pago)===Number(data.ID_Pago));ultimoPago.value={folio:pago?.Folio_Referencia||`STRIPE-${qr.session_id}`,fecha:fechaSolo(pago?.Fecha_Pagada||new Date().toISOString()),cliente:clienteActual.value,metodo:'Stripe',monto:qr.monto,concepto:'monthly',plan:planActual.value,gimnasio:pagoData.gimnasio};stripeQR.value=null;inscripcion.value=pagoData;cliente.value.estado=pagoData.Estatus;toastRef.value?.notify(txt('Pago confirmado por Stripe.','Stripe payment confirmed.'),'success');}else if(['Fallido','Cancelado','Expirado'].includes(data.estado)){detenerStripe();toastRef.value?.notify(txt('El pago no se completó.','Payment was not completed.'),'error');}}catch(e){detenerStripe();toastRef.value?.notify(e.message,'error');}};
+const crearStripeQR=async()=>{
+ if(stripeQR.value||stripeLoading.value)return;
+ if(!stripeCuenta.value?.charges_enabled){toastRef.value?.notify(txt('Primero conecta y habilita la cuenta Stripe del gimnasio.','Connect and enable the gym Stripe account first.'),'error');return;}
+ stripeLoading.value=true;
+ try{
+  const data=await apiRequest(`/api/gym/clientes/${inscripcion.value.ID_Inscripto}/stripe/checkout`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sede_id:obtenerSedeId(),monto:Number(montoRecibir.value)})});
+  if(!data?.session_id||!data?.qr_data_url||!data?.checkout_url)throw new Error('Stripe no devolvió todos los datos del cobro.');
+  ultimoPago.value=null;stripeQR.value={...data,monto:Number(montoRecibir.value),inscripcionId:inscripcion.value.ID_Inscripto,sedeId:obtenerSedeId()};stripeEstado.value='Pendiente';
+  detenerStripe();stripeTimer=setInterval(()=>{void consultarEstadoStripe(true);},5000);
+  toastRef.value?.notify(txt('QR generado. Esperando la confirmación de Stripe.','QR generated. Waiting for Stripe confirmation.'),'success');
+ }catch(e){toastRef.value?.notify(e.message,'error');}finally{stripeLoading.value=false;}
+};
+let consultandoEstado=false;
+const consultarEstadoStripe=async(silent=false)=>{
+ if(!stripeQR.value||consultandoEstado)return;consultandoEstado=true;
+ try{
+  const qr=stripeQR.value;
+  const data=await apiRequest(`/api/gym/stripe/checkout/${encodeURIComponent(qr.session_id)}/estado`);
+  if(stripeQR.value?.session_id!==qr.session_id)return;
+  stripeEstado.value=data.estado||'Pendiente';
+  if(data.estado==='Pagado'){
+   // El webhook debe haber creado el registro real antes de emitir un recibo.
+   const pagoData=await apiRequest(`/api/gym/clientes/${qr.inscripcionId}/pagos?sede_id=${encodeURIComponent(qr.sedeId)}`);
+   const pago=(Array.isArray(pagoData.pagos)?pagoData.pagos:[]).find(p=>String(p.ID_Pago)===String(data.ID_Pago));
+   const folio=pago?.Folio_Referencia||pago?.folio||data.folio||data.Folio_Referencia;
+   if(!folio){stripeEstado.value='Pagado · esperando folio';return;}
+   detenerStripe();ultimoPago.value={folio,fecha:fechaSolo(pago?.Fecha_Pagada||data.fecha||new Date().toISOString()),cliente:clienteActual.value,metodo:'Stripe',monto:Number(pago?.Monto??qr.monto),concepto:ofertaSeleccionada.value?'membership':'monthly',plan:planActual.value,gimnasio:pagoData.gimnasio};
+   stripeQR.value=null;inscripcion.value=pagoData;cliente.value.estado=pagoData.Estatus||cliente.value.estado;
+   toastRef.value?.notify(txt('Pago confirmado. Folio y recibo disponibles.','Payment confirmed. Receipt ready.'),'success');
+  }else if(['Fallido','Cancelado','Expirado'].includes(data.estado)){detenerStripe();toastRef.value?.notify(txt('El pago no se completó.','Payment was not completed.'),'error');}
+ }catch(e){if(!silent)toastRef.value?.notify(e.message,'error');}
+ finally{consultandoEstado=false;}
+};
 const cancelarQR=()=>{detenerStripe();stripeQR.value=null;stripeEstado.value='';};
-watch(tipoPago,n=>{if(n==='Tarjeta')consultarStripeCuenta();});
+watch(tipoPago,n=>{if(n==='Tarjeta')void consultarStripeCuenta();});
 const downloadReceipt=()=>{if(!ultimoPago.value){toastRef.value?.notify(lt('confirmBeforeDownload'),'error');return;}reciboVisible.value=true;};
 const handleReciboNotify=payload=>{if(payload)toastRef.value?.notify(payload.message,payload.type);};
 onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);cargarCliente();consultarStripeCuenta();});
@@ -832,13 +874,13 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                 <p v-if="stripeCuenta?.charges_enabled">{{ txt('Cuenta lista para cobrar.','Account ready for payments.') }}</p>
                 <p v-else>{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.','Connect and enable the gym Stripe account before charging.') }}</p>
                 <button v-if="!stripeCuenta?.charges_enabled" type="button" class="stripe-action" :disabled="stripeLoading" @click="conectarStripe">{{ txt('Conectar cuenta Stripe','Connect Stripe account') }}</button>
-                <button type="button" class="stripe-link" @click="consultarStripeCuenta">{{ txt('Actualizar estado de cuenta','Refresh account status') }}</button>
+                <button type="button" class="stripe-link" @click="consultarStripeCuenta(false)">{{ txt('Actualizar estado de cuenta','Refresh account status') }}</button>
                 <div v-if="stripeQR" class="stripe-qr">
                   <img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe','Stripe payment QR')" />
                   <strong>${{ formatoMoneda(stripeQR.monto) }} MXN</strong>
-                  <p>{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}. {{ txt('No entregues el recibo hasta que Stripe confirme.','Do not issue a receipt before Stripe confirms.') }}</p>
+                  <p>{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}. {{ txt('El recibo se habilita cuando Laravel registra el folio real.','Receipt becomes available after Laravel registers the actual reference.') }}</p>
                   <a :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">{{ txt('Abrir enlace de pago','Open payment link') }}</a>
-                  <button type="button" class="stripe-action" @click="consultarEstadoStripe">{{ txt('Comprobar pago','Check payment') }}</button>
+                  <button type="button" class="stripe-action" @click="consultarEstadoStripe(false)">{{ txt('Comprobar pago','Check payment') }}</button>
                   <button type="button" class="stripe-link" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)','Hide QR (does not cancel payment)') }}</button>
                 </div>
               </div>
