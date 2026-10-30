@@ -315,7 +315,6 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
                 <div class="user-names">
                   <span id="tutor-5" class="user-id">ID · {{ user.id }}</span>
                   <h2 id="tutor-4">{{ user.nombre }}</h2>
-                  <div id="tutor-3" class="attendance-badge"><i></i>{{ user.asistenciaPorcentaje }}% {{ t('attendanceBadgeSuffix') }}</div>
                 </div>
               </div>
 
@@ -353,7 +352,18 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-              <div id="tutor-17" class="performance-chart-box">
+              <div class="progress-pair">
+                <div id="tutor-3" class="performance-chart-box">
+                  <div class="chart-header">
+                    <span class="chart-title">{{ txt('Asistencia', 'Attendance') }}</span>
+                    <span class="chart-percentage">{{ user.asistenciaPorcentaje || 0 }}%</span>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill attendance-fill" :style="{ width: (user.asistenciaPorcentaje || 0) + '%' }"></div>
+                  </div>
+                </div>
+
+                <div id="tutor-17" class="performance-chart-box">
 
                 <div class="chart-header">
 
@@ -374,8 +384,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
                 </div>
 
               </div>
-
-
+              </div>
 
               <div id="tutor-18" class="contact-info-list">
 
@@ -949,7 +958,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 /* Foto del usuario con anillo de asistencia */
 .avatar-wrapper { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
-.avatar-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); z-index: 2; pointer-events: none; }
+.avatar-ring { overflow: visible; position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); z-index: 2; pointer-events: none; }
 .ring-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 4; }
 .ring-fill {
   fill: none; stroke: #4ade80; stroke-width: 4; stroke-linecap: round;
@@ -980,12 +989,6 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
   line-height: 1.15; letter-spacing: -0.4px; color: var(--color-titulos, #fff);
   overflow-wrap: anywhere; text-wrap: balance;
 }
-.attendance-badge {
-  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 700; white-space: nowrap; color: #4ade80;
-  background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32);
-}
-.attendance-badge i { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.8); }
 
 @media (max-width: 600px) {
   .profile-main-info { flex-direction: column; text-align: center; gap: 16px; padding: 22px 16px 20px; }
@@ -1036,6 +1039,10 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
+.progress-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; margin-bottom: 18px; position: relative; z-index: 1; }
+.progress-pair .performance-chart-box { margin: 0; }
+.progress-bar-fill.attendance-fill { min-width: 4px; box-shadow: 0 0 10px rgba(74, 222, 128, 0.4); background: linear-gradient(90deg, #16a34a, #4ade80); }
+@media (max-width: 600px) { .progress-pair { grid-template-columns: 1fr; } }
 .performance-chart-box { background: rgba(0, 0, 0, 0.28); border: 1px solid var(--border-line, rgba(255, 255, 255, 0.06)); border-radius: var(--app-border-radius, 16px); padding: 15px 16px; margin-top: 14px; margin-bottom: 18px; position: relative; z-index: 1; }
 
 .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 11px; font-family: 'Inter', sans-serif; }
