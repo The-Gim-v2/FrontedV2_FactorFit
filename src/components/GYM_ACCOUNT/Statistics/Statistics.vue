@@ -84,6 +84,30 @@ const etapaActual = computed(() => {
   if (dias < 200) return 'senior';
   return 'musculoso';
 });
+const ETAPAS = [
+  { key:'huevo', min:0, es:'Huevito', en:'Egg' },
+  { key:'bebe', min:1, es:'Bebé', en:'Baby' },
+  { key:'adolescente', min:10, es:'Adolescente', en:'Teen' },
+  { key:'adulto', min:30, es:'Adulto', en:'Adult' },
+  { key:'senior', min:100, es:'Senior', en:'Senior' },
+  { key:'musculoso', min:200, es:'Musculoso', en:'Muscular' },
+];
+const etapaIdx = computed(() => Math.max(0, ETAPAS.findIndex(e => e.key === etapaActual.value)));
+const etapaSiguiente = computed(() => ETAPAS[etapaIdx.value + 1] || null);
+const etapaPct = computed(() => {
+  const siguiente = etapaSiguiente.value;
+  if (!siguiente) return 100;
+  const actual = ETAPAS[etapaIdx.value];
+  const pct = (rachaInfo.value.dias - actual.min) / (siguiente.min - actual.min) * 100;
+  return Math.round(Math.min(100, Math.max(0, pct)));
+});
+const etapaMensaje = computed(() => {
+  const siguiente = etapaSiguiente.value;
+  if (!siguiente) return txt('¡Etapa máxima alcanzada!', 'Max stage reached!');
+  const faltan = Math.max(0, siguiente.min - rachaInfo.value.dias);
+  return txt(`Faltan ${faltan} ${faltan === 1 ? 'día' : 'días'} para ${siguiente.es}`, `${faltan} ${faltan === 1 ? 'day' : 'days'} left to ${siguiente.en}`);
+});
+const animalLabel = computed(() => ({ perro: txt('Perro', 'Dog'), gato: txt('Gato', 'Cat'), conejo: txt('Conejo', 'Rabbit'), zorro: txt('Zorro', 'Fox') })[rachaInfo.value.tipoMascota] || rachaInfo.value.tipoMascota);
 const RING_RADIUS = 44;
 const ringCircumference = 2 * Math.PI * RING_RADIUS;
 const ringOffset = computed(() => ringCircumference * (1 - Math.min(100, Math.max(0, user.value.asistenciaPorcentaje || 0)) / 100));
@@ -586,29 +610,19 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
             <!-- TARJETA DE RACHA -->
-
             <div id="tutor-22" class="streak-card reveal" :class="`theme-${etapaActual}`" style="--reveal-delay:2">
-
               <div class="streak-glow" aria-hidden="true"></div>
 
               <div class="streak-header-row">
-
                 <div class="streak-title-group">
-
                   <span class="section-subtitle-small"><span class="subtitle-bar"></span>{{ t('petAndStreakTitle') }}</span>
-
                   <span class="streak-sub">{{ t('streakSub') }}</span>
-
                 </div>
-
                 <span class="pet-level-badge">{{ rachaInfo.nivelMascota }}</span>
-
               </div>
 
-
-
               <div class="streak-content-layout">
-
+                <!-- MASCOTA -->
                 <div class="pet-display-box">
                   <div class="pet-visual-readonly">
                     <FitnessPet
@@ -618,35 +632,56 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
                       :tipo="rachaInfo.tipoMascota"
                     />
                   </div>
-                  <div class="pet-configuration">
-                    <label>{{ txt('Animal', 'Animal') }}
-                      <input :value="({ perro: txt('Perro', 'Dog'), gato: txt('Gato', 'Cat'), conejo: txt('Conejo', 'Rabbit'), zorro: txt('Zorro', 'Fox') })[rachaInfo.tipoMascota] || rachaInfo.tipoMascota" readonly aria-readonly="true" />
-                    </label>
-                    <label>{{ txt('Nombre', 'Name') }}
-                      <input :value="rachaInfo.nombreMascota" readonly aria-readonly="true" />
-                    </label>
-                  </div>
 
+                  <div class="pet-configuration">
+                    <div class="pet-chip">
+                      <span class="pet-chip-label">{{ txt('Animal', 'Animal') }}</span>
+                      <strong>{{ animalLabel }}</strong>
+                    </div>
+                    <div class="pet-chip">
+                      <span class="pet-chip-label">{{ txt('Nombre', 'Name') }}</span>
+                      <strong :title="rachaInfo.nombreMascota">{{ rachaInfo.nombreMascota }}</strong>
+                    </div>
+                  </div>
                 </div>
 
-
-
+                <!-- RACHA -->
                 <div class="streak-counter-box">
-
-                  <div class="streak-number-wrapper">
-
-                    <span class="streak-number animate-bounce">{{ rachaInfo.dias }}</span>
-
-                    <span class="fire-icon animate-pulse">🔥</span>
-
-                  </div>
-
                   <span class="streak-footer-text">{{ t('streakFooterText') }}</span>
 
+                  <div class="streak-number-wrapper">
+                    <span class="streak-number animate-bounce">{{ rachaInfo.dias }}</span>
+                    <span class="fire-icon animate-pulse">🔥</span>
+                  </div>
+
+                  <span class="streak-best">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17h4v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+                    {{ txt('Mejor racha', 'Best streak') }}: <b>{{ mejorRachaMes }}</b>
+                  </span>
+
+                  <div class="stage-progress">
+                    <div class="stage-progress-head">
+                      <span>{{ txt(ETAPAS[etapaIdx].es, ETAPAS[etapaIdx].en) }}</span>
+                      <span v-if="etapaSiguiente">{{ txt(etapaSiguiente.es, etapaSiguiente.en) }}</span>
+                    </div>
+                    <div class="stage-track">
+                      <div class="stage-fill" :style="{ width: etapaPct + '%' }"></div>
+                    </div>
+                    <p class="stage-message">{{ etapaMensaje }}</p>
+
+                    <div class="stage-steps" aria-hidden="true">
+                      <template v-for="(e, i) in ETAPAS" :key="e.key">
+                        <span v-if="i > 0" class="stage-line" :class="{ done: i <= etapaIdx }"></span>
+                        <span
+                          class="stage-dot"
+                          :class="{ done: i < etapaIdx, current: i === etapaIdx }"
+                          :title="txt(e.es, e.en)"
+                        ></span>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-
               </div>
-
             </div>
 
 
@@ -1326,108 +1361,124 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 /* ---------- Tarjeta de racha ---------- */
-
 .streak-card {
-
-  backdrop-filter: blur(20px);
-
-  border-radius: 18px;
-
-  padding: 20px;
-
+  container-type: inline-size;
   position: relative;
-
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.35);
-
-  transition: box-shadow 0.5s ease, border-color 0.5s ease;
-
   display: flex;
-
   flex-direction: column;
-
-  gap: 16px;
-
+  gap: 20px;
+  padding: 24px;
   overflow: hidden;
-
+  border-radius: var(--app-border-radius, 22px);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: box-shadow 0.5s ease, border-color 0.5s ease;
 }
-
+.streak-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 18px 18px;
+  -webkit-mask-image: radial-gradient(ellipse at 80% 0%, black 0%, transparent 70%);
+  mask-image: radial-gradient(ellipse at 80% 0%, black 0%, transparent 70%);
+}
 .streak-glow {
-
-  position: absolute; top: -40%; right: -20%; width: 220px; height: 220px;
-
+  position: absolute; top: -40%; right: -20%; width: 260px; height: 260px;
   background: radial-gradient(circle, var(--accent-color, #facc15) 0%, transparent 70%);
-
-  opacity: 0.18; pointer-events: none; filter: blur(10px);
-
+  opacity: 0.2; pointer-events: none; filter: blur(12px);
   animation: glowDrift 6s ease-in-out infinite;
-
 }
-
 @keyframes glowDrift { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-10px, 10px) scale(1.08); } }
 
-
-
 .theme-huevo { background: linear-gradient(135deg, rgba(148, 163, 184, 0.2) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(148, 163, 184, 0.4); --accent-color: #cbd5e1; }
-
 .theme-bebe { background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(234, 179, 8, 0.4); --accent-color: #facc15; }
-
 .theme-adolescente { background: linear-gradient(135deg, rgba(249, 115, 22, 0.22) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(249, 115, 22, 0.4); --accent-color: #fb923c; }
-
 .theme-adulto { background: linear-gradient(135deg, rgba(236, 72, 153, 0.22) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(236, 72, 153, 0.4); --accent-color: #f472b6; }
-
 .theme-senior { background: linear-gradient(135deg, rgba(168, 85, 247, 0.22) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(168, 85, 247, 0.4); --accent-color: #c084fc; }
-
 .theme-musculoso { background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(18, 18, 18, 0.9) 100%); border: 1px solid rgba(59, 130, 246, 0.5); --accent-color: #60a5fa; }
 
-
-
-.streak-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; position: relative; z-index: 1; }
-
+.streak-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: relative; z-index: 1; }
 .streak-title-group { display: flex; flex-direction: column; }
-
-.streak-title-group .section-subtitle-small { margin-top: 0; margin-bottom: 2px; }
-
-.streak-sub { font-size: 11px; color: rgba(245, 245, 244, 0.6); font-weight: 400; padding-left: 11px; }
-
-.pet-level-badge { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700; background: rgba(0, 0, 0, 0.4); color: var(--accent-color, #facc15); padding: 5px 11px; border-radius: 20px; border: 1px solid var(--accent-color, #facc15); text-transform: uppercase; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-
-
-
-.streak-content-layout { display: flex; flex-direction: column; gap: 14px; width: 100%; box-sizing: border-box; position: relative; z-index: 1; }
-
-@media (min-width: 460px) and (max-width: 1024px), (min-width: 1220px) {
-
-  .streak-content-layout { flex-direction: row; align-items: stretch; }
-
-  .pet-display-box, .streak-counter-box { flex: 1; }
-
+.streak-title-group .section-subtitle-small { margin-top: 0; margin-bottom: 3px; font-size: 1rem; }
+.streak-sub { font-size: 12px; color: rgba(245, 245, 244, 0.6); font-weight: 400; padding-left: 11px; }
+.pet-level-badge {
+  font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; white-space: nowrap;
+  color: var(--accent-color, #facc15);
+  padding: 6px 13px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent-color, #facc15) 60%, transparent);
+  background: color-mix(in srgb, var(--accent-color, #facc15) 12%, rgba(0, 0, 0, 0.35));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-color, #facc15) 22%, transparent);
 }
 
-.pet-display-box { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.32); padding: 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06); text-align: center; box-sizing: border-box; }
+.streak-content-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; width: 100%; box-sizing: border-box; }
+@container (max-width: 520px) {
+  .streak-content-layout { grid-template-columns: minmax(0, 1fr); }
+}
 
+/* Mascota */
+.pet-display-box {
+  min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 16px; border-radius: 18px; box-sizing: border-box; text-align: center;
+  background:
+    radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--accent-color, #facc15) 16%, transparent), transparent 65%),
+    rgba(0, 0, 0, 0.32);
+  border: 1px solid color-mix(in srgb, var(--accent-color, #facc15) 22%, rgba(255, 255, 255, 0.06));
+}
+.pet-visual-readonly { width: 100%; pointer-events: none; }
+.pet-configuration { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.pet-chip { min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; text-align: left; border-radius: 11px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); }
+.pet-chip-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: rgba(245, 245, 244, 0.5); }
+.pet-chip strong { font-size: 0.9rem; font-weight: 600; color: #f5f5f4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Racha */
+.streak-counter-box {
+  min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 20px 18px; border-radius: 18px; box-sizing: border-box; text-align: center;
+  background:
+    radial-gradient(circle at 50% 22%, color-mix(in srgb, var(--accent-color, #facc15) 14%, transparent), transparent 62%),
+    rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.streak-footer-text { font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: rgba(245, 245, 244, 0.65); letter-spacing: 1px; }
+.streak-number-wrapper { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.streak-number {
+  font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; font-size: 4.2rem; line-height: 1; letter-spacing: 1px;
+  color: #fff;
+  background: linear-gradient(180deg, #fff 35%, color-mix(in srgb, var(--accent-color, #facc15) 75%, #fff) 130%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55));
+}
+.fire-icon { font-size: 2.1rem; filter: drop-shadow(0 0 12px var(--accent-color, #facc15)); }
+.streak-best {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 500; color: rgba(245, 245, 244, 0.75);
+  background: rgba(147, 197, 253, 0.07); border: 1px solid rgba(147, 197, 253, 0.25);
+}
+.streak-best svg { color: #93c5fd; }
+.streak-best b { font-weight: 800; color: #93c5fd; }
 
-.streak-counter-box { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(0, 0, 0, 0.32); padding: 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06); box-sizing: border-box; margin-top: 4px; }
-
-.streak-number-wrapper { display: flex; align-items: center; gap: 8px; }
-
-.streak-number { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 2.3rem; color: #f5f5f4; line-height: 1; text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
-
-.fire-icon { font-size: 1.5rem; filter: drop-shadow(0 0 8px var(--accent-color, #facc15)); }
-
-.streak-footer-text { font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; color: rgba(245, 245, 244, 0.75); letter-spacing: 0.5px; margin-top: 4px; }
-
-
+/* Progreso de etapa */
+.stage-progress { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.stage-progress-head { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: rgba(245, 245, 244, 0.5); }
+.stage-progress-head span:first-child { color: var(--accent-color, #facc15); }
+.stage-track { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.stage-fill { height: 100%; min-width: 4px; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent-color, #facc15) 55%, transparent), var(--accent-color, #facc15)); box-shadow: 0 0 12px color-mix(in srgb, var(--accent-color, #facc15) 55%, transparent); transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+.stage-message { margin: 0; font-size: 11.5px; color: rgba(245, 245, 244, 0.65); }
+.stage-steps { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.stage-line { flex: 1; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
+.stage-line.done { background: var(--accent-color, #facc15); opacity: 0.7; }
+.stage-dot { width: 10px; height: 10px; flex-shrink: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.14); }
+.stage-dot.done { background: var(--accent-color, #facc15); opacity: 0.75; }
+.stage-dot.current { background: var(--accent-color, #facc15); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-color, #facc15) 25%, transparent), 0 0 12px var(--accent-color, #facc15); }
 
 @keyframes bounceSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-
 @keyframes pulseFlame { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: 0.9; } }
-
 .animate-bounce { animation: bounceSlow 2.5s ease-in-out infinite; }
-
 .animate-pulse { animation: pulseFlame 1.8s ease-in-out infinite; display: inline-block; }
-
-
 
 /* ---------- Ajustes móviles finos ---------- */
 
@@ -1437,7 +1488,8 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
   .financial-card { padding: 15px; }
 
-  .streak-number { font-size: 1.9rem; }
+  .streak-number { font-size: 3.2rem; }
+  .streak-card { padding: 18px; }
 
   .profile-main-info { gap: 16px; }
 
@@ -1446,11 +1498,15 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 /* Ajustes mínimos: mantiene las tarjetas, colores y distribución originales. */
 .stats-message { margin: 8px 0 18px; padding: 12px 15px; border: 1px solid #cc5863; border-radius: 12px; color: #ffb4bd; background: rgba(185,39,71,.08); }
-.pet-configuration { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; width: 100%; }
-.pet-configuration label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #cbd5e1; }
-.pet-configuration select, .pet-configuration input { max-width: 135px; padding: 5px 7px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: #161b2d; color: #fff; font-size: 12px; }
-.pet-visual-readonly { pointer-events: none; }
-.pet-configuration input[readonly] { cursor: default; }
-.pet-configuration small { width: 100%; text-align: center; color: #6ee7b7; }
 .day-cell.vacio { visibility: hidden; pointer-events: none; }
+
+/* ---------- Pulido visual general ---------- */
+.metric-value, .card-highlight-val, .contact-val { font-variant-numeric: tabular-nums; }
+.metric-box { background: linear-gradient(160deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)); }
+.financial-card { position: relative; overflow: hidden; }
+.financial-card::before { content: ''; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: var(--card-accent, var(--color-highlight, #3b82f6)); }
+.financial-card.red-accent { --card-accent: #f87171; }
+.financial-card.green-accent { --card-accent: #4ade80; }
+.user-profile-card, .calendar-card { box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.day-cell.hoy { font-weight: 800; }
 </style>
