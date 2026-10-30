@@ -42,7 +42,7 @@ const form = reactive({
 const handleSearch=()=>{if(suggestions.value.length===1)chooseClient(suggestions.value[0]);else showSuggestions.value=true;};
 const goToStatistics = () => {
   if(!clienteId.value)return;
-  router.push({ name: 'statistics', params: { id: String(clienteId.value||'') } });
+  router.push({ path: `/GYM_ACCOUNT/statistics/${clienteId.value}`, query: { sede_id: clienteSedeId.value || sedeId() } });
 };
 /* ============================ FOTO / GALERÍA ============================ */
 const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
