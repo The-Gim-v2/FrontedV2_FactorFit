@@ -58,8 +58,31 @@ const fechaNuevoCorte=computed(()=>{
  const max=new Date(base.getFullYear(),base.getMonth()+1,0).getDate();base.setDate(Math.min(day,max));
  return `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`;
 });
-const generarFolio=()=>`OP-${Date.now().toString().slice(-8)}`; // Referencia visual; el folio definitivo lo devuelve Laravel.
-watch(tipoPago,n=>{if(n==='Efectivo')folioReferencia.value=generarFolio();else if(folioReferencia.value.startsWith('OP-'))folioReferencia.value='';});
+// El folio de Efectivo y Tarjeta lo genera el servidor (Laravel) al registrar el pago: aquí nunca se inventa uno.
+// Solo en Transferencia el usuario captura la referencia de su comprobante.
+watch(tipoPago,n=>{if(n!=='Transferencia')folioReferencia.value='';});
+const folioAutomatico=computed(()=>tipoPago.value==='Efectivo'||tipoPago.value==='Tarjeta');
+const folioPlaceholder=computed(()=>{
+ if(tipoPago.value==='Efectivo')return txt('Se asigna al confirmar el pago','Assigned when you confirm');
+ if(tipoPago.value==='Tarjeta')return txt('Lo asigna Stripe al cobrar','Assigned by Stripe on charge');
+ if(tipoPago.value==='Transferencia')return t('voucherPlaceholder');
+ return txt('Elige primero un método de pago','Choose a payment method first');
+});
+const folioAyuda=computed(()=>({
+ Efectivo:txt('El folio real se genera al confirmar el pago y aparecerá en el recibo. No necesitas capturarlo.','The real reference is generated when you confirm the payment and will appear on the receipt. You do not need to enter it.'),
+ Tarjeta:txt('El folio se asigna cuando Stripe confirma el cobro y aparecerá en el recibo.','The reference is assigned once Stripe confirms the charge and will appear on the receipt.'),
+ Transferencia:txt('Captura el folio o número de referencia que aparece en el comprobante de la transferencia.','Enter the reference number shown on the transfer receipt.')
+})[tipoPago.value]||'');
+const folioResumen=computed(()=>{
+ if(tipoPago.value==='Transferencia')return folioReferencia.value.trim()||'—';
+ if(folioAutomatico.value)return txt('Al confirmar','On confirmation');
+ return '—';
+});
+const metodosPago=computed(()=>[
+ {value:'Efectivo',label:t('cashOption'),hint:txt('Folio automático','Automatic reference'),icon:'cash'},
+ {value:'Transferencia',label:t('transferOption'),hint:txt('Requiere folio','Reference required'),icon:'transfer'},
+ {value:'Tarjeta',label:txt('Tarjeta','Card'),hint:txt('QR de Stripe','Stripe QR'),icon:'card'}
+]);
 const isButtonDisabled=computed(()=>loading.value||saving.value||stripeLoading.value||!!stripeQR.value||!inscripcion.value||!Number.isFinite(Number(montoRecibir.value))||Number(montoRecibir.value)<=0||!tipoPago.value||(tipoPago.value==='Tarjeta'&&!stripeCuenta.value?.charges_enabled)||(tipoPago.value==='Transferencia'&&!folioReferencia.value.trim()));
 const reciboLocale=computed(()=>currentLang.value==='en'?'en-US':'es-MX');
 const formatoMoneda=n=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n)||0);
@@ -547,110 +570,109 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                   </div>
                 </div>
 
-                <div class="payment-details-grid">
-                  <div class="input-group">
-                    <label>{{ t('paymentTypeLabel') }}</label>
-
-                    <div class="field-control">
-                      <svg
-                        class="field-icon"
-                        viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <rect
-                          x="1"
-                          y="4"
-                          width="22"
-                          height="16"
-                          rx="2"
-                        />
-                        <line
-                          x1="1"
-                          y1="10"
-                          x2="23"
-                          y2="10"
-                        />
+                <div
+                  class="method-grid"
+                  role="radiogroup"
+                  :aria-label="t('paymentTypeLabel')"
+                >
+                  <button
+                    v-for="m in metodosPago"
+                    :key="m.value"
+                    type="button"
+                    role="radio"
+                    class="method-tile"
+                    :class="{ active: tipoPago === m.value }"
+                    :aria-checked="tipoPago === m.value"
+                    @click="tipoPago = m.value"
+                  >
+                    <span class="method-icon">
+                      <svg v-if="m.icon === 'cash'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2" />
+                        <circle cx="12" cy="12" r="2.5" />
+                        <path d="M6 12h.01M18 12h.01" />
                       </svg>
-
-                      <select
-                        v-model="tipoPago"
-                        class="field-select"
-                      >
-                        <option disabled value="">
-                          {{ t('selectOption') }}
-                        </option>
-                        <option value="Efectivo">
-                          {{ t('cashOption') }}
-                        </option>
-                        <option value="Transferencia">
-                          {{ t('transferOption') }}
-                        </option>
-                        <option value="Tarjeta">
-                          {{ txt('Tarjeta (Stripe QR)','Card (Stripe QR)') }}
-                        </option>
-                      </select>
-
-                      <svg
-                        class="select-arrow"
-                        viewBox="0 0 24 24"
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
+                      <svg v-else-if="m.icon === 'transfer'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 10 12 4l9 6" />
+                        <path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" />
+                        <path d="M3 21h18" />
                       </svg>
-                    </div>
-                  </div>
-
-                  <div class="input-group">
-                    <label>{{ t('folioReferenceLabel') }}</label>
-
-                    <div
-                      class="field-control"
-                      :class="{
-                        'is-disabled':
-                          tipoPago === 'Efectivo' || tipoPago === 'Tarjeta'
-                      }"
-                    >
-                      <svg
-                        class="field-icon"
-                        viewBox="0 0 24 24"
-                        width="16"
-                        height="16"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path d="M4 4h16v16H4z" />
-                        <path d="M8 9h8M8 13h5" />
+                      <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <path d="M2 10h20M6 15h4" />
                       </svg>
+                    </span>
 
-                      <input
-                        v-model="folioReferencia"
-                        type="text"
-                        :placeholder="t('voucherPlaceholder')"
-                        :disabled="tipoPago === 'Efectivo' || tipoPago === 'Tarjeta'"
-                      />
-                    </div>
+                    <span class="method-text">
+                      <strong>{{ m.label }}</strong>
+                      <small>{{ m.hint }}</small>
+                    </span>
 
-                    <small
-                      v-if="tipoPago === 'Efectivo'"
-                      class="field-help"
+                    <span class="method-check" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+
+                <div class="input-group folio-group">
+                  <label for="folio-referencia">
+                    {{ t('folioReferenceLabel') }}
+                    <span
+                      v-if="tipoPago"
+                      class="folio-badge"
+                      :class="folioAutomatico ? 'auto' : 'required'"
                     >
                       {{
-                        txt(
-                          'El folio se genera automáticamente.',
-                          'The reference is generated automatically.'
-                        )
+                        folioAutomatico
+                          ? txt('AUTOMÁTICO', 'AUTOMATIC')
+                          : txt('OBLIGATORIO', 'REQUIRED')
                       }}
-                    </small>
+                    </span>
+                  </label>
+
+                  <div
+                    class="field-control"
+                    :class="{ 'is-disabled': folioAutomatico || !tipoPago }"
+                  >
+                    <svg
+                      class="field-icon"
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <template v-if="folioAutomatico || !tipoPago">
+                        <rect x="4" y="11" width="16" height="10" rx="2" />
+                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                      </template>
+                      <template v-else>
+                        <path d="M4 4h16v16H4z" />
+                        <path d="M8 9h8M8 13h5" />
+                      </template>
+                    </svg>
+
+                    <input
+                      id="folio-referencia"
+                      v-model="folioReferencia"
+                      type="text"
+                      autocomplete="off"
+                      :placeholder="folioPlaceholder"
+                      :disabled="folioAutomatico || !tipoPago"
+                    />
                   </div>
+
+                  <p v-if="folioAyuda" class="folio-note">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M12 11v5M12 8h.01" />
+                    </svg>
+                    <span>{{ folioAyuda }}</span>
+                  </p>
                 </div>
               </section>
 
@@ -774,6 +796,20 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 
                   <div class="review-item">
                     <span>
+                      {{ txt('Folio', 'Reference') }}
+                    </span>
+                    <strong class="review-folio">{{ folioResumen }}</strong>
+                  </div>
+
+                  <div class="review-item">
+                    <span>
+                      {{ t('newCutLabel') }}
+                    </span>
+                    <strong class="review-date">{{ fechaNuevoCorte }}</strong>
+                  </div>
+
+                  <div class="review-item">
+                    <span>
                       {{ txt('Total', 'Total') }}
                     </span>
                     <strong class="review-total">
@@ -870,18 +906,61 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
               </div>
 
               <div v-if="tipoPago === 'Tarjeta' || stripeQR" class="stripe-box">
-                <strong>{{ txt('Cobro con tarjeta mediante Stripe','Card payment via Stripe') }}</strong>
-                <p v-if="stripeCuenta?.charges_enabled">{{ txt('Cuenta lista para cobrar.','Account ready for payments.') }}</p>
-                <p v-else>{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.','Connect and enable the gym Stripe account before charging.') }}</p>
-                <button v-if="!stripeCuenta?.charges_enabled" type="button" class="stripe-action" :disabled="stripeLoading" @click="conectarStripe">{{ txt('Conectar cuenta Stripe','Connect Stripe account') }}</button>
-                <button type="button" class="stripe-link" @click="consultarStripeCuenta(false)">{{ txt('Actualizar estado de cuenta','Refresh account status') }}</button>
+                <div class="stripe-head">
+                  <span class="stripe-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <path d="M2 10h20M6 15h4" />
+                    </svg>
+                  </span>
+
+                  <div class="stripe-head-text">
+                    <strong>{{ txt('Cobro con tarjeta mediante Stripe','Card payment via Stripe') }}</strong>
+                    <span
+                      class="stripe-status"
+                      :class="stripeCuenta?.charges_enabled ? 'ok' : 'warn'"
+                    >
+                      <i></i>
+                      {{
+                        stripeCuenta?.charges_enabled
+                          ? txt('Cuenta lista para cobrar.','Account ready for payments.')
+                          : txt('Cuenta no habilitada','Account not enabled')
+                      }}
+                    </span>
+                  </div>
+
+                  <button type="button" class="stripe-link" @click="consultarStripeCuenta(false)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                      <path d="M21 3v5h-5" />
+                    </svg>
+                    {{ txt('Actualizar estado de cuenta','Refresh account status') }}
+                  </button>
+                </div>
+
+                <template v-if="!stripeCuenta?.charges_enabled">
+                  <p class="stripe-hint">{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.','Connect and enable the gym Stripe account before charging.') }}</p>
+                  <div class="stripe-actions">
+                    <button type="button" class="stripe-action" :disabled="stripeLoading" @click="conectarStripe">{{ txt('Conectar cuenta Stripe','Connect Stripe account') }}</button>
+                  </div>
+                </template>
+
                 <div v-if="stripeQR" class="stripe-qr">
-                  <img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe','Stripe payment QR')" />
-                  <strong>${{ formatoMoneda(stripeQR.monto) }} MXN</strong>
-                  <p>{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}. {{ txt('El recibo se habilita cuando Laravel registra el folio real.','Receipt becomes available after Laravel registers the actual reference.') }}</p>
-                  <a :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">{{ txt('Abrir enlace de pago','Open payment link') }}</a>
-                  <button type="button" class="stripe-action" @click="consultarEstadoStripe(false)">{{ txt('Comprobar pago','Check payment') }}</button>
-                  <button type="button" class="stripe-link" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)','Hide QR (does not cancel payment)') }}</button>
+                  <div class="qr-frame">
+                    <img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe','Stripe payment QR')" />
+                  </div>
+
+                  <div class="qr-info">
+                    <span class="qr-state" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}</span>
+                    <strong class="qr-amount">${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
+                    <p>{{ txt('El recibo se habilita cuando Laravel registra el folio real.','Receipt becomes available after Laravel registers the actual reference.') }}</p>
+
+                    <div class="qr-actions">
+                      <button type="button" class="stripe-action" @click="consultarEstadoStripe(false)">{{ txt('Comprobar pago','Check payment') }}</button>
+                      <a class="stripe-open" :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">{{ txt('Abrir enlace de pago','Open payment link') }}</a>
+                      <button type="button" class="stripe-link" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)','Hide QR (does not cancel payment)') }}</button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <!-- PAGO CONFIRMADO -->
@@ -958,8 +1037,6 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 </template>
 
 <style scoped>
-.stripe-box{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--input-bg);display:flex;flex-direction:column;align-items:flex-start;gap:10px}.stripe-box p{margin:0;color:var(--muted);font-size:.9rem}.stripe-action{padding:10px 16px;border:0;border-radius:9px;background:var(--button);color:var(--button-text);font-weight:700;cursor:pointer}.stripe-action:disabled{opacity:.5;cursor:not-allowed}.stripe-link{border:0;background:transparent;color:var(--accent);cursor:pointer;text-align:left}.stripe-qr{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;padding:16px;border:1px solid var(--line);border-radius:12px;text-align:center}.stripe-qr img{width:min(280px,100%);height:auto;background:#fff;border-radius:8px}.stripe-qr a{color:var(--accent);overflow-wrap:anywhere}
-
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@500;600;700&display=swap');
 
 * {
@@ -999,6 +1076,9 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  background:
+    radial-gradient(900px 360px at 88% -120px, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    radial-gradient(700px 320px at -5% 0, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
 }
 
 .payment-container {
@@ -1035,6 +1115,8 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
 }
 .eyebrow {
   display: flex;
@@ -1128,6 +1210,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 22px 44px -28px rgba(0, 0, 0, 0.7);
 }
 .card-top-line {
   position: absolute;
@@ -1136,7 +1219,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   right: 22px;
   height: 3px;
   border-radius: 0 0 5px 5px;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
 }
 .client-card-header {
   display: flex;
@@ -1343,6 +1426,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--card);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 22px 44px -28px rgba(0, 0, 0, 0.7);
 }
 .payment-card-header {
   display: flex;
@@ -1483,7 +1567,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   padding: 22px;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
   border-radius: 14px;
-  background: var(--input-bg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, var(--input-bg)), var(--input-bg) 60%);
 }
 .summary-main {
   min-width: 0;
@@ -1700,11 +1784,16 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   color: var(--muted);
   pointer-events: none;
 }
-.field-control.is-disabled {
-  opacity: 0.65;
+.field-control.is-disabled input {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--text) 3%, var(--input-bg));
 }
 .field-control input:disabled {
   cursor: not-allowed;
+}
+.field-control.is-disabled input::placeholder {
+  color: var(--muted);
+  font-style: italic;
 }
 .field-help {
   display: block;
@@ -1832,7 +1921,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 }
 .review-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 .review-item {
@@ -1883,9 +1972,13 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   gap: 12px;
   padding: 10px 16px;
   border-radius: 12px;
-  background: var(--button);
+  background: linear-gradient(135deg, var(--button), color-mix(in srgb, var(--button) 76%, black));
   color: var(--button-text);
-  transition: filter 0.18s ease, opacity 0.18s ease;
+  box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--button) 60%, transparent);
+  transition: filter 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+.confirm-button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 .confirm-button:hover:not(:disabled) {
   filter: brightness(1.1);
@@ -1899,6 +1992,7 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 .confirm-button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+  box-shadow: none;
 }
 .button-icon {
   width: 36px;
@@ -2018,6 +2112,328 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   font-family: var(--font-mono);
   font-size: 1.1rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================
+   MÉTODO DE PAGO (tarjetas seleccionables)
+========================================================= */
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.method-tile {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.method-tile:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
+  transform: translateY(-1px);
+}
+.method-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.method-tile.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--input-bg));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.method-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  transition: color 0.18s ease, background 0.18s ease;
+}
+.method-tile.active .method-icon {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.method-text {
+  min-width: 0;
+}
+.method-text strong {
+  display: block;
+  color: var(--title);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.method-text small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+.method-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--card);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.method-tile.active .method-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* =========================================================
+   FOLIO / REFERENCIA
+========================================================= */
+.folio-group > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.folio-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+.folio-badge.auto {
+  color: var(--ok-text);
+  background: rgba(52, 211, 153, 0.12);
+}
+.folio-badge.required {
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.12);
+}
+.folio-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.folio-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.review-folio,
+.review-date {
+  font-family: var(--font-mono);
+  font-size: 0.86rem !important;
+}
+
+/* =========================================================
+   STRIPE
+========================================================= */
+.stripe-box {
+  margin-top: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, #635bff 38%, var(--line));
+  border-radius: 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, #635bff 9%, var(--input-bg)), var(--input-bg));
+}
+.stripe-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.stripe-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  color: #b4afff;
+  background: rgba(99, 91, 255, 0.18);
+}
+.stripe-head-text {
+  min-width: 0;
+  flex: 1 1 200px;
+}
+.stripe-head-text strong {
+  display: block;
+  color: var(--title);
+  font-size: 0.98rem;
+}
+.stripe-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+.stripe-status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.stripe-status.ok {
+  color: var(--ok-text);
+}
+.stripe-status.ok i {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+.stripe-status.warn {
+  color: #fcd34d;
+}
+.stripe-status.warn i {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+.stripe-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.stripe-actions,
+.qr-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.stripe-action {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--button);
+  color: var(--button-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.18s ease;
+}
+.stripe-action:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.stripe-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.stripe-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.stripe-link:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.stripe-qr {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.qr-frame {
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.55);
+}
+.qr-frame img {
+  width: 200px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.qr-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.qr-state {
+  padding: 3px 11px;
+  border-radius: 999px;
+  color: #fcd34d;
+  background: rgba(251, 191, 36, 0.12);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.qr-state.paid {
+  color: var(--ok-text);
+  background: rgba(52, 211, 153, 0.12);
+}
+.qr-amount {
+  color: var(--title);
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+}
+.qr-amount small {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+.qr-info p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.stripe-open {
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 /* =========================================================
@@ -2245,6 +2661,32 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   }
   .success-amount {
     display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  .stripe-qr {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+  .qr-info {
+    align-items: center;
+  }
+  .qr-actions {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .method-grid {
+    grid-template-columns: 1fr;
+  }
+  .stripe-box {
+    padding: 14px;
+  }
+  .qr-frame img {
+    width: 100%;
   }
 }
 
