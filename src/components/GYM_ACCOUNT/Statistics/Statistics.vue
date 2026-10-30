@@ -60,9 +60,7 @@ const request = async (path, options={}) => {
 
 const clienteId = computed(() => Number(route.params.id) || 0);
 const loading = ref(false);
-const savingPet = ref(false);
 const statsError = ref('');
-const petNotice = ref('');
 const imageError = ref(false);
 const year = ref(new Date().getFullYear());
 const month = ref(new Date().getMonth() + 1);
@@ -74,8 +72,6 @@ const user = ref({
   eficienciaMuscular:'—', eficienciaMuscularPorcentaje:0,
 });
 const rachaInfo = ref({ dias:0, mejorRacha:0, nombreMascota:'Mi mascota', nivelMascota:'Nivel 1', tipoMascota:'perro' });
-const tipoMascotaEdit = ref('perro');
-const nombreMascotaEdit = ref('Mi mascota');
 const diasCalendario = ref([]);
 const handleImageError = () => { imageError.value = true; };
 const initials = computed(() => (user.value.nombre || '?').split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase());
@@ -126,8 +122,6 @@ const loadStats = async () => {
     year.value = data.anio;
     month.value = data.mes;
     imageError.value = false;
-    tipoMascotaEdit.value = data.rachaInfo.tipoMascota;
-    nombreMascotaEdit.value = data.rachaInfo.nombreMascota;
   } catch (e) {
     if (seq === loadSequence) statsError.value = e.message;
   } finally {
@@ -135,34 +129,6 @@ const loadStats = async () => {
   }
 };
 
-const guardarMascota = async () => {
-  if (savingPet.value || !clienteId.value || !sedeId()) return;
-  savingPet.value = true;
-  petNotice.value = '';
-  const previous = { ...rachaInfo.value };
-  try {
-    const data = await request(`/api/gym/clientes/${clienteId.value}/estadisticas/mascota`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        sede_id: sedeId(),
-        tipo_mascota: tipoMascotaEdit.value,
-        nombre_mascota: nombreMascotaEdit.value,
-      }),
-    });
-    rachaInfo.value = {...rachaInfo.value, tipoMascota:data.tipoMascota, nombreMascota:data.nombreMascota};
-    petNotice.value = txt('Mascota guardada.', 'Pet saved.');
-  } catch (e) {
-    tipoMascotaEdit.value = previous.tipoMascota;
-    nombreMascotaEdit.value = previous.nombreMascota;
-    petNotice.value = e.message;
-  } finally { savingPet.value = false; }
-};
-const onPetType = (tipo) => {
-  if (!['perro','gato','conejo','zorro'].includes(String(tipo))) return;
-  tipoMascotaEdit.value = String(tipo);
-  guardarMascota();
-};
 const branchChange = () => { loadStats(); };
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
@@ -644,27 +610,21 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
               <div class="streak-content-layout">
 
                 <div class="pet-display-box">
-                  <FitnessPet
-                    :nombre="rachaInfo.nombreMascota"
-                    :nivel="rachaInfo.nivelMascota"
-                    :racha="rachaInfo.dias"
-                    :tipo="rachaInfo.tipoMascota"
-                    @update:tipo="onPetType"
-                    @seleccionar="onPetType"
-                  />
+                  <div class="pet-visual-readonly">
+                    <FitnessPet
+                      :nombre="rachaInfo.nombreMascota"
+                      :nivel="rachaInfo.nivelMascota"
+                      :racha="rachaInfo.dias"
+                      :tipo="rachaInfo.tipoMascota"
+                    />
+                  </div>
                   <div class="pet-configuration">
                     <label>{{ txt('Animal', 'Animal') }}
-                      <select v-model="tipoMascotaEdit" :disabled="savingPet" @change="guardarMascota">
-                        <option value="perro">{{ txt('Perro', 'Dog') }}</option>
-                        <option value="gato">{{ txt('Gato', 'Cat') }}</option>
-                        <option value="conejo">{{ txt('Conejo', 'Rabbit') }}</option>
-                        <option value="zorro">{{ txt('Zorro', 'Fox') }}</option>
-                      </select>
+                      <input :value="({ perro: txt('Perro', 'Dog'), gato: txt('Gato', 'Cat'), conejo: txt('Conejo', 'Rabbit'), zorro: txt('Zorro', 'Fox') })[rachaInfo.tipoMascota] || rachaInfo.tipoMascota" readonly aria-readonly="true" />
                     </label>
                     <label>{{ txt('Nombre', 'Name') }}
-                      <input v-model.trim="nombreMascotaEdit" maxlength="80" :disabled="savingPet" @change="guardarMascota" />
+                      <input :value="rachaInfo.nombreMascota" readonly aria-readonly="true" />
                     </label>
-                    <small v-if="petNotice" role="status">{{ petNotice }}</small>
                   </div>
 
                 </div>
@@ -1489,6 +1449,8 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .pet-configuration { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; width: 100%; }
 .pet-configuration label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #cbd5e1; }
 .pet-configuration select, .pet-configuration input { max-width: 135px; padding: 5px 7px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: #161b2d; color: #fff; font-size: 12px; }
+.pet-visual-readonly { pointer-events: none; }
+.pet-configuration input[readonly] { cursor: default; }
 .pet-configuration small { width: 100%; text-align: center; color: #6ee7b7; }
 .day-cell.vacio { visibility: hidden; pointer-events: none; }
 </style>
