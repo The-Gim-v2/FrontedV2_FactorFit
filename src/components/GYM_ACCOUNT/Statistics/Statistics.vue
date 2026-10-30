@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import FitnessPet from '@/components/FitnessPet.vue';
 import { traducciones } from '../i18n.js';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 const route = useRoute();
+const router = useRouter();
+const toastRef = ref(null);
+const notify = (message, type = 'error') => toastRef.value?.notify(message, type);
 const searchQuery = ref('');
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const t = (key) => (traducciones[currentLang.value] || traducciones.es)?.[key] || traducciones.es?.[key] || key;
@@ -60,7 +64,6 @@ const request = async (path, options={}) => {
 
 const clienteId = computed(() => Number(route.params.id) || 0);
 const loading = ref(false);
-const statsError = ref('');
 const imageError = ref(false);
 const year = ref(new Date().getFullYear());
 const month = ref(new Date().getMonth() + 1);
@@ -128,15 +131,47 @@ const resumenSemanas = computed(() => semanasCalendario.value.map((semana, idx) 
   return {numero:idx+1, pct:registrados ? Math.round(asistidos/registrados*100) : 0};
 }));
 
+/* ---------- Buscador de clientes (igual que en Editar usuario) ---------- */
+const clientesBusqueda = ref([]);
+const showSuggestions = ref(false);
+const searchBox = ref(null);
+const suggestions = computed(() => {
+  const q = searchQuery.value.trim().toLocaleLowerCase();
+  if (!q) return [];
+  return clientesBusqueda.value
+    .filter(c => [c.Nombre, c.Apellido_P, c.Apellido_M, c.Celular, c.Correo_Electronico, c.ID_Cliente]
+      .some(v => String(v ?? '').toLocaleLowerCase().includes(q)))
+    .slice(0, 8);
+});
+const loadSearch = async () => {
+  if (!sedeId()) { clientesBusqueda.value = []; return; }
+  try {
+    const data = await request(`/api/gym/clientes?sede_id=${sedeId()}`);
+    clientesBusqueda.value = Array.isArray(data) ? data : (data?.data || []);
+  } catch (e) { console.error(e); }
+};
+const chooseClient = (c) => {
+  showSuggestions.value = false;
+  searchQuery.value = '';
+  router.push({ path: `/GYM_ACCOUNT/statistics/${c.ID_Cliente}`, query: { sede_id: Number(c.ID_Sede) || sedeId() } });
+};
+const handleSearch = () => {
+  if (suggestions.value.length === 1) chooseClient(suggestions.value[0]);
+  else showSuggestions.value = true;
+};
+const closeSuggestionsOutside = (e) => {
+  if (searchBox.value && !searchBox.value.contains(e.target)) showSuggestions.value = false;
+};
+
 let loadSequence = 0;
 const loadStats = async () => {
   const seq = ++loadSequence;
-  if (!clienteId.value || !sedeId()) {
-    statsError.value = 'Selecciona un cliente y una sucursal para ver las estadísticas.';
+  if (!clienteId.value) { loading.value = false; return; }
+  if (!sedeId()) {
+    notify(txt('Selecciona una sucursal para ver las estadísticas.', 'Select a branch to view the statistics.'), 'warning');
     return;
   }
   loading.value = true;
-  statsError.value = '';
   try {
     const data = await request(`/api/gym/clientes/${clienteId.value}/estadisticas?sede_id=${sedeId()}`);
     if (seq !== loadSequence) return;
@@ -147,22 +182,25 @@ const loadStats = async () => {
     month.value = data.mes;
     imageError.value = false;
   } catch (e) {
-    if (seq === loadSequence) statsError.value = e.message;
+    if (seq === loadSequence) notify(e.message, 'error');
   } finally {
     if (seq === loadSequence) loading.value = false;
   }
 };
 
-const branchChange = () => { loadStats(); };
+const branchChange = () => { clientesBusqueda.value = []; loadSearch(); loadStats(); };
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', branchChange);
+  document.addEventListener('click', closeSuggestionsOutside);
+  loadSearch();
   loadStats();
 });
 onUnmounted(() => {
   loadSequence++;
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('factorfit:branch-changed', branchChange);
+  document.removeEventListener('click', closeSuggestionsOutside);
 });
 watch(() => [route.params.id, route.query.sede_id], loadStats);
 </script>
@@ -172,6 +210,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 <template>
 
   <HeadingGYM_ACCOUNT>
+    <NotificationSystem ref="toastRef" />
 
     <main class="main-content">
 
@@ -199,25 +238,47 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
           </div>
 
-          <div id="tutor-0" class="search-bar-wrapper">
-
-            <div class="search-input-container">
-
-              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-
-              <input type="text" v-model="searchQuery" :placeholder="t('searchPlaceholder')" class="search-input" />
-
+          <div id="tutor-0" ref="searchBox" class="search-small input-group">
+            <label for="client-search">{{ t('searchClientLabel') }}</label>
+            <div class="search-input-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input
+                id="client-search"
+                v-model="searchQuery"
+                type="text"
+                autocomplete="off"
+                :placeholder="t('searchPlaceholder')"
+                @focus="showSuggestions = true"
+                @input="showSuggestions = true"
+                @keyup.enter="handleSearch"
+                @keyup.esc="showSuggestions = false"
+              />
             </div>
-
+            <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
+              <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
+                <span class="suggestion-avatar">{{ String(c.Nombre || '?').charAt(0).toUpperCase() }}</span>
+                <span class="suggestion-info"><strong>{{ [c.Nombre, c.Apellido_P, c.Apellido_M].filter(Boolean).join(' ') }}</strong><small>{{ c.Correo_Electronico || c.Celular || txt('Cliente registrado', 'Registered client') }}</small></span>
+                <span class="suggestion-id">#{{ c.ID_Cliente }}</span>
+              </button>
+              <p v-if="!suggestions.length" class="suggestion-empty">{{ txt('No se encontraron clientes en esta sucursal.', 'No clients found in this branch.') }}</p>
+            </div>
           </div>
 
         </div>
 
 
 
-        <p v-if="statsError" role="alert" class="stats-message">{{ statsError }}</p>
-        <p v-else-if="loading" class="stats-message">{{ txt('Cargando estadísticas...', 'Loading statistics...') }}</p>
-        <div class="dashboard-grid">
+        <div v-if="loading" class="loading-bar" role="status" :aria-label="txt('Cargando estadísticas...', 'Loading statistics...')"></div>
+
+        <div v-if="!clienteId" class="empty-state">
+          <span class="empty-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          </span>
+          <h3>{{ txt('Busca un cliente', 'Search for a client') }}</h3>
+          <p>{{ txt('Escribe un nombre, correo, celular o ID para ver sus estadísticas.', 'Type a name, email, phone or ID to see their statistics.') }}</p>
+        </div>
+
+        <div v-else class="dashboard-grid" :class="{ 'is-loading': loading }">
 
 
 
@@ -411,47 +472,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-            <div class="bottom-financial-grid">
-
-              <div id="tutor-19" class="info-card financial-card red-accent reveal" style="--reveal-delay:1">
-
-                <div class="card-icon-badge red">
-
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-
-                </div>
-
-                <div class="card-text-group">
-
-                  <span class="card-mini-title">{{ t('nextCutTitle') }}</span>
-
-                  <span class="card-highlight-val red">{{ user.proximoCorte }}</span>
-
-                </div>
-
-              </div>
-
-              <div id="tutor-20" class="info-card financial-card green-accent reveal" style="--reveal-delay:2">
-
-                <div class="card-icon-badge green">
-
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-
-                </div>
-
-                <div class="card-text-group">
-
-                  <span class="card-mini-title">{{ t('balanceDueTitle') }}</span>
-
-                  <span class="card-highlight-val green">{{ user.saldoAPagar }}</span>
-
-                </div>
-
-              </div>
-
             </div>
-
-          </div>
 
 
 
@@ -609,7 +630,52 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-            <!-- TARJETA DE RACHA -->
+            <div class="bottom-financial-grid">
+
+              <div id="tutor-19" class="info-card financial-card red-accent reveal" style="--reveal-delay:1">
+
+                <div class="card-icon-badge red">
+
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+
+                </div>
+
+                <div class="card-text-group">
+
+                  <span class="card-mini-title">{{ t('nextCutTitle') }}</span>
+
+                  <span class="card-highlight-val red">{{ user.proximoCorte }}</span>
+
+                </div>
+
+              </div>
+
+              <div id="tutor-20" class="info-card financial-card green-accent reveal" style="--reveal-delay:2">
+
+                <div class="card-icon-badge green">
+
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+
+                </div>
+
+                <div class="card-text-group">
+
+                  <span class="card-mini-title">{{ t('balanceDueTitle') }}</span>
+
+                  <span class="card-highlight-val green">{{ user.saldoAPagar }}</span>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+
+          </div>
+
+          <!-- TARJETA DE RACHA -->
             <div id="tutor-22" class="streak-card reveal" :class="`theme-${etapaActual}`" style="--reveal-delay:2">
               <div class="streak-glow" aria-hidden="true"></div>
 
@@ -683,10 +749,6 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
                 </div>
               </div>
             </div>
-
-
-
-          </div>
 
 
 
@@ -774,53 +836,68 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-.search-bar-wrapper { width: 100%; max-width: 320px; }
+/* ---------- Buscador (mismo estilo que Editar usuario) ---------- */
+.view-header-flex, .search-small { position: relative; }
+.view-header-flex { z-index: 20; }
+.search-small { z-index: 21; width: min(100%, 320px); flex-shrink: 0; --accent: var(--color-highlight, #3b82f6); --card: var(--bg-cards, #121416); --text: var(--color-texto-general, #e5e7eb); --muted: #8b95a7; --line: color-mix(in srgb, var(--text) 10%, transparent); --input: color-mix(in srgb, var(--card) 90%, #ffffff); }
+.input-group { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.input-group label { color: color-mix(in srgb, var(--text) 78%, transparent); font-size: 0.72rem; font-weight: 500; line-height: 1.2; }
+.search-input-wrapper { position: relative; display: flex; align-items: center; }
+.search-input-wrapper svg { position: absolute; z-index: 2; left: 13px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.search-input-wrapper input {
+  width: 100%; height: 44px; box-sizing: border-box; padding: 0 13px 0 38px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--input);
+  color: var(--color-texto-input, var(--text)); font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500; outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.search-input-wrapper input::placeholder { color: color-mix(in srgb, var(--muted) 70%, transparent); font-weight: 400; }
+.search-input-wrapper input:hover { border-color: color-mix(in srgb, var(--text) 24%, transparent); }
+.search-input-wrapper input:focus { border-color: var(--accent); background: color-mix(in srgb, var(--input) 90%, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.client-suggestions { position: absolute; top: calc(100% + 8px); right: 0; left: 0; z-index: 50; max-height: 310px; overflow-y: auto; border: 1px solid #39394e; border-radius: 12px; background: #1b1b2b; box-shadow: 0 18px 42px rgba(0,0,0,.45); padding: 5px; box-sizing: border-box; }
+.client-suggestion { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 8px; background: transparent; color: #f5f5fa; text-align: left; cursor: pointer; font-family: inherit; }
+.client-suggestion:hover, .client-suggestion:focus-visible { background: #303047; outline: none; }
+.suggestion-avatar { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 9px; background: rgba(238,80,126,.15); color: #ff789f; font-size: 13px; font-weight: 700; }
+.suggestion-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.suggestion-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+.suggestion-info small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: #a8a9c2; }
+.suggestion-id { flex-shrink: 0; color: #a8a9c2; font-size: 11px; }
+.suggestion-empty { margin: 0; padding: 12px; color: #b6b7c9; font-size: 12px; }
+@media (max-width: 768px) { .search-small { width: 100%; } .client-suggestions { max-height: 240px; } }
 
-@media (max-width: 768px) { .search-bar-wrapper { max-width: 100%; } }
+/* ---------- Carga y estado vacío (sin notificaciones) ---------- */
+.loading-bar { position: relative; height: 3px; margin: -14px 0 20px; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, 0.06); }
+.loading-bar::after { content: ''; position: absolute; inset: 0; width: 35%; background: linear-gradient(90deg, transparent, var(--color-highlight, #3b82f6), transparent); animation: loadSlide 1.1s ease-in-out infinite; }
+@keyframes loadSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+.dashboard-grid { transition: opacity 0.25s ease; }
+.dashboard-grid.is-loading { opacity: 0.55; pointer-events: none; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 64px 20px; text-align: center;
+  border: 1px dashed var(--border-cards, rgba(255, 255, 255, 0.14)); border-radius: var(--app-border-radius, 20px);
+  background: var(--bg-cards, rgba(18, 18, 18, 0.6));
+}
+.empty-icon { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 16px; color: var(--color-highlight, #60a5fa); background: color-mix(in srgb, var(--color-highlight, #3b82f6) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-highlight, #3b82f6) 28%, transparent); }
+.empty-state h3 { margin: 6px 0 0; font-family: 'Oswald', sans-serif; font-size: 1.2rem; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--color-titulos, #fff); }
+.empty-state p { margin: 0; max-width: 360px; font-size: 0.85rem; line-height: 1.5; color: rgba(245, 245, 244, 0.6); }
 
-.search-input-container { position: relative; display: flex; align-items: center; }
-
-.search-icon { position: absolute; left: 14px; color: var(--color-highlight, #3b82f6); pointer-events: none; }
-
-.search-input {
-
-  width: 100%;
-
-  background: var(--bg-input, var(--bg-cards, rgba(18, 18, 18, 0.85)));
-
-  border: 1.5px solid var(--border-input, rgba(255, 255, 255, 0.12));
-
-  border-radius: var(--app-border-radius, 12px);
-
-  padding: 13px 14px 13px 42px;
-
-  font-size: 0.95rem;
-
-  color: var(--color-texto-input, var(--color-texto-general, #fff));
-
-  outline: none;
-
-  backdrop-filter: blur(20px);
-
-  transition: all 0.25s ease;
-
-  box-sizing: border-box;
-
-  font-family: 'Inter', sans-serif;
-
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-
+/* ---------- Notificaciones (centradas, igual que Editar usuario) ---------- */
+:deep(.notification-container),
+:deep(.toast-container) {
+  width: calc(100% - 32px) !important;
+  max-width: 480px !important;
+  left: 50% !important;
+  right: auto !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+  transform: translateX(-50%) !important;
 }
 
-.search-input::placeholder { color: rgba(245, 245, 244, 0.35); }
-
-.search-input:hover { border-color: rgba(255,255,255,0.22); }
-
-.search-input:focus { border-color: var(--color-highlight, #3b82f6); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18); background: var(--bg-input-focus, var(--bg-cards, #141414)); }
 
 
-
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: stretch; }
+.dashboard-grid > .streak-card { grid-column: 1 / -1; }
+.column-left > .user-profile-card { flex: 1; }
+.column-right > .calendar-card { flex: 1; }
+.calendar-content { height: 100%; justify-content: space-between; }
 
 @media (max-width: 1024px) {
 
@@ -844,7 +921,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 @media (prefers-reduced-motion: reduce) {
 
-  .reveal, .animate-bounce, .animate-pulse, .progress-bar-shine, .streak-glow, .hoy-ring { animation: none !important; }
+  .reveal, .animate-bounce, .animate-pulse, .progress-bar-shine, .streak-glow, .hoy-ring, .loading-bar::after { animation: none !important; }
 
   .progress-fill, .week-bar-fill { transition: none !important; }
 
@@ -1497,7 +1574,6 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 /* Ajustes mínimos: mantiene las tarjetas, colores y distribución originales. */
-.stats-message { margin: 8px 0 18px; padding: 12px 15px; border: 1px solid #cc5863; border-radius: 12px; color: #ffb4bd; background: rgba(185,39,71,.08); }
 .day-cell.vacio { visibility: hidden; pointer-events: none; }
 
 /* ---------- Pulido visual general ---------- */
