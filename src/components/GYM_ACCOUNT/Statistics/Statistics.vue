@@ -289,64 +289,35 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
             <div id="tutor-1" class="user-profile-card reveal" style="--reveal-delay:0">
 
               <div class="profile-main-info">
-
                 <!-- FOTO DEL USUARIO (solo lectura) -->
-
                 <div class="avatar-wrapper">
-
-                  <svg id="tutor-2" class="avatar-ring" viewBox="0 0 96 96" width="96" height="96">
-
+                  <svg id="tutor-2" class="avatar-ring" viewBox="0 0 96 96">
                     <circle class="ring-track" cx="48" cy="48" r="44" />
-
                     <circle
-
                       class="ring-fill"
-
                       cx="48" cy="48" r="44"
-
                       :stroke-dasharray="ringCircumference"
-
                       :stroke-dashoffset="ringOffset"
-
                     />
-
                   </svg>
-
                   <div class="avatar-circle">
-
                     <img
-
                       v-if="user.foto && !imageError"
-
                       :src="user.foto"
-
                       :alt="user.nombre"
-
                       class="avatar-image"
-
                       @error="handleImageError"
-
                     />
-
                     <span v-else class="avatar-initials">{{ initials }}</span>
-
                   </div>
-
-                  <div id="tutor-3" class="attendance-badge">{{ user.asistenciaPorcentaje }}% {{ t('attendanceBadgeSuffix') }}</div>
-
                 </div>
 
                 <div class="user-names">
-
-                  <h2 id="tutor-4">{{ user.nombre }}</h2>
-
                   <span id="tutor-5" class="user-id">ID · {{ user.id }}</span>
-
+                  <h2 id="tutor-4">{{ user.nombre }}</h2>
+                  <div id="tutor-3" class="attendance-badge"><i></i>{{ user.asistenciaPorcentaje }}% {{ t('attendanceBadgeSuffix') }}</div>
                 </div>
-
               </div>
-
-
 
               <div class="section-subtitle-small"><span class="subtitle-bar"></span>{{ t('bodyCompositionTitle') }}</div>
 
@@ -969,69 +940,58 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-.profile-main-info { display: flex; align-items: center; gap: 20px; margin-bottom: 22px; flex-wrap: wrap; position: relative; z-index: 1; }
-
-
+.profile-main-info {
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 24px;
+  margin-bottom: 8px; padding: 22px 24px; border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-highlight, #3b82f6) 14%, rgba(255, 255, 255, 0.02)), rgba(255, 255, 255, 0.02) 72%);
+  border: 1px solid color-mix(in srgb, var(--color-highlight, #3b82f6) 22%, rgba(255, 255, 255, 0.06));
+}
 
 /* Foto del usuario con anillo de asistencia */
-
-.avatar-wrapper { position: relative; width: 96px; height: 96px; flex-shrink: 0; margin-bottom: 8px; }
-
-.avatar-ring { position: absolute; top: 0; left: 0; transform: rotate(-90deg); z-index: 2; pointer-events: none; }
-
-.ring-track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 4; }
-
+.avatar-wrapper { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+.avatar-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); z-index: 2; pointer-events: none; }
+.ring-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 4; }
 .ring-fill {
-
   fill: none; stroke: #4ade80; stroke-width: 4; stroke-linecap: round;
-
   transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
-
   filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.5));
-
 }
-
 .avatar-circle {
-
-  position: absolute; top: 9px; left: 9px; width: 78px; height: 78px;
-
+  position: absolute; inset: 9.4%;
   overflow: hidden; display: flex; align-items: center; justify-content: center;
-
   border-radius: 50%;
-
   border: 2px solid color-mix(in srgb, var(--color-highlight, #3b82f6) 65%, transparent);
-
   background: #080a0d;
-
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
 }
-
 .avatar-image { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.avatar-initials { font-family: 'Oswald', sans-serif; font-size: 2rem; font-weight: 600; color: var(--color-highlight, #60a5fa); }
 
-.avatar-initials { font-family: 'Oswald', sans-serif; font-size: 1.5rem; font-weight: 600; color: var(--color-highlight, #60a5fa); }
-
-.attendance-badge {
-
-  position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); z-index: 3;
-
-  font-size: 9.5px; font-weight: 700; background: rgba(15, 15, 15, 0.92); color: #4ade80;
-
-  padding: 3px 9px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.4); white-space: nowrap;
-
-  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
-
+.user-names { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+.user-id {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+  color: var(--color-highlight, #93c5fd);
+  background: color-mix(in srgb, var(--color-highlight, #3b82f6) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-highlight, #3b82f6) 28%, transparent);
 }
+.user-names h2 {
+  margin: 0; font-family: 'Inter', sans-serif; font-weight: 700; font-size: clamp(1.25rem, 2.6vw, 1.7rem);
+  line-height: 1.15; letter-spacing: -0.4px; color: var(--color-titulos, #fff);
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+.attendance-badge {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; white-space: nowrap; color: #4ade80;
+  background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.32);
+}
+.attendance-badge i { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.8); }
 
-
-
-.user-names { padding-left: 4px; min-width: 0; }
-
-.user-names h2 { font-family: 'Inter', sans-serif; font-weight: 700; font-size: clamp(1.1rem, 3.5vw, 1.4rem); letter-spacing: -0.3px; margin: 0 0 4px; color: var(--color-titulos, #fff); word-break: break-word; }
-
-.user-id { font-family: 'Inter', sans-serif; font-size: 11.5px; color: var(--color-highlight, #93c5fd); letter-spacing: 0.4px; font-weight: 600; }
-
-
+@media (max-width: 600px) {
+  .profile-main-info { flex-direction: column; text-align: center; gap: 16px; padding: 22px 16px 20px; }
+  .avatar-wrapper { width: 112px; height: 112px; }
+  .user-names { align-items: center; }
+}
 
 .section-subtitle-small { display: flex; align-items: center; gap: 8px; font-family: 'Oswald', sans-serif; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; color: var(--color-highlight, #3b82f6); margin-bottom: 10px; margin-top: 20px; letter-spacing: 0.5px; position: relative; z-index: 1; }
 
@@ -1046,6 +1006,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 @media (max-width: 480px) {
 
   .metrics-grid, .advanced-metrics { grid-template-columns: repeat(2, 1fr); }
+  .advanced-metrics > .metric-box:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 }
 
@@ -1065,7 +1026,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 .metric-label { font-size: 9.5px; color: rgba(245, 245, 244, 0.5); text-transform: uppercase; font-weight: 600; letter-spacing: 0.3px; }
 
-.metric-value { font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 700; color: #f5f5f4; }
+.metric-value { font-family: 'Inter', sans-serif; font-size: 14.5px; font-weight: 700; color: #f5f5f4; }
 
 .metric-value.accent { color: #4ade80; }
 
@@ -1568,7 +1529,6 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
   .streak-number { font-size: 3.2rem; }
   .streak-card { padding: 18px; }
 
-  .profile-main-info { gap: 16px; }
 
 }
 
