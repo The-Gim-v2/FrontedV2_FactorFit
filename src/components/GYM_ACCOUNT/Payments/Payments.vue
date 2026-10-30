@@ -946,20 +946,53 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
                 </template>
 
                 <div v-if="stripeQR" class="stripe-qr">
-                  <div class="qr-frame">
-                    <img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe','Stripe payment QR')" />
+                  <div class="qr-side">
+                    <div class="qr-frame">
+                      <img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe','Stripe payment QR')" />
+                    </div>
+                    <span class="qr-scan">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+                        <path d="M4 12h16" />
+                      </svg>
+                      {{ txt('Pídele al cliente que escanee el código','Ask the client to scan the code') }}
+                    </span>
                   </div>
 
                   <div class="qr-info">
-                    <span class="qr-state" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}</span>
-                    <strong class="qr-amount">${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
-                    <p>{{ txt('El recibo se habilita cuando Laravel registra el folio real.','Receipt becomes available after Laravel registers the actual reference.') }}</p>
+                    <span class="qr-state" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">
+                      <i></i>{{ txt('Estado del pago:','Payment status:') }} {{ stripeEstado }}
+                    </span>
+
+                    <div class="qr-amount-block">
+                      <span class="qr-amount-label">{{ txt('MONTO A COBRAR','AMOUNT DUE') }}</span>
+                      <strong class="qr-amount">${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
+                    </div>
+
+                    <p class="qr-note">
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 11v5M12 8h.01" />
+                      </svg>
+                      <span>{{ txt('El recibo se habilita cuando Laravel registra el folio real.','Receipt becomes available after Laravel registers the actual reference.') }}</span>
+                    </p>
 
                     <div class="qr-actions">
-                      <button type="button" class="stripe-action" @click="consultarEstadoStripe(false)">{{ txt('Comprobar pago','Check payment') }}</button>
-                      <a class="stripe-open" :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">{{ txt('Abrir enlace de pago','Open payment link') }}</a>
-                      <button type="button" class="stripe-link" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)','Hide QR (does not cancel payment)') }}</button>
+                      <button type="button" class="stripe-action qr-primary" @click="consultarEstadoStripe(false)">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                        {{ txt('Comprobar pago','Check payment') }}
+                      </button>
+                      <a class="stripe-open" :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">
+                        {{ txt('Abrir enlace de pago','Open payment link') }}
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M14 4h6v6M20 4 10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+                        </svg>
+                      </a>
                     </div>
+
+                    <button type="button" class="qr-hide" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)','Hide QR (does not cancel payment)') }}</button>
                   </div>
                 </div>
               </div>
@@ -2374,66 +2407,175 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
 .stripe-qr {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 22px;
-  padding: 18px;
+  align-items: stretch;
+  gap: 28px;
+  padding: 22px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--card);
 }
+.qr-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
 .qr-frame {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 14px;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 32px -10px rgba(0, 0, 0, 0.6);
 }
 .qr-frame img {
-  width: 200px;
+  width: 208px;
   max-width: 100%;
   height: auto;
   display: block;
+}
+.qr-scan {
+  max-width: 236px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: center;
+}
+.qr-scan svg {
+  flex-shrink: 0;
+  color: var(--accent);
 }
 .qr-info {
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
+  justify-content: center;
+  gap: 16px;
 }
 .qr-state {
-  padding: 3px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
   border-radius: 999px;
   color: #fcd34d;
   background: rgba(251, 191, 36, 0.12);
   font-size: 0.78rem;
   font-weight: 700;
 }
+.qr-state i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fbbf24;
+  animation: qr-pulse 1.6s ease-in-out infinite;
+}
 .qr-state.paid {
   color: var(--ok-text);
   background: rgba(52, 211, 153, 0.12);
 }
+.qr-state.paid i {
+  background: var(--ok);
+  animation: none;
+}
+@keyframes qr-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
+.qr-amount-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qr-amount-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+}
 .qr-amount {
   color: var(--title);
   font-family: var(--font-mono);
-  font-size: 1.8rem;
+  font-size: 2.3rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
 }
 .qr-amount small {
+  margin-left: 4px;
   color: var(--muted);
   font-family: var(--font-body);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0;
 }
-.qr-info p {
+.qr-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
   margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1.5;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.qr-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.qr-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.qr-primary {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 .stripe-open {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--accent);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  text-decoration: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.stripe-open:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.qr-hide {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.qr-hide:hover {
+  color: var(--text);
 }
 
 /* =========================================================
@@ -2668,13 +2810,15 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   .stripe-qr {
     grid-template-columns: 1fr;
     justify-items: center;
-    text-align: center;
+    gap: 20px;
   }
   .qr-info {
+    width: 100%;
     align-items: center;
+    text-align: center;
   }
-  .qr-actions {
-    justify-content: center;
+  .qr-amount-block {
+    align-items: center;
   }
 }
 
@@ -2687,6 +2831,12 @@ watch(()=>[route.params.id,route.query.sede_id],()=>{cancelarQR();ultimoPago.val
   }
   .qr-frame img {
     width: 100%;
+  }
+  .qr-actions {
+    grid-template-columns: 1fr;
+  }
+  .stripe-qr {
+    padding: 16px;
   }
 }
 
