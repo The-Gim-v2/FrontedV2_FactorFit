@@ -25,6 +25,9 @@ const montoRecibir = ref(null);
 const tipoPago = ref('');
 const folioReferencia = ref('');
 const ofertaSeleccionada = ref(null);
+// Una clave estable evita duplicar la operación si se repite la solicitud.
+const nuevaOperacionId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ff${Date.now()}_${Math.random().toString(36).slice(2)}`);
+const operacionId = ref(nuevaOperacionId());
 const ultimoPago = ref(null);
 const reciboVisible = ref(false);
 const loading = ref(true);
@@ -231,7 +234,8 @@ const buscarAcompanantes = () => {
       const usados = new Set(participantes.value.map(p => String(p.inscripcionId)));
       resultadosGrupo.value = lista
         .map(normalizarCliente)
-        .filter(c => c.inscripcionId && !usados.has(String(c.inscripcionId)))
+        .filter(c => c.inscripcionId && !usados.has(String(c.inscripcionId)) &&
+          [c.nombre,c.inscripcionId,c.clienteId].some(v => String(v??'').toLocaleLowerCase().includes(q.toLocaleLowerCase())))
         .slice(0, 6);
     } catch (e) {
       toastRef.value?.notify(e.message, 'error');
@@ -259,6 +263,7 @@ watch(ofertaSeleccionada, () => {
   acompanantes.value = acompanantes.value.slice(0, Math.max(0, personasPromo.value - 1));
   busquedaGrupo.value = '';
   resultadosGrupo.value = [];
+  operacionId.value = nuevaOperacionId();
 });
 
 /* =========================================================
@@ -269,6 +274,7 @@ const isButtonDisabled = computed(() =>
   !Number.isFinite(Number(montoRecibir.value)) || Number(montoRecibir.value) <= 0 || !tipoPago.value ||
   (tipoPago.value === 'Tarjeta' && !stripeCuenta.value?.charges_enabled) ||
   (tipoPago.value === 'Transferencia' && !folioReferencia.value.trim()) ||
+  (ofertaSeleccionada.value && Math.round(Number(montoRecibir.value) * 100) !== Math.round(totalAPagar.value * 100)) ||
   !grupoCompleto.value
 );
 
@@ -278,6 +284,7 @@ const motivoBloqueo = computed(() => {
   if (!tipoPago.value) return txt('Elige un método de pago.', 'Choose a payment method.');
   if (tipoPago.value === 'Transferencia' && !folioReferencia.value.trim()) return txt('Captura el folio de la transferencia.', 'Enter the transfer reference.');
   if (tipoPago.value === 'Tarjeta' && !stripeCuenta.value?.charges_enabled) return txt('Habilita la cuenta Stripe del gimnasio.', 'Enable the gym Stripe account.');
+  if (ofertaSeleccionada.value && Math.round(Number(montoRecibir.value)*100) !== Math.round(totalAPagar.value*100)) return txt('La promoción se cobra completa en una sola operación.', 'The promotion must be paid in full in one transaction.');
   if (!(Number(montoRecibir.value) > 0)) return txt('Ingresa un monto mayor a $0.', 'Enter an amount greater than $0.');
   return '';
 });
@@ -353,7 +360,8 @@ const confirmPayment = async () => {
         referencia_pago: tipoPago.value === 'Efectivo' ? null : folioReferencia.value.trim(),
         id_precio: ofertaSeleccionada.value?.id_precio ?? null,
         participantes: participantes.value.map(p => p.inscripcionId),
-        personas: personasPromo.value
+        personas: personasPromo.value,
+        operacion_id: operacionId.value
       })
     });
     const pagoGuardado = {
@@ -363,14 +371,16 @@ const confirmPayment = async () => {
       metodo: tipoPago.value,
       monto: Number(result.monto ?? montoRecibir.value),
       concepto: ofertaSeleccionada.value ? 'membership' : 'monthly',
-      plan: planActual.value,
-      participantes: participantes.value.map(p => p.nombre),
+      plan: result.plan || planActual.value,
+      participantes: Array.isArray(result.participantes) ? result.participantes.map(p=>p.nombre) : participantes.value.map(p => p.nombre),
       gimnasio: result.gimnasio
     };
     toastRef.value?.notify(t('paymentConfirmedToast'), 'success');
     await cargarCliente(); // Actualizar estado y fecha de corte desde Laravel.
     ultimoPago.value = pagoGuardado;
     acompanantes.value = [];
+    ofertaSeleccionada.value = null;
+    operacionId.value = nuevaOperacionId();
   } catch (e) {
     toastRef.value?.notify(e.message || 'No se pudo registrar el pago.', 'error');
   } finally {
@@ -428,7 +438,8 @@ const crearStripeQR = async () => {
         monto: Number(montoRecibir.value),
         id_precio: ofertaSeleccionada.value?.id_precio ?? null,
         participantes: participantes.value.map(p => p.inscripcionId),
-        personas: personasPromo.value
+        personas: personasPromo.value,
+        operacion_id: operacionId.value
       })
     });
     if (!data?.session_id || !data?.qr_data_url || !data?.checkout_url) throw new Error('Stripe no devolvió todos los datos del cobro.');
@@ -475,13 +486,15 @@ const consultarEstadoStripe = async (silent = false) => {
         monto: Number(pago?.Monto ?? qr.monto),
         concepto: ofertaSeleccionada.value ? 'membership' : 'monthly',
         plan: planActual.value,
-        participantes: qr.participantes,
+        participantes: Array.isArray(data.participantes) && data.participantes.length ? data.participantes : qr.participantes,
         gimnasio: pagoData.gimnasio
       };
       stripeQR.value = null;
       inscripcion.value = pagoData;
       cliente.value.estado = pagoData.Estatus || cliente.value.estado;
       acompanantes.value = [];
+      ofertaSeleccionada.value = null;
+      operacionId.value = nuevaOperacionId();
       toastRef.value?.notify(txt('Pago confirmado. Folio y recibo disponibles.', 'Payment confirmed. Receipt ready.'), 'success');
     } else if (['Fallido', 'Cancelado', 'Expirado'].includes(data.estado)) {
       detenerStripe();
