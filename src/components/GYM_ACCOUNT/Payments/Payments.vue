@@ -1513,6 +1513,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   }
   .client-label { grid-area: label; margin: 0 0 8px; text-align: left; }
   .avatar-container { grid-area: avatar; width: 104px; height: 104px; margin: 0; }
+  .avatar { border-radius: 22px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 8%, transparent), 0 12px 24px -12px rgba(0, 0, 0, 0.6); }
   .client-name { grid-area: name; align-self: end; margin: 0; text-align: left; }
   .client-name h2 { font-size: 1.3rem; }
   .active-pill { grid-area: pill; align-self: start; justify-self: start; margin-top: 4px; }
@@ -1523,27 +1524,19 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
 /* Celular: todo centrado en una sola columna */
 @media (max-width: 560px) {
-  .client-card { display: flex; flex-direction: column; align-items: center; padding: 24px 18px 18px; }
-  .client-label { margin: 0 0 16px; text-align: center; }
-
-  /* Foto cuadrada con esquinas redondeadas */
-  .avatar-container { width: 128px; height: 128px; margin: 0 0 18px; }
-  .avatar {
-    border-radius: 22px;
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 8%, transparent), 0 14px 28px -12px rgba(0, 0, 0, 0.6);
-  }
-
-  .client-name { align-self: stretch; margin: 0 0 14px; text-align: center; }
-  .client-name h2 { font-size: 1.35rem; }
-
-  /* Estado más limpio */
+  /* Tarjeta compacta: foto cuadrada a la izquierda, nombre y estado a la derecha */
+  .client-card { padding: 20px 16px 14px; column-gap: 16px; row-gap: 4px; }
+  .client-label { margin: 0 0 14px; font-size: 0.68rem; }
+  .avatar-container { width: 96px; height: 96px; }
+  .avatar { border-radius: 18px; }
+  .client-name h2 { font-size: 1.2rem; line-height: 1.2; }
   .active-pill {
-    gap: 8px; margin: 2px 0 0; padding: 7px 16px; border-radius: 10px;
-    font-size: 0.76rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    margin-top: 8px; padding: 4px 11px 4px 9px;
+    font-size: 0.76rem; font-weight: 600;
   }
-  .active-pill i { width: 8px; height: 8px; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2); }
+  .active-pill i { width: 7px; height: 7px; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18); }
 
-  .client-mini-info { display: block; margin-top: 20px; }
+  .client-mini-info { display: block; margin-top: 16px; }
   .client-mini-info > div { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
   .client-mini-info > div:last-child { padding-bottom: 2px; border-bottom: 0; }
   .client-mini-info strong { text-align: right; }
@@ -1597,14 +1590,19 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
   /* Resumen: encabezado y estado "Incompleto" */
   .transaction-review { padding: 16px; }
-  .review-heading { flex-wrap: nowrap; align-items: center; gap: 12px; margin-bottom: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-  .review-heading strong { font-size: 0.95rem; line-height: 1.25; }
-  .review-status {
-    flex-shrink: 0; gap: 7px; padding: 6px 12px; border: 1px solid rgba(248, 113, 113, 0.28); border-radius: 10px;
-    font-size: 0.74rem; font-weight: 700; letter-spacing: 0.4px; white-space: nowrap;
+  /* Encabezado: "RESUMEN" a la izquierda y el estado a la derecha; el título debajo */
+  .review-heading {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+    column-gap: 10px; row-gap: 6px; flex-wrap: nowrap;
+    margin-bottom: 6px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
   }
-  .review-status.ready { border-color: rgba(52, 211, 153, 0.28); }
-  .review-status i { width: 7px; height: 7px; }
+  .review-heading > div { display: contents; }
+  .review-heading .section-kicker { grid-column: 1; grid-row: 1; margin: 0; }
+  .review-heading strong { grid-column: 1 / -1; grid-row: 2; font-size: 1rem; line-height: 1.25; }
+  .review-status {
+    grid-column: 2; grid-row: 1; gap: 6px; padding: 3px 10px 3px 8px;
+    font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+  }
 
   .method-grid { grid-template-columns: 1fr; gap: 10px; }
   .stripe-box { padding: 14px; }
@@ -1621,9 +1619,9 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 }
 
 @media (max-width: 400px) {
-  .avatar-container { width: 112px; height: 112px; }
+  .avatar-container { width: 84px; height: 84px; }
+  .client-name h2 { font-size: 1.1rem; }
   .summary-side { flex-direction: column; align-items: stretch; }
-  .review-heading { flex-wrap: wrap; }
   .success-amount { display: none; }
 }
 

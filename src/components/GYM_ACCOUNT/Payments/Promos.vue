@@ -1,42 +1,39 @@
-
 <template>
   <div class="form-panel glass-effect">
     <NotificationSystem ref="toastRef" />
+
     <div class="panel-header">
       <div class="header-top">
-        <span class="header-icon-badge">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"/></svg>
-        </span>
+        <span class="header-icon-badge" aria-hidden="true">🏷️</span>
         <div class="title-group">
           <h2 class="form-title">{{ t('offerTitle') }} <span class="highlight">{{ t('offerHighlight') }}</span></h2>
           <p class="form-subtitle">{{ t('offerSubtitle') }}</p>
         </div>
       </div>
-      <button type="button" class="close-x" @click="emit('close')" :aria-label="t('close')">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
+      <button type="button" class="close-x" @click="emit('close')" :aria-label="t('close')">✕</button>
     </div>
+
     <div class="form-body">
       <div v-if="estaCargando" class="empty-state">{{ t('loading') }}</div>
-      <div v-else-if="errorCarga" class="empty-state" role="alert">{{ errorCarga }} <button type="button" class="retry-btn" @click="obtenerPromociones">{{ t('retry') }}</button></div>
+      <div v-else-if="errorCarga" class="empty-state" role="alert">
+        <p class="empty-text">{{ errorCarga }}</p>
+        <button type="button" class="retry-btn" @click="obtenerPromociones">{{ t('retry') }}</button>
+      </div>
       <div v-else-if="ofertasValidas.length === 0" class="empty-state">{{ t('empty') }}</div>
+
       <div v-else class="oferta-list">
         <button v-for="oferta in ofertasValidas" :key="oferta.id ?? oferta.nombre" type="button" class="oferta-item" @click="seleccionar(oferta)">
-          <div class="oferta-info">
-            <div class="icon-wrapper">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            </div>
-            <div class="offer-title-stack">
-              <span class="nombre-oferta">{{ getLocalizedOfferName(oferta.nombre) }}</span>
-              <small v-if="Number(oferta.personas) > 1" class="offer-group-label">👥 {{ oferta.personas }} {{ t('people') }}</small>
-            </div>
-          </div>
-          <div class="oferta-precio">
+          <span class="icon-wrapper" aria-hidden="true">{{ Number(oferta.personas) > 1 ? '👥' : '⭐' }}</span>
+
+          <span class="offer-title-stack">
+            <span class="nombre-oferta">{{ getLocalizedOfferName(oferta.nombre) }}</span>
+            <span v-if="Number(oferta.personas) > 1" class="offer-group-label">{{ oferta.personas }} {{ t('people') }}</span>
+          </span>
+
+          <span class="oferta-precio">
             <span class="precio">{{ formatoPrecio(oferta.precio) }}</span>
-            <div class="arrow-wrapper">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </div>
-          </div>
+            <span class="arrow-wrapper" aria-hidden="true">→</span>
+          </span>
         </button>
       </div>
     </div>
@@ -299,33 +296,135 @@ onUnmounted(() => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
-.form-panel{--accent-blue:var(--color-highlight,#3b82f6);--accent-blue-border:rgba(59,130,246,.32);--accent-amber:#f59e0b;--accent-amber-soft:rgba(245,158,11,.12);--accent-amber-border:rgba(245,158,11,.3);background:var(--bg-cards,#121214);border:1px solid var(--border-cards,rgba(255,255,255,.08));color:var(--color-texto-general,#f5f5f4);border-radius:var(--app-border-radius,22px);padding:26px;width:95%;max-width:440px;box-shadow:0 20px 44px rgba(0,0,0,.55);backdrop-filter:blur(10px);font-family:Inter,sans-serif;position:relative;overflow:hidden;box-sizing:border-box}
-.form-panel::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent-blue),transparent)}
-.panel-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:22px}
-.header-top{display:flex;align-items:center;gap:12px}
-.header-icon-badge{width:40px;height:40px;border-radius:12px;background:var(--accent-amber-soft);border:1px solid var(--accent-amber-border);color:var(--accent-amber);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.title-group{display:flex;flex-direction:column;gap:3px;min-width:0}
-.form-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.15rem;color:var(--color-titulos,#fff);letter-spacing:.4px;margin:0}
-.form-subtitle{font-size:.78rem;color:var(--color-texto-secundario,#888);margin:0}
-.highlight{color:var(--accent-blue)}
-.oferta-list{display:flex;flex-direction:column;gap:10px}
-.oferta-item{width:100%;font:inherit;text-align:left;background:var(--bg-input,#09090b);display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:var(--app-border-radius,14px);border:1px solid var(--border-input,rgba(255,255,255,.06));cursor:pointer;transition:all .2s ease;position:relative;overflow:hidden}
-.oferta-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent-amber);opacity:.7;transition:opacity .2s,width .2s}
-.oferta-item:hover{background:var(--bg-cards,rgba(255,255,255,.04));border-color:var(--accent-blue-border);transform:translateY(-2px)}
-.oferta-item:hover::before{opacity:1;width:4px}
-.oferta-info{display:flex;align-items:center;gap:12px;min-width:0}
-.icon-wrapper{background:var(--accent-amber-soft);color:var(--accent-amber);width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.nombre-oferta{font-family:'Space Grotesk',sans-serif;font-weight:600;color:var(--color-titulos,#fff);font-size:.98rem;letter-spacing:.2px}
-.oferta-precio{display:flex;align-items:center;gap:10px;color:#34d399;font-weight:700;flex-shrink:0}
-.precio{font-size:1.05rem;letter-spacing:.2px;font-family:'IBM Plex Mono',monospace}
-.arrow-wrapper{color:var(--color-texto-secundario,#52525b);display:flex;align-items:center;transition:transform .2s,color .2s}
-.oferta-item:hover .arrow-wrapper{color:var(--accent-blue);transform:translateX(3px)}
-.close-x{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:var(--color-texto-secundario,#aaa);cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
-.close-x:hover{background:rgba(255,255,255,.1);color:var(--color-titulos,#fff)}
-.empty-state{padding:22px 12px;text-align:center;color:var(--color-texto-secundario,#aaa);font-size:.85rem}
-@media(max-width:380px){.form-panel{padding:18px}.nombre-oferta{font-size:.9rem}.precio{font-size:.95rem}.header-icon-badge{width:36px;height:36px}}
-@media(prefers-reduced-motion:reduce){.oferta-item,.arrow-wrapper,.oferta-item::before{transition:none!important}}
-.retry-btn{display:inline-block;margin-left:8px;padding:5px 9px;border:1px solid var(--accent-blue-border);border-radius:8px;background:transparent;color:var(--accent-blue);cursor:pointer}
-.offer-title-stack{display:flex;flex-direction:column;gap:4px;min-width:0}
-.offer-group-label{font-size:.7rem;font-weight:700;color:var(--accent-amber);letter-spacing:.2px}
+
+* { box-sizing: border-box; }
+
+.form-panel {
+  --accent-blue: var(--color-highlight, #3b82f6);
+  --accent-blue-border: rgba(59, 130, 246, 0.32);
+  --accent-amber: #f59e0b;
+  --accent-amber-soft: rgba(245, 158, 11, 0.12);
+  --accent-amber-border: rgba(245, 158, 11, 0.3);
+  --muted: var(--color-texto-secundario, #9a9aa3);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 95%;
+  max-width: 460px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 26px;
+  overflow: hidden;
+  background: var(--bg-cards, #121214);
+  border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.08));
+  border-radius: var(--app-border-radius, 22px);
+  color: var(--color-texto-general, #f5f5f4);
+  font-family: Inter, sans-serif;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+}
+.form-panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+}
+
+/* ENCABEZADO */
+.panel-header { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.header-top { min-width: 0; display: flex; align-items: center; gap: 12px; }
+.header-icon-badge {
+  width: 42px; height: 42px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--accent-amber-border); border-radius: 12px;
+  background: var(--accent-amber-soft);
+  font-size: 1.2rem; line-height: 1;
+}
+.title-group { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.form-title { margin: 0; color: var(--color-titulos, #fff); font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.4px; }
+.form-subtitle { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.35; }
+.highlight { color: var(--accent-blue); }
+.close-x {
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted); font-family: inherit; font-size: 0.95rem; line-height: 1;
+  cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.close-x:hover { background: rgba(255, 255, 255, 0.1); color: var(--color-titulos, #fff); }
+.close-x:focus-visible, .oferta-item:focus-visible, .retry-btn:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+
+/* LISTA */
+.form-body { min-height: 0; flex: 1; overflow-y: auto; margin: 0 -6px; padding: 2px 6px 4px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.oferta-list { display: flex; flex-direction: column; gap: 10px; }
+
+.oferta-item {
+  position: relative; overflow: hidden;
+  width: 100%; min-height: 68px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 12px 14px 12px 16px;
+  border: 1px solid var(--border-input, rgba(255, 255, 255, 0.06)); border-radius: var(--app-border-radius, 14px);
+  background: var(--bg-input, #09090b);
+  color: inherit; font: inherit; text-align: left;
+  cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.oferta-item::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--accent-amber); opacity: 0.7; transition: opacity 0.2s, width 0.2s; }
+.oferta-item:hover { transform: translateY(-2px); border-color: var(--accent-blue-border); background: var(--bg-cards, rgba(255, 255, 255, 0.04)); }
+.oferta-item:hover::before { width: 4px; opacity: 1; }
+.oferta-item:active { transform: scale(0.99); }
+
+.icon-wrapper {
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; background: var(--accent-amber-soft);
+  font-size: 1.1rem; line-height: 1;
+}
+.offer-title-stack { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.nombre-oferta { color: var(--color-titulos, #fff); font-family: 'Space Grotesk', sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: 0.2px; line-height: 1.2; overflow-wrap: anywhere; }
+.offer-group-label {
+  padding: 2px 9px; border: 1px solid var(--accent-amber-border); border-radius: 999px;
+  background: var(--accent-amber-soft); color: var(--accent-amber);
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap;
+}
+.oferta-precio { display: flex; align-items: center; gap: 10px; flex-shrink: 0; color: #34d399; font-weight: 700; }
+.precio { font-family: 'IBM Plex Mono', monospace; font-size: 1.05rem; letter-spacing: 0.2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arrow-wrapper { color: var(--muted); font-size: 1.1rem; line-height: 1; transition: transform 0.2s, color 0.2s; }
+.oferta-item:hover .arrow-wrapper { color: var(--accent-blue); transform: translateX(3px); }
+
+/* ESTADOS */
+.empty-state { padding: 26px 12px; color: var(--muted); font-size: 0.88rem; line-height: 1.5; text-align: center; }
+.empty-text { margin: 0 0 12px; }
+.retry-btn {
+  min-height: 40px; padding: 8px 18px;
+  border: 1px solid var(--accent-blue-border); border-radius: 10px;
+  background: transparent; color: var(--accent-blue);
+  font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+}
+
+/* CELULAR: hoja inferior a lo ancho */
+@media (max-width: 600px) {
+  .form-panel {
+    width: 100%; max-width: none;
+    max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px);
+    padding: 22px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+  .panel-header { margin-bottom: 16px; }
+  .form-title { font-size: 1.05rem; }
+  .form-subtitle { font-size: 0.78rem; }
+  .oferta-item { min-height: 72px; padding: 12px 12px 12px 14px; gap: 10px; }
+}
+
+@media (max-width: 400px) {
+  .form-panel { padding: 20px 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .header-icon-badge { width: 38px; height: 38px; }
+  .icon-wrapper { width: 34px; height: 34px; }
+  .nombre-oferta { font-size: 0.92rem; }
+  .precio { font-size: 0.95rem; }
+  .oferta-precio { gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oferta-item, .arrow-wrapper, .oferta-item::before { transition: none !important; }
+}
 </style>
