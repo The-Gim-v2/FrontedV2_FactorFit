@@ -1504,15 +1504,35 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .payment-page { padding: 24px 20px 40px; }
   .payment-layout { grid-template-columns: 1fr; gap: 16px; }
   .client-column { position: static; }
-  .client-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 20px; row-gap: 6px; align-items: center; justify-items: start; padding: 22px 20px 18px; }
-  .client-label { grid-column: 1 / -1; margin: 0 0 6px; text-align: left; }
-  .avatar-container { grid-column: 1; grid-row: 2 / span 2; width: 96px; height: 96px; margin: 0; }
-  .client-name { grid-column: 2; align-self: end; margin: 0; text-align: left; }
+  /* Tableta: foto a la izquierda, nombre y estado a la derecha, datos abajo */
+  .client-card {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "label label" "avatar name" "avatar pill" "info info";
+    column-gap: 20px; row-gap: 6px; align-items: center; align-content: start;
+    padding: 22px 20px 18px;
+  }
+  .client-label { grid-area: label; margin: 0 0 8px; text-align: left; }
+  .avatar-container { grid-area: avatar; width: 104px; height: 104px; margin: 0; }
+  .client-name { grid-area: name; align-self: end; margin: 0; text-align: left; }
   .client-name h2 { font-size: 1.3rem; }
-  .active-pill { grid-column: 2; align-self: start; }
-  .client-mini-info { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 24px; margin-top: 14px; }
+  .active-pill { grid-area: pill; align-self: start; justify-self: start; margin-top: 4px; }
+  .client-mini-info { grid-area: info; width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 24px; margin-top: 16px; }
   .client-mini-info > div { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 8px 2px; border-bottom: 0; }
   .client-mini-info strong { text-align: left; }
+}
+
+/* Celular: todo centrado en una sola columna */
+@media (max-width: 560px) {
+  .client-card { display: flex; flex-direction: column; align-items: center; padding: 24px 18px 18px; }
+  .client-label { margin: 0 0 16px; text-align: center; }
+  .avatar-container { width: 116px; height: 116px; margin: 0 0 16px; }
+  .client-name { align-self: stretch; margin: 0 0 12px; text-align: center; }
+  .client-name h2 { font-size: 1.35rem; }
+  .active-pill { margin: 0; }
+  .client-mini-info { display: block; margin-top: 18px; }
+  .client-mini-info > div { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+  .client-mini-info > div:last-child { padding-bottom: 2px; border-bottom: 0; }
+  .client-mini-info strong { text-align: right; }
 }
 
 @media (max-width: 780px) {
@@ -1569,14 +1589,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 }
 
 @media (max-width: 400px) {
-  .client-card { display: flex; flex-direction: column; align-items: center; }
-  .client-label { margin-bottom: 16px; text-align: center; }
-  .avatar-container { width: 120px; height: 120px; margin: 0 0 16px; }
-  .client-name { margin-bottom: 12px; text-align: center; }
-  .client-mini-info { display: block; }
-  .client-mini-info > div { flex-direction: row; align-items: center; justify-content: space-between; padding: 11px 2px; border-bottom: 1px solid var(--line); }
-  .client-mini-info > div:last-child { border-bottom: 0; }
-  .client-mini-info strong { text-align: right; }
   .summary-side { flex-direction: column; align-items: stretch; }
   .success-amount { display: none; }
 }
