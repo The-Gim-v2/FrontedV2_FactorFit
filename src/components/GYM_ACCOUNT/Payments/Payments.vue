@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import Promo from './Promos.vue';
@@ -203,6 +203,8 @@ const personasPromo = computed(() => Math.max(1, Math.floor(Number(ofertaSelecci
 const requiereGrupo = computed(() => personasPromo.value > 1);
 const acompanantes = ref([]);
 const busquedaGrupo = ref('');
+const groupSearchRef = ref(null);
+const groupSectionRef = ref(null);
 const resultadosGrupo = ref([]);
 const buscandoGrupo = ref(false);
 let busquedaTimer = null;
@@ -324,7 +326,7 @@ const cargarCliente = async () => {
    SELECCIÓN DE PROMOCIÓN / TARIFA
    Se normaliza lo que emite Promos.vue por si llega con nombres de la BD.
 ========================================================= */
-const handleSelectOferta = oferta => {
+const handleSelectOferta = async oferta => {
   const normalizada = {
     ...oferta,
     id_precio: oferta.id_precio ?? oferta.ID_Precio ?? oferta.id ?? null,
@@ -338,6 +340,11 @@ const handleSelectOferta = oferta => {
   ofertaSeleccionada.value = normalizada;
   montoRecibir.value = Number(normalizada.precio) || null;
   activeModal.value = null;
+  await nextTick();
+  if (normalizada.personas > 1) {
+    groupSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    groupSearchRef.value?.focus({ preventScroll: true });
+  }
   toastRef.value?.notify(`${t('offerAppliedToast')} ${normalizada.nombre}`, 'success');
 };
 
@@ -706,7 +713,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
               </div>
 
               <!-- PERSONAS DE LA PROMOCIÓN -->
-              <section v-if="requiereGrupo" class="form-section group-section">
+              <section v-if="requiereGrupo" ref="groupSectionRef" class="form-section group-section">
                 <div class="form-section-title">
                   <span class="group-badge">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -746,7 +753,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                 <div v-if="lugaresFaltan > 0" class="group-search">
                   <div class="field-control">
                     <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-                    <input v-model="busquedaGrupo" type="text" autocomplete="off" :placeholder="txt('Buscar cliente por nombre o ID…', 'Search client by name or ID…')" @input="buscarAcompanantes" />
+                    <input ref="groupSearchRef" v-model="busquedaGrupo" type="text" autocomplete="off" :placeholder="txt('Buscar cliente por nombre o ID…', 'Search client by name or ID…')" @input="buscarAcompanantes" />
                   </div>
 
                   <ul v-if="resultadosGrupo.length" class="group-results">
@@ -998,7 +1005,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     <!-- PROMOCIONES -->
     <transition name="pop">
       <div v-if="activeModal === 'promo'" class="modal-wrapper" @click.self="activeModal = null">
-        <Promo @select-oferta="handleSelectOferta" @close="activeModal = null" />
+        <Promo :sede-id="obtenerSedeId()" @select-oferta="handleSelectOferta" @close="activeModal = null" />
       </div>
     </transition>
 
