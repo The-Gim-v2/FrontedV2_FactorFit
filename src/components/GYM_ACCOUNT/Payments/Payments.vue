@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import Promo from './Promos.vue';
 import ReciboPago from './ReciboPago.vue';
@@ -8,6 +8,7 @@ import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
 
 const route = useRoute();
+const router = useRouter();
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const t = key => (traducciones[currentLang.value] || traducciones.es)[key] || traducciones.es[key] || key;
 const txt = (es, en) => (currentLang.value === 'en' ? en : es);
@@ -98,7 +99,7 @@ const apiRequest = async (path, options = {}) => {
   if (!response.ok) {
     const details = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
     const message = details || body?.message;
-    throw new Error(message && message !== 'Server Error' ? message : `Error HTTP ${response.status}. Revisa los registros de Laravel en Railway.`);
+    throw new Error(message && message !== 'Server Error' ? message : `Error HTTP ${response.status}. Intenta de nuevo o contacta a soporte.`);
   }
   return body;
 };
@@ -138,7 +139,7 @@ const fechaNuevoCorte = computed(() => {
 
 /* =========================================================
    FOLIO
-   El folio de Efectivo y Tarjeta lo genera el servidor (Laravel) al registrar el pago.
+   El folio de Efectivo y Tarjeta lo genera el servidor al registrar el pago.
    Solo en Transferencia el usuario captura la referencia de su comprobante.
 ========================================================= */
 watch(tipoPago, n => { if (n !== 'Transferencia') folioReferencia.value = ''; });
@@ -224,6 +225,56 @@ const normalizarCliente = c => ({
   foto: c.foto_url || fotoDefault
 });
 
+/* =========================================================
+   BUSCADOR DE CLIENTES (funciona igual que en Editar usuario)
+========================================================= */
+const searchQuery = ref('');
+const searchBoxRef = ref(null);
+const showSuggestions = ref(false);
+const clientesBusqueda = ref([]);
+
+const loadSearch = async () => {
+  const sede = obtenerSedeId();
+  if (!sede) { clientesBusqueda.value = []; return; }
+  try {
+    const data = await apiRequest(`/api/gym/clientes?sede_id=${encodeURIComponent(sede)}`);
+    const lista = Array.isArray(data) ? data : data?.data || [];
+    clientesBusqueda.value = lista.map(c => ({ ...normalizarCliente(c), correo: c.Correo_Electronico || '', celular: c.Celular || '' }));
+  } catch (e) { console.error(e); }
+};
+
+const suggestions = computed(() => {
+  const q = searchQuery.value.trim().toLocaleLowerCase();
+  if (!q) return [];
+  return clientesBusqueda.value
+    .filter(c => c.inscripcionId && [c.nombre, c.correo, c.celular, c.clienteId, c.inscripcionId]
+      .some(v => String(v ?? '').toLocaleLowerCase().includes(q)))
+    .slice(0, 8);
+});
+
+// Misma pantalla, solo cambia el id de la inscripción en la ruta
+const irAInscripcion = id => router.push(route.name
+  ? { name: route.name, params: { ...route.params, id: String(id) }, query: { ...route.query } }
+  : { path: route.path.replace(/[^/]+\/?$/, String(id)), query: { ...route.query } });
+
+const chooseClient = async c => {
+  showSuggestions.value = false;
+  searchQuery.value = '';
+  if (String(route.params.id) === String(c.inscripcionId)) { await cargarCliente(); return; }
+  await irAInscripcion(c.inscripcionId);
+};
+const handleSearch = () => {
+  if (suggestions.value.length === 1) chooseClient(suggestions.value[0]);
+  else showSuggestions.value = true;
+};
+const handleDocumentClick = e => {
+  if (searchBoxRef.value && !searchBoxRef.value.contains(e.target)) showSuggestions.value = false;
+};
+const handleBranchChange = () => { clientesBusqueda.value = []; loadSearch(); };
+
+/* =========================================================
+   BÚSQUEDA DE ACOMPAÑANTES (promoción grupal)
+========================================================= */
 const buscarAcompanantes = () => {
   clearTimeout(busquedaTimer);
   const q = busquedaGrupo.value.trim();
@@ -383,7 +434,7 @@ const confirmPayment = async () => {
       gimnasio: result.gimnasio
     };
     toastRef.value?.notify(t('paymentConfirmedToast'), 'success');
-    await cargarCliente(); // Actualizar estado y fecha de corte desde Laravel.
+    await cargarCliente(); // Actualizar estado y fecha de corte desde el servidor.
     ultimoPago.value = pagoGuardado;
     acompanantes.value = [];
     ofertaSeleccionada.value = null;
@@ -479,7 +530,7 @@ const consultarEstadoStripe = async (silent = false) => {
     if (stripeQR.value?.session_id !== qr.session_id) return;
     stripeEstado.value = data.estado || 'Pendiente';
     if (data.estado === 'Pagado') {
-      // El webhook debe haber creado el registro real antes de emitir un recibo.
+      // El registro real debe existir antes de emitir un recibo.
       const pagoData = await apiRequest(`/api/gym/clientes/${qr.inscripcionId}/pagos?sede_id=${encodeURIComponent(qr.sedeId)}`);
       const pago = (Array.isArray(pagoData.pagos) ? pagoData.pagos : []).find(p => String(p.ID_Pago) === String(data.ID_Pago));
       const folio = pago?.Folio_Referencia || pago?.folio || data.folio || data.Folio_Referencia;
@@ -528,11 +579,16 @@ const handleReciboNotify = payload => { if (payload) toastRef.value?.notify(payl
 
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', handleBranchChange);
+  document.addEventListener('click', handleDocumentClick);
   cargarCliente();
   consultarStripeCuenta();
+  loadSearch();
 });
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', handleBranchChange);
+  document.removeEventListener('click', handleDocumentClick);
   clearTimeout(busquedaTimer);
   detenerStripe();
 });
@@ -559,11 +615,35 @@ watch(() => [route.params.id, route.query.sede_id], () => {
             <h1>{{ txt('REGISTRAR', 'REGISTER') }} <strong>{{ txt('PAGO', 'PAYMENT') }}</strong></h1>
             <p>{{ txt('Registra el pago del cliente, aplica promociones y genera su comprobante.', 'Register the client payment, apply promotions and generate the receipt.') }}</p>
           </div>
-          <div class="header-status">
-            <span class="status-light"></span>
-            <div>
-              <small>{{ txt('Sistema de cobro', 'Payment system') }}</small>
-              <strong>{{ txt('Disponible', 'Available') }}</strong>
+
+          <!-- BUSCADOR -->
+          <div id="tutorial-step-0" ref="searchBoxRef" class="search-section">
+            <label for="client-search">{{ t('searchClientLabel') }}</label>
+            <div class="search-control">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input
+                id="client-search"
+                v-model="searchQuery"
+                type="text"
+                autocomplete="off"
+                :placeholder="t('searchClientPlaceholder')"
+                @focus="showSuggestions = true"
+                @input="showSuggestions = true"
+                @keyup.enter="handleSearch"
+                @keyup.esc="showSuggestions = false"
+              />
+            </div>
+
+            <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
+              <button v-for="c in suggestions" :key="c.inscripcionId" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
+                <span class="suggestion-avatar">{{ String(c.nombre || '?').charAt(0).toUpperCase() }}</span>
+                <span class="suggestion-info">
+                  <strong>{{ c.nombre }}</strong>
+                  <small>{{ c.correo || c.celular || txt('Cliente registrado', 'Registered client') }}</small>
+                </span>
+                <span class="suggestion-id">#{{ c.clienteId || c.inscripcionId }}</span>
+              </button>
+              <p v-if="!suggestions.length" class="suggestion-empty">{{ txt('No se encontraron clientes en esta sucursal.', 'No clients found at this branch.') }}</p>
             </div>
           </div>
         </header>
@@ -579,31 +659,23 @@ watch(() => [route.params.id, route.query.sede_id], () => {
             <article class="client-card">
               <div class="card-top-line"></div>
 
-              <div class="client-card-header">
-                <span class="client-label">{{ txt('CLIENTE SELECCIONADO', 'SELECTED CLIENT') }}</span>
-                <span class="active-pill"><i></i>{{ cliente.estado }}</span>
-              </div>
+              <span class="client-label">{{ txt('CLIENTE SELECCIONADO', 'SELECTED CLIENT') }}</span>
 
               <div class="avatar-container">
-                <div class="avatar-decoration"></div>
                 <div class="avatar"><img :src="cliente.foto" :alt="t('userAvatarAlt')" /></div>
               </div>
 
               <div class="client-name">
-                <h2>{{ cliente.nombre }}</h2>
-                <h2 class="highlight">{{ cliente.apellido }}</h2>
+                <h2>{{ cliente.nombre || '—' }}</h2>
+                <h2 class="highlight">{{ cliente.apellido || '—' }}</h2>
               </div>
 
-              <div class="client-id">
-                <span>{{ txt('ID DE CLIENTE', 'CLIENT ID') }}</span>
-                <strong>{{ cliente.id }}</strong>
-              </div>
-
-              <div class="client-divider"></div>
+              <span class="active-pill"><i></i>{{ cliente.estado }}</span>
 
               <div class="client-mini-info">
+                <div><span>ID</span><strong class="mono">{{ cliente.id || '—' }}</strong></div>
                 <div><span>{{ txt('Plan actual', 'Current plan') }}</span><strong>{{ planActual }}</strong></div>
-                <div><span>{{ txt('Próximo corte', 'Next billing') }}</span><strong>{{ fechaProximoCorte }}</strong></div>
+                <div><span>{{ txt('Próximo corte', 'Next billing') }}</span><strong class="mono">{{ fechaProximoCorte }}</strong></div>
                 <div v-if="requiereGrupo">
                   <span>{{ txt('Grupo', 'Group') }}</span>
                   <strong :class="grupoCompleto ? 'mini-ok' : 'mini-warn'">{{ participantes.length }}/{{ personasPromo }}</strong>
@@ -614,16 +686,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
           <!-- COBRO -->
           <section class="operations-column">
-
-            <!-- BUSCADOR -->
-            <div id="tutorial-step-0" class="search-section">
-              <label>{{ t('searchClientLabel') }}</label>
-              <div class="search-control">
-                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                <input type="text" :placeholder="t('searchClientPlaceholder')" />
-                <kbd>⌘ K</kbd>
-              </div>
-            </div>
 
             <!-- PANEL -->
             <article id="tutorial-step-1" class="payment-card">
@@ -965,7 +1027,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
                     <p class="qr-note">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
-                      <span>{{ txt('El recibo se habilita cuando Laravel registra el folio real.', 'Receipt becomes available after Laravel registers the actual reference.') }}</span>
+                      <span>{{ txt('El recibo se habilita cuando el sistema registra el folio real.', 'The receipt becomes available once the system registers the actual reference.') }}</span>
                     </p>
 
                     <div class="qr-actions">
@@ -1020,7 +1082,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     />
   </HeadingGYM_ACCOUNT>
 </template>
-
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@500;600;700&display=swap');
@@ -1084,6 +1145,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
    HEADER
 ========================================================= */
 .page-header {
+  position: relative; z-index: 20;
   display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
   margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--line);
 }
@@ -1092,10 +1154,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .page-header h1 { margin: 0; color: var(--title); font-family: var(--font-display); font-size: clamp(2.1rem, 5vw, 3.2rem); font-weight: 400; line-height: 1.05; letter-spacing: 0.6px; text-transform: uppercase; }
 .page-header h1 strong { color: var(--accent); font-weight: 400; }
 .page-header p { max-width: 600px; margin: 10px 0 0; color: var(--muted); font-size: 0.97rem; line-height: 1.55; }
-.header-status { min-width: 190px; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
-.status-light { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.15); }
-.header-status small { display: block; margin-bottom: 1px; color: var(--muted); font-size: 0.78rem; }
-.header-status strong { display: block; color: var(--ok-text); font-size: 0.92rem; }
 
 /* =========================================================
    LAYOUT (escritorio: cliente a la izquierda, cobro a la derecha)
@@ -1105,51 +1163,54 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .client-column { position: sticky; top: 16px; }
 
 /* =========================================================
-   CLIENTE
+   CLIENTE (mismo estilo que el perfil de Editar usuario)
 ========================================================= */
 .client-card {
-  position: relative; overflow: hidden; padding: 26px 22px 22px;
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center;
+  padding: 28px 22px 22px;
   border: 1px solid var(--line); border-radius: 16px; background: var(--card);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 22px 44px -28px rgba(0, 0, 0, 0.7);
 }
 .card-top-line { position: absolute; top: 0; left: 22px; right: 22px; height: 3px; border-radius: 0 0 5px 5px; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 25%, transparent)); }
-.client-card-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.client-label { color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.7px; }
-.active-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 999px; color: var(--ok-text); background: rgba(52, 211, 153, 0.08); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
-.active-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
-
-/* FOTO (sin cambios) */
-.avatar-container { position: relative; width: 132px; height: 132px; margin: 25px auto 18px; }
-.avatar-decoration { position: absolute; inset: -5px; border: 1px dashed color-mix(in srgb, var(--accent) 32%, transparent); border-radius: 31px; transform: rotate(7deg); }
-.avatar { position: absolute; inset: 0; overflow: hidden; border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 27px; background: var(--input-bg); }
+.client-card > .card-top-line { left: 0; right: 0; border-radius: 0; background: var(--accent); }
+.client-label { margin: 0 0 20px; color: var(--muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.8px; text-align: center; }
+.avatar-container { position: relative; width: 148px; height: 148px; flex-shrink: 0; margin: 0 0 20px; }
+.avatar { position: absolute; inset: 0; overflow: hidden; border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 50%; background: var(--input-bg); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent); }
 .avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
-
-.client-name { margin-bottom: 16px; text-align: center; min-width: 0; }
-.client-name h2 { margin: 0; color: var(--title); font-family: var(--font-heading); font-size: 1.55rem; font-weight: 700; line-height: 1.15; letter-spacing: 0.4px; overflow-wrap: anywhere; }
-.client-name .highlight { margin-top: 2px; color: var(--accent); }
-.client-id { padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); text-align: center; }
-.client-id span { display: block; margin-bottom: 3px; color: var(--muted); font-size: 0.74rem; font-weight: 600; letter-spacing: 0.6px; }
-.client-id strong { color: var(--text); font-family: var(--font-mono); font-size: 0.98rem; overflow-wrap: anywhere; }
-.client-divider { height: 1px; margin: 18px 0; background: var(--line); }
-.client-mini-info { display: grid; gap: 12px; }
-.client-mini-info > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
-.client-mini-info span { flex-shrink: 0; color: var(--muted); font-size: 0.85rem; }
-.client-mini-info strong { min-width: 0; color: var(--text); font-size: 0.92rem; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.client-name { max-width: 100%; min-width: 0; margin: 0 0 12px; text-align: center; }
+.client-name h2 { margin: 0; color: var(--title); font-family: var(--font-heading); font-size: 1.5rem; font-weight: 600; line-height: 1.15; letter-spacing: 0.01em; text-transform: uppercase; overflow-wrap: anywhere; }
+.client-name .highlight { color: var(--accent); }
+.active-pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 999px; color: var(--ok-text); background: rgba(52, 211, 153, 0.08); font-size: 0.74rem; font-weight: 600; white-space: nowrap; }
+.active-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.client-mini-info { width: 100%; display: block; margin-top: 22px; padding-top: 6px; border-top: 1px solid var(--line); }
+.client-mini-info > div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
+.client-mini-info > div:last-child { padding-bottom: 2px; border-bottom: 0; }
+.client-mini-info span { flex-shrink: 0; color: var(--muted); font-size: 0.82rem; }
+.client-mini-info strong { min-width: 0; color: var(--text); font-size: 0.9rem; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.client-mini-info .mono { font-family: var(--font-mono); }
 .client-mini-info .mini-ok { color: var(--ok-text); font-family: var(--font-mono); }
 .client-mini-info .mini-warn { color: var(--warn-text); font-family: var(--font-mono); }
 
 /* =========================================================
-   BUSCADOR
+   BUSCADOR (en el encabezado, igual que en Editar usuario)
 ========================================================= */
 .operations-column { display: flex; flex-direction: column; gap: 14px; }
-.search-section { width: 100%; }
-.search-section > label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.search-section { position: relative; z-index: 21; width: min(100%, 320px); flex-shrink: 0; }
+.search-section > label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
 .search-control { position: relative; display: flex; align-items: center; }
 .search-control > svg { position: absolute; left: 13px; color: var(--muted); pointer-events: none; }
-.search-control input { width: 100%; height: 48px; padding: 0 58px 0 40px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: var(--card); color: var(--text); font-family: inherit; font-size: 0.95rem; transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.search-control input { width: 100%; height: 44px; padding: 0 13px 0 40px; border: 1px solid var(--line); border-radius: 10px; outline: none; background: var(--card); color: var(--text); font-family: inherit; font-size: 0.9rem; transition: border-color 0.18s ease, box-shadow 0.18s ease; }
 .search-control input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .search-control input::placeholder { color: var(--muted-2); }
-.search-control kbd { position: absolute; right: 10px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); background: var(--input-bg); font-family: var(--font-mono); font-size: 0.74rem; }
+.client-suggestions { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 50; max-height: 310px; overflow-y: auto; padding: 5px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45); }
+.client-suggestion { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-family: inherit; text-align: left; cursor: pointer; }
+.client-suggestion:hover, .client-suggestion:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
+.suggestion-avatar { width: 32px; height: 32px; flex-shrink: 0; display: grid; place-items: center; border-radius: 9px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-size: 0.82rem; font-weight: 700; }
+.suggestion-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.suggestion-info strong { overflow: hidden; font-size: 0.82rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion-info small { overflow: hidden; color: var(--muted); font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion-id { flex-shrink: 0; color: var(--muted); font-family: var(--font-mono); font-size: 0.74rem; }
+.suggestion-empty { margin: 0; padding: 12px; color: var(--muted); font-size: 0.82rem; }
 
 /* =========================================================
    PAYMENT CARD
@@ -1428,11 +1489,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
    RESPONSIVE
 ========================================================= */
 
-/* Escritorio: la tarjeta del cliente arranca a la altura de la tarjeta de cobro (debajo del buscador) */
-@media (min-width: 1001px) {
-  .client-column { margin-top: 62px; }
-}
-
 /* Pantalla ancha: izquierda = método de pago + folio; derecha = monto + resumen; botones abajo a todo el ancho */
 @media (min-width: 1180px) {
   .payment-card > .form-section:not(.group-section):not(.amount-section) { grid-column: 1; grid-row: span 3; }
@@ -1448,26 +1504,20 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .payment-page { padding: 24px 20px 40px; }
   .payment-layout { grid-template-columns: 1fr; gap: 16px; }
   .client-column { position: static; }
-  .client-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 20px; align-items: center; padding: 22px 20px 20px; }
-  .client-card-header { grid-column: 1 / -1; margin-bottom: 8px; }
-  .avatar-container { width: 96px; height: 96px; margin: 6px; }
-  .avatar-decoration { border-radius: 24px; }
-  .avatar { border-radius: 21px; }
-  .client-name { margin: 0; text-align: left; }
-  .client-name h2 { font-size: 1.4rem; }
-  .client-id { grid-column: 1 / -1; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
-  .client-id span { margin: 0; }
-  .client-divider { grid-column: 1 / -1; margin: 8px 0; }
-  .client-mini-info { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-  .client-mini-info > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .client-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 20px; row-gap: 6px; align-items: center; justify-items: start; padding: 22px 20px 18px; }
+  .client-label { grid-column: 1 / -1; margin: 0 0 6px; text-align: left; }
+  .avatar-container { grid-column: 1; grid-row: 2 / span 2; width: 96px; height: 96px; margin: 0; }
+  .client-name { grid-column: 2; align-self: end; margin: 0; text-align: left; }
+  .client-name h2 { font-size: 1.3rem; }
+  .active-pill { grid-column: 2; align-self: start; }
+  .client-mini-info { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 24px; margin-top: 14px; }
+  .client-mini-info > div { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 8px 2px; border-bottom: 0; }
   .client-mini-info strong { text-align: left; }
 }
 
 @media (max-width: 780px) {
   .page-header { align-items: flex-start; flex-direction: column; gap: 16px; }
-  .header-status { width: 100%; }
-  .search-control kbd { display: none; }
-  .search-control input { padding-right: 14px; }
+  .search-section { width: 100%; }
   .action-buttons { grid-template-columns: 1fr; }
   /* El botón de confirmar queda siempre a la mano al bajar por el formulario */
   .action-buttons {
@@ -1519,13 +1569,13 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 }
 
 @media (max-width: 400px) {
-  .client-card { display: block; }
-  .client-card-header { margin-bottom: 18px; }
-  .avatar-container { margin: 0 auto 15px; }
-  .client-name { margin-bottom: 14px; text-align: center; }
-  .client-id { margin-top: 10px; }
-  .client-divider { margin: 14px 0; }
-  .client-mini-info > div { flex-direction: row; align-items: baseline; justify-content: space-between; }
+  .client-card { display: flex; flex-direction: column; align-items: center; }
+  .client-label { margin-bottom: 16px; text-align: center; }
+  .avatar-container { width: 120px; height: 120px; margin: 0 0 16px; }
+  .client-name { margin-bottom: 12px; text-align: center; }
+  .client-mini-info { display: block; }
+  .client-mini-info > div { flex-direction: row; align-items: center; justify-content: space-between; padding: 11px 2px; border-bottom: 1px solid var(--line); }
+  .client-mini-info > div:last-child { border-bottom: 0; }
   .client-mini-info strong { text-align: right; }
   .summary-side { flex-direction: column; align-items: stretch; }
   .success-amount { display: none; }
