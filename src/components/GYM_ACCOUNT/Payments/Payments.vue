@@ -751,10 +751,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4" /><path d="M4 6v12a2 2 0 0 0 2 2h14v-8H6a2 2 0 0 1-2-2Z" /></svg>
                     </span>
                     <strong>{{ planActual }}</strong>
-                    <span>•</span>
-                    <span>{{ duracionPlan }}</span>
+                    <span class="dot">•</span>
+                    <span class="plan-duration">{{ duracionPlan }}</span>
                     <template v-if="requiereGrupo">
-                      <span>•</span>
+                      <span class="dot">•</span>
                       <span class="group-tag">{{ personasPromo }} {{ txt('personas', 'people') }} · ${{ formatoMoneda(precioPorPersonaPago) }} {{ txt('c/u', 'each') }}</span>
                     </template>
                   </div>
@@ -1576,11 +1576,24 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .payment-summary { align-items: stretch; flex-direction: column; gap: 18px; padding: 20px 18px; margin-bottom: 18px; }
   .summary-heading { gap: 8px; margin-bottom: 12px; }
   .big-amount { margin-bottom: 4px; }
-  .plan-line { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); row-gap: 6px; }
-  .summary-side { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-  .surcharge-box { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; text-align: left; }
+  /* Plan: nombre + chips, sin puntos sueltos al partirse la línea */
+  .plan-line { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line-strong); gap: 8px; }
+  .plan-line .dot { display: none; }
+  .plan-line > strong { font-size: 1rem; }
+  .plan-duration { padding: 2px 10px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  .group-tag { white-space: normal; line-height: 1.35; }
+
+  /* Recargo y promoción: filas completas apiladas */
+  .summary-side { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; }
+  .surcharge-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; text-align: left; }
   .surcharge-box span { margin: 0; }
-  .promotion-applied { flex: 1 1 100%; justify-content: flex-start; }
+  .promotion-applied {
+    display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 8px;
+    padding: 10px 12px; border: 1px solid rgba(52, 211, 153, 0.28); border-radius: 10px;
+    background: rgba(52, 211, 153, 0.07); font-size: 0.84rem; line-height: 1.25;
+  }
+  .promotion-applied svg { flex-shrink: 0; }
+  .promo-remove { flex-shrink: 0; margin-left: auto; padding: 5px 12px; }
 
   .form-section { padding: 18px 0; }
   /* 16px evita el zoom automático de iOS al enfocar un campo */
@@ -1621,7 +1634,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 @media (max-width: 400px) {
   .avatar-container { width: 84px; height: 84px; }
   .client-name h2 { font-size: 1.1rem; }
-  .summary-side { flex-direction: column; align-items: stretch; }
   .success-amount { display: none; }
 }
 
