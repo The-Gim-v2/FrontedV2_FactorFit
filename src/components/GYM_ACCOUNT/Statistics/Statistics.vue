@@ -71,7 +71,7 @@ const user = ref({
   nombre:'', id:'', foto:null, pesoInicial:'—', pesoActual:'—', estatura:'—',
   grasaCorporal:'—', masaMuscular:'—', aguaCorporal:'—', imc:'—',
   aumentoFuerza:'—', caloriasPromedio:'—', inscripcion:'—', celular:'—',
-  correo:'—', asistenciaPorcentaje:0, proximoCorte:'—', saldoAPagar:'$0.00',
+  correo:'—', asistenciaPorcentaje:0, proximoCorte:'—', saldoAPagar:'$0.00', saldoAFavor:'$0.00',
   eficienciaMuscular:'—', eficienciaMuscularPorcentaje:0,
 });
 const rachaInfo = ref({ dias:0, mejorRacha:0, nombreMascota:'Mi mascota', nivelMascota:'Nivel 1', tipoMascota:'perro' });
@@ -612,7 +612,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
             <div class="bottom-financial-grid">
 
-              <div id="tutor-19" class="info-card financial-card red-accent reveal" style="--reveal-delay:1">
+              <div id="tutor-19" class="info-card financial-card red-accent wide reveal" style="--reveal-delay:1">
 
                 <div class="card-icon-badge red">
 
@@ -646,6 +646,16 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
                 </div>
 
+              </div>
+
+              <div id="tutor-23" class="info-card financial-card blue-accent reveal" style="--reveal-delay:3">
+                <div class="card-icon-badge blue">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"></path><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"></path></svg>
+                </div>
+                <div class="card-text-group">
+                  <span class="card-mini-title">{{ txt('Saldo a favor', 'Credit balance') }}</span>
+                  <span class="card-highlight-val blue">{{ user.saldoAFavor || '$0.00' }}</span>
+                </div>
               </div>
 
             </div>
@@ -1103,7 +1113,8 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 
 
-.bottom-financial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.bottom-financial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.financial-card.wide { grid-column: 1 / -1; }
 
 @media (max-width: 380px) { .bottom-financial-grid { grid-template-columns: 1fr; } }
 
@@ -1139,6 +1150,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 .card-icon-badge.red { background: rgba(248, 113, 113, 0.14); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
 
+.card-icon-badge.blue { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 .card-icon-badge.green { background: rgba(74, 222, 128, 0.14); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
 
 .card-text-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -1150,6 +1162,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .card-highlight-val.red { color: #f87171; }
 
 .card-highlight-val.green { color: #4ade80; }
+.card-highlight-val.blue { color: #38bdf8; }
 
 
 
@@ -1550,6 +1563,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .financial-card::before { content: ''; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0; background: var(--card-accent, var(--color-highlight, #3b82f6)); }
 .financial-card.red-accent { --card-accent: #f87171; }
 .financial-card.green-accent { --card-accent: #4ade80; }
+.financial-card.blue-accent { --card-accent: #38bdf8; }
 .user-profile-card, .calendar-card { box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05); }
 .day-cell.hoy { font-weight: 800; }
 </style>
