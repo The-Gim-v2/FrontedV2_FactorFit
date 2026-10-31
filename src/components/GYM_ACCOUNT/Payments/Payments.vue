@@ -1021,6 +1021,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   </HeadingGYM_ACCOUNT>
 </template>
 
+
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@500;600;700&display=swap');
 
@@ -1068,7 +1069,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     radial-gradient(700px 320px at -5% 0, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
 }
 
-.payment-container { width: 100%; max-width: 1180px; margin: 0 auto; }
+.payment-container { width: 100%; max-width: 1240px; margin: 0 auto; }
 
 .payment-container > p[role='status'] {
   margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px;
@@ -1097,11 +1098,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .header-status strong { display: block; color: var(--ok-text); font-size: 0.92rem; }
 
 /* =========================================================
-   LAYOUT
+   LAYOUT (escritorio: cliente a la izquierda, cobro a la derecha)
 ========================================================= */
 .payment-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
 .client-column, .operations-column { min-width: 0; }
-/* La tarjeta del cliente se queda visible mientras se llena el cobro */
 .client-column { position: sticky; top: 16px; }
 
 /* =========================================================
@@ -1153,12 +1153,16 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
 /* =========================================================
    PAYMENT CARD
+   Cuadrícula de 2 columnas: todo ocupa el ancho completo,
+   salvo "Método de pago" (izq.) y "Monto a recibir" (der.) en pantallas anchas.
 ========================================================= */
 .payment-card {
   position: relative; overflow: visible; padding: 28px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px;
   border: 1px solid var(--line); border-radius: 16px; background: var(--card);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 22px 44px -28px rgba(0, 0, 0, 0.7);
 }
+.payment-card > * { grid-column: 1 / -1; min-width: 0; }
 .payment-card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
 .payment-title { min-width: 0; display: flex; align-items: center; gap: 12px; }
 .payment-icon { width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 11px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -1250,12 +1254,12 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .slot.empty .slot-text strong { color: var(--muted); font-weight: 500; }
 .slot-plus { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border: 1px dashed var(--line-strong); border-radius: 11px; font-size: 1.3rem; }
 .slot-lock { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: var(--ok); background: rgba(52, 211, 153, 0.12); }
-.slot-remove { width: 28px; height: 28px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: all 0.16s ease; }
+.slot-remove { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: all 0.16s ease; }
 .slot-remove:hover { border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); color: var(--bad); }
 
 .group-search { position: relative; margin-bottom: 14px; }
 .group-results { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; max-height: 260px; overflow-y: auto; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7); }
-.group-results button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; }
+.group-results button { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; }
 .group-results button:hover, .group-results button:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
 .group-results img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover; }
 .group-results span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1270,7 +1274,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 /* =========================================================
    MONTO
 ========================================================= */
-.amount-input-container { padding-left: 42px; }
+.amount-input-container { padding-left: 0; }
 .amount-input-box { display: flex; align-items: center; min-height: 68px; padding: 0 18px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 12px; background: var(--input-bg); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
 .amount-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .amount-symbol { color: var(--muted); font-family: var(--font-mono); font-size: 1.4rem; font-weight: 700; }
@@ -1338,7 +1342,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
    MÉTODO DE PAGO
 ========================================================= */
 .method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
-.method-tile { position: relative; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--input-bg); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
+.method-tile { position: relative; min-width: 0; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--input-bg); color: var(--text); font-family: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
 .method-tile:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong)); transform: translateY(-1px); }
 .method-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .method-tile.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--input-bg)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
@@ -1353,7 +1357,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 /* =========================================================
    FOLIO
 ========================================================= */
-.folio-group > label { display: flex; align-items: center; gap: 8px; }
+.folio-group > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .folio-badge { padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.6px; }
 .folio-badge.auto { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
 .folio-badge.required { color: var(--warn-text); background: rgba(251, 191, 36, 0.12); }
@@ -1376,10 +1380,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .stripe-status.warn i { background: var(--warn); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18); }
 .stripe-hint { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
 .stripe-actions, .qr-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.stripe-action { padding: 10px 18px; border: 0; border-radius: 9px; background: var(--button); color: var(--button-text); font-family: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: filter 0.18s ease; }
+.stripe-action { min-height: 44px; padding: 10px 18px; border: 0; border-radius: 9px; background: var(--button); color: var(--button-text); font-family: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: filter 0.18s ease; }
 .stripe-action:hover:not(:disabled) { filter: brightness(1.1); }
 .stripe-action:disabled { opacity: 0.5; cursor: not-allowed; }
-.stripe-link { display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--accent); font-family: inherit; font-size: 0.84rem; font-weight: 600; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease; }
+.stripe-link { min-height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 9px; background: transparent; color: var(--accent); font-family: inherit; font-size: 0.84rem; font-weight: 600; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease; }
 .stripe-link:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .stripe-qr { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; gap: 28px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
 .qr-side { display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -1403,7 +1407,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .qr-primary { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .stripe-open { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--accent); font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: border-color 0.18s ease, background 0.18s ease; }
 .stripe-open:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.qr-hide { padding: 2px 0; border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.82rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.qr-hide { min-height: 36px; padding: 2px 0; border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.82rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .qr-hide:hover { color: var(--text); }
 
 /* =========================================================
@@ -1421,33 +1425,53 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 /* =========================================================
    RESPONSIVE
 ========================================================= */
+
+/* Pantalla ancha: Método de pago (izq.) y Monto a recibir (der.) lado a lado */
+@media (min-width: 1240px) {
+  .payment-card > .form-section:not(.group-section):not(.amount-section) { grid-column: 1; }
+  .payment-card > .amount-section { grid-column: 2; align-self: start; }
+  .method-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1100px) { .payment-page { padding: 28px 28px 48px; } }
 
-@media (max-width: 950px) {
+/* Tableta y móvil: el cliente pasa arriba como tarjeta horizontal compacta y el cobro usa todo el ancho */
+@media (max-width: 1000px) {
   .payment-page { padding: 24px 20px 40px; }
-  .payment-layout { grid-template-columns: 250px minmax(0, 1fr); gap: 18px; }
-  .avatar-container { width: 110px; height: 110px; }
+  .payment-layout { grid-template-columns: 1fr; gap: 16px; }
+  .client-column { position: static; }
+  .client-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 20px; align-items: center; padding: 22px 20px 20px; }
+  .client-card-header { grid-column: 1 / -1; margin-bottom: 8px; }
+  .avatar-container { width: 96px; height: 96px; margin: 6px; }
+  .avatar-decoration { border-radius: 24px; }
+  .avatar { border-radius: 21px; }
+  .client-name { margin: 0; text-align: left; }
   .client-name h2 { font-size: 1.4rem; }
+  .client-id { grid-column: 1 / -1; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+  .client-id span { margin: 0; }
+  .client-divider { grid-column: 1 / -1; margin: 8px 0; }
+  .client-mini-info { grid-column: 1 / -1; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .client-mini-info > div { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .client-mini-info strong { text-align: left; }
+  .search-section { width: 100%; align-self: stretch; }
   .review-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .action-buttons { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 780px) {
   .page-header { align-items: flex-start; flex-direction: column; gap: 16px; }
   .header-status { width: 100%; }
-  .payment-layout { grid-template-columns: 1fr; }
-  .client-column { position: static; }
-  .client-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 15px; align-items: center; }
-  .client-card-header { grid-column: 1 / -1; }
-  .avatar-container { width: 92px; height: 92px; margin: 5px; }
-  .avatar-decoration { border-radius: 24px; }
-  .avatar { border-radius: 21px; }
-  .client-name { margin: 0; text-align: left; }
-  .client-id, .client-divider, .client-mini-info { grid-column: 1 / -1; }
-  .client-divider { margin: 0; }
-  .search-section { width: 100%; align-self: stretch; }
   .search-control kbd { display: none; }
   .search-control input { padding-right: 14px; }
+  .action-buttons { grid-template-columns: 1fr; }
+  /* El botón de confirmar queda siempre a la mano al bajar por el formulario */
+  .action-buttons {
+    position: sticky; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 15;
+    padding: 10px; border: 1px solid var(--line-strong); border-radius: 16px;
+    background: color-mix(in srgb, var(--card) 94%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.65);
+  }
+  .receipt-button { min-height: 52px; }
   .stripe-qr { grid-template-columns: 1fr; justify-items: center; gap: 20px; }
   .qr-info { width: 100%; align-items: center; text-align: center; }
   .qr-amount-block { align-items: center; }
@@ -1455,31 +1479,37 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
 @media (max-width: 600px) {
   .payment-page { padding: 18px 12px calc(32px + env(safe-area-inset-bottom, 0px)); }
-  .page-header { margin-bottom: 20px; }
+  .page-header { margin-bottom: 20px; padding-bottom: 18px; }
   .page-header p { font-size: 0.92rem; }
   .payment-card { padding: 18px 16px; }
-  .payment-card-header { align-items: flex-start; }
+  .payment-card-header { flex-direction: column; align-items: stretch; gap: 14px; margin-bottom: 18px; }
+  .promo-button { width: 100%; }
   .payment-title h3 { font-size: 1.2rem; }
-  .billing-dates { grid-template-columns: 1fr; }
-  .date-arrow { display: none; }
-  .payment-summary { align-items: flex-start; flex-direction: column; gap: 14px; padding: 18px 16px; }
+  .billing-dates { grid-template-columns: 1fr; gap: 8px; }
+  .date-arrow { justify-content: center; transform: rotate(90deg); }
+  .billing-date strong { white-space: normal; }
+  .payment-summary { align-items: stretch; flex-direction: column; gap: 14px; padding: 18px 16px; margin-bottom: 18px; }
   .summary-side { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
   .surcharge-box { text-align: left; }
   .promotion-applied { justify-content: flex-start; }
+  .form-section { padding: 18px 0; }
   /* 16px evita el zoom automático de iOS al enfocar un campo */
   .field-control input, .search-control input { font-size: 1rem; }
-  .amount-input-container { padding-left: 0; }
   .amount-input-box { min-height: 62px; padding: 0 14px; }
   .amount-input-box input { font-size: 1.6rem; }
   .transaction-review { padding: 14px; }
-  .method-grid { grid-template-columns: 1fr; }
+  .method-grid { grid-template-columns: 1fr; gap: 10px; }
   .stripe-box { padding: 14px; }
+  .stripe-link { width: 100%; justify-content: center; }
   .qr-frame img { width: 100%; }
   .qr-actions { grid-template-columns: 1fr; }
   .stripe-qr { padding: 16px; }
+  .qr-amount { font-size: 2rem; }
   .group-slots { grid-template-columns: 1fr; }
+  .group-section .form-section-title { flex-wrap: wrap; }
   .group-counter { font-size: 0.78rem; }
   .group-price { grid-template-columns: 1fr; }
+  .action-buttons { margin-left: -6px; margin-right: -6px; }
 }
 
 @media (max-width: 400px) {
@@ -1489,8 +1519,8 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .client-name { margin-bottom: 14px; text-align: center; }
   .client-id { margin-top: 10px; }
   .client-divider { margin: 14px 0; }
-  .payment-card-header { flex-direction: column; }
-  .promo-button { width: 100%; }
+  .client-mini-info > div { flex-direction: row; align-items: baseline; justify-content: space-between; }
+  .client-mini-info strong { text-align: right; }
   .review-grid { grid-template-columns: 1fr; }
   .summary-side { flex-direction: column; align-items: stretch; }
   .success-amount { display: none; }
