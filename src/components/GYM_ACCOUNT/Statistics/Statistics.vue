@@ -612,7 +612,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
             <div class="bottom-financial-grid">
 
-              <div id="tutor-19" class="info-card financial-card red-accent wide reveal" style="--reveal-delay:1">
+              <div id="tutor-19" class="info-card financial-card red-accent reveal" style="--reveal-delay:1">
 
                 <div class="card-icon-badge red">
 
@@ -628,6 +628,16 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
                 </div>
 
+              </div>
+
+              <div class="info-card financial-card purple-accent reveal" style="--reveal-delay:2">
+                <div class="card-icon-badge purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="m9 16 2 2 4-5"></path></svg>
+                </div>
+                <div class="card-text-group">
+                  <span class="card-mini-title">{{ txt('Fecha pagada', 'Paid date') }}</span>
+                  <span class="card-highlight-val purple">{{ user.fechaPagada || '—' }}</span>
+                </div>
               </div>
 
               <div id="tutor-20" class="info-card financial-card green-accent reveal" style="--reveal-delay:2">
@@ -1116,7 +1126,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .bottom-financial-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .financial-card.wide { grid-column: 1 / -1; }
 
-@media (max-width: 380px) { .bottom-financial-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .bottom-financial-grid { grid-template-columns: 1fr; } }
 
 
 
@@ -1151,6 +1161,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .card-icon-badge.red { background: rgba(248, 113, 113, 0.14); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
 
 .card-icon-badge.blue { background: rgba(56, 189, 248, 0.14); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+.card-icon-badge.purple { background: rgba(167, 139, 250, 0.14); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
 .card-icon-badge.green { background: rgba(74, 222, 128, 0.14); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); }
 
 .card-text-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -1161,6 +1172,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 
 .card-highlight-val.red { color: #f87171; }
 
+.card-highlight-val.purple { color: #a78bfa; }
 .card-highlight-val.green { color: #4ade80; }
 .card-highlight-val.blue { color: #38bdf8; }
 
@@ -1564,6 +1576,7 @@ watch(() => [route.params.id, route.query.sede_id], loadStats);
 .financial-card.red-accent { --card-accent: #f87171; }
 .financial-card.green-accent { --card-accent: #4ade80; }
 .financial-card.blue-accent { --card-accent: #38bdf8; }
+.financial-card.purple-accent { --card-accent: #a78bfa; }
 .user-profile-card, .calendar-card { box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05); }
 .day-cell.hoy { font-weight: 800; }
 </style>

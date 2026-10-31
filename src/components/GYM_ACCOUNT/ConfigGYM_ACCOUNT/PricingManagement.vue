@@ -4,7 +4,7 @@ import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
 const currentLang=ref(localStorage.getItem('GYM_ACCOUNT-idioma')||'es');
-const localTranslations={es:{commercialTitle:'PROMOCIONES Y',commercialHighlight:'TARIFAS',commercialSubtitle:'Administra promociones, membresías y precios del gimnasio desde un solo lugar.',activePromotions:'Promociones activas',monthlyPrice:'Mensualidad',weeklyPrice:'Costo semanal',averagePromo:'Promedio promociones',promotionsSection:'Promociones',promotionsDescription:'Ofertas y paquetes disponibles para tus clientes.',pricesSection:'Tarifas del sistema',pricesDescription:'Precios base utilizados en membresías y servicios.',newPromotion:'Nueva promoción',months:'meses',month:'mes',edit:'Editar',delete:'Eliminar',configured:'Configurado',active:'Activa',price:'Precio',duration:'Duración',noPromotions:'No tienes promociones registradas.',noPromotionsSub:'Crea tu primera promoción para comenzar.',addPromotion:'Crear promoción'},en:{commercialTitle:'PROMOTIONS &',commercialHighlight:'PRICING',commercialSubtitle:'Manage gym promotions, memberships and pricing from one place.',activePromotions:'Active promotions',monthlyPrice:'Monthly fee',weeklyPrice:'Weekly fee',averagePromo:'Promotion average',promotionsSection:'Promotions',promotionsDescription:'Offers and packages available to your customers.',pricesSection:'System pricing',pricesDescription:'Base prices used for memberships and services.',newPromotion:'New promotion',months:'months',month:'month',edit:'Edit',delete:'Delete',configured:'Configured',active:'Active',price:'Price',duration:'Duration',noPromotions:'No promotions registered.',noPromotionsSub:'Create your first promotion to get started.'}};
+const localTranslations={es:{commercialTitle:'PROMOCIONES Y',commercialHighlight:'TARIFAS',commercialSubtitle:'Administra promociones, membresías y precios del gimnasio desde un solo lugar.',activePromotions:'Promociones activas',monthlyPrice:'Mensualidad',weeklyPrice:'Costo semanal',averagePromo:'Promedio promociones',promotionsSection:'Promociones',promotionsDescription:'Ofertas y paquetes disponibles para tus clientes.',pricesSection:'Tarifas del sistema',pricesDescription:'Precios base utilizados en membresías y servicios.',newPromotion:'Nueva promoción',months:'meses',month:'mes',edit:'Editar',delete:'Eliminar',configured:'Configurado',active:'Activa',price:'Precio',duration:'Duración',noPromotions:'No tienes promociones registradas.',noPromotionsSub:'Crea tu primera promoción para comenzar.',addPromotion:'Crear promoción',personsLabel:'Cantidad de personas',person:'persona',persons:'personas',perPerson:'Por persona',totalPrice:'Precio total',perMonth:'Por mes',summary:'Resumen de la promoción'},en:{commercialTitle:'PROMOTIONS &',commercialHighlight:'PRICING',commercialSubtitle:'Manage gym promotions, memberships and pricing from one place.',activePromotions:'Active promotions',monthlyPrice:'Monthly fee',weeklyPrice:'Weekly fee',averagePromo:'Promotion average',promotionsSection:'Promotions',promotionsDescription:'Offers and packages available to your customers.',pricesSection:'System pricing',pricesDescription:'Base prices used for memberships and services.',newPromotion:'New promotion',months:'months',month:'month',edit:'Edit',delete:'Delete',configured:'Configured',active:'Active',price:'Price',duration:'Duration',noPromotions:'No promotions registered.',noPromotionsSub:'Create your first promotion to get started.',addPromotion:'Create promotion',personsLabel:'Number of people',person:'person',persons:'people',perPerson:'Per person',totalPrice:'Total price',perMonth:'Per month',summary:'Promotion summary'}};
 const t=(key)=>localTranslations[currentLang.value]?.[key]||traducciones[currentLang.value]?.[key]||localTranslations.es[key]||traducciones.es?.[key]||key;
 const toastRef=ref(null),registros=ref([]),loading=ref(false),saving=ref(false),aplicarTodas=ref(false),copiando=ref(false),selectedSede=ref(sessionStorage.getItem('selected_sede_id')||'');
 const base=(import.meta.env.VITE_API_URL||'').replace(/\/$/,'');
@@ -19,22 +19,28 @@ const duracionTexto=(x)=>{
   return '';
 };
 const preciosSistema=computed(()=>registros.value.filter(x=>x.Periodo!=='Promocion').map(x=>({id:x.ID_Precio,concepto:x.Nombre_Paquete,monto:Number(x.Precio),duracion:duracionTexto(x),periodo:x.Periodo,meses:x.Cantidad_Meses,estado:x.Estado_Paquete})));
-const promociones=computed(()=>registros.value.filter(x=>x.Periodo==='Promocion').map(x=>({id:x.ID_Precio,nombre:x.Nombre_Paquete,meses:Number(x.Cantidad_Meses||1),precio:Number(x.Precio)})));
+const promociones=computed(()=>registros.value.filter(x=>x.Periodo==='Promocion').map(x=>({id:x.ID_Precio,nombre:x.Nombre_Paquete,meses:Number(x.Cantidad_Meses||1),personas:Math.max(1,Number(x.Cantidad_Personas||1)),precio:Number(x.Precio)})));
 const precioMensual=computed(()=>preciosSistema.value.find(x=>x.periodo==='Mensual')?.monto||0);
 const precioSemanal=computed(()=>preciosSistema.value.find(x=>x.periodo==='Semanal')?.monto||0);
 const promedioPromociones=computed(()=>promociones.value.length?Math.round(promociones.value.reduce((a,p)=>a+p.precio,0)/promociones.value.length):0);
 const formatCurrency=(value)=>new Intl.NumberFormat(currentLang.value==='en'?'en-US':'es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:2}).format(Number(value||0));
-const precioPorMes=(p)=>Number(p.precio||0)/Math.max(1,Number(p.meses||1));
-const modalConfig=reactive({isOpen:false,type:'precio',title:'',isNew:true,form:{id:null,nombre:'',meses:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Mensual'}});
+const precioPorMes=(p)=>Number(p.precio||0)/Math.max(1,Number(p.meses||1))/Math.max(1,Number(p.personas||1));
+const precioPorPersona=(p)=>Number(p.precio||0)/Math.max(1,Number(p.personas||1));
+const modalConfig=reactive({isOpen:false,type:'precio',title:'',isNew:true,form:{id:null,nombre:'',meses:1,personas:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Mensual'}});
 const deleteModalConfig=reactive({isOpen:false,idItemToDelete:null});
 const obtenerPrecios=async()=>{if(!selectedSede.value){registros.value=[];return;}loading.value=true;try{const data=await request(`?sede_id=${encodeURIComponent(selectedSede.value)}`);registros.value=Array.isArray(data)?data:data.data||[];}catch(e){notify(e.message,'error');}finally{loading.value=false;}};
-const abrirModalAgregarPromo=()=>{Object.assign(modalConfig,{isOpen:true,type:'promo',title:'Nueva promoción',isNew:true,form:{id:null,nombre:'',meses:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Promocion'}});};
-const abrirModalEditarPromocion=(p)=>{Object.assign(modalConfig,{isOpen:true,type:'promo',title:`Editar: ${p.nombre}`,isNew:false,form:{id:p.id,nombre:p.nombre,meses:p.meses,precio:p.precio,concepto:'',monto:'',duracion:'',periodo:'Promocion'}});};
-const abrirModalAgregarPrecio=()=>{Object.assign(modalConfig,{isOpen:true,type:'precio',title:'Agregar tarifa',isNew:true,form:{id:null,nombre:'',meses:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Mensual'}});};
-const abrirModalEditarPrecio=(p)=>{Object.assign(modalConfig,{isOpen:true,type:'precio',title:`Editar: ${p.concepto}`,isNew:false,form:{id:p.id,nombre:'',meses:p.meses||1,precio:'',concepto:p.concepto,monto:p.monto,duracion:p.duracion,periodo:p.periodo}});};
+const abrirModalAgregarPromo=()=>{Object.assign(modalConfig,{isOpen:true,type:'promo',title:'Nueva promoción',isNew:true,form:{id:null,nombre:'',meses:1,personas:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Promocion'}});};
+const abrirModalEditarPromocion=(p)=>{Object.assign(modalConfig,{isOpen:true,type:'promo',title:`Editar: ${p.nombre}`,isNew:false,form:{id:p.id,nombre:p.nombre,meses:p.meses,personas:p.personas||1,precio:p.precio,concepto:'',monto:'',duracion:'',periodo:'Promocion'}});};
+const abrirModalAgregarPrecio=()=>{Object.assign(modalConfig,{isOpen:true,type:'precio',title:'Agregar tarifa',isNew:true,form:{id:null,nombre:'',meses:1,personas:1,precio:'',concepto:'',monto:'',duracion:'',periodo:'Mensual'}});};
+const abrirModalEditarPrecio=(p)=>{Object.assign(modalConfig,{isOpen:true,type:'precio',title:`Editar: ${p.concepto}`,isNew:false,form:{id:p.id,nombre:'',meses:p.meses||1,personas:1,precio:'',concepto:p.concepto,monto:p.monto,duracion:p.duracion,periodo:p.periodo}});};
+const ajustar=(campo,delta,min=1,max=120)=>{const f=modalConfig.form;f[campo]=Math.min(max,Math.max(min,(Number(f[campo])||min)+delta));};
+const previewPromo=computed(()=>{const f=modalConfig.form;const meses=Math.max(1,Number(f.meses)||1);const personas=Math.max(1,Number(f.personas)||1);const precio=Number(f.precio)||0;return{meses,personas,precio,porPersona:precio/personas,porMes:precio/personas/meses};});
 const cerrarModal=()=>{if(!saving.value)modalConfig.isOpen=false;aplicarTodas.value=false;};
-const guardarDatos=async()=>{if(!selectedSede.value){notify('Selecciona una sucursal.','error');return;}const f=modalConfig.form;const promo=modalConfig.type==='promo';const periodo=promo?'Promocion':f.periodo;const payload={sede_id:Number(selectedSede.value),Nombre_Paquete:String(promo?f.nombre:f.concepto).trim(),Precio:Number(promo?f.precio:f.monto),Periodo:periodo,Cantidad_Meses:periodo==='Semanal'?null:Number(promo?f.meses:(periodo==='Mensual'?f.meses:1)),Estado_Paquete:'Activo',aplicar_todas:aplicarTodas.value};if(!payload.Nombre_Paquete||!Number.isFinite(payload.Precio)||payload.Precio<0){notify('Ingresa un nombre y precio válido.','error');return;}saving.value=true;try{await request(modalConfig.isNew?'':`/${f.id}`,{method:modalConfig.isNew?'POST':'PUT',body:JSON.stringify(payload)});modalConfig.isOpen=false;aplicarTodas.value=false;await obtenerPrecios();notify(modalConfig.isNew?'Tarifa registrada correctamente.':'Tarifa actualizada correctamente.','success');}catch(e){notify(e.message,'error');}finally{saving.value=false;}};
-const copiarConfiguracion=async()=>{if(!selectedSede.value)return notify('Selecciona una sucursal.','error');if(!window.confirm('¿Copiar las tarifas y promociones activas de esta sede a todas tus sucursales? Se actualizarán las configuraciones que tengan el mismo nombre.'))return;copiando.value=true;try{const r=await request('/copiar-sedes',{method:'POST',body:JSON.stringify({sede_id:Number(selectedSede.value)})});notify(r.message||'Configuración copiada a todas las sucursales.','success');}catch(e){notify(e.message,'error');}finally{copiando.value=false;}};
+const guardarDatos=async()=>{if(!selectedSede.value){notify('Selecciona una sucursal.','error');return;}const f=modalConfig.form;const promo=modalConfig.type==='promo';const periodo=promo?'Promocion':f.periodo;const payload={sede_id:Number(selectedSede.value),Nombre_Paquete:String(promo?f.nombre:f.concepto).trim(),Precio:Number(promo?f.precio:f.monto),Periodo:periodo,Cantidad_Meses:periodo==='Semanal'?null:Number(promo?f.meses:(periodo==='Mensual'?f.meses:1)),Cantidad_Personas:promo?Math.max(1,Math.floor(Number(f.personas))||1):null,Estado_Paquete:'Activo',aplicar_todas:aplicarTodas.value};if(!payload.Nombre_Paquete||!Number.isFinite(payload.Precio)||payload.Precio<0){notify('Ingresa un nombre y precio válido.','error');return;}saving.value=true;try{await request(modalConfig.isNew?'':`/${f.id}`,{method:modalConfig.isNew?'POST':'PUT',body:JSON.stringify(payload)});modalConfig.isOpen=false;aplicarTodas.value=false;await obtenerPrecios();notify(modalConfig.isNew?'Tarifa registrada correctamente.':'Tarifa actualizada correctamente.','success');}catch(e){notify(e.message,'error');}finally{saving.value=false;}};
+const copyModalOpen=ref(false);
+const abrirModalCopiar=()=>{if(!selectedSede.value)return notify('Selecciona una sucursal.','error');copyModalOpen.value=true;};
+const cerrarModalCopiar=()=>{if(!copiando.value)copyModalOpen.value=false;};
+const copiarConfiguracion=async()=>{if(!selectedSede.value)return notify('Selecciona una sucursal.','error');copiando.value=true;try{const r=await request('/copiar-sedes',{method:'POST',body:JSON.stringify({sede_id:Number(selectedSede.value)})});copyModalOpen.value=false;notify(r.message||'Configuración copiada a todas las sucursales.','success');}catch(e){notify(e.message,'error');}finally{copiando.value=false;}};
 const confirmarEliminarPromocion=(p)=>{deleteModalConfig.idItemToDelete=p.id;deleteModalConfig.isOpen=true;};
 const ejecutarEliminacion=async()=>{try{await request(`/${deleteModalConfig.idItemToDelete}?sede_id=${encodeURIComponent(selectedSede.value)}`,{method:'DELETE'});deleteModalConfig.isOpen=false;await obtenerPrecios();notify('Promoción desactivada correctamente.','success');}catch(e){notify(e.message,'error');}};
 const handleLangChange=(e)=>{if(e.detail?.idioma)currentLang.value=e.detail.idioma;};
@@ -103,7 +109,10 @@ stroke-linecap="round"
 
 <div class="global-prices-action">
 <span>Los precios y promociones se administran por sucursal.</span>
-<button type="button" class="new-promo-btn" :disabled="copiando||loading" @click="copiarConfiguracion">{{ copiando ? 'Copiando...' : 'Copiar configuración a todas las sedes' }}</button>
+<button type="button" class="new-promo-btn ghost" :disabled="copiando||loading" @click="abrirModalCopiar">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+Copiar configuración a todas las sedes
+</button>
 </div>
 
 <section class="metrics-grid">
@@ -212,6 +221,10 @@ class="promotion-card"
 <span></span>
 {{ t('active') }}
 </span>
+<span v-if="promo.personas > 1" class="people-chip">
+<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+{{ promo.personas }} {{ t('persons') }}
+</span>
 </div>
 <div class="promo-meta">
 <div>
@@ -223,14 +236,29 @@ class="promotion-card"
 </div>
 <span class="meta-divider"></span>
 <div>
-<span>{{ t('price') }}</span>
+<span>{{ t('personsLabel') }}</span>
+<strong>
+{{ promo.personas }}
+{{ promo.personas === 1 ? t('person') : t('persons') }}
+</strong>
+</div>
+<span class="meta-divider"></span>
+<div>
+<span>{{ promo.personas > 1 ? t('totalPrice') : t('price') }}</span>
 <strong class="price-value">
 {{ formatCurrency(promo.precio) }}
 </strong>
 </div>
+<span v-if="promo.personas > 1" class="meta-divider"></span>
+<div v-if="promo.personas > 1">
+<span>{{ t('perPerson') }}</span>
+<strong>
+{{ formatCurrency(precioPorPersona(promo)) }}
+</strong>
+</div>
 <span v-if="Number(promo.meses) > 1" class="meta-divider"></span>
 <div v-if="Number(promo.meses) > 1">
-<span>{{ t('price') }} / {{ t('month') }}</span>
+<span>{{ t('perMonth') }}{{ promo.personas > 1 ? ' / ' + t('person') : '' }}</span>
 <strong>
 {{ formatCurrency(precioPorMes(promo)) }}
 </strong>
@@ -364,11 +392,11 @@ class="modal-wrapper"
 >
 <div
 class="custom-modal-card"
-:class="
+:class="[
 modalConfig.type === 'promo'
-? 'modal-accent-blue'
+? 'modal-accent-blue modal-wide'
 : 'modal-accent-violet'
-"
+]"
 >
 <div
 class="modal-icon-badge"
@@ -403,28 +431,47 @@ v-model="modalConfig.form.nombre"
 required
 />
 </div>
-<div class="form-grid-modal">
-<div class="input-group">
+<div class="field-block">
 <label>{{ t('monthsFieldLabel') }}</label>
-<input
-type="number"
-inputmode="numeric"
-v-model="modalConfig.form.meses"
-placeholder="Ej. 3"
-min="1"
-required
-/>
+<div class="stepper">
+<button type="button" class="step-btn" :disabled="Number(modalConfig.form.meses) <= 1" aria-label="-" @click="ajustar('meses', -1)">−</button>
+<input type="number" inputmode="numeric" min="1" max="120" v-model.number="modalConfig.form.meses" required />
+<button type="button" class="step-btn" aria-label="+" @click="ajustar('meses', 1)">+</button>
+</div>
+<div class="quick-chips">
+<button v-for="n in [1, 3, 6, 12]" :key="n" type="button" class="chip" :class="{ active: Number(modalConfig.form.meses) === n }" @click="modalConfig.form.meses = n">{{ n }} {{ n === 1 ? t('month') : t('months') }}</button>
+</div>
+</div>
+<div class="field-block">
+<label>{{ t('personsLabel') }}</label>
+<div class="stepper">
+<button type="button" class="step-btn" :disabled="Number(modalConfig.form.personas) <= 1" aria-label="-" @click="ajustar('personas', -1, 1, 20)">−</button>
+<input type="number" inputmode="numeric" min="1" max="20" v-model.number="modalConfig.form.personas" required />
+<button type="button" class="step-btn" aria-label="+" @click="ajustar('personas', 1, 1, 20)">+</button>
+</div>
+<div class="quick-chips">
+<button v-for="n in [1, 2, 3, 4]" :key="n" type="button" class="chip" :class="{ active: Number(modalConfig.form.personas) === n }" @click="modalConfig.form.personas = n">{{ n }} {{ n === 1 ? t('person') : t('persons') }}</button>
+</div>
+<small class="field-hint">{{ currentLang === 'en' ? 'E.g. a buddy promo: 2 people share the promotion.' : 'Ej. promoción amigo: 2 personas comparten la promoción.' }}</small>
 </div>
 <div class="input-group">
-<label>{{ t('priceFieldLabel') }}</label>
-<input
-type="number"
-inputmode="decimal"
-v-model="modalConfig.form.precio"
-placeholder="Ej. 1800"
-min="0"
-required
-/>
+<label>{{ t('priceFieldLabel') }} <small class="label-note">({{ currentLang === 'en' ? 'total for everyone' : 'total para todos' }})</small></label>
+<div class="money-input">
+<span>$</span>
+<input type="number" inputmode="decimal" v-model="modalConfig.form.precio" placeholder="Ej. 1800" min="0" required />
+<em>MXN</em>
+</div>
+</div>
+<div class="promo-preview">
+<div class="preview-title">{{ t('summary') }}</div>
+<p>
+{{ previewPromo.personas }} {{ previewPromo.personas === 1 ? t('person') : t('persons') }} ·
+{{ previewPromo.meses }} {{ previewPromo.meses === 1 ? t('month') : t('months') }}
+</p>
+<div class="preview-grid">
+<div><span>{{ t('totalPrice') }}</span><strong>{{ formatCurrency(previewPromo.precio) }}</strong></div>
+<div v-if="previewPromo.personas > 1"><span>{{ t('perPerson') }}</span><strong>{{ formatCurrency(previewPromo.porPersona) }}</strong></div>
+<div v-if="previewPromo.meses > 1 || previewPromo.personas > 1"><span>{{ t('perMonth') }}{{ previewPromo.personas > 1 ? ' / ' + t('person') : '' }}</span><strong>{{ formatCurrency(previewPromo.porMes) }}</strong></div>
 </div>
 </div>
 </template>
@@ -477,6 +524,43 @@ class="btn-primary"
 </button>
 </div>
 </form>
+</div>
+</div>
+</transition>
+
+<transition name="pop">
+<div
+v-if="copyModalOpen"
+class="modal-wrapper"
+@click.self="cerrarModalCopiar"
+>
+<div class="custom-modal-card copy-modal" role="dialog" aria-modal="true">
+<div class="modal-icon-badge">
+<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+</div>
+<h3>Copiar a todas las sucursales</h3>
+<p class="copy-lead">Vas a replicar la configuración comercial de esta sede en el resto de tus sucursales.</p>
+<ul class="copy-steps">
+<li>
+<span class="step-dot">1</span>
+<div><strong>Se copian</strong><small>Las tarifas y promociones activas de esta sede.</small></div>
+</li>
+<li>
+<span class="step-dot">2</span>
+<div><strong>Se actualizan</strong><small>Las configuraciones que ya tengan el mismo nombre en otra sucursal.</small></div>
+</li>
+<li>
+<span class="step-dot">3</span>
+<div><strong>Se conservan</strong><small>Los precios con otros nombres no se modifican.</small></div>
+</li>
+</ul>
+<div class="modal-actions">
+<button type="button" class="btn-secondary" :disabled="copiando" @click="cerrarModalCopiar">Cancelar</button>
+<button type="button" class="btn-primary copy-confirm" :disabled="copiando" @click="copiarConfiguracion">
+<span v-if="copiando" class="btn-spinner"></span>
+{{ copiando ? 'Copiando...' : 'Copiar configuración' }}
+</button>
+</div>
 </div>
 </div>
 </transition>
@@ -711,4 +795,57 @@ class="btn-danger"
 }
 @media (prefers-reduced-motion: reduce){.new-promo-btn, .metric-card, .promotion-card, .price-card, .action-btn, .price-edit, .btn-primary, .btn-secondary, .btn-danger, .empty-state button, .pop-enter-active, .pop-leave-active, .pop-enter-active .custom-modal-card, .pop-leave-active .custom-modal-card{transition: none !important;}
 }
+
+/* ===== Promoción por cantidad de personas + rediseño ===== */
+.global-prices-action{padding:12px 16px;border:1px solid var(--line-soft);border-radius:12px;background:color-mix(in srgb, var(--text) 2.5%, transparent);color:var(--muted)}
+.new-promo-btn.ghost{background:color-mix(in srgb, var(--accent) 8%, transparent);color:var(--accent);box-shadow:none;border-color:color-mix(in srgb, var(--accent) 34%, transparent)}
+.new-promo-btn.ghost:hover{background:color-mix(in srgb, var(--accent) 14%, transparent);box-shadow:none}
+.new-promo-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.people-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid rgba(139,92,246,.3);border-radius:999px;background:rgba(139,92,246,.09);color:#c4b5fd;font-size:.58rem;font-weight:700}
+.people-chip svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.promo-meta{gap:8px}
+.promo-meta > div{min-width:84px;padding:8px 12px;border:1px solid var(--line-soft);border-radius:10px;background:color-mix(in srgb, var(--text) 2.5%, transparent)}
+.meta-divider{display:none}
+.modal-wide{max-width:480px}
+.field-block{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.field-block > label,.input-group > label{color:var(--color-etiquetas, var(--text));font-size:.7rem;font-weight:600;letter-spacing:.015em}
+.label-note{color:var(--muted);font-weight:500}
+.stepper{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;gap:8px}
+.stepper input{width:100%;min-height:46px;padding:0 10px;outline:none;border:1px solid var(--line);border-radius:10px;background:var(--input);color:var(--color-texto-input, var(--text));font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+.stepper input::-webkit-inner-spin-button,.stepper input::-webkit-outer-spin-button{margin:0;-webkit-appearance:none}
+.stepper input:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)}
+.step-btn{min-height:46px;border:1px solid var(--line);border-radius:10px;background:color-mix(in srgb, var(--text) 4%, transparent);color:var(--text);font-size:1.3rem;line-height:1;cursor:pointer;transition:background .16s ease,border-color .16s ease,transform .16s ease}
+.step-btn:hover:not(:disabled){border-color:color-mix(in srgb, var(--accent) 45%, transparent);background:color-mix(in srgb, var(--accent) 10%, transparent)}
+.step-btn:active:not(:disabled){transform:scale(.95)}
+.step-btn:disabled{opacity:.4;cursor:not-allowed}
+.quick-chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:.68rem;font-weight:600;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+.chip:hover{border-color:color-mix(in srgb, var(--accent) 45%, transparent);color:var(--text)}
+.chip.active{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 14%, transparent);color:var(--accent)}
+.field-hint{color:var(--muted);font-size:.64rem;line-height:1.4}
+.money-input{display:flex;align-items:center;gap:8px;min-height:46px;padding:0 13px;border:1px solid var(--line);border-radius:10px;background:var(--input);transition:border-color .16s ease,box-shadow .16s ease}
+.money-input:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)}
+.money-input span,.money-input em{color:var(--muted);font-style:normal;font-size:.78rem;font-weight:600}
+.money-input input{flex:1;min-width:0;min-height:44px;padding:0;border:0 !important;box-shadow:none !important;background:transparent;font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:600}
+.promo-preview{margin-top:4px;padding:14px;border:1px solid color-mix(in srgb, var(--accent) 24%, transparent);border-radius:12px;background:color-mix(in srgb, var(--accent) 6%, transparent)}
+.preview-title{color:var(--accent);font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.promo-preview p{margin:4px 0 10px;color:var(--title);font-size:.82rem;font-weight:600}
+.preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.preview-grid > div{padding:9px 11px;border:1px solid var(--line-soft);border-radius:9px;background:color-mix(in srgb, var(--panel) 70%, transparent)}
+.preview-grid span{display:block;margin-bottom:2px;color:var(--muted);font-size:.58rem;font-weight:600}
+.preview-grid strong{color:var(--green);font-family:'Oswald',sans-serif;font-size:.98rem;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.stepper{grid-template-columns:44px minmax(0,1fr) 44px}.promo-meta > div{flex:1 1 40%}}
+
+/* ===== Modal de copiar configuración ===== */
+.copy-modal{max-width:440px}
+.copy-lead{margin:-8px auto 18px;max-width:340px;color:var(--muted);font-size:.76rem;line-height:1.55;text-align:center}
+.copy-steps{display:flex;flex-direction:column;gap:9px;margin:0;padding:0;list-style:none}
+.copy-steps li{display:flex;align-items:flex-start;gap:12px;padding:12px 13px;border:1px solid var(--line-soft);border-radius:11px;background:color-mix(in srgb, var(--text) 2.5%, transparent)}
+.step-dot{width:24px;height:24px;flex-shrink:0;display:grid;place-items:center;border:1px solid color-mix(in srgb, var(--accent) 34%, transparent);border-radius:8px;background:color-mix(in srgb, var(--accent) 10%, transparent);color:var(--accent);font-family:'Oswald',sans-serif;font-size:.72rem;font-weight:600}
+.copy-steps strong{display:block;margin-bottom:2px;color:var(--title);font-size:.76rem;font-weight:650}
+.copy-steps small{display:block;color:var(--muted);font-size:.68rem;line-height:1.45}
+.copy-confirm{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-primary:disabled,.btn-secondary:disabled{opacity:.6;cursor:not-allowed;transform:none;filter:none}
 </style>
