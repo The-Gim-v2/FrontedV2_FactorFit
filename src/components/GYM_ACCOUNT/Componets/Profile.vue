@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import RegisterGymModal from '../../Record/Record-Gym.vue';
 import { traducciones } from '../i18n.js';
@@ -12,7 +12,62 @@ import 'leaflet/dist/leaflet.css';
 
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const router = useRouter();
-const originalEmail = ref('contacto@ironfitness.com');
+const route = useRoute();
+const originalEmail = ref('');
+const saving = ref(false);
+const loadingProfile = ref(false);
+const profileError = ref('');
+const branchName = ref('Sede Emiliano Zapata');
+const coverFile = ref<File | null>(null);
+const branchFromEvent = ref(0);
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const tokenFromStorage = (): string => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const name of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
+      const value = storage.getItem(name);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const name of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
+      try {
+        const value = JSON.parse(storage.getItem(name) || 'null');
+        const tokenValue = value?.token || value?.access_token || value?.accessToken;
+        if (tokenValue) return String(tokenValue).replace(/^Bearer\s+/i, '');
+      } catch { /* No era JSON. */ }
+    }
+  }
+  return '';
+};
+const storedBranchId = (): number => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const keyName of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
+      const raw = storage.getItem(keyName);
+      if (!raw) continue;
+      let entry: unknown = raw;
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          const obj = parsed as Record<string, unknown>;
+          entry = obj.ID_Sede ?? obj.sede_id ?? obj.id ?? obj.value ?? 0;
+        } else entry = parsed;
+      } catch { /* Usar cadena. */ }
+      const id = Number(entry);
+      if (Number.isInteger(id) && id > 0) return id;
+    }
+  }
+  return 1;
+};
+const getBranchId = (): number => {
+  if (branchFromEvent.value > 0) return branchFromEvent.value;
+  const queryId = Number(route.query.sede_id);
+  return Number.isInteger(queryId) && queryId > 0 ? queryId : storedBranchId();
+};
+const validImage = (file: File): boolean => {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size >= 3 * 1024 * 1024) {
+    showNotification(txt('Solo JPG, PNG o WEBP de menos de 3 MB.', 'Only JPG, PNG or WEBP under 3 MB.'), 'warning');
+    return false;
+  }
+  return true;
+};
 
 /* =========================================================
    TRADUCCIONES
@@ -172,11 +227,15 @@ onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   initMap();
   initScrollSpy();
+  window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  void loadProfile();
 });
 
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange as EventListener);
+  window.removeEventListener('factorfit:branch-changed', onBranchChanged);
   window.removeEventListener('resize', handleWindowResizeMap);
+  requestSequence++;
 
   if (geocodeTimer) clearTimeout(geocodeTimer);
 
@@ -218,10 +277,135 @@ const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-const handleSaveChanges = () => {
-  const diaInvalido = diasSeleccionados.value.find((d) => errorDia(d));
-  if (diaInvalido) {
-    showNotification(`${diaInvalido}: ${errorDia(diaInvalido)}`, 'warning', 5000);
+type ApiPerfil = {
+  perfil: Record<string, unknown>;
+  sede_nombre: string;
+  sede_id: number;
+  logo_url: string | null;
+  portada_url: string | null;
+  requires_login?: boolean;
+  message?: string;
+};
+const apiRequest = async (path: string, options: RequestInit = {}): Promise<ApiPerfil> => {
+  const token = tokenFromStorage();
+  if (!token) throw new Error(txt('Sesión caducada. Inicia sesión de nuevo.', 'Session expired. Please sign in again.'));
+  const response = await fetch(`${API}${path}`, {
+    ...options,
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...options.headers },
+    cache: 'no-store'
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errors = data?.errors as Record<string, string[]> | undefined;
+    const detail = errors && Object.values(errors).flat()[0];
+    throw new Error(String(detail || data?.message || `HTTP ${response.status}`));
+  }
+  return data as ApiPerfil;
+};
+const syncProfile = async (data: ApiPerfil): Promise<void> => {
+  if (previewImage.value?.startsWith('blob:')) URL.revokeObjectURL(previewImage.value);
+  if (previewCoverImage.value?.startsWith('blob:')) URL.revokeObjectURL(previewCoverImage.value);
+  const value = data.perfil || {};
+  const stringFields = ['nombreGimnasio', 'nombrePropietario', 'entidad', 'municipio', 'cp', 'status',
+    'colonia', 'calle', 'otrasCalles', 'numExt', 'numInt', 'precioMes', 'precioSem', 'email',
+    'descripcionGimnasio', 'latitud', 'longitud'] as const;
+  for (const key of stringFields) {
+    const field = value[key];
+    (form as unknown as Record<string, unknown>)[key] = field == null ? '' : String(field);
+  }
+  form.mapZoomLevel = Number(value.mapZoomLevel) || 15;
+  const amenities = value.amenidades;
+  form.amenidades = Array.isArray(amenities) ? amenities.map((item: unknown, i: number) => {
+    const obj = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+    return { id: i + 1, nombre: String(obj.nombre ?? item ?? '') };
+  }).filter((item: { nombre: string }) => item.nombre.trim() !== '') : [];
+  const selected = value.selectedDays;
+  form.selectedDays = Array.isArray(selected) ? selected.filter((d: unknown): d is Dia =>
+    typeof d === 'string' && allDays.includes(d as Dia)) : [];
+  const incoming = value.horariosCompletos;
+  if (incoming && typeof incoming === 'object') {
+    const daysMap = incoming as Record<string, { activo?: boolean; turnos?: Turno[] }>;
+    for (const day of allDays) {
+      const schedule = daysMap[day];
+      if (!schedule) continue;
+      form.horariosCompletos[day] = {
+        activo: Boolean(schedule.activo),
+        turnos: Array.isArray(schedule.turnos) && schedule.turnos.length
+          ? schedule.turnos.map(turn => ({ abierto: String(turn.abierto || ''), cerrado: String(turn.cerrado || '') }))
+          : [{ abierto: '09:00', cerrado: '18:00' }]
+      };
+    }
+  }
+  form.password = '';
+  form.confirmPassword = '';
+  avatarFile.value = null;
+  coverFile.value = null;
+  previewImage.value = data.logo_url || null;
+  previewCoverImage.value = data.portada_url || null;
+  originalEmail.value = form.email;
+  branchName.value = data.sede_nombre || `Sede ${getBranchId()}`;
+  const lat = Number(form.latitud), lng = Number(form.longitud);
+  if (form.latitud && form.longitud && Number.isFinite(lat) && Number.isFinite(lng)) {
+    marker?.setLatLng([lat, lng]);
+    mapInstance?.setView([lat, lng], form.mapZoomLevel);
+    actualizarPopupMarcador(true);
+  }
+};
+let requestSequence = 0;
+const loadProfile = async (): Promise<void> => {
+  const seq = ++requestSequence;
+  loadingProfile.value = true;
+  profileError.value = '';
+  try {
+    const data = await apiRequest(`/api/gym/perfil?sede_id=${getBranchId()}`);
+    if (seq !== requestSequence) return;
+    await syncProfile(data);
+  } catch (error) {
+    if (seq !== requestSequence) return;
+    profileError.value = error instanceof Error ? error.message : 'No se pudo cargar el perfil.';
+    showNotification(profileError.value, 'error');
+  } finally {
+    if (seq === requestSequence) loadingProfile.value = false;
+  }
+};
+const sendProfile = async (): Promise<void> => {
+  if (saving.value) return;
+  saving.value = true;
+  try {
+    const payload = {
+      ...form,
+      sede_id: getBranchId(),
+      email: form.email.trim().toLowerCase(),
+      amenidades: form.amenidades.map(item => ({ nombre: item.nombre.trim() })),
+      selectedDays: form.selectedDays,
+      horariosCompletos: form.horariosCompletos
+    };
+    const body = new FormData();
+    body.set('perfil', JSON.stringify(payload));
+    if (avatarFile.value) body.set('logo', avatarFile.value);
+    if (coverFile.value) body.set('portada', coverFile.value);
+    const data = await apiRequest('/api/gym/perfil', { method: 'POST', body });
+    showEmailModal.value = false;
+    await syncProfile(data);
+    showNotification(txt('Perfil guardado correctamente en el servidor.', 'Profile saved successfully.'), 'success');
+    window.dispatchEvent(new CustomEvent('factorfit:gym-profile-updated', { detail: { sede_id: getBranchId() } }));
+    if (data.requires_login) {
+      for (const storage of [localStorage, sessionStorage]) {
+        for (const keyName of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken', 'user', 'auth', 'session', 'gymAccount', 'gym_account']) {
+          storage.removeItem(keyName);
+        }
+      }
+      showNotification(txt('Credenciales actualizadas. Inicia sesión de nuevo.', 'Credentials updated. Please sign in again.'), 'info');
+      await router.replace({ name: 'login' });
+    }
+  } catch (error) {
+    showNotification(error instanceof Error ? error.message : 'No se pudo guardar el perfil.', 'error', 6000);
+  } finally { saving.value = false; }
+};
+const validateAndSave = async (confirmedEmailChange = false): Promise<void> => {
+  const invalidDay = diasSeleccionados.value.find(day => errorDia(day));
+  if (invalidDay) {
+    showNotification(`${invalidDay}: ${errorDia(invalidDay)}`, 'warning');
     scrollToSection('gym-operation');
     return;
   }
@@ -229,54 +413,67 @@ const handleSaveChanges = () => {
     showNotification(txt('Escribe un correo válido.', 'Enter a valid email.'), 'warning');
     return;
   }
-  if (form.email.trim() !== originalEmail.value) {
-    showEmailModal.value = true;
-  } else {
-    showNotification(t('Guardado Correctamente'), 'success');
+  const changingEmail = form.email.trim().toLowerCase() !== originalEmail.value.trim().toLowerCase();
+  const changingPassword = form.password !== '';
+  if (changingPassword && (form.password.length < 8 || form.password !== form.confirmPassword)) {
+    showNotification(txt('La contraseña debe tener al menos 8 caracteres y coincidir.', 'Password must be at least 8 characters and match.'), 'warning');
+    return;
   }
+  if (changingEmail && !confirmedEmailChange) {
+    showEmailModal.value = true;
+    return;
+  }
+  if (changingEmail && !changingPassword) {
+    showNotification(txt('Define una nueva contraseña para cambiar el correo.', 'Set a new password to change email.'), 'warning');
+    return;
+  }
+  await sendProfile();
 };
+const handleSaveChanges = (): void => { void validateAndSave(); };
+const onBranchChanged = (event: Event): void => {
+  const detail = (event as CustomEvent<Record<string, unknown>>).detail || {};
+  const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede as Record<string, unknown> : {};
+  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedBranchId());
+  branchFromEvent.value = Number.isInteger(id) && id > 0 ? id : 0;
+  void loadProfile();
+};
+watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadProfile(); });
 
 const form = reactive({
-  nombreGimnasio: 'Iron Fitness Center',
-  nombrePropietario: 'Juan Carlos Pérez Gómez',
-  entidad: 'San Luis Potosí',
-  municipio: 'Ciudad Valles',
-  cp: '79000',
+  nombreGimnasio: '',
+  nombrePropietario: '',
+  entidad: '',
+  municipio: '',
+  cp: '',
   status: 'activo',
 
-  colonia: 'Zona Centro',
-  calle: 'Av. Universitaria',
+  colonia: '',
+  calle: '',
   otrasCalles: '',
-  numExt: '420',
+  numExt: '',
   numInt: '',
-  selectedDays: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as Dia[],
-  precioMes: '450',
-  precioSem: '150',
-  email: 'contacto@ironfitness.com',
+  selectedDays: [] as Dia[],
+  precioMes: '',
+  precioSem: '',
+  email: '',
   password: '',
   confirmPassword: '',
-  membresiaActual: 'Plan Pro - Sede Principal (Activa)',
+  membresiaActual: 'Cuenta FactorFit',
   tipoMembresia: 'pro',
-  descripcionGimnasio: 'Instalaciones de clase mundial con tecnología de seguimiento biomecánico y áreas especializadas para entrenamiento de alto rendimiento.',
+  descripcionGimnasio: '',
   nuevaAmenidadTexto: '',
-  amenidades: [
-    { id: 1, nombre: 'Estacionamiento Gratuito' },
-    { id: 2, nombre: 'Regaderas y Lockers' },
-    { id: 3, nombre: 'Wi-Fi de Alta Velocidad' },
-    { id: 4, nombre: 'Zona de Sauna' },
-    { id: 5, nombre: 'Bebidas Energéticas' }
-  ],
+  amenidades: [] as { id: number; nombre: string }[],
   horariosCompletos: {
-    'Lun': { activo: true, turnos: [{ abierto: '06:00', cerrado: '23:00' }] },
-    'Mar': { activo: true, turnos: [{ abierto: '06:00', cerrado: '23:00' }] },
-    'Mié': { activo: true, turnos: [{ abierto: '06:00', cerrado: '23:00' }] },
-    'Jue': { activo: true, turnos: [{ abierto: '06:00', cerrado: '23:00' }] },
-    'Vie': { activo: true, turnos: [{ abierto: '06:00', cerrado: '23:00' }] },
-    'Sáb': { activo: true, turnos: [{ abierto: '07:00', cerrado: '20:00' }] },
-    'Dom': { activo: true, turnos: [{ abierto: '08:00', cerrado: '16:00' }] }
+    'Lun': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Mar': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Mié': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Jue': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Vie': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Sáb': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] },
+    'Dom': { activo: false, turnos: [{ abierto: '09:00', cerrado: '18:00' }] }
   } as Record<Dia, Horario>,
-  latitud: '21.9903',
-  longitud: '-99.0152',
+  latitud: '',
+  longitud: '',
   mapZoomLevel: 15
 });
 
@@ -290,7 +487,6 @@ const toggleDay = (day: Dia) => {
   if (index > -1) form.selectedDays.splice(index, 1);
   else form.selectedDays.push(day);
 };
-
 
 /* ---------- Turnos por día (horario partido) ---------- */
 const MAX_TURNOS = 3;
@@ -404,14 +600,14 @@ const onFileSelected = (event: Event) => {
   const file = input.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
+  if (!validImage(file)) {
     showNotification(txt('Selecciona una imagen válida.', 'Select a valid image.'), 'warning');
     input.value = '';
     return;
   }
 
   setAvatarFile(file);
-  showNotification(tr('toastLogoUpdated', 'Foto actualizada correctamente'), 'success');
+  showNotification(txt('Foto seleccionada. Guarda los cambios para subirla.', 'Photo selected. Save changes to upload.'), 'info');
   input.value = '';
 };
 
@@ -574,10 +770,11 @@ const capturePhoto = () => {
 
       const file = new File([blob], `gimnasio-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
+      if (!validImage(file)) return;
       setAvatarFile(file);
       closeCamera();
 
-      showNotification(txt('Foto tomada correctamente.', 'Photo captured successfully.'), 'success');
+      showNotification(txt('Foto tomada. Guarda los cambios para subirla.', 'Photo taken. Save changes to upload.'), 'info');
     },
     'image/jpeg',
     0.92
@@ -590,36 +787,20 @@ const onCoverFileSelected = (event: Event) => {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (file) {
-    if (!file.type.startsWith('image/')) {
+    if (!validImage(file)) {
       showNotification(txt('Selecciona una imagen válida.', 'Select a valid image.'), 'warning');
       input.value = '';
       return;
     }
     if (previewCoverImage.value?.startsWith('blob:')) URL.revokeObjectURL(previewCoverImage.value);
     previewCoverImage.value = URL.createObjectURL(file);
-    showNotification('Foto de portada actualizada correctamente', 'info');
+    coverFile.value = file;
+    showNotification(txt('Portada seleccionada. Guarda los cambios para subirla.', 'Cover selected. Save changes to upload.'), 'info');
   }
   input.value = '';
 };
 
-const confirmEmailAndPasswordChange = () => {
-  if (!form.password || form.password !== form.confirmPassword) {
-    showNotification(t('passwordWarningMsg'), 'warning');
-    return;
-  }
-  // Lógica de guardado...
-  originalEmail.value = form.email.trim();
-  showEmailModal.value = false;
-  showNotification(t('emailChangedMsg'), 'info', 5000);
-
-  setTimeout(() => {
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-
-    router.replace({ name: 'login' });
-  }, 2000);
-};
+const confirmEmailAndPasswordChange = (): void => { void validateAndSave(true); };
 
 const handleAddSede = () => {
   if (!isProMember.value) {
@@ -1012,12 +1193,12 @@ async function buscarDireccion() {
             <div class="profile-data-list">
               <div class="profile-data-item">
                 <span>{{ tr('branchLabel', 'Sede') }}</span>
-                <strong>{{ tr('mainBranchLabel', 'Sede Principal') }}</strong>
+                <strong>{{ branchName }}</strong>
               </div>
 
               <div class="profile-data-item">
                 <span>{{ tr('membershipLabel', 'Membresía') }}</span>
-                <strong>Plan Pro</strong>
+                <strong>{{ form.membresiaActual }}</strong>
               </div>
 
               <div class="profile-data-item">
@@ -1067,6 +1248,8 @@ async function buscarDireccion() {
         <!-- FORMULARIO -->
         <div class="settings-content">
           <form @submit.prevent="handleSaveChanges">
+            <p v-if="loadingProfile" class="profile-save-status">Cargando perfil del gimnasio...</p>
+            <p v-if="profileError" class="profile-save-status error">{{ profileError }} <button type="button" @click="loadProfile">Reintentar</button></p>
 
             <!-- INFORMACIÓN GENERAL -->
             <section id="gym-info" class="settings-card">
@@ -1585,7 +1768,7 @@ async function buscarDireccion() {
 
                     <div class="money-input">
                       <span>$</span>
-                      <input id="precioMes" v-model="form.precioMes" type="number" min="0" required />
+                      <input id="precioMes" v-model="form.precioMes" type="number" min="0" />
                       <small>MXN</small>
                     </div>
                   </div>
@@ -1599,7 +1782,7 @@ async function buscarDireccion() {
 
                     <div class="money-input">
                       <span>$</span>
-                      <input id="precioSem" v-model="form.precioSem" type="number" min="0" required />
+                      <input id="precioSem" v-model="form.precioSem" type="number" min="0" />
                       <small>MXN</small>
                     </div>
                   </div>
@@ -1720,13 +1903,13 @@ async function buscarDireccion() {
                 <span>{{ tr('saveChangesDescription', 'Revisa la información antes de guardar los cambios.') }}</span>
               </div>
 
-              <button type="submit" class="save-button">
+              <button type="submit" class="save-button" :disabled="saving || loadingProfile || !!profileError">
                 <svg viewBox="0 0 24 24">
                   <path d="M5 3h14l2 2v16H3V3z"/>
                   <path d="M8 3v6h8V3M8 21v-7h8v7"/>
                 </svg>
 
-                {{ t('btnSaveDataset') }}
+                {{ saving ? txt('Guardando...', 'Saving...') : t('btnSaveDataset') }}
               </button>
             </div>
           </form>
@@ -1922,7 +2105,7 @@ async function buscarDireccion() {
                 {{ t('cancelBtn') }}
               </button>
 
-              <button type="button" class="btn-primary-modal" @click="confirmEmailAndPasswordChange">
+              <button type="button" class="btn-primary-modal" :disabled="saving" @click="confirmEmailAndPasswordChange">
                 {{ t('confirmChangeBtn') }}
               </button>
             </div>
@@ -3310,7 +3493,6 @@ button, input, textarea { font: inherit; }
 .add-shift-btn:hover { background: var(--accent-soft); }
 .add-shift-btn span { font-size: 16px; line-height: 1; }
 
-
 .price-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 
 .price-field {
@@ -4034,4 +4216,5 @@ button, input, textarea { font: inherit; }
   .camera-loader,
   .switch-camera-btn svg.rotating { animation-duration: 1.4s !important; }
 }
+.profile-save-status{margin:0 0 16px;padding:12px 16px;color:#93c5fd;border:1px solid rgba(96,165,250,.25);border-radius:10px;background:rgba(96,165,250,.07)}.profile-save-status.error{color:#fca5a5;border-color:rgba(239,68,68,.3)}.profile-save-status button{margin-left:8px;border:0;background:transparent;color:inherit;text-decoration:underline;cursor:pointer}.save-button:disabled{opacity:.55;cursor:not-allowed}
 </style>
