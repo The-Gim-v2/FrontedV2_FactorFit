@@ -196,7 +196,6 @@ const currentLang=ref(localStorage.getItem('GYM_ACCOUNT-idioma')||'es');
 const handleLangChange=(e:Event)=>{const v=(e as CustomEvent<{idioma?:string}>).detail?.idioma;if(v)currentLang.value=v;};
 const PAGE_SIZE=40,page=ref(1),totalPages=computed(()=>Math.max(1,Math.ceil(filteredUsers.value.length/PAGE_SIZE))),showPager=computed(()=>filteredUsers.value.length>PAGE_SIZE),pagedUsers=computed(()=>filteredUsers.value.slice((page.value-1)*PAGE_SIZE,page.value*PAGE_SIZE));
 const goPage=(n:number)=>{page.value=Math.min(Math.max(1,n),totalPages.value);window.scrollTo({top:0,behavior:'smooth'});};
-watch(totalPages,n=>{if(page.value>n)page.value=n;});
 const refreshVisible=()=>{if(document.visibilityState==='visible')void loadUsers();};
 const refreshFocus=()=>{void loadUsers();};
 let loadSequence=0;
@@ -216,6 +215,8 @@ const loadUsers=async():Promise<void>=>{
  finally{if(seq===loadSequence)loading.value=false;}
 };
 const filteredUsers=computed(()=>{const q=searchQuery.value.toLocaleLowerCase().trim();return users.value.filter(u=>!q||[u.name,u.email,u.debt,u.phone,u.mensualidad,u.status,u.expiredDate,String(u.id)].some(v=>v.toLocaleLowerCase().includes(q)));});
+// El watcher de totalPages debe registrarse DESPUÉS de declarar filteredUsers.
+watch(totalPages,n=>{if(page.value>n)page.value=n;});
 watch(searchQuery,()=>page.value=1);
 const stats=computed(()=>{const l=filteredUsers.value;return[{key:'statTotal' as const,value:String(l.length),tone:'total'},{key:'statExpired' as const,value:String(l.filter(u=>u.status==='Inactivo').length),tone:'red'},{key:'statPending' as const,value:String(l.filter(u=>u.status==='Pendiente'||u.status==='En tolerancia').length),tone:'orange'},{key:'statDebt' as const,value:money(l.reduce((a,u)=>a+u.debtValue,0)),tone:'red'}];});
 // Renovar conduce al módulo real de cobro; no registra pagos fingidos en un modal local.
