@@ -71,7 +71,7 @@
               <td><div class="avatar-small" :style="avatarStyle(user.id)"><img v-if="user.photo" :src="user.photo" :alt="user.name" @error="user.photo = null" />{{ user.photo ? '' : getInitials(user.name) }}</div></td>
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
-              <td><span class="type-chip">{{ typeLabel(user.mensualidad) }}</span></td>
+              <td><span class="type-chip" :class="getPeriodClass(user.mensualidad)">{{ typeLabel(user.mensualidad) }}</span></td>
               <td class="text-muted">{{ user.expirationDate }}</td>
               <td><span :class="['status-badge2', getMembershipClass(user.membership)]">{{ user.membership }}</span></td>
               <td class="td-right"><span class="status-badge income">{{ user.amount }}</span></td>
@@ -102,7 +102,7 @@
               <div class="text-bold name-text">{{ user.name }}</div>
               <div class="badges-row">
                 <span :class="['status-badge2', getMembershipClass(user.membership)]">{{ user.membership }}</span>
-                <span class="type-chip">{{ typeLabel(user.mensualidad) }}</span>
+                <span class="type-chip" :class="getPeriodClass(user.mensualidad)">{{ typeLabel(user.mensualidad) }}</span>
               </div>
             </div>
             <span class="status-badge income">{{ user.amount }}</span>
@@ -150,7 +150,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
@@ -279,6 +278,7 @@ const typeLabel = (periodo: string): string => ({
   Mensual:t('monthly'), Quincenal:t('fortnightly'), Semanal:t('weekly'),
   Diario:t('daily'), Promocion:t('promotion')
 } as Record<string, string>)[periodo] || periodo || '—';
+const getPeriodClass=(periodo:string):string=>({Mensual:'type-mensual',Quincenal:'type-quincenal',Semanal:'type-semanal',Diario:'type-diario',Promocion:'type-promocion'} as Record<string,string>)[periodo]||'';
 const formatCurrency = (value: number): string => new Intl.NumberFormat(
   currentLang.value === 'en' ? 'en-US' : 'es-MX', { style:'currency', currency:'MXN' }
 ).format(Number(value) || 0);
@@ -304,11 +304,13 @@ const obtenerToken = (): string => {
   }
   return '';
 };
+const sedeEvento=ref(0);
 const sedeId = (): number => {
+  if(sedeEvento.value>0)return sedeEvento.value;
   const q = Number(route.query.sede_id);
   if (Number.isInteger(q) && q > 0) return q;
   for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['selected_sede_id','sede_id','ID_Sede','selectedSedeId','gym_sede_id']) {
+    for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
       const raw = store.getItem(key);
       if (!raw) continue;
       try {
@@ -319,7 +321,7 @@ const sedeId = (): number => {
       } catch { const n = Number(raw); if (Number.isInteger(n) && n > 0) return n; }
     }
   }
-  return 0;
+  return 1; // Emiliano: sede predeterminada solo si no existe una selección previa.
 };
 const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   id: Number(p.ID_Inscripto), pagoId: Number(p.ID_Pago),
@@ -383,7 +385,12 @@ const handleLangChange = (e: Event) => {
     users.value = users.value.map(u => ({ ...u, amount:formatCurrency(u.monto), saldoAPagar:formatCurrency(u.saldoPendienteNumero), saldoAFavor:formatCurrency(u.saldoFavorNumero) }));
   }
 };
-const cambioSede = () => { void obtenerIngresos(); };
+const cambioSede = (event?:Event) => {
+ const detail=(event as CustomEvent<Record<string,unknown>>|undefined)?.detail;
+ const id=Number(detail?.sede_id??detail?.sedeId??detail?.selectedSedeId??detail?.ID_Sede??detail?.id??0);
+ sedeEvento.value=Number.isInteger(id)&&id>0?id:0;
+ void obtenerIngresos();
+};
 const actualizarMeses = () => {
   fechaActual.value = hoyGym();
   users.value = users.value.map(u => ({...u, membership:etiquetaMembresia(u.mensualidad, u.vencimientoISO, u.monto, u.nombrePaquete)}));
@@ -404,7 +411,7 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', cambioSede);
   window.removeEventListener('resize', updateWidth);
 });
-watch(() => route.query.sede_id, () => { void obtenerIngresos(); });
+watch(() => route.query.sede_id, () => { sedeEvento.value=0;void obtenerIngresos(); });
 const filteredUsers = computed(() => {
   const term = searchQuery.value.trim().toLocaleLowerCase();
   return users.value.filter(p =>
@@ -455,10 +462,8 @@ const getMembershipClass = (etiqueta: string): string => {
   return ({Mensual:'membership-red',Quincenal:'membership-blue',Semanal:'membership-purple',Diario:'membership-orange',Promocion:'membership-pink'} as Record<string,string>)[etiqueta] || 'membership-default';
 };
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
 .main-content, .modal-wrapper { --accent: var(--color-highlight, #3b82f6); --income: #34d399; --card-bg: var(--bg-cards, #121416); --radius: var(--app-border-radius, 14px); --radius-small: 10px; --line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent); --line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent); --muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 68%, transparent); }
 .main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
 .main-content { width: 100%; max-width: 1500px; margin: 0 auto; padding: 34px 36px 55px; color: var(--color-texto-general, #e5e7eb); font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
@@ -565,7 +570,6 @@ const getMembershipClass = (etiqueta: string): string => {
 .pop-enter-active, .pop-leave-active { transition: opacity 0.2s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; }
 .search-input:focus-visible, .status-select:focus-visible, .btn-bulk:focus-visible, .btn-modal:focus-visible, .search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 @media (max-width: 1150px) {
   .main-content { padding: 30px 24px 48px; }
   .header-section { align-items: flex-start; flex-direction: column; gap: 17px; }
@@ -617,7 +621,6 @@ const getMembershipClass = (etiqueta: string): string => {
 @media (prefers-reduced-motion: reduce) {
   .search-input, .status-select, .btn-bulk, .user-table tbody tr, .btn-modal, .pop-enter-active, .pop-leave-active { transition: none !important; }
 }
-
 .table-container { overflow-x: auto; }
 .user-table { min-width: 850px; }
 .avatar-small { overflow: hidden; }
@@ -625,4 +628,10 @@ const getMembershipClass = (etiqueta: string): string => {
 .earnings-message { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: var(--bg-cards, #121416); font-size: .82rem; }
 .earnings-message.error { color: #fca5a5; border: 1px solid rgba(239, 68, 68, .3); }
 .earnings-message button { margin-left: 8px; padding: 5px 10px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; cursor: pointer; }
+/* Colores visibles de los tipos de pago; se conserva el diseño original. */
+.type-chip.type-mensual{color:#ff93a6;border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.24);font-weight:750;}
+.type-chip.type-quincenal{color:#93c5fd;border-color:rgba(96,165,250,.65);background:rgba(96,165,250,.24);font-weight:750;}
+.type-chip.type-semanal{color:#c4b5fd;border-color:rgba(167,139,250,.48);background:rgba(167,139,250,.16);}
+.type-chip.type-diario{color:#fdba74;border-color:rgba(251,146,60,.48);background:rgba(251,146,60,.16);}
+.type-chip.type-promocion{color:#6ee7b7;border-color:rgba(52,211,153,.48);background:rgba(52,211,153,.16);}
 </style>
