@@ -141,8 +141,8 @@ import {useRoute,useRouter} from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import ModalComponent from '../../Modals/ModalComponent.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-interface User{id:number;name:string;email:string;expiredDate:string;mensualidad:string;debt:string;debtValue:number;status:string;phone:string;photo:string|null;}
-const router=useRouter(),toastRef=ref<InstanceType<typeof NotificationSystem>|null>(null),showDelete=ref(false),selectedUser=ref<User|null>(null),searchQuery=ref(''),users=ref<User[]>([]),loading=ref(false),errorCarga=ref(''),deleting=ref(false);
+interface User{id:number;clienteId:number;name:string;email:string;expiredDate:string;mensualidad:string;debt:string;debtValue:number;status:string;phone:string;photo:string|null;}
+const router=useRouter(),toastRef=ref<{notify?:(message:string,type:string)=>void}|null>(null),showDelete=ref(false),selectedUser=ref<User|null>(null),searchQuery=ref(''),users=ref<User[]>([]),loading=ref(false),errorCarga=ref(''),deleting=ref(false);
 const langData={
  es:{renewalsTitle:'Renovaciones',renewalsSubtitle:'Gestiona las membresías vencidas o próximas a vencer de los usuarios',searchPlaceholder:'Buscar usuario...',monthly:'Mensual',fortnightly:'Quincenal',colPhoto:'Foto',colName:'Nombre',colEmail:'Correo',colType:'Pago',colExpiration:'Vencimiento',colDebt:'Adeudo',colActions:'Acciones',expiresLabel:'Vence',renewBtn:'Renovar',deleteBtn:'Retirar',emptyState:'No hay membresías que requieran renovación.',resultsLabel:'resultados',pagination:'Paginación',prevPage:'Página anterior',nextPage:'Página siguiente',statTotal:'Total',statExpired:'Vencidos',statPending:'Pendientes',statDebt:'Adeudo total',deleteTitle:'¿Retirar cliente?',deleteMsgPre:'¿Retirar temporalmente a',deleteMsgPost:'? Se conservarán sus pagos y datos.',cancelBtn:'Cancelar',confirmDeleteBtn:'Sí, retirar',successDeleted:'Cliente retirado temporalmente.',successRenewed:'Membresía actualizada.',loading:'Cargando renovaciones...',retry:'Reintentar'},
  en:{renewalsTitle:'Renewals',renewalsSubtitle:'Manage expired or upcoming membership renewals',searchPlaceholder:'Search client...',monthly:'Monthly',fortnightly:'Fortnightly',colPhoto:'Photo',colName:'Name',colEmail:'Email',colType:'Payment',colExpiration:'Expiration',colDebt:'Debt',colActions:'Actions',expiresLabel:'Expires',renewBtn:'Renew',deleteBtn:'Remove',emptyState:'No memberships currently require renewal.',resultsLabel:'results',pagination:'Pagination',prevPage:'Previous page',nextPage:'Next page',statTotal:'Total',statExpired:'Expired',statPending:'Pending',statDebt:'Total debt',deleteTitle:'Remove client?',deleteMsgPre:'Temporarily remove',deleteMsgPost:'? Their payments and data will be retained.',cancelBtn:'Cancel',confirmDeleteBtn:'Yes, remove',successDeleted:'Client temporarily removed.',successRenewed:'Membership updated.',loading:'Loading renewals...',retry:'Retry'}
@@ -153,11 +153,11 @@ const periodClass=(p:string)=>p==='Mensual'?'type-mensual':p==='Quincenal'?'type
 const getDebtClass=(s:string)=>s==='Inactivo'?'debt-inactive':s==='Próximo a vencer'?'debt-upcoming':s==='En tolerancia'?'debt-pending':'debt-pending';
 type ApiRow={ID_Inscripto:number|string;ID_Cliente:number|string;nombre:string;correo:string|null;celular:string|null;foto_url:string|null;fecha_vencimiento:string|null;fecha_inscripcion?:string|null;plan:string|null;periodo:string|null;cantidad_meses?:number|null;estatus_inscripcion?:string|null;saldo_a_pagar:number|string|null;};
 type ApiIngresos={inscripciones?:ApiRow[];message?:string;};
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const API=String(import.meta.env.VITE_API_URL||'').trim().replace(/\/+$/,'').replace(/\/api$/i,'');
 const getToken=():string=>{
  for(const store of [sessionStorage,localStorage]){
   for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const v=store.getItem(key);if(v)return v.replace(/^Bearer\s+/i,'');}
-  for(const key of ['auth','user','session','gymAccount','gym_account']){try{const v=JSON.parse(store.getItem(key)||'null');const key=v?.token||v?.access_token||v?.accessToken;if(key)return String(key).replace(/^Bearer\s+/i,'');}catch{}}
+  for(const storageKey of ['auth','user','session','gymAccount','gym_account']){try{const session=JSON.parse(store.getItem(storageKey)||'null');const sessionToken=session?.token||session?.access_token||session?.accessToken;if(sessionToken)return String(sessionToken).replace(/^Bearer\s+/i,'');}catch{}}
  }
  return '';
 };
@@ -209,7 +209,7 @@ const loadUsers=async():Promise<void>=>{
   // Usar estatus del servidor (calculado con la morosidad configurada), no fechas ni saldos inventados.
   const candidatos=new Set(['Próximo a vencer','Pendiente','En tolerancia','Inactivo']);
   users.value=res.inscripciones.filter(r=>Number(r.ID_Inscripto)>0&&candidatos.has(String(r.estatus_inscripcion||''))).map(r=>({
-   id:Number(r.ID_Inscripto),name:r.nombre||'Sin nombre',email:r.correo||'',phone:r.celular||'',photo:r.foto_url||null,
+   id:Number(r.ID_Inscripto),clienteId:Number(r.ID_Cliente),name:r.nombre||'Sin nombre',email:r.correo||'',phone:r.celular||'',photo:r.foto_url||null,
    expiredDate:formatDate(r.fecha_vencimiento),mensualidad:String(r.periodo||'—'),status:String(r.estatus_inscripcion||'Pendiente'),debtValue:Math.max(0,Number(r.saldo_a_pagar||0)),debt:money(Number(r.saldo_a_pagar||0))
   }));
  }catch(e){if(seq!==loadSequence)return;users.value=[];notifyError(e instanceof Error?e.message:'Error consultando renovaciones.');}
@@ -219,13 +219,13 @@ const filteredUsers=computed(()=>{const q=searchQuery.value.toLocaleLowerCase().
 watch(searchQuery,()=>page.value=1);
 const stats=computed(()=>{const l=filteredUsers.value;return[{key:'statTotal' as const,value:String(l.length),tone:'total'},{key:'statExpired' as const,value:String(l.filter(u=>u.status==='Inactivo').length),tone:'red'},{key:'statPending' as const,value:String(l.filter(u=>u.status==='Pendiente'||u.status==='En tolerancia').length),tone:'orange'},{key:'statDebt' as const,value:money(l.reduce((a,u)=>a+u.debtValue,0)),tone:'red'}];});
 // Renovar conduce al módulo real de cobro; no registra pagos fingidos en un modal local.
-const handleOpenRenew=(user:User)=>{void router.push({path:`/GYM_ACCOUNT/pay/${user.id}`,query:{sede_id:String(sedeId())}});};
+const handleOpenRenew=(user:User)=>{void router.push({path:`/GYM_ACCOUNT/pay/${user.clienteId}`,query:{sede_id:String(sedeId())}});};
 const confirmDelete=(user:User)=>{selectedUser.value=user;showDelete.value=true;};
 const executeDelete=async():Promise<void>=>{
  if(!selectedUser.value||deleting.value)return;deleting.value=true;
  try{
   const token=getToken();if(!token)throw new Error('Sesión caducada.');
-  const res=await fetch(`${API}/api/gym/clientes/${selectedUser.value.id}?sede_id=${encodeURIComponent(sedeId())}`,{method:'DELETE',headers:{Accept:'application/json',Authorization:`Bearer ${token}`}});
+  const res=await fetch(`${API}/api/gym/clientes/${selectedUser.value.clienteId}?sede_id=${encodeURIComponent(sedeId())}`,{method:'DELETE',headers:{Accept:'application/json',Authorization:`Bearer ${token}`}});
   if(!res.ok){const body=await res.json().catch(()=>({}));throw new Error(body?.message||`Error HTTP ${res.status}`);}
   showDelete.value=false;selectedUser.value=null;toastRef.value?.notify?.(t('successDeleted'),'success');await loadUsers();
  }catch(e){notifyError(e instanceof Error?e.message:'No se pudo retirar al cliente.');}
