@@ -180,6 +180,8 @@ type PagoIngreso = {
   saldoFavorNumero: number;
   folio: string;
   cantidadMeses: number | null;
+  vencimientoISO: string | null;
+  nombrePaquete: string | null;
 };
 type PagoAPI = {
   ID_Pago: number | string;
@@ -202,10 +204,26 @@ type PagoAPI = {
   saldo_a_favor: number | string;
 };
 type PagoConfirmado = { id_pago: number; id_inscripto: number; fecha_pago: string | null; monto: number; periodo: string | null; membresia: string | null; tipo_pago: string | null; };
-const etiquetaMembresia = (periodo: string | null, meses: number | string | null, plan: string | null): string => {
-  const n = Number(meses);
-  if (['Mensual','Promocion'].includes(String(periodo)) && meses !== null && meses !== '' && Number.isInteger(n) && n > 0) return `${n} ${n === 1 ? 'Mes' : 'Meses'}`;
-  return plan || periodo || '—';
+// Etiqueta de cobertura vigente: meses de calendario desde el mes actual hasta el vencimiento.
+// Cantidad_Meses del paquete no refleja las renovaciones que extienden Fecha_Vencimiento.
+const hoyGym = (): { y:number; m:number; d:number } => {
+  const partes = new Intl.DateTimeFormat('en-US', { timeZone:'America/Monterrey', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
+  const numero = (tipo:string):number => Number(partes.find(p => p.type === tipo)?.value ?? 0);
+  return { y:numero('year'), m:numero('month'), d:numero('day') };
+};
+const fechaActual = ref(hoyGym());
+const etiquetaMembresia = (periodo: string | null, vencimiento: string | null, monto: number, plan: string | null): string => {
+  if (!['mensual', 'promocion'].includes(String(periodo || '').toLowerCase())) return plan || periodo || '—';
+  if (!(monto > 0)) return 'Pendiente';
+  const fecha = /^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/.exec(String(vencimiento || ''));
+  if (!fecha) return 'Sin vencimiento';
+  const y = Number(fecha[1]), m = Number(fecha[2]), d = Number(fecha[3]);
+  const verificacion = new Date(Date.UTC(y,m-1,d));
+  if (verificacion.getUTCFullYear() !== y || verificacion.getUTCMonth() !== m-1 || verificacion.getUTCDate() !== d) return 'Sin vencimiento';
+  const hoy = fechaActual.value;
+  if (y < hoy.y || (y === hoy.y && (m < hoy.m || (m === hoy.m && d < hoy.d)))) return 'Vencida';
+  const meses = Math.max(1, (y - hoy.y)*12 + (m - hoy.m));
+  return `${meses} ${meses === 1 ? 'Mes' : 'Meses'}`;
 };
 const route = useRoute();
 const activeModal = ref<string | null>(null);
@@ -310,8 +328,9 @@ const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   enrollmentDate: formatDate(p.fecha_inscripcion),
   paymentDate: formatDate(p.fecha_pago),
   expirationDate: formatDate(p.fecha_vencimiento),
-  membership: etiquetaMembresia(p.periodo, p.cantidad_meses, p.plan), mensualidad: p.periodo || '—',
+  membership: etiquetaMembresia(p.periodo, p.fecha_vencimiento, Number(p.monto || 0), p.plan), mensualidad: p.periodo || '—',
   cantidadMeses: p.cantidad_meses != null ? Number(p.cantidad_meses) : null,
+  vencimientoISO: p.fecha_vencimiento, nombrePaquete: p.plan,
   metodoPago: p.metodo_pago || '—', folio: p.folio || '—',
   monto: Number(p.monto || 0), amount: formatCurrency(Number(p.monto || 0)),
   saldoAPagar: formatCurrency(Number(p.saldo_a_pagar || 0)),
@@ -364,7 +383,13 @@ const handleLangChange = (e: Event) => {
   }
 };
 const cambioSede = () => { void obtenerIngresos(); };
+const actualizarMeses = () => {
+  fechaActual.value = hoyGym();
+  users.value = users.value.map(u => ({...u, membership:etiquetaMembresia(u.mensualidad, u.vencimientoISO, u.monto, u.nombrePaquete)}));
+};
 onMounted(() => {
+  window.addEventListener('focus', actualizarMeses);
+  document.addEventListener('visibilitychange', actualizarMeses);
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   window.addEventListener('factorfit:branch-changed', cambioSede);
   window.addEventListener('resize', updateWidth);
@@ -372,6 +397,8 @@ onMounted(() => {
 });
 onUnmounted(() => {
   requestId++;
+  window.removeEventListener('focus', actualizarMeses);
+  document.removeEventListener('visibilitychange', actualizarMeses);
   window.removeEventListener('idioma-changed', handleLangChange as EventListener);
   window.removeEventListener('factorfit:branch-changed', cambioSede);
   window.removeEventListener('resize', updateWidth);
@@ -387,8 +414,9 @@ const filteredUsers = computed(() => {
   );
 });
 const pagosFiltrados = computed(() => {
-  const inscripciones = new Set(filteredUsers.value.map(u => u.inscripcionId));
-  return pagosConfirmados.value.filter(p => inscripciones.has(Number(p.id_inscripto)));
+  const inscripciones = new Map(filteredUsers.value.map(u => [u.inscripcionId, u.membership] as const));
+  return pagosConfirmados.value.filter(p => inscripciones.has(Number(p.id_inscripto)))
+    .map(p => ({...p, membresia:inscripciones.get(Number(p.id_inscripto)) ?? p.membresia}));
 });
 const PAGE_SIZE = 40;
 const page = ref(1);
@@ -421,7 +449,7 @@ const getInitials = (name: string): string => {
 const avatarStyle = (id: number) => ({backgroundImage:avatarGradients[Math.abs(id)%avatarGradients.length]});
 const getMembershipClass = (etiqueta: string): string => {
   const meses = parseInt(etiqueta, 10);
-  if (/^\d+ Mes(?:es)?$/.test(etiqueta)) return ({1:'membership-red',2:'membership-blue',3:'membership-green',4:'membership-purple',5:'membership-orange',6:'membership-pink'} as Record<number,string>)[meses] || 'membership-default';
+  if (/^\d+ Mes(?:es)?$/.test(etiqueta)) return (['membership-red','membership-blue','membership-green','membership-purple','membership-orange','membership-pink'] as string[])[(meses-1)%6] ?? 'membership-default';
   return ({Mensual:'membership-red',Quincenal:'membership-blue',Semanal:'membership-purple',Diario:'membership-orange',Promocion:'membership-pink'} as Record<string,string>)[etiqueta] || 'membership-default';
 };
 </script>
