@@ -68,11 +68,11 @@ const emit = defineEmits<{(event:'close'):void}>();
 const tabs:Tab[] = ['membership','payment','trend'];
 const tab = ref<Tab>('membership');
 const idioma = ref(typeof localStorage==='undefined'?'es':localStorage.getItem('GYM_ACCOUNT-idioma')||'es');
-const translations:Record<string,Record<string,string>> = {
+const translations:{es:Record<string,string>;en:Record<string,string>} = {
   es:{title:'ANÁLISIS',highlight:'DE INGRESOS',subtitle:'De dónde vienen tus ingresos confirmados',close:'Cerrar modal',tab_membership:'Membresía',tab_payment:'Tipo de pago',tab_trend:'Tendencia',members:'miembros',payments:'pagos',empty:'No hay pagos confirmados con estos filtros.',noDated:'Hay pagos confirmados, pero no tienen una fecha válida para la gráfica.',noPrevious:'Sin datos del mes anterior',topMembership:'Membresía que más aporta',ticket:'Ticket promedio',lastMonth:'Último mes vs anterior',bestMonth:'Mejor mes',chartLabel:'Ingresos por mes',realNote:'Solo se muestran meses con pagos confirmados registrados. No se usan datos de ejemplo.',unknown:'Sin especificar',unknownPlan:'Sin plan'},
   en:{title:'INCOME',highlight:'ANALYSIS',subtitle:'Where your confirmed revenue comes from',close:'Close modal',tab_membership:'Membership',tab_payment:'Payment method',tab_trend:'Trend',members:'members',payments:'payments',empty:'No confirmed payments match these filters.',noDated:'Confirmed payments exist, but none have a valid date for this chart.',noPrevious:'No data for previous month',topMembership:'Top contributing membership',ticket:'Average ticket',lastMonth:'Last month vs previous',bestMonth:'Best month',chartLabel:'Monthly revenue',realNote:'Only months with actual confirmed payments are shown. No sample data.',unknown:'Unspecified',unknownPlan:'No plan'}
 };
-const t=(key:string)=>translations[idioma.value]?.[key]??translations.es[key]??key;
+const t=(key:string):string=>(idioma.value==='en'?translations.en:translations.es)[key]??key;
 const locale=computed(()=>idioma.value==='en'?'en-US':'es-MX');
 const money=(value:number)=>new Intl.NumberFormat(locale.value,{style:'currency',currency:'MXN'}).format(value);
 const confirmed=computed(()=>props.pagos.filter(p=>Number.isFinite(Number(p.monto))&&Number(p.monto)>0));
@@ -89,7 +89,7 @@ const topMembership=computed(()=>membershipRows.value[0]||null);
 const paymentRows=computed<Group[]>(()=>{
   const grouped=new Map<string,{amount:number;count:number;ids:Set<string>}>();
   for(const p of confirmed.value){const name=String(p.tipo_pago||t('unknown')).trim()||t('unknown');const row=grouped.get(name)||{amount:0,count:0,ids:new Set<string>()};row.amount+=Number(p.monto);row.count++;row.ids.add(String(p.id_inscripto??p.id_pago??`unknown-${row.count}`));grouped.set(name,row);}
-  return [...grouped].map(([name,row],i)=>({name,amount:row.amount,count:row.count,members:row.ids.size,percent:pct(row.amount),cls:colors[i%colors.length]})).sort((a,b)=>b.amount-a.amount);
+  return [...grouped].map(([name,row],i)=>({name,amount:row.amount,count:row.count,members:row.ids.size,percent:pct(row.amount),cls:colors[i%colors.length]??'c-default'})).sort((a,b)=>b.amount-a.amount);
 });
 type Month={key:string;value:number;count:number;percent:number};
 const validMonth=(date:string|null|undefined):string|null=>{const match=/^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/.exec(String(date||''));if(!match)return null;const y=Number(match[1]),m=Number(match[2]),d=Number(match[3]);const parsed=new Date(Date.UTC(y,m-1,d));return parsed.getUTCFullYear()===y&&parsed.getUTCMonth()===m-1&&parsed.getUTCDate()===d?`${match[1]}-${match[2]}`:null;};
@@ -101,7 +101,7 @@ const monthly=computed<Month[]>(()=>{
 });
 const monthName=(key:string):string=>new Intl.DateTimeFormat(locale.value,{month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(`${key}-01T12:00:00Z`)).replace(/\./g,'').toUpperCase();
 const bestMonth=computed(()=>monthly.value.reduce<Month|null>((best,row)=>!best||row.value>best.value?row:best,null));
-const delta=computed<number|null>(()=>{const current=monthly.value[monthly.value.length-1];if(!current)return null;const [year,month]=current.key.split('-').map(Number);const previousKey=new Date(Date.UTC(year,month-2,1)).toISOString().slice(0,7);const previous=monthly.value.find(row=>row.key===previousKey);return previous&&previous.value>0?(current.value-previous.value)/previous.value*100:null;});
+const delta=computed<number|null>(()=>{const current=monthly.value[monthly.value.length-1];if(!current)return null;const year=Number(current.key.slice(0,4)),month=Number(current.key.slice(5,7));const previousKey=new Date(Date.UTC(year,month-2,1)).toISOString().slice(0,7);const previous=monthly.value.find(row=>row.key===previousKey);return previous&&previous.value>0?(current.value-previous.value)/previous.value*100:null;});
 const onLang=(e:Event)=>{const value=(e as CustomEvent<{idioma?:string}>).detail?.idioma;if(value)idioma.value=value;};
 const onEscape=(e:KeyboardEvent)=>{if(e.key==='Escape')emit('close');};
 onMounted(()=>{window.addEventListener('idioma-changed',onLang as EventListener);window.addEventListener('keydown',onEscape);});
