@@ -77,7 +77,8 @@ const getStatusClass = (status) => {
   'Activo': 'status-green',
   'Inactivo': 'status-red',
   'Pendiente': 'status-orange',
-  'Próximo a vencer': 'status-yellow'
+  'Próximo a vencer': 'status-yellow',
+  'En tolerancia': 'status-tolerance'
  };
  return classes[status] || 'status-default';
 };
@@ -198,13 +199,16 @@ const cargarClientes = async () => {
   if (current === requestSequence) loadingUsers.value = false;
  }
 };
+const recargarAlVolver = () => { if (document.visibilityState === 'visible') void cargarClientes(); };
 onMounted(() => {
  cargarClientes();
  window.addEventListener('factorfit:branch-changed', cargarClientes);
+ document.addEventListener('visibilitychange', recargarAlVolver);
 });
 onUnmounted(() => {
  requestSequence++;
  window.removeEventListener('factorfit:branch-changed', cargarClientes);
+ document.removeEventListener('visibilitychange', recargarAlVolver);
 });
 const confirmDelete = (user) => {
  selectedUser.value = user;
@@ -276,6 +280,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
       <option value="Inactivo">{{ t('statusInactive') }}</option>
       <option value="Pendiente">{{ t('statusPending') }}</option>
       <option value="Próximo a vencer">{{ t('statusExpiringSoon') }}</option>
+      <option value="En tolerancia">{{ currentLang === 'en' ? 'Grace period' : 'En tolerancia' }}</option>
       </select>
       <svg class="select-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </div>
@@ -889,6 +894,8 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
  background:
   rgba(250, 204, 21, 0.08);
 }
+/* En tolerancia: tono violeta, sin modificar los colores existentes. */
+.status-tolerance { color: #c084fc; border-color: rgba(192,132,252,.3); background: rgba(192,132,252,.09); }
 .status-default {
  color: #cbd5e1;
  border-color:
@@ -1302,6 +1309,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
  .user-card.status-orange::before {
   background: #fbbf24;
  }
+ .user-card.status-tolerance::before { background: #c084fc; }
  .user-card.status-yellow::before {
   background: #facc15;
  }

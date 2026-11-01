@@ -116,25 +116,53 @@ const fechaProximoCorte = computed(() => fechaSolo(inscripcion.value?.Fecha_Venc
 /* =========================================================
    PROMOCIÓN SELECCIONADA (normalizada)
 ========================================================= */
-const periodoOferta = computed(() => ofertaSeleccionada.value?.periodo || 'Mensual');
-const esVisita = computed(() => periodoOferta.value === 'Diario');
+// Usar el periodo real del plan cuando NO hay promoción.
+const periodoOferta = computed(() => String(ofertaSeleccionada.value?.periodo || inscripcion.value?.Periodo || 'Mensual').trim().toLowerCase());
+const esVisita = computed(() => periodoOferta.value === 'diario');
+const precioUnidad = computed(() => {
+  const n = Number(inscripcion.value?.Precio);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+});
+const cantidadRecibida = computed(() => {
+  const n = Number(montoRecibir.value);
+  return montoRecibir.value !== null && montoRecibir.value !== '' && Number.isFinite(n) && n > 0 ? n : 0;
+});
+// Una tarifa puede cubrir más de 1 mes por unidad (Cantidad_Meses).
+// Centavos enteros para evitar errores de decimales flotantes.
+const unidadesPagadas = computed(() => {
+  if (ofertaSeleccionada.value || !precioUnidad.value) return 0;
+  const precioCentavos = Math.round(precioUnidad.value * 100);
+  const pagadoCentavos = Math.round(cantidadRecibida.value * 100);
+  return precioCentavos > 0 ? Math.min(120, Math.floor(pagadoCentavos / precioCentavos)) : 0;
+});
+const mesesPagados = computed(() => ofertaSeleccionada.value
+  ? Math.max(1, Math.floor(Number(ofertaSeleccionada.value.meses) || 1))
+  : unidadesPagadas.value * Math.max(1, Math.floor(Number(inscripcion.value?.Cantidad_Meses) || 1)));
 
+// Mantiene el día de corte original incluso al pasar por febrero o meses de 30 días.
+const sumarMeses = (fecha, meses) => {
+  const dia = fecha.getDate();
+  fecha.setDate(1);
+  fecha.setMonth(fecha.getMonth() + meses);
+  const ultimoDia = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0).getDate();
+  fecha.setDate(Math.min(dia, ultimoDia));
+};
 const fechaNuevoCorte = computed(() => {
-  const base = fechaProximoCorte.value === '—' ? new Date() : new Date(`${fechaProximoCorte.value}T12:00:00`);
-  if (Number.isNaN(base.getTime())) return '—';
-  const p = periodoOferta.value;
-  if (p === 'Diario') base.setDate(base.getDate() + 1);
-  else if (p === 'Semanal') base.setDate(base.getDate() + 7);
-  else if (p === 'Quincenal') base.setDate(base.getDate() + 15);
-  else {
-    const months = Number(ofertaSeleccionada.value?.meses) || 1;
-    const day = base.getDate();
-    base.setDate(1);
-    base.setMonth(base.getMonth() + months);
-    const max = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
-    base.setDate(Math.min(day, max));
+  const original = fechaSolo(inscripcion.value?.Fecha_Vencimiento);
+  const fecha = /^\d{4}-\d{2}-\d{2}$/.test(original) ? new Date(`${original}T12:00:00`) : new Date();
+  if (Number.isNaN(fecha.getTime())) return '—';
+  // Un abono inferior al precio de una unidad NO equivale a un periodo completo.
+  if (!ofertaSeleccionada.value && unidadesPagadas.value === 0) return original || '—';
+  const hoy = new Date(); hoy.setHours(12, 0, 0, 0);
+  if (fecha.getTime() < hoy.getTime()) { fecha.setFullYear(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()); }
+  const ciclos = ofertaSeleccionada.value ? 1 : unidadesPagadas.value;
+  switch (periodoOferta.value) {
+    case 'diario': fecha.setDate(fecha.getDate() + ciclos); break;
+    case 'semanal': fecha.setDate(fecha.getDate() + 7 * ciclos); break;
+    case 'quincenal': fecha.setDate(fecha.getDate() + 15 * ciclos); break;
+    default: sumarMeses(fecha, mesesPagados.value);
   }
-  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
 });
 
 /* =========================================================
@@ -174,22 +202,23 @@ const formatoMoneda = n => new Intl.NumberFormat(currentLang.value === 'en' ? 'e
 const reciboLocale = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
 const montoMostrado = computed(() => formatoMoneda(montoRecibir.value));
 
-// Total a pagar: independiente del campo "Monto a recibir".
-// Solo cambia al elegir una promoción o al cargar el precio de la inscripción.
-const totalAPagar = computed(() => {
-  const precio = ofertaSeleccionada.value ? Number(ofertaSeleccionada.value.precio) : Number(inscripcion.value?.Precio);
-  return Number.isFinite(precio) ? precio : 0;
-});
+// Al ingresar $1,500 para una mensualidad de $500, el resumen mostrará $1,500.
+// La promoción mantiene su precio fijo: su monto se valida antes de confirmar.
+const totalAPagar = computed(() => ofertaSeleccionada.value
+  ? (Number(ofertaSeleccionada.value.precio) || 0)
+  : (cantidadRecibida.value || precioUnidad.value));
 const totalMostrado = computed(() => formatoMoneda(totalAPagar.value));
 
 const planActual = computed(() => ofertaSeleccionada.value?.nombre || inscripcion.value?.Nombre_Paquete || t('monthlyOption'));
 const duracionPlan = computed(() => {
-  const p = periodoOferta.value;
-  if (p === 'Diario') return txt('1 día', '1 day');
-  if (p === 'Semanal') return txt('1 semana', '1 week');
-  if (p === 'Quincenal') return txt('1 quincena', '1 fortnight');
-  const m = Number(ofertaSeleccionada.value?.meses) || 1;
-  return `${m} ${m === 1 ? txt('mes', 'month') : txt('meses', 'months')}`;
+  const periodo = periodoOferta.value;
+  const ciclos = ofertaSeleccionada.value ? 1 : unidadesPagadas.value;
+  if (ciclos === 0) return cantidadRecibida.value > 0 ? txt('abono parcial', 'partial payment') : txt('1 periodo', '1 period');
+  if (periodo === 'diario') return `${ciclos} ${ciclos === 1 ? txt('día', 'day') : txt('días', 'days')}`;
+  if (periodo === 'semanal') return `${ciclos} ${ciclos === 1 ? txt('semana', 'week') : txt('semanas', 'weeks')}`;
+  if (periodo === 'quincenal') return `${ciclos} ${ciclos === 1 ? txt('quincena', 'fortnight') : txt('quincenas', 'fortnights')}`;
+  const meses = mesesPagados.value;
+  return `${meses} ${meses === 1 ? txt('mes', 'month') : txt('meses', 'months')}`;
 });
 const metodoPagoLabel = computed(() => ({
   Efectivo: txt('Efectivo', 'Cash'),
@@ -924,6 +953,13 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <span class="validation-dot" :class="{ valid: montoRecibir && Number(montoRecibir) > 0 }"></span>
                     {{ montoRecibir && Number(montoRecibir) > 0 ? txt('Monto válido para procesar', 'Valid amount to process') : txt('Ingresa un monto mayor a $0', 'Enter an amount greater than $0') }}
                   </div>
+                  <p v-if="!ofertaSeleccionada && unidadesPagadas > 0" class="amount-coverage">
+                    {{ txt('Este pago equivale a', 'This payment covers') }} <strong>{{ duracionPlan }}</strong>
+                    · {{ txt('Nuevo corte estimado:', 'Estimated new billing date:') }} <strong>{{ fechaNuevoCorte }}</strong>
+                  </p>
+                  <p v-else-if="!ofertaSeleccionada && cantidadRecibida > 0 && unidadesPagadas === 0" class="amount-coverage partial">
+                    {{ txt('Abono parcial: todavía no se completa un periodo. La fecha de corte no se adelanta.', 'Partial payment: a full period has not been covered; billing date stays the same.') }}
+                  </p>
                 </div>
               </section>
 
@@ -941,7 +977,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 
                 <div class="review-grid">
                   <div class="review-item"><span>{{ txt('Cliente', 'Client') }}</span><strong>{{ clienteActual }}</strong></div>
-                  <div class="review-item"><span>{{ txt('Plan', 'Plan') }}</span><strong>{{ planActual }}</strong></div>
+                  <div class="review-item"><span>{{ txt('Plan', 'Plan') }}</span><strong>{{ planActual }} · {{ duracionPlan }}</strong></div>
                   <div class="review-item"><span>{{ txt('Método', 'Method') }}</span><strong>{{ metodoPagoLabel }}</strong></div>
                   <div class="review-item"><span>{{ txt('Folio', 'Reference') }}</span><strong class="review-folio">{{ folioResumen }}</strong></div>
                   <div class="review-item"><span>{{ t('newCutLabel') }}</span><strong class="review-date">{{ fechaNuevoCorte }}</strong></div>
@@ -1640,4 +1676,9 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* Vista previa de cobertura calculada desde el monto ingresado. */
+.amount-coverage{margin:8px 0 0;color:#34d399;font-size:.76rem;line-height:1.5}
+.amount-coverage strong{font-weight:700}
+.amount-coverage.partial{color:#fbbf24}
 </style>

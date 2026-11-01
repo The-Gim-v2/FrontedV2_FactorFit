@@ -17,6 +17,9 @@
             <option value="">{{ t('statusAll') }}</option>
             <option value="Activo">{{ t('statusActive') }}</option>
             <option value="Inactivo">{{ t('statusInactive') }}</option>
+            <option value="Próximo a vencer">{{ currentLang === 'en' ? 'Expiring soon' : 'Próximo a vencer' }}</option>
+            <option value="Pendiente">{{ currentLang === 'en' ? 'Pending' : 'Pendiente' }}</option>
+            <option value="En tolerancia">{{ currentLang === 'en' ? 'Grace period' : 'En tolerancia' }}</option>
           </select>
           <button class="btn-bulk" @click="activeModal = 'enviomasivo'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -306,8 +309,9 @@ const cargarClientes=async()=>{
   }catch(e){if(current !== requestSequence)return;errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
   finally{if(current === requestSequence)loadingUsers.value=false;}
 };
-onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);});
-onUnmounted(()=>window.removeEventListener('factorfit:branch-changed',cargarClientes));
+const recargarAlVolver = () => { if (document.visibilityState === 'visible') void cargarClientes(); };
+onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);;document.addEventListener('visibilitychange',recargarAlVolver);});
+onUnmounted(()=>{window.removeEventListener('factorfit:branch-changed',cargarClientes);document.removeEventListener('visibilitychange',recargarAlVolver);requestSequence++;});
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
     if(user.status === 'Eliminado temporal') return false;
@@ -350,7 +354,8 @@ const getStatusClass = (status) => {
     Activo: 'status-green',
     Inactivo: 'status-red',
     Pendiente: 'status-orange',
-    'Próximo a vencer': 'status-yellow'
+    'Próximo a vencer': 'status-yellow',
+    'En tolerancia': 'status-tolerance'
   };
   return classes[status] || 'status-default';
 };
@@ -420,6 +425,7 @@ const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(
 .status-red{--tone: #f87171}
 .status-orange{--tone: #fbbf24}
 .status-yellow{--tone: #facc15}
+.status-tolerance{--tone: #c084fc}
 .status-default{--tone: #cbd5e1}
 .header-section{display: flex;align-items: flex-end;justify-content: space-between;gap: 24px;margin-bottom: 22px}
 .title-wrapper{min-width: 220px;display: flex;flex-direction: column;gap: 8px}
