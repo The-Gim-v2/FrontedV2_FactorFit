@@ -61,14 +61,9 @@
               <th>{{ t('colName') }}</th>
               <th>{{ t('colEmail') }}</th>
               <th>{{ t('colType') }}</th>
-                <th>{{ t('colMethod') }}</th>
-                <th>{{ t('colEnrollmentDate') }}</th>
-                <th>{{ t('colPaymentDate') }}</th>
               <th>{{ t('colExpiration') }}</th>
               <th>{{ t('colMembership') }}</th>
               <th class="th-right">{{ t('colAmount') }}</th>
-                <th class="th-right">{{ t('colDue') }}</th>
-                <th class="th-right">{{ t('colCredit') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -77,17 +72,12 @@
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
               <td><span class="type-chip">{{ typeLabel(user.mensualidad) }}</span></td>
-                <td class="text-muted">{{ user.metodoPago }}</td>
-                <td class="text-muted">{{ user.enrollmentDate }}</td>
-                <td class="text-muted">{{ user.paymentDate }}</td>
               <td class="text-muted">{{ user.expirationDate }}</td>
               <td><span :class="['status-badge2', getMembershipClass(user.mensualidad)]">{{ user.membership }}</span></td>
               <td class="td-right"><span class="status-badge income">{{ user.amount }}</span></td>
-                <td class="td-right text-muted">{{ user.saldoAPagar }}</td>
-                <td class="td-right text-muted">{{ user.saldoAFavor }}</td>
             </tr>
             <tr v-if="filteredUsers.length === 0">
-              <td colspan="12" class="empty-state-cell">
+              <td colspan="7" class="empty-state-cell">
                 <div class="empty-state">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                   <span>{{ t('emptyState') }}</span>
@@ -118,11 +108,6 @@
             <span class="status-badge income">{{ user.amount }}</span>
           </div>
           <div class="card-meta">
-              <span class="meta-row">{{ t('colMethod') }}: {{ user.metodoPago }}</span>
-              <span class="meta-row">{{ t('enrolledLabel') }}: {{ user.enrollmentDate }}</span>
-              <span class="meta-row">{{ t('paidLabel') }}: {{ user.paymentDate }}</span>
-              <span class="meta-row">{{ t('dueLabel') }}: {{ user.saldoAPagar }}</span>
-              <span class="meta-row">{{ t('creditLabel') }}: {{ user.saldoAFavor }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="email-text">{{ user.email }}</span></span>
             <span class="meta-row expiration-warning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span class="vence-label">{{ t('expiresLabel') }}:</span> {{ user.expirationDate }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="phone-text">{{ user.phone }}</span></span>
@@ -232,8 +217,8 @@ const langData = {
     membershipAll:'Todos los tipos', monthly:'Mensual', fortnightly:'Quincenal', weekly:'Semanal',
     daily:'Diario', promotion:'Promoción', analysisLabel:'Análisis', viewAnalysis:'Ver desglose',
     searchPlaceholder:'Buscar cliente, folio o pago...', colPhoto:'Foto', colName:'Nombre',
-    colEmail:'Correo', colType:'Tipo', colExpiration:'Próximo corte', colMembership:'Membresía',
-    colAmount:'Total pagado', colPaymentDate:'Último pago', colEnrollmentDate:'Inscripción',
+    colEmail:'Correo', colType:'Pago', colExpiration:'Fecha a Vencer', colMembership:'Membresía',
+    colAmount:'Monto', colPaymentDate:'Último pago', colEnrollmentDate:'Inscripción',
     colDue:'Saldo a pagar', colCredit:'Saldo a favor', colMethod:'Método',
     expiresLabel:'Vence', paidLabel:'Último pago', enrolledLabel:'Inscripción', dueLabel:'Debe', creditLabel:'A favor',
     emptyState:'No hay clientes registrados con estos filtros.', resultsLabel:'inscripciones',
@@ -248,8 +233,8 @@ const langData = {
     membershipAll:'All types', monthly:'Monthly', fortnightly:'Fortnightly', weekly:'Weekly',
     daily:'Daily', promotion:'Promotion', analysisLabel:'Analysis', viewAnalysis:'View breakdown',
     searchPlaceholder:'Search client, reference or payment...', colPhoto:'Photo', colName:'Name',
-    colEmail:'Email', colType:'Type', colExpiration:'Next renewal', colMembership:'Membership',
-    colAmount:'Total paid', colPaymentDate:'Latest payment', colEnrollmentDate:'Enrollment',
+    colEmail:'Email', colType:'Payment', colExpiration:'Expiration Date', colMembership:'Membership',
+    colAmount:'Amount', colPaymentDate:'Latest payment', colEnrollmentDate:'Enrollment',
     colDue:'Balance due', colCredit:'Credit balance', colMethod:'Method',
     expiresLabel:'Expires', paidLabel:'Latest paid', enrolledLabel:'Enrollment', dueLabel:'Due', creditLabel:'Credit',
     emptyState:'No registered members match the filters.', resultsLabel:'enrollments',
@@ -573,7 +558,7 @@ const getMembershipClass = (periodo: string): string => ({
 @media (prefers-reduced-motion: reduce){.search-input, .status-select, .btn-bulk, .user-table tbody tr, .btn-modal, .pop-enter-active, .pop-leave-active{transition: none !important}
 }
 .table-container{overflow-x: auto}
-.user-table{min-width: 1370px}
+.user-table{min-width: 850px}
 .avatar-small{overflow: hidden}
 .avatar-small img{width: 100%;height: 100%;object-fit: cover;border-radius: inherit}
 .earnings-message{margin: 0 0 14px;padding: 12px 14px;border-radius: 10px;background: var(--bg-cards,#121416);font-size: .82rem}
