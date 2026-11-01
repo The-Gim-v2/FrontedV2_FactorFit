@@ -73,7 +73,7 @@
               <td class="text-muted">{{ user.email }}</td>
               <td><span class="type-chip">{{ typeLabel(user.mensualidad) }}</span></td>
               <td class="text-muted">{{ user.expirationDate }}</td>
-              <td><span :class="['status-badge2', getMembershipClass(user.mensualidad)]">{{ user.membership }}</span></td>
+              <td><span :class="['status-badge2', getMembershipClass(user.membership)]">{{ user.membership }}</span></td>
               <td class="td-right"><span class="status-badge income">{{ user.amount }}</span></td>
             </tr>
             <tr v-if="filteredUsers.length === 0">
@@ -101,7 +101,7 @@
             <div class="card-user-titles">
               <div class="text-bold name-text">{{ user.name }}</div>
               <div class="badges-row">
-                <span :class="['status-badge2', getMembershipClass(user.mensualidad)]">{{ user.membership }}</span>
+                <span :class="['status-badge2', getMembershipClass(user.membership)]">{{ user.membership }}</span>
                 <span class="type-chip">{{ typeLabel(user.mensualidad) }}</span>
               </div>
             </div>
@@ -145,7 +145,7 @@
     </main>
     <transition name="pop">
       <div v-if="activeModal === 'ganancias'" class="modal-wrapper" @click.self="activeModal = null">
-        <Ganancias :users="filteredUsers" @close="activeModal = null" />
+        <Ganancias :users="filteredUsers" :pagos="pagosFiltrados" @close="activeModal = null" />
       </div>
     </transition>
   </HeadingGYM_ACCOUNT>
@@ -179,6 +179,7 @@ type PagoIngreso = {
   saldoPendienteNumero: number;
   saldoFavorNumero: number;
   folio: string;
+  cantidadMeses: number | null;
 };
 type PagoAPI = {
   ID_Pago: number | string;
@@ -193,11 +194,18 @@ type PagoAPI = {
   fecha_vencimiento: string | null;
   plan: string | null;
   periodo: string | null;
+  cantidad_meses: number | string | null;
   monto: number | string;
   metodo_pago: string | null;
   folio: string | null;
   saldo_a_pagar: number | string;
   saldo_a_favor: number | string;
+};
+type PagoConfirmado = { id_pago: number; id_inscripto: number; fecha_pago: string | null; monto: number; periodo: string | null; membresia: string | null; tipo_pago: string | null; };
+const etiquetaMembresia = (periodo: string | null, meses: number | string | null, plan: string | null): string => {
+  const n = Number(meses);
+  if (['Mensual','Promocion'].includes(String(periodo)) && meses !== null && meses !== '' && Number.isInteger(n) && n > 0) return `${n} ${n === 1 ? 'Mes' : 'Meses'}`;
+  return plan || periodo || '—';
 };
 const route = useRoute();
 const activeModal = ref<string | null>(null);
@@ -210,6 +218,7 @@ const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const loading = ref(false);
 const errorCarga = ref('');
 const users = ref<PagoIngreso[]>([]);
+const pagosConfirmados = ref<PagoConfirmado[]>([]);
 let requestId = 0;
 const langData = {
   es: {
@@ -301,7 +310,8 @@ const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   enrollmentDate: formatDate(p.fecha_inscripcion),
   paymentDate: formatDate(p.fecha_pago),
   expirationDate: formatDate(p.fecha_vencimiento),
-  membership: p.plan || '—', mensualidad: p.periodo || '—',
+  membership: etiquetaMembresia(p.periodo, p.cantidad_meses, p.plan), mensualidad: p.periodo || '—',
+  cantidadMeses: p.cantidad_meses != null ? Number(p.cantidad_meses) : null,
   metodoPago: p.metodo_pago || '—', folio: p.folio || '—',
   monto: Number(p.monto || 0), amount: formatCurrency(Number(p.monto || 0)),
   saldoAPagar: formatCurrency(Number(p.saldo_a_pagar || 0)),
@@ -316,6 +326,7 @@ const obtenerIngresos = async () => {
   const token = obtenerToken();
   if (!sede || !token) {
     users.value = [];
+    pagosConfirmados.value = [];
     errorCarga.value = !sede ? 'Selecciona una sucursal.' : 'Inicia sesión nuevamente.';
     loading.value = false;
     return;
@@ -332,11 +343,13 @@ const obtenerIngresos = async () => {
     if (!Array.isArray(pagos)) throw new Error('El servidor no devolvió una lista de clientes.');
     if (seq !== requestId) return;
     users.value = (pagos as PagoAPI[]).map(normalizarPago);
+    pagosConfirmados.value = Array.isArray(json.pagos_confirmados) ? json.pagos_confirmados : [];
   } catch (e) {
     if (seq !== requestId) return;
     errorCarga.value = e instanceof Error ? e.message : 'No se pudieron cargar los ingresos.';
     toastRef.value?.notify?.(errorCarga.value, 'error');
     users.value = [];
+    pagosConfirmados.value = [];
   } finally {
     if (seq === requestId) loading.value = false;
   }
@@ -373,6 +386,10 @@ const filteredUsers = computed(() => {
       String(p.clienteId),String(p.pagoId)].some(v => String(v).toLocaleLowerCase().includes(term)))
   );
 });
+const pagosFiltrados = computed(() => {
+  const inscripciones = new Set(filteredUsers.value.map(u => u.inscripcionId));
+  return pagosConfirmados.value.filter(p => inscripciones.has(Number(p.id_inscripto)));
+});
 const PAGE_SIZE = 40;
 const page = ref(1);
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
@@ -402,10 +419,11 @@ const getInitials = (name: string): string => {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
 };
 const avatarStyle = (id: number) => ({backgroundImage:avatarGradients[Math.abs(id)%avatarGradients.length]});
-const getMembershipClass = (periodo: string): string => ({
-  Mensual:'membership-green', Quincenal:'membership-blue', Semanal:'membership-purple',
-  Diario:'membership-orange', Promocion:'membership-pink'
-} as Record<string, string>)[periodo] || 'membership-default';
+const getMembershipClass = (etiqueta: string): string => {
+  const meses = parseInt(etiqueta, 10);
+  if (/^\d+ Mes(?:es)?$/.test(etiqueta)) return ({1:'membership-red',2:'membership-blue',3:'membership-green',4:'membership-purple',5:'membership-orange',6:'membership-pink'} as Record<number,string>)[meses] || 'membership-default';
+  return ({Mensual:'membership-red',Quincenal:'membership-blue',Semanal:'membership-purple',Diario:'membership-orange',Promocion:'membership-pink'} as Record<string,string>)[etiqueta] || 'membership-default';
+};
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');.main-content, .modal-wrapper{--accent: var(--color-highlight, #3b82f6);--income: #34d399;--card-bg: var(--bg-cards, #121416);--radius: var(--app-border-radius, 14px);--radius-small: 10px;--line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);--line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);--muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 68%, transparent)}
