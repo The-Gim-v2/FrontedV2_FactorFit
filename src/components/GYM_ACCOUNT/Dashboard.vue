@@ -3,12 +3,14 @@
     <div class="dashboard">
       <main class="dashboard-container">
 
+        <p v-if="profileError" class="dashboard-data-error" role="alert">{{ profileError }} <button type="button" @click="loadDashboard">{{ ui.retry }}</button></p>
+        <p v-if="metricsError" class="dashboard-data-error" role="alert">{{ metricsError }}</p>
         <!-- 1. ENCABEZADO -->
         <section class="hero" :class="{ 'has-cover': !!gym.coverUrl }" :style="heroStyle">
           <div class="hero-main">
             <!-- Logo: fuera del panel, al lado, con la misma altura que el panel -->
             <div v-if="gym.logoUrl" class="hero-logo">
-              <img :src="gym.logoUrl" :alt="gym.name" />
+              <img :src="gym.logoUrl" :alt="gym.name" @error="gym.logoUrl = null" />
             </div>
 
             <!-- Panel de texto -->
@@ -19,7 +21,8 @@
                   <template v-else>{{ w }}</template>{{ ' ' }}
                 </template>
               </h1>
-              <p>{{ ui.GYM_ACCOUNTPanel }}</p>
+              <p>{{ gym.description || ui.GYM_ACCOUNTPanel }}</p>
+              <small v-if="branchName" class="hero-branch">{{ branchName }}</small>
             </div>
           </div>
 
@@ -51,6 +54,24 @@
           </div>
         </section>
 
+        <!-- DATOS REALES DEL PERFIL GUARDADO -->
+        <section v-if="profileLoaded" class="panel gym-profile-overview" aria-label="Información del gimnasio">
+          <div class="panel-header">
+            <div><span class="section-eyebrow">{{ ui.profileInformation }}</span><h2>{{ branchName || gym.name }}</h2></div>
+            <button class="link-btn" type="button" @click="go('/GYM_ACCOUNT/profile')">{{ ui.editProfile }} →</button>
+          </div>
+          <div class="gym-detail-grid">
+            <div class="gym-detail-item"><span>{{ ui.owner }}</span><strong>{{ profile.nombrePropietario || '—' }}</strong></div>
+            <div class="gym-detail-item"><span>{{ ui.email }}</span><strong>{{ profile.email || '—' }}</strong></div>
+            <div class="gym-detail-item"><span>{{ ui.address }}</span><strong>{{ profileAddress || '—' }}</strong></div>
+            <div class="gym-detail-item"><span>{{ ui.postalCode }}</span><strong>{{ profile.cp || '—' }}</strong></div>
+            <div class="gym-detail-item"><span>{{ ui.daysAndHours }}</span><strong>{{ serviceHours || '—' }}</strong></div>
+            <div class="gym-detail-item"><span>{{ ui.referencePrices }}</span><strong>{{ referencePrices || '—' }}</strong></div>
+            <div class="gym-detail-item gym-detail-wide"><span>{{ ui.amenities }}</span><strong>{{ amenityNames || '—' }}</strong></div>
+            <div v-if="mapLink" class="gym-detail-item gym-detail-wide"><span>{{ ui.location }}</span><a :href="mapLink" target="_blank" rel="noopener noreferrer">{{ ui.viewMap }} ↗</a></div>
+          </div>
+        </section>
+
         <!-- 2. INDICADORES CLAVE -->
         <section class="kpi-grid">
           <article class="kpi-card">
@@ -58,7 +79,7 @@
               <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>142</strong>
+              <strong>{{ dashboardStats.entradasHoy }}</strong>
               <span>{{ t.entradasHoy }}</span>
             </div>
           </article>
@@ -68,7 +89,7 @@
               <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
             </div>
             <div class="kpi-body">
-              <strong class="highlight">28</strong>
+              <strong class="highlight">{{ dashboardStats.enInstalaciones }}</strong>
               <span>{{ t.enInstalaciones }}</span>
             </div>
           </article>
@@ -78,7 +99,7 @@
               <svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>$5,708</strong>
+              <strong>{{ formatMoney(dashboardStats.ingresoHoy) }}</strong>
               <span>{{ ui.incomeToday }}</span>
             </div>
           </article>
@@ -88,7 +109,7 @@
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>3</strong>
+              <strong>{{ dashboardStats.porVencer }}</strong>
               <span>{{ t.porVencer }}</span>
             </div>
           </article>
@@ -106,6 +127,7 @@
             </div>
 
             <div class="alert-list">
+              <p v-if="!alerts.length" class="dashboard-empty">{{ ui.noAlerts }}</p>
               <button
                 v-for="alert in alerts"
                 :key="alert.title"
@@ -136,14 +158,14 @@
 
             <div class="finance-main">
               <span>{{ ui.monthIncome }}</span>
-              <strong>$82,450</strong>
-              <small>↑ 18.4% {{ ui.vsLastMonth }}</small>
+              <strong>{{ formatMoney(dashboardStats.ingresoMes) }}</strong>
+              <small>{{ ui.fromConfirmedPayments }}</small>
             </div>
 
             <div class="finance-stats">
-              <div><span>{{ ui.todayIncome }}</span><strong>$5,708</strong></div>
-              <div><span>{{ ui.pending }}</span><strong>$3,200</strong></div>
-              <div><span>{{ ui.overdue }}</span><strong>4.2%</strong></div>
+              <div><span>{{ ui.todayIncome }}</span><strong>{{ formatMoney(dashboardStats.ingresoHoy) }}</strong></div>
+              <div><span>{{ ui.pending }}</span><strong>{{ formatMoney(dashboardStats.adeudoPendiente) }}</strong></div>
+              <div><span>{{ ui.overdue }}</span><strong>{{ dashboardStats.porcentajeMorosidad }}</strong></div>
             </div>
           </article>
         </section>
@@ -187,6 +209,7 @@
             </div>
 
             <div class="activity-list">
+              <p v-if="!recentActivity.length" class="dashboard-empty">{{ ui.noActivity }}</p>
               <div
                 v-for="item in recentActivity"
                 :key="item.name + item.time"
@@ -211,9 +234,9 @@
               <h2>{{ ui.weeklyPerformance }}</h2>
             </div>
             <div class="chart-summary">
-              <strong>742</strong>
+              <strong>{{ weeklyTotalDisplay }}</strong>
               <span>{{ ui.weekAccess }}</span>
-              <em>↑ 12.8%</em>
+              <em>{{ attendanceNote }}</em>
             </div>
           </div>
 
@@ -315,8 +338,8 @@
                     <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
                   </div>
                   <div class="action-info">
-                    <strong>{{ ui.mainBranch }}</strong>
-                    <span><i class="online-dot"></i>28 {{ ui.peopleInside }}</span>
+                    <strong>{{ branchName || ui.mainBranch }}</strong>
+                    <span><i class="online-dot"></i>{{ profileAddress || ui.addressNotSet }}</span>
                   </div>
                   <ArrowIcon />
                 </button>
@@ -393,8 +416,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, h } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, h } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
 import AddScheduleModal from '../Modals/AddScheduleModal.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
@@ -404,6 +427,7 @@ import AddCorteComponent from './Componets/Cut.vue';
 import HeadingAdmin from './HeadingGYM_ACCOUNT.vue';
 
 const router = useRouter();
+const route = useRoute();
 
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const activeModal = ref(null);
@@ -422,12 +446,156 @@ let stream = null;
    - membershipEnd: fecha de vencimiento de la membresía, formato AAAA-MM-DD
 ========================================================= */
 
-const gym = ref({
-  name: 'Ultra Fitness Center',
-  logoUrl: 'https://marketplace.canva.com/EAFxdcos7WU/1/0/1600w/canva-dark-blue-and-brown-illustrative-fitness-gym-logo-oqe3ybeEcQQ.jpg',
-  coverUrl: 'https://static.vecteezy.com/system/resources/thumbnails/037/228/850/small_2x/ai-generated-exercise-machines-in-a-gym-free-photo.jpg',
-  membershipEnd: '2027-05-26'
+const gym = ref({ name: '', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' });
+const profile = ref({});
+const branchName = ref('');
+const profileLoaded = ref(false);
+const profileError = ref('');
+const metricsError = ref('');
+const branchFromEvent = ref(0);
+const inscripciones = ref([]);
+const pagosConfirmados = ref([]);
+const registrosAsistencia = ref([]);
+const ingresosLoaded = ref(false);
+const asistenciaLoaded = ref(false);
+const availableDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const getToken = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const name of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+      const value = storage.getItem(name);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const name of ['auth','user','session','gymAccount','gym_account']) {
+      try {
+        const value = JSON.parse(storage.getItem(name) || 'null');
+        const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, '');
+      } catch { /* Dato no JSON */ }
+    }
+  }
+  return '';
+};
+const storedBranchId = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const name of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+      const raw = storage.getItem(name);
+      if (!raw) continue;
+      let value = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        value = parsed && typeof parsed === 'object' ? (parsed.ID_Sede ?? parsed.sede_id ?? parsed.id ?? parsed.value) : parsed;
+      } catch { /* El valor puede ser un número directo */ }
+      const id = Number(value);
+      if (Number.isInteger(id) && id > 0) return id;
+    }
+  }
+  return 1;
+};
+const sedeId = () => {
+  if (branchFromEvent.value > 0) return branchFromEvent.value;
+  const id = Number(route.query.sede_id);
+  return Number.isInteger(id) && id > 0 ? id : storedBranchId();
+};
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const apiGet = async (path) => {
+  const token = getToken();
+  if (!token) throw new Error('No se encontró una sesión activa. Inicia sesión nuevamente.');
+  const response = await fetch(`${API}${path}`, {
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store'
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body?.message || `Error HTTP ${response.status}`);
+  return body;
+};
+const nowParts = () => {
+  const pieces = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Monterrey', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const get = (type) => pieces.find(x => x.type === type)?.value || '';
+  return { today: `${get('year')}-${get('month')}-${get('day')}`, month: `${get('year')}-${get('month')}` };
+};
+const formatMoney = (n) => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const profileAddress = computed(() => [profile.value.calle, profile.value.numExt, profile.value.numInt && `Int. ${profile.value.numInt}`, profile.value.otrasCalles, profile.value.colonia, profile.value.municipio, profile.value.entidad].filter(Boolean).join(', '));
+const amenityNames = computed(() => (Array.isArray(profile.value.amenidades) ? profile.value.amenidades : []).map(x => typeof x === 'string' ? x : x?.nombre).filter(Boolean).join(' · '));
+const serviceHours = computed(() => {
+  const selected = Array.isArray(profile.value.selectedDays) ? profile.value.selectedDays : [];
+  const shifts = profile.value.horariosCompletos || {};
+  return availableDays.filter(day => selected.includes(day) && shifts[day]?.activo).map(day => {
+    const hours = (shifts[day].turnos || []).map(t => `${t.abierto || '—'}–${t.cerrado || '—'}`).join(', ');
+    return `${day}: ${hours}`;
+  }).join(' · ');
 });
+const referencePrices = computed(() => {
+  const items = [];
+  if (profile.value.precioMes !== '' && profile.value.precioMes != null) items.push(`Mensual ${formatMoney(profile.value.precioMes)}`);
+  if (profile.value.precioSem !== '' && profile.value.precioSem != null) items.push(`Semanal ${formatMoney(profile.value.precioSem)}`);
+  return items.join(' · ');
+});
+const mapLink = computed(() => {
+  const lat = Number(profile.value.latitud), lon = Number(profile.value.longitud);
+  if (!profile.value.latitud || !profile.value.longitud || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return '';
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`;
+});
+let requestSeq = 0;
+const loadDashboard = async () => {
+  const seq = ++requestSeq;
+  profileError.value = ''; metricsError.value = '';
+  const id = sedeId();
+  const requests = await Promise.allSettled([
+    apiGet(`/api/gym/perfil?sede_id=${id}`),
+    apiGet(`/api/gym/ingresos?sede_id=${id}`),
+    apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
+  ]);
+  if (seq !== requestSeq) return;
+  const [perfilResult, ingresosResult, asistenciaResult] = requests;
+  if (perfilResult.status === 'fulfilled') {
+    const data = perfilResult.value;
+    profile.value = data.perfil || {};
+    gym.value = {
+      name: String(profile.value.nombreGimnasio || 'Mi gimnasio'),
+      logoUrl: data.logo_url || null,
+      coverUrl: data.portada_url || null,
+      description: String(profile.value.descripcionGimnasio || ''),
+      membershipEnd: null // No hay fecha de suscripción de Gym_Account en esta API.
+    };
+    branchName.value = String(data.sede_nombre || `Sede ${id}`);
+    billingStatus.value = profile.value.status === 'activo' ? 'active' : profile.value.status === 'pendiente' ? 'pending' : 'blocked';
+    profileLoaded.value = true;
+  } else {
+    profileLoaded.value = false;
+    gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' };
+    profileError.value = `No se pudo cargar el perfil: ${perfilResult.reason?.message || 'Error de conexión'}`;
+  }
+  if (ingresosResult.status === 'fulfilled' && Array.isArray(ingresosResult.value.inscripciones)) {
+    inscripciones.value = ingresosResult.value.inscripciones;
+    pagosConfirmados.value = Array.isArray(ingresosResult.value.pagos_confirmados) ? ingresosResult.value.pagos_confirmados : [];
+    ingresosLoaded.value = true;
+  } else {
+    inscripciones.value = []; pagosConfirmados.value = []; ingresosLoaded.value = false;
+    metricsError.value = 'No se pudieron cargar los ingresos; revisa la API del gimnasio.';
+  }
+  if (asistenciaResult.status === 'fulfilled' && Array.isArray(asistenciaResult.value.asistencias)) {
+    registrosAsistencia.value = asistenciaResult.value.asistencias;
+    asistenciaLoaded.value = true;
+  } else {
+    registrosAsistencia.value = []; asistenciaLoaded.value = false;
+  }
+};
+const onBranchChanged = (event) => {
+  const detail = event.detail || {};
+  const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
+  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedBranchId());
+  branchFromEvent.value = Number.isInteger(id) && id > 0 ? id : 0;
+  void loadDashboard();
+};
+const onProfileUpdated = (event) => {
+  const changed = Number(event.detail?.sede_id || 0);
+  if (!changed || changed === sedeId()) void loadDashboard();
+};
+const onFocus = () => { void loadDashboard(); };
+const onVisible = () => { if (document.visibilityState === 'visible') void loadDashboard(); };
+watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadDashboard(); });
+
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -435,7 +603,7 @@ const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/
 const highlightIndex = computed(() => (nameWords.value.length > 1 ? 1 : 0));
 
 const heroStyle = computed(() =>
-  gym.value.coverUrl ? { '--cover': `url('${gym.value.coverUrl}')` } : {}
+  gym.value.coverUrl && /^https?:\/\//i.test(gym.value.coverUrl) ? { '--cover': `url(\"${gym.value.coverUrl.replace(/[\"\\]/g, '')}\")` } : {}
 );
 
 /* ---------- Vencimiento de la membresía ---------- */
@@ -531,14 +699,24 @@ const dashboardTranslations = {
     overdue: 'Morosidad',
     attention: 'ATENCIÓN',
     alerts: 'Alertas importantes',
-    last7: 'ÚLTIMOS 7 DÍAS',
+    last7: 'SEMANA ACTUAL',
     weeklyPerformance: 'Rendimiento semanal',
     attendance: 'Asistencias',
-    weekAccess: 'accesos esta semana',
+    weekAccess: 'asistencias esta semana',
     management: 'GESTIÓN',
     quickActions: 'Acciones rápidas',
     mainBranch: 'Gimnasio Principal',
-    peopleInside: 'personas dentro'
+    peopleInside: 'personas dentro',
+    profileInformation: 'DATOS DEL PERFIL', editProfile: 'Editar perfil', owner: 'Propietario', email: 'Correo',
+    address: 'Dirección', postalCode: 'Código postal', daysAndHours: 'Días y horarios',
+    referencePrices: 'Precios de referencia', amenities: 'Amenidades y servicios',
+    location: 'Ubicación', viewMap: 'Ver en el mapa', addressNotSet: 'Sin dirección registrada',
+    retry: 'Reintentar', noAlerts: 'No hay alertas registradas.', noActivity: 'Sin actividad registrada.',
+    fromConfirmedPayments: 'Calculado con pagos confirmados', withDebt: 'clientes con adeudo',
+    requiresFollowup: 'Requieren seguimiento', expiredMemberships: 'membresías vencidas',
+    requiresRenewal: 'Requieren renovación', expiringMemberships: 'membresías próximas a vencer',
+    paymentReceived: 'Pago recibido', attendanceRegistered: 'Asistencia registrada',
+    realAttendance: 'Datos registrados', attendanceUnavailable: 'Sin datos de asistencia'
   },
   en: {
     GYM_ACCOUNTPanel: 'Gym Account Panel',
@@ -569,14 +747,24 @@ const dashboardTranslations = {
     overdue: 'Overdue',
     attention: 'ATTENTION',
     alerts: 'Important alerts',
-    last7: 'LAST 7 DAYS',
+    last7: 'THIS WEEK',
     weeklyPerformance: 'Weekly performance',
     attendance: 'Attendance',
-    weekAccess: 'accesses this week',
+    weekAccess: 'attendances this week',
     management: 'MANAGEMENT',
     quickActions: 'Quick actions',
     mainBranch: 'Main Gym',
-    peopleInside: 'people inside'
+    peopleInside: 'people inside',
+    profileInformation: 'GYM PROFILE', editProfile: 'Edit profile', owner: 'Owner', email: 'Email',
+    address: 'Address', postalCode: 'Postal code', daysAndHours: 'Days and schedules',
+    referencePrices: 'Reference prices', amenities: 'Amenities and services',
+    location: 'Location', viewMap: 'Open map', addressNotSet: 'No address on file',
+    retry: 'Retry', noAlerts: 'No alerts at this time.', noActivity: 'No activity recorded.',
+    fromConfirmedPayments: 'Calculated from confirmed payments', withDebt: 'clients with debt',
+    requiresFollowup: 'Follow-up required', expiredMemberships: 'expired memberships',
+    requiresRenewal: 'Renewal required', expiringMemberships: 'memberships expiring soon',
+    paymentReceived: 'Payment received', attendanceRegistered: 'Attendance recorded',
+    realAttendance: 'Recorded data', attendanceUnavailable: 'Attendance data unavailable'
   }
 };
 
@@ -585,73 +773,70 @@ const ui = computed(
 );
 
 /* =========================================================
-   DATOS (de prueba)
-========================================================= */
-
-const recentActivity = computed(() =>
-  currentLang.value === 'es'
-    ? [
-        { initials: 'JR', name: 'José Ramírez', text: 'Pago recibido · $500.00', time: 'Hace 5 min', type: 'payment' },
-        { initials: 'AL', name: 'Andrea López', text: 'Acceso autorizado al gimnasio', time: 'Hace 12 min', type: 'access' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Membresía mensual renovada', time: 'Hace 20 min', type: 'renewal' },
-        { initials: 'MG', name: 'Mariana García', text: 'Nuevo cliente registrado', time: 'Hace 35 min', type: 'client' }
-      ]
-    : [
-        { initials: 'JR', name: 'José Ramírez', text: 'Payment received · $500.00', time: '5 min ago', type: 'payment' },
-        { initials: 'AL', name: 'Andrea López', text: 'Gym access authorized', time: '12 min ago', type: 'access' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Monthly membership renewed', time: '20 min ago', type: 'renewal' },
-        { initials: 'MG', name: 'Mariana García', text: 'New client registered', time: '35 min ago', type: 'client' }
-      ]
-);
-
-/* Las alertas se ordenan por urgencia: danger → warning → info */
+   ESTADÍSTICAS REALES: pagos confirmados, deuda y asistencia
+   ========================================================= */
+const dashboardStats = computed(() => {
+  const { today, month } = nowParts();
+  const payments = pagosConfirmados.value;
+  const rows = inscripciones.value;
+  const amount = (paymentsFiltered) => Math.round(paymentsFiltered.reduce((s, p) => s + Number(p.monto || 0), 0) * 100) / 100;
+  const pendientes = rows.filter(r => Number(r.saldo_a_pagar || 0) > 0);
+  const vencidos = rows.filter(r => r.estatus_inscripcion === 'Inactivo');
+  const porVencer = rows.filter(r => r.estatus_inscripcion === 'Próximo a vencer');
+  const hoyEntradas = new Set(registrosAsistencia.value.filter(r => r.fecha === today).map(r => Number(r.ID_Inscripto)));
+  return {
+    entradasHoy: asistenciaLoaded.value ? hoyEntradas.size : '—',
+    enInstalaciones: '—', // El endpoint semanal no registra quién sigue dentro.
+    ingresoHoy: ingresosLoaded.value ? amount(payments.filter(p => String(p.fecha_pago || '').slice(0, 10) === today)) : null,
+    ingresoMes: ingresosLoaded.value ? amount(payments.filter(p => String(p.fecha_pago || '').slice(0, 7) === month)) : null,
+    porVencer: ingresosLoaded.value ? porVencer.length : '—',
+    adeudoPendiente: ingresosLoaded.value ? amount(pendientes.map(p => ({ monto: p.saldo_a_pagar }))) : null,
+    porcentajeMorosidad: ingresosLoaded.value ? `${rows.length ? (vencidos.length * 100 / rows.length).toFixed(1) : '0.0'}%` : '—',
+    deudores: pendientes.length,
+    vencidos: vencidos.length
+  };
+});
+const recentActivity = computed(() => {
+  const byId = new Map(inscripciones.value.map(r => [Number(r.ID_Inscripto), r]));
+  const payments = pagosConfirmados.value.filter(p => p.fecha_pago).map(p => {
+    const row = byId.get(Number(p.id_inscripto));
+    const name = row?.nombre || 'Cliente';
+    const initials = name.trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+    return { initials, name, text: `${ui.value.paymentReceived} · ${formatMoney(p.monto)}`, time: String(p.fecha_pago).slice(0, 10), type: 'payment', sort: String(p.fecha_pago) };
+  });
+  const attendances = registrosAsistencia.value.filter(a => a.fecha).map(a => {
+    const row = byId.get(Number(a.ID_Inscripto));
+    const name = row?.nombre || 'Cliente';
+    return { initials: name.trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase(), name, text: ui.value.attendanceRegistered, time: String(a.fecha), type: 'access', sort: String(a.fecha) };
+  });
+  return [...payments, ...attendances].sort((a, b) => b.sort.localeCompare(a.sort)).slice(0, 5);
+});
 const alertOrder = { danger: 0, warning: 1, info: 2 };
-
 const alerts = computed(() => {
-  const list =
-    currentLang.value === 'es'
-      ? [
-          { title: '3 membresías por vencer', subtitle: 'Próximas 48 horas', level: 'warning', route: '/GYM_ACCOUNT/renewals' },
-          { title: '5 clientes con adeudo', subtitle: 'Requieren seguimiento', level: 'danger', route: '/GYM_ACCOUNT/debtors' },
-          { title: '2 pagos pendientes', subtitle: 'Pendientes de conciliación', level: 'warning', route: '/GYM_ACCOUNT/payments' },
-          { title: '1 incidencia de acceso', subtitle: 'Revisar bitácora', level: 'info', route: '/GYM_ACCOUNT/attendance' }
-        ]
-      : [
-          { title: '3 memberships expiring', subtitle: 'Next 48 hours', level: 'warning', route: '/GYM_ACCOUNT/renewals' },
-          { title: '5 clients with debt', subtitle: 'Follow-up required', level: 'danger', route: '/GYM_ACCOUNT/debtors' },
-          { title: '2 pending payments', subtitle: 'Awaiting reconciliation', level: 'warning', route: '/GYM_ACCOUNT/payments' },
-          { title: '1 access incident', subtitle: 'Review attendance log', level: 'info', route: '/GYM_ACCOUNT/attendance' }
-        ];
-
-  return [...list].sort((a, b) => alertOrder[a.level] - alertOrder[b.level]);
+  if (!ingresosLoaded.value) return [];
+  const result = [];
+  if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ACCOUNT/debtors' });
+  if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ACCOUNT/renewals' });
+  if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ACCOUNT/renewals' });
+  return result.sort((a, b) => alertOrder[a.level] - alertOrder[b.level]);
 });
-
 const weeklyData = computed(() => {
-  const days =
-    currentLang.value === 'es'
-      ? [
-          { day: 'Lun', value: 94, height: 63 },
-          { day: 'Mar', value: 118, height: 79 },
-          { day: 'Mié', value: 103, height: 69 },
-          { day: 'Jue', value: 126, height: 84 },
-          { day: 'Vie', value: 142, height: 95 },
-          { day: 'Sáb', value: 101, height: 68 },
-          { day: 'Dom', value: 58, height: 39 }
-        ]
-      : [
-          { day: 'Mon', value: 94, height: 63 },
-          { day: 'Tue', value: 118, height: 79 },
-          { day: 'Wed', value: 103, height: 69 },
-          { day: 'Thu', value: 126, height: 84 },
-          { day: 'Fri', value: 142, height: 95 },
-          { day: 'Sat', value: 101, height: 68 },
-          { day: 'Sun', value: 58, height: 39 }
-        ];
-
-  const max = Math.max(...days.map((d) => d.value));
-
-  return days.map((d) => ({ ...d, peak: d.value === max }));
+  const names = currentLang.value === 'es' ? ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'] : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const weeklyCounts = Array.from({ length: 7 }, () => 0);
+  const seen = new Set();
+  if (asistenciaLoaded.value) for (const a of registrosAsistencia.value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.fecha || ''))) continue;
+    const day = new Date(`${a.fecha}T00:00:00Z`).getUTCDay();
+    const idx = (day + 6) % 7;
+    const key = `${a.ID_Inscripto}-${a.fecha}`;
+    if (seen.has(key)) continue;
+    seen.add(key); weeklyCounts[idx] += 1;
+  }
+  const max = Math.max(...weeklyCounts, 1);
+  return names.map((day, index) => ({ day, value: asistenciaLoaded.value ? weeklyCounts[index] : '—', height: asistenciaLoaded.value ? (weeklyCounts[index] / max * 100) : 0, peak: asistenciaLoaded.value && weeklyCounts[index] === max && max > 0 }));
 });
+const weeklyTotalDisplay = computed(() => asistenciaLoaded.value ? weeklyData.value.reduce((sum, d) => sum + Number(d.value || 0), 0) : '—');
+const attendanceNote = computed(() => asistenciaLoaded.value ? ui.value.realAttendance : ui.value.attendanceUnavailable);
 
 /*
   icon  = path de un SVG de 24x24
@@ -810,11 +995,21 @@ onMounted(() => {
   }
 
   window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  window.addEventListener('factorfit:gym-profile-updated', onProfileUpdated);
+  window.addEventListener('focus', onFocus);
+  document.addEventListener('visibilitychange', onVisible);
+  void loadDashboard();
   window.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
+  requestSeq++;
   window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', onBranchChanged);
+  window.removeEventListener('factorfit:gym-profile-updated', onProfileUpdated);
+  window.removeEventListener('focus', onFocus);
+  document.removeEventListener('visibilitychange', onVisible);
   window.removeEventListener('keydown', handleKeydown);
   document.body.style.overflow = '';
 });
@@ -2664,4 +2859,19 @@ button {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Perfil persistido: mismos colores y paneles del dashboard existente. */
+.dashboard-data-error{padding:12px 15px;margin:0;border:1px solid rgba(248,113,113,.35);border-radius:12px;background:rgba(248,113,113,.07);color:#fca5a5;font-size:12px}
+.dashboard-data-error button{margin-left:10px;border:0;background:transparent;color:inherit;cursor:pointer;text-decoration:underline}
+.hero-branch{display:block;margin-top:8px;color:#e2e8f0;font-size:12px;font-weight:600}
+.gym-profile-overview{width:100%}
+.gym-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gym-detail-item{min-width:0;display:flex;flex-direction:column;gap:7px;padding:13px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.gym-detail-item>span{font-size:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:800;color:var(--text3)}
+.gym-detail-item>strong,.gym-detail-item>a{color:var(--title);font-size:12px;font-weight:600;line-height:1.65;overflow-wrap:anywhere}
+.gym-detail-item>a{color:var(--hl);text-decoration:none}
+.gym-detail-wide{grid-column:span 3}
+.dashboard-empty{padding:14px 4px;color:var(--text3);font-size:12px}
+@media(max-width:900px){.gym-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gym-detail-wide{grid-column:span 2}}
+@media(max-width:560px){.gym-detail-grid{grid-template-columns:minmax(0,1fr)}.gym-detail-wide{grid-column:span 1}}
 </style>
