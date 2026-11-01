@@ -54,24 +54,6 @@
           </div>
         </section>
 
-        <!-- DATOS REALES DEL PERFIL GUARDADO -->
-        <section v-if="profileLoaded" class="panel gym-profile-overview" aria-label="Información del gimnasio">
-          <div class="panel-header">
-            <div><span class="section-eyebrow">{{ ui.profileInformation }}</span><h2>{{ branchName || gym.name }}</h2></div>
-            <button class="link-btn" type="button" @click="go('/GYM_ACCOUNT/profile')">{{ ui.editProfile }} →</button>
-          </div>
-          <div class="gym-detail-grid">
-            <div class="gym-detail-item"><span>{{ ui.owner }}</span><strong>{{ profile.nombrePropietario || '—' }}</strong></div>
-            <div class="gym-detail-item"><span>{{ ui.email }}</span><strong>{{ profile.email || '—' }}</strong></div>
-            <div class="gym-detail-item"><span>{{ ui.address }}</span><strong>{{ profileAddress || '—' }}</strong></div>
-            <div class="gym-detail-item"><span>{{ ui.postalCode }}</span><strong>{{ profile.cp || '—' }}</strong></div>
-            <div class="gym-detail-item"><span>{{ ui.daysAndHours }}</span><strong>{{ serviceHours || '—' }}</strong></div>
-            <div class="gym-detail-item"><span>{{ ui.referencePrices }}</span><strong>{{ referencePrices || '—' }}</strong></div>
-            <div class="gym-detail-item gym-detail-wide"><span>{{ ui.amenities }}</span><strong>{{ amenityNames || '—' }}</strong></div>
-            <div v-if="mapLink" class="gym-detail-item gym-detail-wide"><span>{{ ui.location }}</span><a :href="mapLink" target="_blank" rel="noopener noreferrer">{{ ui.viewMap }} ↗</a></div>
-          </div>
-        </section>
-
         <!-- 2. INDICADORES CLAVE -->
         <section class="kpi-grid">
           <article class="kpi-card">
@@ -458,7 +440,6 @@ const pagosConfirmados = ref([]);
 const registrosAsistencia = ref([]);
 const ingresosLoaded = ref(false);
 const asistenciaLoaded = ref(false);
-const availableDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const getToken = () => {
   for (const storage of [sessionStorage, localStorage]) {
     for (const name of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
@@ -516,26 +497,6 @@ const nowParts = () => {
 };
 const formatMoney = (n) => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
 const profileAddress = computed(() => [profile.value.calle, profile.value.numExt, profile.value.numInt && `Int. ${profile.value.numInt}`, profile.value.otrasCalles, profile.value.colonia, profile.value.municipio, profile.value.entidad].filter(Boolean).join(', '));
-const amenityNames = computed(() => (Array.isArray(profile.value.amenidades) ? profile.value.amenidades : []).map(x => typeof x === 'string' ? x : x?.nombre).filter(Boolean).join(' · '));
-const serviceHours = computed(() => {
-  const selected = Array.isArray(profile.value.selectedDays) ? profile.value.selectedDays : [];
-  const shifts = profile.value.horariosCompletos || {};
-  return availableDays.filter(day => selected.includes(day) && shifts[day]?.activo).map(day => {
-    const hours = (shifts[day].turnos || []).map(t => `${t.abierto || '—'}–${t.cerrado || '—'}`).join(', ');
-    return `${day}: ${hours}`;
-  }).join(' · ');
-});
-const referencePrices = computed(() => {
-  const items = [];
-  if (profile.value.precioMes !== '' && profile.value.precioMes != null) items.push(`Mensual ${formatMoney(profile.value.precioMes)}`);
-  if (profile.value.precioSem !== '' && profile.value.precioSem != null) items.push(`Semanal ${formatMoney(profile.value.precioSem)}`);
-  return items.join(' · ');
-});
-const mapLink = computed(() => {
-  const lat = Number(profile.value.latitud), lon = Number(profile.value.longitud);
-  if (!profile.value.latitud || !profile.value.longitud || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return '';
-  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`;
-});
 let requestSeq = 0;
 const loadDashboard = async () => {
   const seq = ++requestSeq;
@@ -707,10 +668,7 @@ const dashboardTranslations = {
     quickActions: 'Acciones rápidas',
     mainBranch: 'Gimnasio Principal',
     peopleInside: 'personas dentro',
-    profileInformation: 'DATOS DEL PERFIL', editProfile: 'Editar perfil', owner: 'Propietario', email: 'Correo',
-    address: 'Dirección', postalCode: 'Código postal', daysAndHours: 'Días y horarios',
-    referencePrices: 'Precios de referencia', amenities: 'Amenidades y servicios',
-    location: 'Ubicación', viewMap: 'Ver en el mapa', addressNotSet: 'Sin dirección registrada',
+    addressNotSet: 'Sin dirección registrada',
     retry: 'Reintentar', noAlerts: 'No hay alertas registradas.', noActivity: 'Sin actividad registrada.',
     fromConfirmedPayments: 'Calculado con pagos confirmados', withDebt: 'clientes con adeudo',
     requiresFollowup: 'Requieren seguimiento', expiredMemberships: 'membresías vencidas',
@@ -755,10 +713,7 @@ const dashboardTranslations = {
     quickActions: 'Quick actions',
     mainBranch: 'Main Gym',
     peopleInside: 'people inside',
-    profileInformation: 'GYM PROFILE', editProfile: 'Edit profile', owner: 'Owner', email: 'Email',
-    address: 'Address', postalCode: 'Postal code', daysAndHours: 'Days and schedules',
-    referencePrices: 'Reference prices', amenities: 'Amenities and services',
-    location: 'Location', viewMap: 'Open map', addressNotSet: 'No address on file',
+    addressNotSet: 'No address on file',
     retry: 'Retry', noAlerts: 'No alerts at this time.', noActivity: 'No activity recorded.',
     fromConfirmedPayments: 'Calculated from confirmed payments', withDebt: 'clients with debt',
     requiresFollowup: 'Follow-up required', expiredMemberships: 'expired memberships',
@@ -2860,18 +2815,9 @@ button {
   }
 }
 
-/* Perfil persistido: mismos colores y paneles del dashboard existente. */
-.dashboard-data-error{padding:12px 15px;margin:0;border:1px solid rgba(248,113,113,.35);border-radius:12px;background:rgba(248,113,113,.07);color:#fca5a5;font-size:12px}
-.dashboard-data-error button{margin-left:10px;border:0;background:transparent;color:inherit;cursor:pointer;text-decoration:underline}
-.hero-branch{display:block;margin-top:8px;color:#e2e8f0;font-size:12px;font-weight:600}
-.gym-profile-overview{width:100%}
-.gym-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.gym-detail-item{min-width:0;display:flex;flex-direction:column;gap:7px;padding:13px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.gym-detail-item>span{font-size:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:800;color:var(--text3)}
-.gym-detail-item>strong,.gym-detail-item>a{color:var(--title);font-size:12px;font-weight:600;line-height:1.65;overflow-wrap:anywhere}
-.gym-detail-item>a{color:var(--hl);text-decoration:none}
-.gym-detail-wide{grid-column:span 3}
-.dashboard-empty{padding:14px 4px;color:var(--text3);font-size:12px}
-@media(max-width:900px){.gym-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.gym-detail-wide{grid-column:span 2}}
-@media(max-width:560px){.gym-detail-grid{grid-template-columns:minmax(0,1fr)}.gym-detail-wide{grid-column:span 1}}
+/* Mensajes de error / vacío y etiqueta de sucursal en el encabezado. */
+.dashboard-data-error { padding: 12px 15px; margin: 0; border: 1px solid rgba(248, 113, 113, .35); border-radius: 12px; background: rgba(248, 113, 113, .07); color: #fca5a5; font-size: 12px; }
+.dashboard-data-error button { margin-left: 10px; border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; }
+.hero-branch { display: block; margin-top: 8px; color: #e2e8f0; font-size: 12px; font-weight: 600; }
+.dashboard-empty { padding: 14px 4px; color: var(--text3); font-size: 12px; }
 </style>
