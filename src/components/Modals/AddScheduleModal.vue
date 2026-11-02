@@ -1,771 +1,704 @@
 <template>
-  <div class="schedule-wrapper">
-
-    <!-- TOAST -->
-    <transition name="toast">
-      <div v-if="toast.show" :class="['toast', toast.type]" role="status">
-        <div class="toast-icon">
-          <svg v-if="toast.type === 'success'" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
-          <svg v-else viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>
-        </div>
-        <span>{{ toast.message }}</span>
-      </div>
-    </transition>
-
-    <!-- CONFIRMAR ELIMINACIÓN -->
-    <transition name="toast">
-      <div v-if="pendingDelete" class="confirm-overlay" @click.self="pendingDelete = null">
-        <div class="confirm-box" role="alertdialog" aria-modal="true">
-          <div class="confirm-icon">
-            <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 10v6M14 10v6"/></svg>
-          </div>
-          <h3>{{ t('deleteTitle') }}</h3>
-          <p>
-            {{ t('deletePrefix') }} <strong>{{ pendingDelete.nombre }}</strong> {{ t('deleteFromSchedule') }}
-            ({{ dayLabel(pendingDelete.dia) }}, {{ formatHour(pendingDelete.inicio) }}). {{ t('deleteWarning') }}
-          </p>
-          <div class="confirm-actions">
-            <button type="button" class="btn-ghost" @click="pendingDelete = null">{{ t('cancel') }}</button>
-            <button type="button" class="btn-danger" @click="confirmDelete">{{ t('yesDelete') }}</button>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <!-- FORMULARIO: NUEVA / EDITAR ACTIVIDAD -->
-    <transition name="toast">
-      <div v-if="showForm" class="form-overlay" @click.self="closeForm">
-        <AddScheduleModal
-          :initial-data="formData"
-          :validator="validateActivity"
-          @save="saveActivity"
-          @close="closeForm"
-        />
-      </div>
-    </transition>
-
-    <div class="schedule-panel">
-
+  <div class="activity-wrapper">
+    <div class="activity-panel">
       <!-- ================= HEADER ================= -->
-      <header class="schedule-header">
-        <div class="header-info">
-          <div class="header-icon">
+      <header class="panel-header">
+        <div class="header-left">
+          <div class="calendar-icon">
             <svg viewBox="0 0 24 24">
               <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
-              <path d="M8 13h3v3H8z"/>
+              <path d="M7 13h3v3H7z"/>
             </svg>
           </div>
-
           <div>
-            <span class="header-eyebrow">{{ t('gymSchedule') }}</span>
-            <h2>{{ t('scheduleTitle') }} <span>{{ t('weekly') }}</span></h2>
-            <p>{{ t('headerDescription') }}</p>
+            <span class="header-kicker">{{ t('agendaKicker') }}</span>
+            <h2>
+              {{ isEdit ? t('editTitle') : t('newTitle') }}
+              <span>{{ isEdit ? t('editHighlight') : t('newHighlight') }}</span>
+            </h2>
+            <p>
+              {{ isEdit ? t('editSubtitle') : t('newSubtitle') }}
+            </p>
           </div>
         </div>
-
-        <button class="close-btn" type="button" :aria-label="t('close')" @click="$emit('close')">
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        <button
+          type="button"
+          class="close-btn"
+          @click="$emit('close')"
+          :title="t('closeTooltip')"
+          :aria-label="t('closeTooltip')"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M6 6l12 12M18 6 6 18"/>
+          </svg>
         </button>
       </header>
-
-      <!-- ================= TOOLBAR ================= -->
-      <div class="calendar-toolbar">
-        <div class="week-navigation">
-          <button type="button" class="nav-btn" :aria-label="t('previousWeek')" @click="previousWeek">
-            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-          </button>
-
-          <button type="button" class="today-btn" @click="goToday">{{ t('today') }}</button>
-
-          <button type="button" class="nav-btn" :aria-label="t('nextWeek')" @click="nextWeek">
-            <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-
-          <div class="week-info">
-            <strong>{{ weekTitle }}</strong>
-            <span>{{ weekRange }}</span>
-          </div>
-        </div>
-
-        <div class="toolbar-right">
-          <div class="legend">
-            <span><i class="dot scheduled"></i> {{ t('scheduled') }}</span>
-            <span><i class="dot available"></i> {{ t('available') }}</span>
-          </div>
-
-          <button class="new-activity-btn" type="button" @click="createActivity">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            <span>{{ t('newActivity') }}</span>
-          </button>
-        </div>
-      </div>
-
-      <p v-if="errorApi" role="alert" style="color:#f87171;padding:12px">{{ errorApi }} <button type="button" @click="cargarActividades">Reintentar</button></p>
-      <!-- ================= RESUMEN ================= -->
-      <div class="summary-grid">
-        <article class="summary-card">
-          <div class="summary-icon blue">
-            <svg viewBox="0 0 24 24"><path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/></svg>
-          </div>
-          <div>
-            <strong>{{ activities.length }}</strong>
-            <span>{{ t('activities') }}</span>
-          </div>
-        </article>
-
-        <article class="summary-card">
-          <div class="summary-icon green">
-            <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a4 4 0 0 1 5 4v6"/></svg>
-          </div>
-          <div>
-            <strong>{{ totalCapacity }}</strong>
-            <span>{{ t('totalCapacity') }}</span>
-          </div>
-        </article>
-
-        <article class="summary-card">
-          <div class="summary-icon purple">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-          </div>
-          <div>
-            <strong>{{ instructorsCount }}</strong>
-            <span>{{ t('instructors') }}</span>
-          </div>
-        </article>
-
-        <article class="summary-card">
-          <div class="summary-icon orange">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          </div>
-          <div>
-            <strong>{{ totalHours }}h</strong>
-            <span>{{ t('scheduledHours') }}</span>
-          </div>
-        </article>
-      </div>
-
-      <!-- ============================================================
-           DESKTOP — AGENDA SEMANAL
-      ============================================================ -->
-      <div class="desktop-calendar">
-        <div class="calendar-scroll">
-
-          <!-- CABECERA DÍAS -->
-          <div class="calendar-days-header">
-            <div class="time-header"><span>{{ t('hour') }}</span></div>
-
-            <div
-              v-for="day in weekDays"
-              :key="day.key"
-              class="day-header"
-              :class="{ today: day.isToday }"
-            >
-              <span class="day-name">{{ day.short }}</span>
-              <strong>{{ day.number }}</strong>
-              <small>{{ day.month }}</small>
-
-              <span v-if="day.isToday" class="today-indicator">{{ t('todayUpper') }}</span>
-
-              <div class="day-count">
-                {{ activitiesForDay(day.key).length }}
-                {{ activitiesForDay(day.key).length === 1 ? t('activity') : t('activitiesLower') }}
-              </div>
+      <form class="activity-form" @submit.prevent="guardarActividad">
+        <!-- ================= DÍA ================= -->
+        <section class="form-section">
+          <div class="section-title">
+            <div class="section-number">01</div>
+            <div>
+              <h3>{{ t('daySectionTitle') }}</h3>
+              <p>{{ t('daySectionDescription') }}</p>
             </div>
           </div>
-
-          <!-- CUERPO -->
-          <div class="calendar-body">
-
-            <div class="time-column">
-              <div v-for="hour in hours" :key="hour" class="time-row">
-                <span>{{ formatHour(hour) }}</span>
-              </div>
-            </div>
-
-            <div
-              v-for="day in weekDays"
-              :key="day.key"
-              class="day-column"
-              :class="{ today: day.isToday }"
-            >
-              <div
-                v-for="hour in hours"
-                :key="`${day.key}-${hour}`"
-                class="calendar-slot"
-                :class="{ occupied: !!getActivity(day.key, hour) }"
-              >
-                <!-- ACTIVIDAD -->
-                <template v-for="ev in eventsAt(day.key, hour)" :key="ev.id">
-                  <article
-                    class="activity-event"
-                    :style="{ '--event-color': colorOf(ev) }"
-                    :title="`${catLabel(ev.categoria)} · ${levelLabel(ev.nivel)}`"
-                    tabindex="0"
-                    @click="openActivity(ev)"
-                    @keydown.enter="openActivity(ev)"
-                  >
-                    <div class="event-accent"></div>
-
-                    <div class="event-top">
-                      <span class="event-time">{{ formatHour(ev.inicio) }}</span>
-
-                      <span class="event-capacity">
-                        <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21a6 6 0 0 1 12 0M17 11a4 4 0 0 1 4 4v6"/></svg>
-                        {{ ev.inscritos || 0 }}/{{ ev.capacidad }}
-                      </span>
-                    </div>
-
-                    <strong>{{ ev.nombre }}</strong>
-
-                    <div class="event-detail">
-                      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
-                      <span>{{ ev.instructor }}</span>
-                    </div>
-
-                    <div class="event-detail">
-                      <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></svg>
-                      <span>{{ ev.ubicacion }}</span>
-                    </div>
-
-                    <div class="event-progress"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
-
-                    <!-- ACCIONES -->
-                    <div class="event-actions">
-                      <button type="button" class="icon-btn" :title="t('edit')" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
-                        <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
-                      </button>
-
-                      <button type="button" class="icon-btn danger" :title="t('delete')" :aria-label="t('deleteActivity')" @click.stop="askDelete(ev)">
-                        <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-                      </button>
-                    </div>
-                  </article>
-                </template>
-
-                <!-- SLOT VACÍO -->
-                <button
-                  v-if="!getActivity(day.key, hour)"
-                  type="button"
-                  class="empty-slot"
-                  @click="selectSlot(day.key, hour)"
-                >
-                  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                  <span>{{ t('schedule') }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ============================================================
-           MOBILE
-      ============================================================ -->
-      <div class="mobile-calendar">
-
-        <div class="mobile-days">
-          <button
-            v-for="(day, index) in weekDays"
-            :key="day.key"
-            type="button"
-            :class="['mobile-day', { active: activeDay === index, today: day.isToday }]"
-            @click="activeDay = index"
-          >
-            <span>{{ day.short }}</span>
-            <strong>{{ day.number }}</strong>
-            <i v-if="activitiesForDay(day.key).length"></i>
-          </button>
-        </div>
-
-        <div class="mobile-day-header">
-          <div>
-            <span>{{ t('daySchedule') }}</span>
-            <h3>{{ weekDays[activeDay]?.full }}</h3>
-          </div>
-
-          <strong>
-            {{ activitiesForDay(activeKey).length }}
-            {{ activitiesForDay(activeKey).length === 1 ? t('activity') : t('activitiesLower') }}
-          </strong>
-        </div>
-
-        <div class="mobile-timeline">
-          <div v-for="hour in hours" :key="hour" class="mobile-time-row">
-            <div class="mobile-time">{{ formatHour(hour) }}</div>
-
-            <div class="mobile-line"><span></span></div>
-
-            <template v-for="ev in eventsAt(activeKey, hour)" :key="ev.id">
-              <article
-                class="mobile-event"
-                :style="{ '--event-color': colorOf(ev) }"
-                @click="openActivity(ev)"
-              >
-                <div class="mobile-event-top">
-                  <div>
-                    <span>{{ catLabel(ev.categoria) }}</span>
-                    <strong>{{ ev.nombre }}</strong>
-                  </div>
-
-                  <div class="mobile-actions">
-                    <button type="button" class="icon-btn" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
-                      <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
-                    </button>
-
-                    <button type="button" class="icon-btn danger" :aria-label="t('deleteActivity')" @click.stop="askDelete(ev)">
-                      <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="mobile-event-details">
-                  <span>
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    {{ formatHour(ev.inicio) }} – {{ formatHour(ev.fin) }}
-                  </span>
-
-                  <span>
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
-                    {{ ev.instructor }}
-                  </span>
-
-                  <span>
-                    <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></svg>
-                    {{ ev.ubicacion }}
-                  </span>
-                </div>
-
-                <div class="mobile-event-footer">
-                  <span>{{ levelLabel(ev.nivel) }}</span>
-                  <span>{{ ev.inscritos || 0 }}/{{ ev.capacidad }} {{ t('people') }}</span>
-                </div>
-
-                <div class="event-progress static"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
-              </article>
-            </template>
-
+          <div class="days-grid">
             <button
-              v-if="!getActivity(activeKey, hour)"
+              v-for="(day, index) in currentDays"
+              :key="day"
               type="button"
-              class="mobile-empty"
-              @click="selectSlot(activeKey, hour)"
+              class="day-card"
+              :class="{ active: form.dia === daysEs[index] }"
+              @click="form.dia = daysEs[index]"
             >
-              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-              {{ t('availableSchedule') }}
+              <span>{{ shortDay(day) }}</span>
+              <strong>{{ day }}</strong>
+              <div class="day-check">
+                <svg viewBox="0 0 24 24">
+                  <path d="m6 12 4 4 8-8"/>
+                </svg>
+              </div>
             </button>
           </div>
+        </section>
+        <!-- ================= INFORMACIÓN ================= -->
+        <section class="form-section">
+          <div class="section-title">
+            <div class="section-number">02</div>
+            <div>
+              <h3>{{ t('infoSectionTitle') }}</h3>
+              <p>{{ t('infoSectionDescription') }}</p>
+            </div>
+          </div>
+          <div class="fields-grid">
+            <div class="field field-large">
+              <label for="act-name">
+                {{ t('activityNameLabel') }}
+              </label>
+              <div class="input-control">
+                <div class="field-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                  </svg>
+                </div>
+                <input
+                  id="act-name"
+                  v-model="form.nombre"
+                  type="text"
+                  :placeholder="t('activityNamePlaceholder')"
+                  required
+                >
+              </div>
+            </div>
+            <div class="field">
+              <label for="act-cat">
+                {{ t('categoryLabel') }}
+              </label>
+              <div class="select-control">
+                <span
+                  class="category-dot"
+                  :style="{ background: selectedCategoryColor }"
+                ></span>
+                <select
+                  id="act-cat"
+                  v-model="form.categoria"
+                  class="category-select"
+                  required
+                >
+                  <option disabled value="">
+                    {{ t('selectCategoryPlaceholder') }}
+                  </option>
+                  <optgroup
+                    v-for="group in categoryGroups"
+                    :key="group.key"
+                    :label="groupLabel(group)"
+                  >
+                    <option
+                      v-for="cat in group.items"
+                      :key="cat.key"
+                      :value="cat.key"
+                    >
+                      {{ catLabel(cat.key) }}
+                    </option>
+                  </optgroup>
+                </select>
+                <svg class="select-arrow" viewBox="0 0 24 24">
+                  <path d="m7 10 5 5 5-5"/>
+                </svg>
+              </div>
+            </div>
+            <div class="field">
+              <label for="act-level">
+                {{ t('levelLabel') }}
+              </label>
+              <div class="select-control">
+                <select
+                  id="act-level"
+                  v-model="form.nivel"
+                  required
+                >
+                  <option disabled value="">
+                    {{ t('selectLevelPlaceholder') }}
+                  </option>
+                  <option value="Principiante">
+                    {{ t('levelBeginner') }}
+                  </option>
+                  <option value="Intermedio">
+                    {{ t('levelIntermediate') }}
+                  </option>
+                  <option value="Avanzado">
+                    {{ t('levelAdvanced') }}
+                  </option>
+                </select>
+                <svg class="select-arrow" viewBox="0 0 24 24">
+                  <path d="m7 10 5 5 5-5"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- ================= HORARIO ================= -->
+        <section class="form-section schedule-section">
+          <div class="section-title">
+            <div class="section-number">03</div>
+            <div>
+              <h3>{{ t('scheduleSectionTitle') }}</h3>
+              <p>{{ t('scheduleSectionDescription') }}</p>
+            </div>
+          </div>
+          <div class="schedule-card">
+            <div class="schedule-time">
+              <div class="time-icon">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path d="M12 7v5l3 2"/>
+                </svg>
+              </div>
+              <div class="time-field">
+                <label for="act-start">
+                  {{ t('startTimeLabel') }}
+                </label>
+                <input
+                  id="act-start"
+                  v-model="form.inicio"
+                  type="time"
+                  required
+                >
+              </div>
+            </div>
+            <div class="time-connector">
+              <span></span>
+              <strong
+                :class="{ invalid: durationText === t('invalidSchedule') }"
+              >
+                {{ durationText }}
+              </strong>
+              <span></span>
+            </div>
+            <div class="schedule-time">
+              <div class="time-icon end">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="9"/>
+                  <path d="M12 7v5l3 2"/>
+                </svg>
+              </div>
+              <div class="time-field">
+                <label for="act-end">
+                  {{ t('endTimeLabel') }}
+                </label>
+                <input
+                  id="act-end"
+                  v-model="form.fin"
+                  type="time"
+                  required
+                >
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- ================= RESPONSABLE ================= -->
+        <section class="form-section">
+          <div class="section-title">
+            <div class="section-number">04</div>
+            <div>
+              <h3>{{ t('instructorSectionTitle') }}</h3>
+              <p>{{ t('instructorSectionDescription') }}</p>
+            </div>
+          </div>
+          <div class="fields-grid two-columns">
+            <div class="field">
+              <label for="act-instructor">
+                {{ t('instructorLabel') }}
+              </label>
+              <div class="input-control">
+                <div class="field-icon">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M4 21a8 8 0 0 1 16 0"/>
+                  </svg>
+                </div>
+                <input
+                  id="act-instructor"
+                  v-model="form.instructor"
+                  type="text"
+                  :placeholder="t('instructorPlaceholder')"
+                  required
+                >
+              </div>
+            </div>
+            <div class="field">
+              <label for="act-capacity">
+                {{ t('capacityLabel') }}
+              </label>
+              <div class="input-control">
+                <div class="field-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <input
+                  id="act-capacity"
+                  v-model.number="form.capacidad"
+                  type="number"
+                  min="1"
+                  step="1"
+                  :placeholder="t('capacityPlaceholder')"
+                  required
+                >
+              </div>
+            </div>
+          </div>
+        </section>
+        <!-- ================= UBICACIÓN ================= -->
+        <section class="form-section">
+          <div class="section-title">
+            <div class="section-number">05</div>
+            <div>
+              <h3>{{ t('locationSectionTitle') }}</h3>
+              <p>{{ t('locationSectionDescription') }}</p>
+            </div>
+          </div>
+          <div class="fields-grid">
+            <div class="field field-large">
+              <label for="act-location">
+                {{ t('locationLabel') }}
+              </label>
+              <div class="input-control">
+                <div class="field-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
+                    <circle cx="12" cy="10" r="2.5"/>
+                  </svg>
+                </div>
+                <input
+                  id="act-location"
+                  v-model="form.ubicacion"
+                  type="text"
+                  :placeholder="t('locationPlaceholder')"
+                >
+              </div>
+            </div>
+            <div class="field field-large">
+              <label for="act-notes">
+                {{ t('descriptionLabel') }}
+              </label>
+              <textarea
+                id="act-notes"
+                v-model="form.descripcion"
+                :placeholder="t('descriptionPlaceholder')"
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
+        </section>
+        <!-- ================= RESUMEN ================= -->
+        <div class="event-summary">
+          <div
+            class="summary-color"
+            :style="{ background: selectedCategoryColor }"
+          ></div>
+          <div class="summary-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
+            </svg>
+          </div>
+          <div class="summary-content">
+            <span>{{ t('previewTitle') }}</span>
+            <strong>
+              {{ form.nombre || t('previewActivityPlaceholder') }}
+            </strong>
+            <p>
+              {{ selectedDayDisplay || t('previewDayPlaceholder') }}
+              <template v-if="form.inicio">
+                · {{ formatTime(form.inicio) }}
+              </template>
+              <template v-if="form.fin">
+                — {{ formatTime(form.fin) }}
+              </template>
+              <template v-if="form.instructor">
+                · {{ form.instructor }}
+              </template>
+            </p>
+          </div>
+          <div
+            v-if="form.categoria"
+            class="summary-category"
+          >
+            <i :style="{ background: selectedCategoryColor }"></i>
+            {{ catLabel(form.categoria) }}
+          </div>
+        </div>
+        <!-- ================= FOOTER ================= -->
+        <footer class="form-footer">
+          <button
+            type="button"
+            class="cancel-btn"
+            @click="$emit('close')"
+          >
+            {{ t('cancelBtn') }}
+          </button>
+          <button
+            type="submit"
+            class="save-btn"
+          >
+            <svg
+              v-if="isEdit"
+              viewBox="0 0 24 24"
+            >
+              <path d="m5 12 4 4L19 6"/>
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+            >
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            {{ isEdit ? t('saveChangesBtn') : t('saveActivityBtn') }}
+          </button>
+        </footer>
+      </form>
+    </div>
+    <!-- ================= TOAST ================= -->
+    <transition name="toast">
+      <div
+        v-if="toast.show"
+        :class="['toast-message', toast.type]"
+        :role="toast.type === 'error' ? 'alert' : 'status'"
+      >
+        <div class="toast-icon">
+          <svg
+            v-if="toast.type === 'success'"
+            viewBox="0 0 24 24"
+          >
+            <path d="m5 12 4 4L19 6"/>
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 8v5M12 17h.01"/>
+          </svg>
+        </div>
+        <div>
+          <strong>
+            {{
+              toast.type === 'success'
+                ? (isEdit ? t('toastUpdatedTitle') : t('toastSavedTitle'))
+                : t('errorTitle')
+            }}
+          </strong>
+          <span>{{ toast.message }}</span>
         </div>
       </div>
-
-      <!-- ================= FOOTER ================= -->
-      <footer class="calendar-footer">
-        <div>
-          <span class="footer-dot"></span>
-          <p>{{ t('footerHint') }}</p>
-        </div>
-
-        <button type="button" @click="$emit('close')">{{ t('closeSchedule') }}</button>
-      </footer>
-
-    </div>
+    </transition>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import AddScheduleModal from './AddScheduleModal.vue';
-import { categoryColor, categoryLabel } from './scheduleCategories.ts';
-
-interface Activity {
-  id: number;
-  dia: string;
-  nombre: string;
-  categoria: string;
-  nivel: string;
-  instructor: string;
-  capacidad: number;
-  inscritos?: number;
-  inicio: string;
-  fin: string;
-  ubicacion: string;
-  descripcion?: string;
-  color?: string;
-}
-
-const emit = defineEmits(['close', 'activity-click', 'save-activity', 'delete-activity']);
-
-const activeDay = ref(0);
-const showForm = ref(false);
-const formData = ref<Record<string, any> | null>(null);
-const idioma = ref(localStorage.getItem('owner-idioma') || 'es');
-const cargando=ref(false);const guardando=ref(false);const errorApi=ref('');
-
-const translations = {
-  es: {
-    deleteTitle: '¿Eliminar actividad?', deletePrefix: 'Se quitará', deleteFromSchedule: 'de la agenda',
-    deleteWarning: 'Esta acción no se puede deshacer.', cancel: 'Cancelar', yesDelete: 'Sí, eliminar',
-    gymSchedule: 'AGENDA DEL GIMNASIO', scheduleTitle: 'Horario', weekly: 'Semanal',
-    headerDescription: 'Consulta y administra las actividades programadas.', close: 'Cerrar',
-    previousWeek: 'Semana anterior', today: 'Hoy', nextWeek: 'Semana siguiente',
-    scheduled: 'Programado', available: 'Disponible', newActivity: 'Nueva actividad',
-    activities: 'Actividades', totalCapacity: 'Cupos totales', instructors: 'Instructores',
-    scheduledHours: 'Horas agendadas', hour: 'HORA', todayUpper: 'HOY',
-    activity: 'actividad', activitiesLower: 'actividades', edit: 'Editar', delete: 'Eliminar',
-    editActivity: 'Editar actividad', deleteActivity: 'Eliminar actividad', schedule: 'Agendar',
-    daySchedule: 'AGENDA DEL DÍA', people: 'personas', availableSchedule: 'Horario disponible',
-    footerHint: 'Selecciona un espacio libre para registrar una nueva actividad.',
-    closeSchedule: 'Cerrar agenda',
-    conflictPrefix: 'Ya existe', conflictOn: 'el', conflictAt: 'a las', conflictChoose: 'Elige otra hora.',
-    updated: 'se actualizó.', added: 'se agregó a la agenda.', removed: 'fue eliminada de la agenda.',
-    levelBeginner: 'Principiante', levelIntermediate: 'Intermedio', levelAdvanced: 'Avanzado',
-    levelAll: 'Todos'
-  },
-  en: {
-    deleteTitle: 'Delete activity?', deletePrefix: 'This will remove', deleteFromSchedule: 'from the schedule',
-    deleteWarning: 'This action cannot be undone.', cancel: 'Cancel', yesDelete: 'Yes, delete',
-    gymSchedule: 'GYM SCHEDULE', scheduleTitle: 'Weekly', weekly: 'Schedule',
-    headerDescription: 'View and manage scheduled activities.', close: 'Close',
-    previousWeek: 'Previous week', today: 'Today', nextWeek: 'Next week',
-    scheduled: 'Scheduled', available: 'Available', newActivity: 'New activity',
-    activities: 'Activities', totalCapacity: 'Total capacity', instructors: 'Instructors',
-    scheduledHours: 'Scheduled hours', hour: 'TIME', todayUpper: 'TODAY',
-    activity: 'activity', activitiesLower: 'activities', edit: 'Edit', delete: 'Delete',
-    editActivity: 'Edit activity', deleteActivity: 'Delete activity', schedule: 'Schedule',
-    daySchedule: 'DAY SCHEDULE', people: 'people', availableSchedule: 'Available time',
-    footerHint: 'Select an available time slot to schedule a new activity.',
-    closeSchedule: 'Close schedule',
-    conflictPrefix: 'There is already', conflictOn: 'on', conflictAt: 'at', conflictChoose: 'Choose another time.',
-    updated: 'was updated.', added: 'was added to the schedule.', removed: 'was removed from the schedule.',
-    levelBeginner: 'Beginner', levelIntermediate: 'Intermediate', levelAdvanced: 'Advanced',
-    levelAll: 'All levels'
-  }
-};
-
-const t = (key: string) => translations[idioma.value as 'es' | 'en']?.[key as keyof typeof translations.es] || translations.es[key as keyof typeof translations.es] || key;
-
-const normalizeLanguage = (value: unknown): 'es' | 'en' =>
-  String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
-
+<script setup>
+import { reactive, watch, computed, onMounted, onUnmounted } from 'vue';
+import { categoryGroups, categoryColor, categoryLabel } from './scheduleCategories.ts';
+const props = defineProps({
+  initialData: { type: Object, default: null },
+  validator: { type: Function, default: null }
+});
+const emit = defineEmits(['close', 'save']);
+/* ==================== IDIOMA ==================== */
+const settings = reactive({
+  idioma: localStorage.getItem('owner-idioma') || 'es'
+});
+const normalizeLanguage = (value) => String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
 const syncLanguage = () => {
-  idioma.value = normalizeLanguage(localStorage.getItem('owner-idioma') || 'es');
+  settings.idioma = normalizeLanguage(localStorage.getItem('owner-idioma') || 'es');
 };
-
-const handleLanguageChange = (event: Event) => {
-  const customEvent = event as CustomEvent<{ idioma?: string }>;
-  const nextLanguage = normalizeLanguage(customEvent.detail?.idioma || localStorage.getItem('owner-idioma') || 'es');
-  idioma.value = nextLanguage;
+const handleLanguageChange = (event) => {
+  const nextLanguage = normalizeLanguage(
+    event.detail?.idioma ||
+    localStorage.getItem('owner-idioma') ||
+    'es'
+  );
+  settings.idioma = nextLanguage;
   localStorage.setItem('owner-idioma', nextLanguage);
 };
-
-const currentDate = ref(new Date());
-const pendingDelete = ref<Activity | null>(null);
-
+const catLabel = (key) => categoryLabel(key, settings.idioma);
+const groupLabel = (group) => settings.idioma === 'en' ? group.en : group.es;
+/* ==================== TRADUCCIONES ==================== */
+const translations = {
+  es: {
+    agendaKicker: 'AGENDA DE ACTIVIDADES',
+    newTitle: 'Nueva',
+    newHighlight: 'Actividad',
+    newSubtitle: 'Programa una clase dentro del calendario del gimnasio.',
+    editTitle: 'Editar',
+    editHighlight: 'Actividad',
+    editSubtitle: 'Modifica los datos de la clase en el calendario.',
+    closeTooltip: 'Cerrar',
+    daySectionTitle: 'Selecciona el día',
+    daySectionDescription: 'Indica cuándo aparecerá la actividad en la agenda.',
+    infoSectionTitle: 'Información de la actividad',
+    infoSectionDescription: 'Define el tipo de clase y su nivel.',
+    scheduleSectionTitle: 'Horario de la clase',
+    scheduleSectionDescription: 'Establece el bloque que ocupará dentro de la agenda.',
+    instructorSectionTitle: 'Instructor y disponibilidad',
+    instructorSectionDescription: 'Define quién impartirá la actividad y el cupo disponible.',
+    locationSectionTitle: 'Ubicación y notas',
+    locationSectionDescription: 'Agrega información adicional para identificar la clase.',
+    activityNameLabel: 'Nombre de Actividad',
+    activityNamePlaceholder: 'Ej. CrossFit Funcional',
+    categoryLabel: 'Categoría',
+    selectCategoryPlaceholder: 'Seleccionar categoría...',
+    yoga: 'Yoga',
+    spinning: 'Spinning',
+    crossfit: 'CrossFit',
+    boxing: 'Boxeo',
+    pilates: 'Pilates',
+    zumba: 'Zumba',
+    levelLabel: 'Nivel',
+    selectLevelPlaceholder: 'Seleccionar nivel...',
+    levelBeginner: 'Principiante',
+    levelIntermediate: 'Intermedio',
+    levelAdvanced: 'Avanzado',
+    instructorLabel: 'Instructor',
+    instructorPlaceholder: 'Ej. Marisol Reyes',
+    capacityLabel: 'Capacidad',
+    capacityPlaceholder: 'Ej. 20 personas',
+    startTimeLabel: 'Hora de inicio',
+    endTimeLabel: 'Hora de término',
+    locationLabel: 'Ubicación / Aula',
+    locationPlaceholder: 'Ej. Sala funcional A',
+    descriptionLabel: 'Descripción / Notas',
+    descriptionPlaceholder: 'Indicaciones, material requerido o información adicional...',
+    previewTitle: 'VISTA PREVIA EN LA AGENDA',
+    previewActivityPlaceholder: 'Nombre de la actividad',
+    previewDayPlaceholder: 'Día sin seleccionar',
+    cancelBtn: 'Cancelar',
+    saveActivityBtn: 'Agendar actividad',
+    saveChangesBtn: 'Guardar cambios',
+    invalidSchedule: 'Horario inválido',
+    selectDayError: 'Selecciona el día de la actividad.',
+    endTimeError: 'La hora de término debe ser posterior a la hora de inicio.',
+    toastSavedTitle: 'Actividad registrada',
+    toastUpdatedTitle: 'Actividad actualizada',
+    errorTitle: 'Error',
+    toastSaved: 'La actividad fue agregada correctamente a la agenda.',
+    toastUpdated: 'Los cambios de la actividad se guardaron correctamente.'
+  },
+  en: {
+    agendaKicker: 'ACTIVITY SCHEDULE',
+    newTitle: 'New',
+    newHighlight: 'Activity',
+    newSubtitle: 'Schedule a class in the gym calendar.',
+    editTitle: 'Edit',
+    editHighlight: 'Activity',
+    editSubtitle: 'Modify the class information in the calendar.',
+    closeTooltip: 'Close',
+    daySectionTitle: 'Select the day',
+    daySectionDescription: 'Choose when the activity will appear in the schedule.',
+    infoSectionTitle: 'Activity information',
+    infoSectionDescription: 'Define the class type and level.',
+    scheduleSectionTitle: 'Class schedule',
+    scheduleSectionDescription: 'Set the time block the class will occupy in the schedule.',
+    instructorSectionTitle: 'Instructor and availability',
+    instructorSectionDescription: 'Define who will teach the activity and the available capacity.',
+    locationSectionTitle: 'Location and notes',
+    locationSectionDescription: 'Add additional information to identify the class.',
+    activityNameLabel: 'Activity Name',
+    activityNamePlaceholder: 'E.g. Functional CrossFit',
+    categoryLabel: 'Category',
+    selectCategoryPlaceholder: 'Select category...',
+    yoga: 'Yoga',
+    spinning: 'Spinning',
+    crossfit: 'CrossFit',
+    boxing: 'Boxing',
+    pilates: 'Pilates',
+    zumba: 'Zumba',
+    levelLabel: 'Level',
+    selectLevelPlaceholder: 'Select level...',
+    levelBeginner: 'Beginner',
+    levelIntermediate: 'Intermediate',
+    levelAdvanced: 'Advanced',
+    instructorLabel: 'Instructor',
+    instructorPlaceholder: 'E.g. Marisol Reyes',
+    capacityLabel: 'Capacity',
+    capacityPlaceholder: 'E.g. 20 people',
+    startTimeLabel: 'Start time',
+    endTimeLabel: 'End time',
+    locationLabel: 'Location / Room',
+    locationPlaceholder: 'E.g. Functional room A',
+    descriptionLabel: 'Description / Notes',
+    descriptionPlaceholder: 'Instructions, required equipment or additional information...',
+    previewTitle: 'SCHEDULE PREVIEW',
+    previewActivityPlaceholder: 'Activity name',
+    previewDayPlaceholder: 'No day selected',
+    cancelBtn: 'Cancel',
+    saveActivityBtn: 'Schedule activity',
+    saveChangesBtn: 'Save changes',
+    invalidSchedule: 'Invalid schedule',
+    selectDayError: 'Select the day of the activity.',
+    endTimeError: 'The end time must be later than the start time.',
+    toastSavedTitle: 'Activity scheduled',
+    toastUpdatedTitle: 'Activity updated',
+    errorTitle: 'Error',
+    toastSaved: 'The activity was successfully added to the schedule.',
+    toastUpdated: 'The activity changes were saved successfully.'
+  }
+};
+const t = (key) => translations[settings.idioma]?.[key] || translations.es[key] || key;
+/* ==================== DÍAS ==================== */
+const daysEs = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const currentDays = computed(() => settings.idioma === 'en' ? daysEn : daysEs);
+const form = reactive({
+  id: null,
+  dia: '',
+  nombre: '',
+  categoria: '',
+  nivel: '',
+  instructor: '',
+  capacidad: null,
+  inicio: '08:00',
+  fin: '09:00',
+  ubicacion: '',
+  descripcion: ''
+});
+const selectedDayDisplay = computed(() => {
+  if (!form.dia) return '';
+  const spanishIndex = daysEs.indexOf(form.dia);
+  if (spanishIndex !== -1) return currentDays.value[spanishIndex];
+  const englishIndex = daysEn.indexOf(form.dia);
+  if (englishIndex !== -1) return currentDays.value[englishIndex];
+  return form.dia;
+});
+const isEdit = computed(() => form.id !== null && form.id !== undefined);
+const selectedCategoryColor = computed(() => {
+  return categoryColor(form.categoria) || 'var(--color-highlight, #3b82f6)';
+});
+const durationText = computed(() => {
+  if (!form.inicio || !form.fin) return '';
+  const [startHour = 0, startMinute = 0] = form.inicio.split(':').map(Number);
+  const [endHour = 0, endMinute = 0] = form.fin.split(':').map(Number);
+  const minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+  if (minutes <= 0) return t('invalidSchedule');
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours && remainingMinutes) return `${hours} h ${remainingMinutes} min`;
+  if (hours) return `${hours} h`;
+  return `${remainingMinutes} min`;
+});
 const toast = reactive({
   show: false,
   message: '',
   type: 'success'
 });
-
-/*
-  EJEMPLOS VISUALES.
-  Después puedes reemplazar este arreglo con tus actividades
-  provenientes del backend.
-*/
-const activities = ref<Activity[]>([]);
-
-
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
-const sedeActual=()=>{for(const st of [sessionStorage,localStorage]){const v=st.getItem('selected_sede_id');if(v&&Number(v)>0)return Number(v);}return 1;};
-const tokenActual=()=>{for(const st of [sessionStorage,localStorage])for(const k of ['auth_token','token','access_token','GYM_ACCOUNT_token']){const v=st.getItem(k);if(v)return v.replace(/^Bearer\s+/i,'');}return '';};
-const consultar=async(path:string,init:RequestInit={})=>{const token=tokenActual();if(!token)throw new Error('No hay sesión activa.');const r=await fetch(`${API}/api/gym/agenda${path}`,{...init,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(init.body?{'Content-Type':'application/json'}:{}),...(init.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(Object.values(d.errors||{}).flat().join(' ')||d.message||`HTTP ${r.status}`);return d;};
-let ultimaConsulta=0;
-const cargarActividades=async()=>{const seq=++ultimaConsulta;cargando.value=true;errorApi.value='';try{const d=await consultar(`?sede_id=${sedeActual()}`);if(seq!==ultimaConsulta)return;activities.value=(d.actividades||[]).map((a:any)=>({...a,id:Number(a.id),capacidad:Number(a.capacidad),inscritos:Number(a.inscritos||0)}));}catch(e:any){if(seq===ultimaConsulta){activities.value=[];errorApi.value=e.message;}}finally{if(seq===ultimaConsulta)cargando.value=false;}};
-const cambiarSede=()=>{closeForm();pendingDelete.value=null;void cargarActividades();};
-const hours = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00',
-  '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-];
-
-const dayData = [
-  { key: 'monday', es: 'Lunes', en: 'Monday', shortEs: 'LUN', shortEn: 'MON' },
-  { key: 'tuesday', es: 'Martes', en: 'Tuesday', shortEs: 'MAR', shortEn: 'TUE' },
-  { key: 'wednesday', es: 'Miércoles', en: 'Wednesday', shortEs: 'MIÉ', shortEn: 'WED' },
-  { key: 'thursday', es: 'Jueves', en: 'Thursday', shortEs: 'JUE', shortEn: 'THU' },
-  { key: 'friday', es: 'Viernes', en: 'Friday', shortEs: 'VIE', shortEn: 'FRI' },
-  { key: 'saturday', es: 'Sábado', en: 'Saturday', shortEs: 'SÁB', shortEn: 'SAT' },
-  { key: 'sunday', es: 'Domingo', en: 'Sunday', shortEs: 'DOM', shortEn: 'SUN' }
-];
-
-const catLabel = (key: string) => categoryLabel(key, idioma.value);
-
-const levelLabel = (level: string) => {
-  const map: Record<string, string> = {
-    Principiante: t('levelBeginner'),
-    Intermedio: t('levelIntermediate'),
-    Avanzado: t('levelAdvanced'),
-    Todos: t('levelAll')
-  };
-  return map[level] || level;
-};
-const colorOf = (activity: Activity) => categoryColor(activity.categoria) || activity.color || 'var(--color-highlight, #3b82f6)';
-
-const getMonday = (date: Date) => {
-  const copy = new Date(date);
-  const day = copy.getDay();
-  const diff = copy.getDate() - day + (day === 0 ? -6 : 1);
-
-  copy.setDate(diff);
-  copy.setHours(0, 0, 0, 0);
-
-  return copy;
-};
-
-const weekDays = computed(() => {
-  const monday = getMonday(currentDate.value);
-  const today = new Date();
-
-  return dayData.map((day, index) => {
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + index);
-
-    const isToday =
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
-
-    return {
-      ...day,
-      short: idioma.value === 'en' ? day.shortEn : day.shortEs,
-      number: date.getDate(),
-      month: date.toLocaleDateString(idioma.value === 'en' ? 'en-US' : 'es-MX', { month: 'short' }).replace('.', '').toUpperCase(),
-      full: idioma.value === 'en'
-        ? `${day.en}, ${date.toLocaleDateString('en-US', { month: 'long' })} ${date.getDate()}`
-        : `${day.es}, ${date.getDate()} de ${date.toLocaleDateString('es-MX', { month: 'long' })}`,
-      date,
-      isToday
-    };
-  });
-});
-
-const activeKey = computed(() => weekDays.value[activeDay.value]?.key || '');
-
-const weekTitle = computed(() => {
-  const first = weekDays.value[0]?.date;
-  if (!first) return '';
-
-  const month = first.toLocaleDateString(idioma.value === 'en' ? 'en-US' : 'es-MX', { month: 'long' });
-
-  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${first.getFullYear()}`;
-});
-
-const weekRange = computed(() => {
-  const first = weekDays.value[0];
-  const last = weekDays.value[6];
-
-  if (!first || !last) return '';
-
-  return `${first.number} ${first.month} — ${last.number} ${last.month}`;
-});
-
-const totalCapacity = computed(() =>
-  activities.value.reduce((total, item) => total + item.capacidad, 0)
-);
-
-const instructorsCount = computed(() =>
-  new Set(activities.value.map(item => item.instructor)).size
-);
-
-const totalHours = computed(() => {
-  const value = activities.value.reduce((total, activity) => {
-    const [startHour = 0, startMinute = 0] = activity.inicio.split(':').map(Number);
-    const [endHour = 0, endMinute = 0] = activity.fin.split(':').map(Number);
-
-    return total + ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
-  }, 0);
-
-  return Math.round(value * 10) / 10;
-});
-
-const activitiesForDay = (day: string) =>
-  activities.value.filter(activity => activity.dia === day);
-
-const sameHour = (a: string, b: string) => a.slice(0, 2) === b.slice(0, 2);
-
-const getActivity = (day: string, hour: string) =>
-  activities.value.find(activity => activity.dia === day && sameHour(activity.inicio, hour));
-
-/* Devuelve un arreglo (0 o 1 elemento) para poder usar la actividad con v-for en la plantilla */
-const eventsAt = (day: string, hour: string) => {
-  const found = getActivity(day, hour);
-  return found ? [found] : [];
-};
-
-const fillPercent = (activity: Activity) => {
-  if (!activity.capacidad) return 0;
-  return Math.min(100, Math.round(((activity.inscritos || 0) / activity.capacidad) * 100));
-};
-
-const dayLabel = (key: string) => {
-  const day = dayData.find(item => item.key === key);
-  if (!day) return key;
-  return idioma.value === 'en' ? day.en : day.es;
-};
-
-const formatHour = (time: string) => {
-  if (!time) return '';
-
-  const [hoursValue, minutes] = time.split(':');
-  const hour = Number(hoursValue);
-
-  const date = new Date();
-  date.setHours(hour, Number(minutes), 0, 0);
-  return date.toLocaleTimeString(idioma.value === 'en' ? 'en-US' : 'es-MX', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
-
-const showToast = (message: string, type = 'success') => {
+const mostrarToast = (message, type = 'success') => {
   toast.message = message;
   toast.type = type;
   toast.show = true;
-
   setTimeout(() => {
     toast.show = false;
-  }, 2400);
+  }, 2500);
 };
-
-const addOneHour = (hour: string) => {
-  const [h = 0, m = 0] = hour.split(':').map(Number);
-  return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-const openForm = (data: Record<string, any> | null = null) => {
-  formData.value = data;
-  showForm.value = true;
-};
-
-const closeForm = () => {
-  showForm.value = false;
-  formData.value = null;
-};
-
-/* Clic en un espacio libre del calendario */
-const selectSlot = (day: string, hour: string) => {
-  openForm({ day: dayData.find(item => item.key === day)?.es || day, hour, fin: addOneHour(hour) });
-};
-
-/* Botón "Nueva actividad" */
-const createActivity = () => {
-  openForm(null);
-};
-
-const openActivity = (activity: Activity) => {
-  emit('activity-click', activity);
-};
-
-/* EDITAR: abre el formulario con los datos de la actividad */
-const editActivity = (activity: Activity) => {
-  openForm({
-    id: activity.id,
-    day: dayData.find(item => item.key === activity.dia)?.es || activity.dia,
-    hour: activity.inicio,
-    fin: activity.fin,
-    nombre: activity.nombre,
-    categoria: activity.categoria,
-    nivel: activity.nivel,
-    instructor: activity.instructor,
-    capacidad: activity.capacidad,
-    ubicacion: activity.ubicacion,
-    descripcion: activity.descripcion || ''
-  });
-};
-
-const dayKeyFromLabel = (label: string) => dayData.find(item => item.es === label || item.en === label)?.key || label;
-
-/* El calendario muestra una actividad por franja de hora: evita encimar clases */
-const validateActivity = (data: Record<string, any>) => {
-  const dayKey = dayKeyFromLabel(data.dia);
-  const conflict = activities.value.find(
-    item => item.id !== data.id && item.dia === dayKey && sameHour(item.inicio, data.inicio)
+const shortDay = (day) => day.substring(0, 3).toUpperCase();
+const formatTime = (time) => {
+  if (!time) return '';
+  const [hours = '0', minutes = '0'] = time.split(':');
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0);
+  return date.toLocaleTimeString(
+    settings.idioma === 'en' ? 'en-US' : 'es-MX',
+    {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }
   );
-
-  return conflict
-    ? `${t('conflictPrefix')} "${conflict.nombre}" ${t('conflictOn')} ${dayLabel(dayKey).toLowerCase()} ${t('conflictAt')} ${formatHour(conflict.inicio)}. ${t('conflictChoose')}`
+};
+watch(
+  () => props.initialData,
+  (newData) => {
+    if (!newData) return;
+    if (newData.id !== undefined) form.id = newData.id;
+    if (newData.day) {
+      const englishIndex = daysEn.indexOf(newData.day);
+      form.dia = englishIndex !== -1
+        ? daysEs[englishIndex]
+        : newData.day;
+    }
+    if (newData.hour) form.inicio = newData.hour;
+    if (newData.fin) form.fin = newData.fin;
+    if (newData.nombre) form.nombre = newData.nombre;
+    if (newData.categoria) form.categoria = newData.categoria;
+    if (newData.nivel) form.nivel = newData.nivel;
+    if (newData.instructor) form.instructor = newData.instructor;
+    if (newData.capacidad) form.capacidad = newData.capacidad;
+    if (newData.ubicacion) form.ubicacion = newData.ubicacion;
+    if (newData.descripcion) form.descripcion = newData.descripcion;
+  },
+  { immediate: true }
+);
+const guardarActividad = () => {
+  if (!form.dia) {
+    mostrarToast(t('selectDayError'), 'error');
+    return;
+  }
+  if (!form.nombre.trim() || !form.categoria || !form.nivel || !form.instructor.trim() || !Number.isInteger(Number(form.capacidad)) || Number(form.capacidad) < 1) { mostrarToast(settings.idioma === 'en' ? 'Complete all required fields.' : 'Completa los campos obligatorios.', 'error'); return; }
+  if (form.inicio >= form.fin) {
+    mostrarToast(t('endTimeError'), 'error');
+    return;
+  }
+  const validationError = props.validator
+    ? props.validator({ ...form })
     : null;
+  if (validationError) {
+    mostrarToast(validationError, 'error');
+    return;
+  }
+  emit('save', { ...form, color: selectedCategoryColor.value });
 };
-
-/* GUARDAR (nueva o editada) */
-const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||''})});closeForm();await cargarActividades();showToast(data.id?'Actividad actualizada.':'Actividad registrada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
-
-/* ELIMINAR */
-const askDelete = (activity: Activity) => {
-  pendingDelete.value = activity;
-};
-
-const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Actividad eliminada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
-
-const previousWeek = () => {
-  const date = new Date(currentDate.value);
-  date.setDate(date.getDate() - 7);
-  currentDate.value = date;
-};
-
-const nextWeek = () => {
-  const date = new Date(currentDate.value);
-  date.setDate(date.getDate() + 7);
-  currentDate.value = date;
-};
-
-const goToday = () => {
-  currentDate.value = new Date();
-
-  const jsDay = new Date().getDay();
-  activeDay.value = jsDay === 0 ? 6 : jsDay - 1;
-};
-
-const handleLanguage = (event: Event) => {
-  const lang = (event as CustomEvent).detail?.idioma;
-  if (lang) idioma.value = lang;
-};
-
-const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key !== 'Escape') return;
-
-  if (pendingDelete.value) pendingDelete.value = null;
-  else if (showForm.value) closeForm();
-};
-
 onMounted(() => {
   syncLanguage();
   window.addEventListener('idioma-changed', handleLanguageChange);
-  window.addEventListener('factorfit:branch-changed',cambiarSede);
-  void cargarActividades();
 });
-
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
-  window.removeEventListener('factorfit:branch-changed',cambiarSede);
-  ultimaConsulta++;
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
-
 * { box-sizing: border-box; }
-button { font: inherit; }
-
-.schedule-wrapper {
+button, input, select, textarea { font: inherit; }
+.activity-wrapper {
   --hl: var(--color-highlight, #3b82f6);
   --hl-soft: rgba(59,130,246,.1);
-  --hl-line: rgba(59,130,246,.4);
+  --hl-line: rgba(59,130,246,.45);
   --text: var(--color-texto-general, #f5f5f4);
-  --card: var(--bg-cards, #101010);
+  --card: var(--bg-cards, #111);
   --title: var(--color-titulos, #fff);
-  --card-glass: rgba(16,16,16,.96);
-  --icon-glass: rgba(10,10,10,.82);
+  --field: rgba(0,0,0,.28);
+  --field-focus: rgba(0,0,0,.36);
+  --card-glass: rgba(17,17,17,.96);
   --w3: rgba(255,255,255,.03);
   --w4: rgba(255,255,255,.04);
   --w5: rgba(255,255,255,.05);
@@ -780,26 +713,25 @@ button { font: inherit; }
   --w65: rgba(255,255,255,.65);
   --w85: rgba(255,255,255,.85);
   --line: var(--w8);
-  --line-soft: var(--w6);
-  --text-2: rgba(245,245,244,.64);
+  --line-strong: var(--w14);
+  --text-2: rgba(245,245,244,.66);
   --text-3: rgba(245,245,244,.42);
-  --row: 100px;
-
   position: relative;
   width: 100%;
   display: flex;
+  align-items: center;
   justify-content: center;
-  color: var(--color-texto-general, #f5f5f4);
   font-family: 'Inter', sans-serif;
+  color: var(--color-texto-general, #f5f5f4);
   -webkit-font-smoothing: antialiased;
 }
-
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
-  .schedule-wrapper {
-    --hl-soft: color-mix(in srgb, var(--hl) 12%, transparent);
-    --hl-line: color-mix(in srgb, var(--hl) 45%, transparent);
+  .activity-wrapper {
+    --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
+    --hl-line: color-mix(in srgb, var(--hl) 50%, transparent);
+    --field: color-mix(in srgb, var(--card) 72%, #000);
+    --field-focus: color-mix(in srgb, var(--card) 62%, #000);
     --card-glass: color-mix(in srgb, var(--card) 94%, transparent);
-    --icon-glass: color-mix(in srgb, var(--card) 88%, transparent);
     --text-2: color-mix(in srgb, var(--text) 68%, transparent);
     --text-3: color-mix(in srgb, var(--text) 45%, transparent);
     --w3: color-mix(in srgb, var(--text) 3%, transparent);
@@ -817,40 +749,39 @@ button { font: inherit; }
     --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
 }
-
-.schedule-panel {
-  width: min(1280px, 97vw);
+.activity-panel {
+  width: min(840px, 95vw);
   max-height: 92vh;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--card);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 22px;
   box-shadow: 0 35px 100px rgba(0,0,0,.65);
   scrollbar-width: thin;
   scrollbar-color: var(--w14) transparent;
 }
-
+.activity-panel::-webkit-scrollbar { width: 6px; }
+.activity-panel::-webkit-scrollbar-track { background: transparent; }
+.activity-panel::-webkit-scrollbar-thumb { background: var(--w14); border-radius: 10px; }
 /* ============ HEADER ============ */
-
-.schedule-header {
+.panel-header {
   position: sticky;
   top: 0;
-  z-index: 30;
-  min-height: 82px;
-  padding: 16px 24px;
+  z-index: 20;
+  padding: 20px 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   background: var(--card-glass);
-  border-bottom: 1px solid var(--line-soft);
-  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(16px);
 }
-
-.header-info { display: flex; align-items: center; gap: 14px; }
-
-.header-icon {
-  width: 46px;
-  height: 46px;
+.header-left { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.calendar-icon {
+  width: 48px;
+  height: 48px;
   flex: none;
   display: flex;
   align-items: center;
@@ -858,18 +789,17 @@ button { font: inherit; }
   color: var(--hl);
   background: var(--hl-soft);
   border: 1px solid var(--hl-line);
-  border-radius: 13px;
+  border-radius: 14px;
 }
-
-.header-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.header-eyebrow { display: block; margin-bottom: 3px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1.3px; }
-.header-info h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 23px; font-weight: 600; line-height: 1.1; text-transform: uppercase; }
-.header-info h2 span { color: var(--hl); }
-.header-info p { margin: 4px 0 0; color: var(--text-3); font-size: 12.5px; }
-
+.calendar-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.header-kicker { display: block; margin-bottom: 3px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1.3px; }
+.panel-header h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; line-height: 1.1; text-transform: uppercase; }
+.panel-header h2 span { color: var(--hl); }
+.panel-header p { margin: 5px 0 0; color: var(--text-3); font-size: 13px; }
 .close-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -877,419 +807,259 @@ button { font: inherit; }
   color: var(--w65);
   background: var(--w4);
   border: 1px solid var(--line);
-  border-radius: 11px;
-  transition: .2s;
+  border-radius: 12px;
+  transition: .2s ease;
 }
-
-.close-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.close-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .close-btn:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-
-/* ============ TOOLBAR ============ */
-
-.calendar-toolbar {
-  padding: 18px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.week-navigation, .toolbar-right, .legend { display: flex; align-items: center; }
-.week-navigation { gap: 7px; }
-
-.nav-btn, .today-btn {
-  height: 38px;
+/* ============ FORMULARIO ============ */
+.activity-form { padding: 0 26px 26px; }
+.form-section { padding: 26px 0; border-bottom: 1px solid var(--line); }
+.section-title { margin-bottom: 18px; display: flex; align-items: center; gap: 13px; }
+.section-number {
+  width: 34px;
+  height: 34px;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: var(--text-2);
-  background: var(--w3);
-  border: 1px solid var(--line);
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
   border-radius: 10px;
-  transition: .2s;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
 }
-
-.nav-btn { width: 38px; }
-.nav-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.today-btn { padding: 0 15px; font-size: 13px; font-weight: 650; }
-.nav-btn:hover, .today-btn:hover { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
-
-.week-info { margin-left: 10px; display: flex; flex-direction: column; gap: 2px; }
-.week-info strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
-.week-info span { color: var(--text-3); font-size: 12px; }
-
-.toolbar-right { gap: 18px; }
-.legend { gap: 14px; }
-.legend span { display: flex; align-items: center; gap: 7px; color: var(--text-3); font-size: 12px; font-weight: 600; }
-.dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot.scheduled { background: var(--hl); }
-.dot.available { border: 1.5px dashed var(--w35); }
-
-.new-activity-btn {
-  height: 40px;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  color: var(--color-texto-botones, #fff);
-  background: var(--color-botones, #1c4fd6);
-  border: 0;
-  border-radius: 11px;
-  font-size: 13.5px;
-  font-weight: 700;
-  box-shadow: 0 8px 20px rgba(28,79,214,.25);
-  transition: .2s;
-}
-
-.new-activity-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; }
-.new-activity-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
-
-/* ============ RESUMEN ============ */
-
-.summary-grid { padding: 0 24px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-
-.summary-card {
-  min-height: 68px;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--w3);
-  border: 1px solid var(--line-soft);
-  border-radius: 14px;
-}
-
-.summary-icon { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 11px; }
-.summary-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.summary-icon.blue { color: #60a5fa; background: rgba(59,130,246,.1); }
-.summary-icon.green { color: #34d399; background: rgba(16,185,129,.1); }
-.summary-icon.purple { color: #c084fc; background: rgba(168,85,247,.1); }
-.summary-icon.orange { color: #fb923c; background: rgba(249,115,22,.1); }
-
-.summary-card > div:last-child { display: flex; flex-direction: column; }
-.summary-card strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 23px; font-weight: 600; line-height: 1; }
-.summary-card span { margin-top: 4px; color: var(--text-3); font-size: 11px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
-
-/* ============ CALENDARIO (DESKTOP) ============ */
-
-.desktop-calendar { margin: 0 24px 20px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--w3); }
-.calendar-scroll { min-width: 980px; overflow-x: auto; }
-
-.calendar-days-header, .calendar-body { display: grid; grid-template-columns: 76px repeat(7, minmax(0, 1fr)); }
-.calendar-days-header { background: var(--w3); border-bottom: 1px solid var(--line); }
-
-.time-header { display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--line-soft); }
-.time-header span { color: var(--text-3); font-size: 10px; font-weight: 800; letter-spacing: .9px; }
-
-.day-header {
+.section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
+.section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
+/* ============ DÍAS ============ */
+.days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.day-card {
   position: relative;
-  min-height: 92px;
-  padding: 12px 6px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 11px 5px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-right: 1px solid var(--line-soft);
-}
-
-.day-header:last-child { border-right: 0; }
-.day-header.today { background: var(--hl-soft); }
-.day-header.today::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--hl); }
-
-.day-name { color: var(--text-3); font-size: 11px; font-weight: 800; letter-spacing: .8px; }
-.day-header.today .day-name { color: var(--hl); }
-.day-header strong { margin: 3px 0 1px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1; }
-.day-header small { color: var(--text-3); font-size: 10.5px; font-weight: 600; }
-
-.today-indicator { position: absolute; top: 8px; right: 8px; padding: 2px 6px; color: var(--hl); background: var(--hl-soft); border-radius: 5px; font-size: 9px; font-weight: 800; letter-spacing: .5px; }
-.day-count { margin-top: 6px; color: var(--text-3); font-size: 10.5px; }
-
-.time-column { border-right: 1px solid var(--line-soft); background: rgba(0,0,0,.12); }
-.time-row { height: var(--row); padding: 9px 10px 0 0; display: flex; align-items: flex-start; justify-content: flex-end; border-bottom: 1px solid var(--line-soft); }
-.time-row:last-child { border-bottom: 0; }
-.time-row span { color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 500; }
-
-.day-column { min-width: 0; border-right: 1px solid var(--line-soft); }
-.day-column:last-child { border-right: 0; }
-.day-column.today { background: var(--w3); }
-
-.calendar-slot { position: relative; height: var(--row); padding: 5px; border-bottom: 1px solid var(--line-soft); transition: background .15s; }
-.day-column .calendar-slot:last-child { border-bottom: 0; }
-.calendar-slot:not(.occupied):hover { background: var(--hl-soft); }
-
-.empty-slot {
-  width: 100%;
-  height: 100%;
-  display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  opacity: 0;
   cursor: pointer;
-  color: var(--hl);
-  background: transparent;
-  border: 1px dashed var(--hl-line);
-  border-radius: 10px;
-  transition: opacity .18s;
+  color: var(--text-3);
+  background: var(--w3);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  transition: .2s ease;
 }
-
-.empty-slot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-.empty-slot span { font-size: 11.5px; font-weight: 700; }
-.calendar-slot:hover .empty-slot, .empty-slot:focus-visible { opacity: 1; }
-
-/* ============ EVENTOS ============ */
-
-.activity-event {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  padding: 8px 9px 11px 13px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  outline: none;
-  background: color-mix(in srgb, var(--event-color) 13%, var(--card));
-  border: 1px solid color-mix(in srgb, var(--event-color) 32%, transparent);
-  border-radius: 11px;
-  transition: transform .18s, border-color .18s, box-shadow .18s;
-}
-
-.activity-event:hover, .activity-event:focus-visible {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--event-color) 70%, transparent);
-  box-shadow: 0 10px 22px rgba(0,0,0,.32);
-}
-
-.event-accent { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; background: var(--event-color); }
-
-.event-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.event-time { color: var(--event-color); font-size: 11px; font-weight: 800; white-space: nowrap; }
-
-.event-capacity { display: flex; align-items: center; gap: 4px; color: var(--text-2); font-size: 11px; font-weight: 650; }
-.event-capacity svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
-
-.activity-event > strong {
-  display: block;
-  margin: 4px 0 5px;
-  overflow: hidden;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.event-detail { margin-top: 2px; display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--text-2); }
-.event-detail svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.event-detail span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-
-.event-progress { position: absolute; right: 0; bottom: 0; left: 4px; height: 3px; background: var(--w6); }
-.event-progress i { display: block; height: 100%; background: var(--event-color); border-radius: 0 3px 3px 0; }
-
-/* Acciones: editar / eliminar */
-.event-actions {
+.day-card > span { font-size: 11px; font-weight: 800; letter-spacing: .6px; }
+.day-card > strong { max-width: 100%; overflow: hidden; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 500; text-overflow: ellipsis; }
+.day-card:hover { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
+.day-card.active { color: var(--hl); background: var(--hl-soft); border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.day-check {
   position: absolute;
-  top: 5px;
-  right: 5px;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity .15s, transform .15s;
-}
-
-.activity-event:hover .event-actions,
-.activity-event:focus-within .event-actions { opacity: 1; transform: none; }
-
-.icon-btn {
-  width: 28px;
-  height: 28px;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  cursor: pointer;
-  color: var(--w85);
-  background: var(--icon-glass);
-  border: 1px solid var(--w14);
-  border-radius: 8px;
-  backdrop-filter: blur(6px);
-  transition: .18s;
+  opacity: 0;
+  color: var(--title);
+  background: var(--hl);
+  border-radius: 50%;
+  transform: scale(.6);
+  transition: .2s ease;
 }
-
-.icon-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.icon-btn:hover { color: #fff; background: var(--hl); border-color: var(--hl); }
-.icon-btn.danger:hover { background: #dc2626; border-color: #dc2626; }
-
-/* ============ MOBILE ============ */
-
-.mobile-calendar { display: none; }
-
+.day-check svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.day-card.active .day-check { opacity: 1; transform: scale(1); }
+/* ============ CAMPOS ============ */
+.fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.field-large { grid-column: 1 / -1; }
+.field { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.field label, .time-field label {
+  color: var(--text-2);
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+}
+.input-control, .select-control { position: relative; width: 100%; }
+.input-control input, .select-control select, .field textarea {
+  width: 100%;
+  outline: none;
+  color: var(--color-texto-input, var(--text));
+  background: var(--field);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.input-control input { height: 50px; padding: 0 14px 0 46px; font-size: 14px; }
+.select-control select { height: 50px; padding: 0 42px 0 14px; appearance: none; -webkit-appearance: none; cursor: pointer; font-size: 14px; }
+.select-control .category-select { padding-left: 38px; }
+.select-control select option, .select-control select optgroup { color: var(--text); background: var(--card); }
+.select-control select optgroup { font-style: normal; font-weight: 700; }
+.field textarea { min-height: 92px; padding: 13px 14px; resize: vertical; font-size: 14px; line-height: 1.55; }
+.input-control input:hover, .select-control select:hover, .field textarea:hover { border-color: var(--w25); }
+.input-control input::placeholder, .field textarea::placeholder { color: rgba(245,245,244,.28); }
+.field-icon { position: absolute; z-index: 2; top: 50%; left: 15px; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-3); pointer-events: none; transition: color .2s; }
+.field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.select-arrow { position: absolute; top: 50%; right: 14px; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.category-dot { position: absolute; z-index: 2; top: 50%; left: 16px; width: 10px; height: 10px; transform: translateY(-50%); border-radius: 50%; box-shadow: 0 0 0 3px var(--w5); pointer-events: none; }
+.input-control input:focus, .select-control select:focus, .field textarea:focus {
+  border-color: var(--hl);
+  background: var(--field-focus);
+  box-shadow: 0 0 0 4px var(--hl-soft);
+}
+.input-control:focus-within .field-icon { color: var(--hl); }
+/* ============ HORARIO ============ */
+.schedule-card {
+  padding: 20px 22px;
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, var(--hl-soft), var(--w3));
+  border: 1px solid var(--hl-line);
+  border-radius: 16px;
+}
+.schedule-time { min-width: 0; display: flex; align-items: center; gap: 13px; }
+.time-icon { width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 13px; }
+.time-icon.end { color: #34d399; background: rgba(16,185,129,.09); border-color: rgba(16,185,129,.28); }
+.time-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.time-field { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.time-field input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  outline: none;
+  color: var(--title);
+  background: var(--field);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  color-scheme: dark;
+  transition: border-color .2s, box-shadow .2s;
+}
+.time-field input:focus { border-color: var(--hl); box-shadow: 0 0 0 4px var(--hl-soft); }
+.time-connector { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.time-connector span { flex: 1; height: 1px; background: var(--line-strong); }
+.time-connector strong { padding: 6px 10px; white-space: nowrap; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-weight: 700; }
+.time-connector strong.invalid { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+/* ============ RESUMEN ============ */
+.event-summary {
+  position: relative;
+  margin-top: 24px;
+  padding: 16px 18px 16px 22px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--w3);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+.summary-color { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; }
+.summary-icon { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border-radius: 12px; }
+.summary-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.summary-content { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.summary-content > span { margin-bottom: 4px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; }
+.summary-content strong { overflow: hidden; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.summary-content p { margin: 4px 0 0; overflow: hidden; color: var(--text-2); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.summary-category { padding: 7px 11px; display: flex; align-items: center; gap: 8px; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 9px; font-size: 12px; font-weight: 700; }
+.summary-category i { width: 8px; height: 8px; border-radius: 50%; }
 /* ============ FOOTER ============ */
-
-.calendar-footer { min-height: 60px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--line-soft); }
-.calendar-footer > div { display: flex; align-items: center; gap: 9px; }
-.footer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hl); box-shadow: 0 0 8px var(--hl); }
-.calendar-footer p { margin: 0; color: var(--text-3); font-size: 12.5px; }
-.calendar-footer button { padding: 9px 15px; cursor: pointer; color: var(--text-2); background: transparent; border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; font-weight: 650; transition: .2s; }
-.calendar-footer button:hover { color: var(--title); background: var(--w4); }
-
-/* ============ FORMULARIO (NUEVA / EDITAR) ============ */
-
-.form-overlay { position: fixed; inset: 0; z-index: 150; padding: 18px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
-
-/* ============ CONFIRMAR ELIMINACIÓN ============ */
-
-.confirm-overlay { position: fixed; inset: 0; z-index: 200; padding: 18px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
-.confirm-box { width: min(400px, 100%); padding: 26px 24px 22px; text-align: center; background: var(--card); border: 1px solid var(--line-strong); border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
-.confirm-icon { width: 52px; height: 52px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; color: #f87171; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 15px; }
-.confirm-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.confirm-box h3 { margin: 0 0 8px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 600; }
-.confirm-box p { margin: 0 0 20px; color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
-.confirm-box p strong { color: var(--title); font-weight: 650; }
-.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.confirm-actions button { height: 44px; cursor: pointer; border-radius: 11px; font-size: 14px; font-weight: 700; transition: .2s; }
-.btn-ghost { color: var(--text-2); background: transparent; border: 1px solid var(--line); }
-.btn-ghost:hover { color: var(--title); background: var(--w5); }
-.btn-danger { color: #fff; background: #dc2626; border: 0; box-shadow: 0 8px 20px rgba(220,38,38,.28); }
-.btn-danger:hover { background: #ef4444; }
-
+.form-footer { padding-top: 22px; display: flex; align-items: center; justify-content: flex-end; gap: 11px; }
+.cancel-btn, .save-btn {
+  height: 48px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  border-radius: 12px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  transition: .2s ease;
+}
+.cancel-btn { color: var(--text-2); background: transparent; border: 1px solid var(--line-strong); }
+.cancel-btn:hover { color: var(--title); background: var(--w5); }
+.save-btn {
+  min-width: 190px;
+  color: var(--color-texto-botones, #fff);
+  background: var(--color-botones, #1c4fd6);
+  border: 0;
+  box-shadow: 0 8px 22px rgba(28,79,214,.28);
+}
+.save-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.save-btn:hover { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
+.close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
 /* ============ TOAST ============ */
-
-.toast { position: fixed; z-index: 300; left: 50%; bottom: 24px; max-width: min(420px, 92vw); padding: 12px 16px; display: flex; align-items: center; gap: 11px; color: var(--title); transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 20px 50px rgba(0,0,0,.55); }
-.toast-icon { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; color: #34d399; background: rgba(16,185,129,.12); border-radius: 9px; }
-.toast.error .toast-icon { color: #f87171; background: rgba(239,68,68,.12); }
-.toast-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.toast span { font-size: 13px; line-height: 1.4; }
-.toast-enter-active, .toast-leave-active { transition: opacity .22s, transform .22s; }
-.toast-enter-from, .toast-leave-to { opacity: 0; }
-.toast.toast-enter-from, .toast.toast-leave-to { transform: translate(-50%, 10px); }
-
-.close-btn:focus-visible, .nav-btn:focus-visible, .today-btn:focus-visible, .new-activity-btn:focus-visible,
-.icon-btn:focus-visible, .mobile-day:focus-visible, .mobile-empty:focus-visible, .calendar-footer button:focus-visible,
-.confirm-actions button:focus-visible, .empty-slot:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
-
+.toast-message {
+  position: fixed;
+  z-index: 6000;
+  left: 50%;
+  bottom: 26px;
+  width: max-content;
+  min-width: 290px;
+  max-width: min(420px, 92vw);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--title);
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,.55);
+  backdrop-filter: blur(15px);
+}
+.toast-icon { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; color: #34d399; background: rgba(16,185,129,.12); border-radius: 10px; }
+.toast-message.error .toast-icon { color: #f87171; background: rgba(239,68,68,.12); }
+.toast-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.toast-message > div:last-child { display: flex; flex-direction: column; gap: 3px; }
+.toast-message strong { font-size: 14px; }
+.toast-message span { color: var(--w65); font-size: 12.5px; line-height: 1.4; }
+.toast-enter-active, .toast-leave-active { transition: opacity .25s ease, transform .25s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 10px); }
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
-
 /* ============ RESPONSIVE ============ */
-
-@media (max-width: 1100px) {
-  .legend { display: none; }
+@media (max-width: 760px) {
+  .schedule-card { grid-template-columns: 1fr; gap: 14px; }
+  .time-connector { padding: 0 6px; }
+  .days-grid { grid-template-columns: repeat(4, 1fr); }
 }
-
-@media (max-width: 767px) {
-  .schedule-panel { width: 96vw; max-height: 94vh; border-radius: 18px; }
-  .schedule-header { min-height: 74px; padding: 14px 16px; }
-  .header-icon { width: 42px; height: 42px; }
-  .header-info h2 { font-size: 20px; }
-  .header-info p { display: none; }
-
-  .calendar-toolbar { padding: 14px 16px; flex-wrap: nowrap; align-items: center; }
-  .week-info { max-width: 150px; }
-  .week-info strong { font-size: 16px; }
-  .new-activity-btn { width: 40px; padding: 0; justify-content: center; }
-  .new-activity-btn span { display: none; }
-  .new-activity-btn svg { width: 18px; height: 18px; }
-
-  .summary-grid { padding: 0 16px 14px; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .summary-card { min-height: 62px; padding: 10px 12px; }
-  .summary-card strong { font-size: 21px; }
-
-  .desktop-calendar { display: none; }
-  .mobile-calendar { display: block; padding: 0 16px 20px; }
-
-  .mobile-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; padding: 6px 0 16px; }
-
-  .mobile-day {
-    position: relative;
-    min-width: 0;
-    height: 62px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    cursor: pointer;
-    color: var(--text-3);
-    background: var(--w3);
-    border: 1px solid var(--line-soft);
-    border-radius: 12px;
-    transition: .2s;
-  }
-
-  .mobile-day span { font-size: 10px; font-weight: 800; letter-spacing: .3px; }
-  .mobile-day strong { font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; }
-  .mobile-day i { position: absolute; bottom: 6px; width: 4px; height: 4px; border-radius: 50%; background: var(--hl); }
-  .mobile-day.active { color: var(--title); background: var(--hl-soft); border-color: var(--hl-line); }
-  .mobile-day.active i { background: #fff; }
-  .mobile-day.today strong { color: var(--hl); }
-
-  .mobile-day-header { padding: 12px 0 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line-soft); }
-  .mobile-day-header span { color: var(--hl); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; }
-  .mobile-day-header h3 { margin: 3px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 600; text-transform: capitalize; }
-  .mobile-day-header > strong { flex: none; color: var(--text-3); font-size: 12px; font-weight: 600; }
-
-  .mobile-timeline { padding-top: 14px; }
-  .mobile-time-row { min-height: 66px; display: grid; grid-template-columns: 62px 14px minmax(0, 1fr); gap: 6px; }
-  .mobile-time { padding-top: 6px; color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; text-align: right; }
-
-  .mobile-line { position: relative; display: flex; justify-content: center; }
-  .mobile-line::after { content: ""; position: absolute; top: 14px; bottom: -6px; width: 1px; background: var(--line); }
-  .mobile-line span { position: relative; z-index: 1; width: 8px; height: 8px; margin-top: 10px; border: 1.5px solid var(--w25); border-radius: 50%; background: var(--card); }
-
-  .mobile-event {
-    position: relative;
-    margin-bottom: 10px;
-    padding: 13px 14px 14px;
-    overflow: hidden;
-    cursor: pointer;
-    background: color-mix(in srgb, var(--event-color) 12%, var(--card));
-    border: 1px solid color-mix(in srgb, var(--event-color) 28%, transparent);
-    border-left: 4px solid var(--event-color);
-    border-radius: 13px;
-  }
-
-  .mobile-event-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-  .mobile-event-top > div:first-child { min-width: 0; display: flex; flex-direction: column; }
-  .mobile-event-top span { color: var(--event-color); font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
-  .mobile-event-top strong { margin-top: 3px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; line-height: 1.2; }
-
-  .mobile-actions { flex: none; display: flex; gap: 6px; }
-  .mobile-actions .icon-btn { width: 36px; height: 36px; border-radius: 10px; background: var(--w6); }
-  .mobile-actions .icon-btn svg { width: 16px; height: 16px; }
-
-  .mobile-event-details { margin-top: 11px; display: flex; flex-direction: column; gap: 6px; }
-  .mobile-event-details span { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
-  .mobile-event-details svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
-  .mobile-event-footer { margin-top: 12px; padding-top: 10px; display: flex; justify-content: space-between; border-top: 1px solid var(--line-soft); }
-  .mobile-event-footer span { color: var(--text-3); font-size: 11.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
-  .event-progress.static { left: 0; }
-
-  .mobile-empty { min-height: 52px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: var(--text-3); background: transparent; border: 1px dashed var(--line); border-radius: 12px; font-size: 13px; font-weight: 600; transition: .2s; }
-  .mobile-empty svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-  .mobile-empty:hover { color: var(--hl); border-color: var(--hl-line); background: var(--hl-soft); }
-
-  .calendar-footer { padding: 12px 16px; justify-content: center; }
-  .calendar-footer > div { display: none; }
-  .calendar-footer button { width: 100%; padding: 12px; font-size: 14px; }
-
-  .toast { bottom: 16px; }
+@media (max-width: 700px) {
+  .activity-panel { width: 96vw; max-height: 94vh; border-radius: 18px; }
+  .panel-header { padding: 16px 18px; }
+  .calendar-icon { width: 42px; height: 42px; }
+  .panel-header h2 { font-size: 21px; }
+  .panel-header p { display: none; }
+  .activity-form { padding: 0 18px 22px; }
+  .form-section { padding: 22px 0; }
+  .fields-grid { grid-template-columns: 1fr; gap: 18px; }
+  .field-large { grid-column: auto; }
+  /* 16px evita el zoom automático de iOS */
+  .input-control input, .select-control select, .field textarea, .time-field input { font-size: 16px; }
+  .input-control input, .select-control select { height: 52px; }
+  .event-summary { align-items: flex-start; }
+  .summary-category { display: none; }
+  .form-footer { flex-direction: column-reverse; gap: 10px; }
+  .cancel-btn, .save-btn { width: 100%; height: 52px; }
+  .toast-message { bottom: 16px; min-width: 0; }
 }
-
-@media (max-width: 430px) {
-  .mobile-days { gap: 3px; }
-  .mobile-day { height: 58px; border-radius: 10px; }
-  .mobile-day strong { font-size: 16px; }
-  .mobile-time-row { grid-template-columns: 56px 12px minmax(0, 1fr); }
-  .summary-icon { width: 34px; height: 34px; }
+@media (max-width: 420px) {
+  .days-grid { grid-template-columns: repeat(2, 1fr); }
+  .day-card { min-height: 60px; flex-direction: row; gap: 10px; justify-content: flex-start; padding: 0 14px; }
+  .day-card > span { min-width: 30px; text-align: left; }
+  .section-number { width: 30px; height: 30px; }
 }
 </style>
