@@ -152,10 +152,12 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 // @ts-ignore: useLang.js no trae archivo de tipos
 import { useLang } from '../useLang.js';
 const { lang } = useLang();
+const route = useRoute();
 const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') selected.value = null; };
 onMounted(() => window.addEventListener('keydown', onEsc));
 onUnmounted(() => window.removeEventListener('keydown', onEsc));
@@ -173,6 +175,17 @@ const delta = (x: Cash) => (x.contado === null ? 0 : x.contado - expected(x));
 const statusLabel = (e: 'Abierto' | 'Cerrado') => tx(e, e === 'Cerrado' ? 'Closed' : 'Open');
 const search = ref('');
 const branch = ref('1');
+const sedeEvento = ref(0);
+const sedeActiva = (): number => {
+  if (sedeEvento.value > 0) return sedeEvento.value;
+  const query = Number(route.query.sede_id); if (Number.isInteger(query) && query > 0) return query;
+  for (const store of [sessionStorage, localStorage]) for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+    const raw = store.getItem(key); if (!raw) continue;
+    try { const o = JSON.parse(raw); const v = typeof o === 'object' && o ? (o.ID_Sede ?? o.sede_id ?? o.id ?? o.value) : o; const id = Number(v); if (Number.isInteger(id) && id > 0) return id; }
+    catch { const id = Number(raw); if (Number.isInteger(id) && id > 0) return id; }
+  }
+  return 1;
+};
 const status = ref('');
 const date = ref('');
 const page = ref(1);
@@ -195,16 +208,16 @@ const goPage = (n: number): void => {
   page.value = Math.min(Math.max(1, n), totalPages.value);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-const hasFilters = computed(() => !!(search.value || branch.value || status.value || date.value));
+const hasFilters = computed(() => !!(search.value || status.value || date.value));
 watch([search, branch, status, date], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
-const reset = () => { search.value = ''; branch.value = '1'; status.value = ''; date.value = ''; };
+const reset = () => { search.value = ''; status.value = ''; date.value = ''; };
 const total = computed(() => filtered.value.reduce((a, x) => a + collected(x), 0));
 const cashTotal = computed(() => filtered.value.reduce((a, x) => a + x.efectivo, 0));
 const difference = computed(() => filtered.value.filter(x => x.estado === 'Cerrado').reduce((a, x) => a + delta(x), 0));
 const stats = computed(() => [
-  { label: tx('Total recaudado', 'Total collected'), value: money(total.value), tone: 'green' },
-  { label: tx('Efectivo recibido', 'Cash received'), value: money(cashTotal.value), tone: 'blue' },
+  { label: tx('Efectivo registrado', 'Recorded cash'), value: money(total.value), tone: 'green' },
+  { label: tx('Efectivo estimado', 'Estimated cash'), value: money(cashTotal.value), tone: 'blue' },
   { label: tx('Diferencia neta', 'Net difference'), value: money(difference.value), tone: 'orange' },
   { label: tx('Cortes cerrados', 'Closed sessions'), value: String(filtered.value.filter(x => x.estado === 'Cerrado').length), tone: 'purple' }
 ]);
@@ -217,10 +230,8 @@ const detailRows = computed(() => {
     { k: tx('Apertura', 'Opening'), v: s.apertura },
     { k: tx('Cierre', 'Closing'), v: s.cierre || '—' },
     { k: tx('Fondo inicial', 'Opening float'), v: money(s.fondo) },
-    { k: tx('Efectivo recibido', 'Cash received'), v: money(s.efectivo) },
-    { k: tx('Tarjeta', 'Card'), v: money(s.tarjeta) },
-    { k: tx('Transferencia', 'Transfer'), v: money(s.transferencia) },
-    { k: tx('Efectivo esperado', 'Expected cash'), v: money(expected(s)) },
+    { k: tx('Efectivo estimado', 'Estimated cash'), v: money(s.efectivo) },
+        { k: tx('Efectivo esperado', 'Expected cash'), v: money(expected(s)) },
     { k: tx('Efectivo contado', 'Counted cash'), v: s.contado === null ? '—' : money(s.contado) },
     { k: tx('Diferencia', 'Difference'), v: s.estado === 'Cerrado' ? money(delta(s)) : '—' }
   ];
@@ -241,11 +252,10 @@ const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % ava
 const loading = ref(false);
 const loadError = ref('');
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const token = () => {
-  for (const storage of [sessionStorage, localStorage]) {
-    for (const k of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
-      const v = storage.getItem(k); if (v) return v;
-    }
+const token = (): string => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) { const v = store.getItem(key); if (v) return v.replace(/^Bearer\s+/i,''); }
+    for (const key of ['auth','user','session','gymAccount','gym_account']) { try { const p = JSON.parse(store.getItem(key) || 'null'); const v = p?.token || p?.access_token || p?.accessToken; if (v) return String(v).replace(/^Bearer\s+/i,''); } catch {} }
   }
   return '';
 };
@@ -258,28 +268,37 @@ const authGet = async (path: string) => {
   if (!res.ok) throw new Error(data.message || `Error HTTP ${res.status}`);
   return data;
 };
-const loadBranches = async () => {
+const loadBranches = async (): Promise<void> => {
   try {
     const d = await authGet('sedes');
-    branches.value = (Array.isArray(d) ? d : (d.sedes || [])).map((x: any) => ({
-      id: Number(x.ID_Sede), nombre: String(x.Sede_Colonia || x.nombre || `Sede ${x.ID_Sede}`)
-    })).filter((x: {id:number}) => Number.isInteger(x.id));
-    if (!branches.value.some(x => x.id === Number(branch.value))) {
-      loadError.value = 'La sede 1 no pertenece a este gimnasio o no está registrada. Selecciona una sede disponible.';
-    }
+    branches.value = (Array.isArray(d) ? d : (d.sedes || [])).map((x: any) => { const id = Number(x.ID_Sede ?? x.id); return {id, nombre: String(x.Sede_Colonia || x.nombre || `Sede ${id}`)}; }).filter((x: {id:number}) => Number.isInteger(x.id) && x.id > 0);
+    const current = sedeActiva();
+    if (branches.value.some(x => x.id === current)) branch.value = String(current);
+    else if (branches.value.length) branch.value = String(branches.value[0]?.id);
+    else loadError.value = 'No hay sedes registradas para este gimnasio.';
   } catch (e: any) { loadError.value = e.message || 'No fue posible consultar las sedes.'; }
 };
-const loadRecords = async () => {
+const loadRecords = async (): Promise<void> => {
   const request = ++activeRequest;
+  if (!branches.value.some(x => x.id === Number(branch.value))) { records.value = []; loadError.value = 'Selecciona una sede autorizada.'; loading.value = false; return; }
   loading.value = true; loadError.value = ''; records.value = [];
   try {
     const d = await authGet(`historiales/caja?sede_id=${encodeURIComponent(branch.value)}`);
-    if (request === activeRequest) records.value = Array.isArray(d.registros) ? d.registros : [];
+    if (request === activeRequest) records.value = (Array.isArray(d.registros) ? d.registros : []).map((x: any) => ({...x, sedeId: Number(x.sedeId ?? branch.value), id: Number(x.id), fondo: Number(x.fondo ?? 0), efectivo: Number(x.efectivo ?? 0), tarjeta: Number(x.tarjeta ?? 0), transferencia: Number(x.transferencia ?? 0), contado: x.contado === null || x.contado === undefined ? null : Number(x.contado)}));
   } catch (e: any) { if (request === activeRequest) loadError.value = e.message || 'No fue posible cargar el historial.'; }
   finally { if (request === activeRequest) loading.value = false; }
 };
+const cambioSede = (event?: Event): void => {
+  const detail = (event as CustomEvent<Record<string, unknown>> | undefined)?.detail;
+  const id = Number(detail?.sede_id ?? detail?.sedeId ?? detail?.selectedSedeId ?? detail?.ID_Sede ?? detail?.id ?? 0);
+  sedeEvento.value = Number.isInteger(id) && id > 0 ? id : 0;
+  const next = sedeActiva();
+  if (branches.value.some(s => s.id === next) && branch.value !== String(next)) branch.value = String(next);
+};
 watch(branch, () => { selected.value = null; void loadRecords(); });
-onMounted(() => { void loadBranches(); void loadRecords(); });
+watch(() => route.query.sede_id, () => { sedeEvento.value = 0; cambioSede(); });
+onMounted(async () => { window.addEventListener('factorfit:branch-changed', cambioSede); await loadBranches(); if (branches.value.some(x => x.id === Number(branch.value)) && !loading.value) await loadRecords(); });
+onUnmounted(() => { activeRequest++; window.removeEventListener('factorfit:branch-changed', cambioSede); });
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');

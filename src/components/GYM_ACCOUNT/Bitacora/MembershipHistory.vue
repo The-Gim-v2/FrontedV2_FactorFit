@@ -149,14 +149,16 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 // @ts-ignore: useLang.js no trae archivo de tipos
 import { useLang } from '../useLang.js';
 const { lang } = useLang();
+const route = useRoute();
 const onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') selected.value = null; };
 onMounted(() => window.addEventListener('keydown', onEsc));
 onUnmounted(() => window.removeEventListener('keydown', onEsc));
-const isMobile = ref<boolean>(window.innerWidth <= 900);
+const isMobile = ref<boolean>(typeof window !== 'undefined' && window.innerWidth <= 900);
 const updateWidth = (): void => { isMobile.value = window.innerWidth <= 900; };
 onMounted(() => window.addEventListener('resize', updateWidth));
 onUnmounted(() => window.removeEventListener('resize', updateWidth));
@@ -170,6 +172,17 @@ const typeClass = (t: Movement) => ({ 'Inscripción': 'tag-blue', 'Renovación':
 const money = (n: number) => new Intl.NumberFormat(lang.value === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 const search = ref('');
 const branch = ref('1');
+const sedeEvento = ref(0);
+const sedeActiva = (): number => {
+  if (sedeEvento.value > 0) return sedeEvento.value;
+  const query = Number(route.query.sede_id); if (Number.isInteger(query) && query > 0) return query;
+  for (const store of [sessionStorage, localStorage]) for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+    const raw = store.getItem(key); if (!raw) continue;
+    try { const o = JSON.parse(raw); const value = typeof o === 'object' && o ? (o.ID_Sede ?? o.sede_id ?? o.id ?? o.value) : o; const id = Number(value); if (Number.isInteger(id) && id > 0) return id; }
+    catch { const id = Number(raw); if (Number.isInteger(id) && id > 0) return id; }
+  }
+  return 1;
+};
 const type = ref('');
 const date = ref('');
 const page = ref(1);
@@ -192,10 +205,10 @@ const goPage = (n: number): void => {
   page.value = Math.min(Math.max(1, n), totalPages.value);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-const hasFilters = computed(() => !!(search.value || branch.value !== '1' || type.value || date.value));
+const hasFilters = computed(() => !!(search.value || type.value || date.value));
 watch([search, branch, type, date], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
-const reset = () => { search.value = ''; branch.value = '1'; type.value = ''; date.value = ''; };
+const reset = () => { search.value = ''; type.value = ''; date.value = ''; };
 const count = (t: Movement) => scoped.value.filter(x => x.tipo === t).length;
 const stats = computed(() => [
   { label: tx('Movimientos', 'Transactions'), value: String(scoped.value.length), tone: 'purple' },
@@ -237,11 +250,10 @@ const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % ava
 const loading = ref(false);
 const loadError = ref('');
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const token = () => {
+const token = (): string => {
   for (const storage of [sessionStorage, localStorage]) {
-    for (const k of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
-      const v = storage.getItem(k); if (v) return v;
-    }
+    for (const k of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) { const value = storage.getItem(k); if (value) return value.replace(/^Bearer\s+/i,''); }
+    for (const k of ['auth','user','session','gymAccount','gym_account']) { try { const p = JSON.parse(storage.getItem(k) || 'null'); const value = p?.token || p?.access_token || p?.accessToken; if (value) return String(value).replace(/^Bearer\s+/i,''); } catch {} }
   }
   return '';
 };
@@ -254,29 +266,37 @@ const authGet = async (path: string) => {
   if (!res.ok) throw new Error(data.message || `Error HTTP ${res.status}`);
   return data;
 };
-const loadBranches = async () => {
+const loadBranches = async (): Promise<void> => {
   try {
     const d = await authGet('sedes');
-    branches.value = (Array.isArray(d) ? d : (d.sedes || [])).map((x: any) => ({
-      id: Number(x.ID_Sede), nombre: String(x.Sede_Colonia || x.nombre || `Sede ${x.ID_Sede}`)
-    })).filter((x: {id:number}) => Number.isInteger(x.id));
-    if (!branches.value.some(x => x.id === Number(branch.value))) {
-      loadError.value = 'La sede seleccionada no pertenece a este gimnasio. Selecciona una sede disponible.';
-    }
+    branches.value = (Array.isArray(d) ? d : (d.sedes || [])).map((x: any) => { const id = Number(x.ID_Sede ?? x.id); return {id, nombre: String(x.Sede_Colonia || x.nombre || `Sede ${id}`)}; }).filter((x: {id:number}) => Number.isInteger(x.id) && x.id > 0);
+    const current = sedeActiva();
+    if (branches.value.some(x => x.id === current)) branch.value = String(current);
+    else if (branches.value.length) branch.value = String(branches.value[0]?.id);
+    else loadError.value = 'No hay sedes registradas para este gimnasio.';
   } catch (e: any) { loadError.value = e.message || 'No fue posible consultar las sedes.'; }
 };
-const loadRecords = async () => {
-  if (!branches.value.some(x => x.id === Number(branch.value))) { records.value = []; loadError.value = 'Selecciona una sede autorizada.'; return; }
+const loadRecords = async (): Promise<void> => {
   const request = ++activeRequest;
+  if (!branches.value.some(x => x.id === Number(branch.value))) { records.value = []; loadError.value = 'Selecciona una sede autorizada.'; return; }
   loading.value = true; loadError.value = ''; records.value = [];
   try {
     const d = await authGet(`historiales/membresias?sede_id=${encodeURIComponent(branch.value)}`);
-    if (request === activeRequest) records.value = (Array.isArray(d.registros) ? d.registros : []).map((x: any) => ({ ...x, id: Number(x.id), clienteId: Number(x.clienteId), sedeId: Number(x.sedeId ?? branch.value), importe: Number(x.importe || 0) }));
+    if (request === activeRequest) records.value = (Array.isArray(d.registros) ? d.registros : []).map((x: any) => ({...x, id: Number(x.id), clienteId: Number(x.clienteId), sedeId: Number(x.sedeId ?? branch.value), importe: Number(x.importe ?? 0), responsable: String(x.responsable || 'No identificado')}));
   } catch (e: any) { if (request === activeRequest) loadError.value = e.message || 'No fue posible cargar el historial.'; }
   finally { if (request === activeRequest) loading.value = false; }
 };
+const cambioSede = (event?: Event): void => {
+  const detail = (event as CustomEvent<Record<string, unknown>> | undefined)?.detail;
+  const id = Number(detail?.sede_id ?? detail?.sedeId ?? detail?.selectedSedeId ?? detail?.ID_Sede ?? detail?.id ?? 0);
+  sedeEvento.value = Number.isInteger(id) && id > 0 ? id : 0;
+  const next = sedeActiva();
+  if (branches.value.some(s => s.id === next) && branch.value !== String(next)) branch.value = String(next);
+};
 watch(branch, () => { selected.value = null; void loadRecords(); });
-onMounted(async () => { await loadBranches(); if (branches.value.some(x => x.id === Number(branch.value))) await loadRecords(); });
+watch(() => route.query.sede_id, () => { sedeEvento.value = 0; cambioSede(); });
+onMounted(async () => { window.addEventListener('factorfit:branch-changed', cambioSede); await loadBranches(); if (branches.value.some(x => x.id === Number(branch.value)) && !loading.value) await loadRecords(); });
+onUnmounted(() => { activeRequest++; window.removeEventListener('factorfit:branch-changed', cambioSede); });
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');.main-content{--tone-main: #34d399;--accent: var(--color-highlight, #3b82f6);--income: #34d399;--card-bg: var(--bg-cards, #121416);--radius: var(--app-border-radius, 14px);--radius-small: 10px;--line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);--line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);--muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 68%, transparent);}
