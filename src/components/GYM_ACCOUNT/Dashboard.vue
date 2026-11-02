@@ -431,7 +431,6 @@ let stream = null;
 const gym = ref({ name: '', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' });
 const profile = ref({});
 const branchName = ref('');
-const profileLoaded = ref(false);
 const profileError = ref('');
 const metricsError = ref('');
 const branchFromEvent = ref(0);
@@ -496,6 +495,7 @@ const nowParts = () => {
   return { today: `${get('year')}-${get('month')}-${get('day')}`, month: `${get('year')}-${get('month')}` };
 };
 const formatMoney = (n) => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+// Dirección de la sucursal (se muestra en la tarjeta de "Sucursales").
 const profileAddress = computed(() => [profile.value.calle, profile.value.numExt, profile.value.numInt && `Int. ${profile.value.numInt}`, profile.value.otrasCalles, profile.value.colonia, profile.value.municipio, profile.value.entidad].filter(Boolean).join(', '));
 let requestSeq = 0;
 const loadDashboard = async () => {
@@ -521,9 +521,7 @@ const loadDashboard = async () => {
     };
     branchName.value = String(data.sede_nombre || `Sede ${id}`);
     billingStatus.value = profile.value.status === 'activo' ? 'active' : profile.value.status === 'pendiente' ? 'pending' : 'blocked';
-    profileLoaded.value = true;
   } else {
-    profileLoaded.value = false;
     gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' };
     profileError.value = `No se pudo cargar el perfil: ${perfilResult.reason?.message || 'Error de conexión'}`;
   }
@@ -2815,9 +2813,9 @@ button {
   }
 }
 
-/* Mensajes de error / vacío y etiqueta de sucursal en el encabezado. */
-.dashboard-data-error { padding: 12px 15px; margin: 0; border: 1px solid rgba(248, 113, 113, .35); border-radius: 12px; background: rgba(248, 113, 113, .07); color: #fca5a5; font-size: 12px; }
-.dashboard-data-error button { margin-left: 10px; border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; }
-.hero-branch { display: block; margin-top: 8px; color: #e2e8f0; font-size: 12px; font-weight: 600; }
-.dashboard-empty { padding: 14px 4px; color: var(--text3); font-size: 12px; }
+/* Avisos de datos y estados vacíos */
+.dashboard-data-error{padding:12px 15px;margin:0;border:1px solid rgba(248,113,113,.35);border-radius:12px;background:rgba(248,113,113,.07);color:#fca5a5;font-size:12px}
+.dashboard-data-error button{margin-left:10px;border:0;background:transparent;color:inherit;cursor:pointer;text-decoration:underline}
+.hero-branch{display:block;margin-top:8px;color:#e2e8f0;font-size:12px;font-weight:600}
+.dashboard-empty{padding:14px 4px;color:var(--text3);font-size:12px}
 </style>
