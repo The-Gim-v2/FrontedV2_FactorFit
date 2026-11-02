@@ -542,7 +542,7 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import AddCorteComponent from '../Componets/Cut.vue';
 import Help from '../Componets/Help.vue';
-import ReciboPago from '../Componets/ReciboPago.vue'; // ⚠ Ajusta la ruta si ReciboPago.vue está en otra carpeta
+import ReciboPago from '../Payments/ReciboPago.vue'; // ⚠ Ajusta la ruta si ReciboPago.vue está en otra carpeta
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
 
