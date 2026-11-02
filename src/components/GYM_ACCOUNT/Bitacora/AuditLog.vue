@@ -12,8 +12,8 @@
           <div class="select-wrapper">
             <svg class="select-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <select class="status-select" v-model="branch">
-              <option value="">{{ tx('Todas las sedes', 'All branches') }}</option>
-              <option v-for="s in branches" :key="s" :value="s">{{ s }}</option>
+              
+              <option v-for="s in branches" :key="s.id" :value="String(s.id)">{{ s.nombre }}</option>
             </select>
             <svg class="select-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
@@ -45,6 +45,8 @@
         </div>
       </header>
 
+      <p v-if="loading" role="status" class="history-message">Cargando registros...</p>
+      <p v-if="loadError" role="alert" class="history-message">{{ loadError }} <button type="button" @click="loadRecords">Reintentar</button></p>
       <!-- RESUMEN -->
       <section class="stats-row">
         <div class="stat-card" v-for="s in stats" :key="s.label" :class="'stat-' + s.tone">
@@ -179,56 +181,10 @@ onUnmounted(() => window.removeEventListener('resize', updateWidth));
 const tx = (es: string, en: string) => (lang.value === 'en' ? en : es);
 
 type Action = 'Crear' | 'Modificar' | 'Eliminar' | 'Acceso';
-interface Audit { id: number; fecha: string; usuario: string; rol: string; sede: string; modulo: string; accion: Action; descripcion: string; antes: string; despues: string }
+interface Audit { sedeId: number; id: number; fecha: string; usuario: string; rol: string; sede: string; modulo: string; accion: Action; descripcion: string; antes: string; despues: string }
 
 
-const records = ref<Audit[]>([
-  { id: 1001, fecha: '2026-10-09 09:20', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Membresías', accion: 'Modificar', descripcion: 'Actualizó el precio mensual', antes: '$450', despues: '$500' },
-  { id: 1002, fecha: '2026-10-09 10:15', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Clientes', accion: 'Crear', descripcion: 'Registró un cliente', antes: '', despues: 'Cliente #125' },
-  { id: 1003, fecha: '2026-10-09 12:40', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Promociones', accion: 'Eliminar', descripcion: 'Desactivó una promoción', antes: 'Promoción activa', despues: 'Promoción eliminada' },
-  { id: 1004, fecha: '2026-10-10 08:00', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Sistema', accion: 'Acceso', descripcion: 'Inició sesión', antes: '', despues: 'Sesión iniciada' },
-  { id: 1005, fecha: '2026-10-10 09:30', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Pagos', accion: 'Modificar', descripcion: 'Actualizó referencia de pago', antes: 'REF-102', despues: 'REF-103' },
-  { id: 1006, fecha: '2026-10-10 09:45', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Clientes', accion: 'Crear', descripcion: 'Registró un nuevo cliente', antes: '', despues: 'Cliente #126' },
-  { id: 1007, fecha: '2026-10-10 10:00', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Membresías', accion: 'Modificar', descripcion: 'Cambió la duración de una membresía', antes: '1 Mes', despues: '3 Meses' },
-  { id: 1008, fecha: '2026-10-10 10:15', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Empleados', accion: 'Crear', descripcion: 'Registró un nuevo entrenador', antes: '', despues: 'Empleado #45' },
-  { id: 1009, fecha: '2026-10-10 10:30', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Crear', descripcion: 'Registró un pago mensual', antes: '', despues: 'Pago #305 - $500' },
-  { id: 1010, fecha: '2026-10-10 10:45', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Configuración', accion: 'Modificar', descripcion: 'Actualizó el horario de apertura', antes: '06:00', despues: '05:30' },
-  { id: 1011, fecha: '2026-10-10 11:00', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Clientes', accion: 'Modificar', descripcion: 'Actualizó el teléfono de un cliente', antes: '4811234567', despues: '4819876543' },
-  { id: 1012, fecha: '2026-10-10 11:15', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Promociones', accion: 'Crear', descripcion: 'Registró una promoción de inscripción', antes: '', despues: 'Descuento del 20%' },
-  { id: 1013, fecha: '2026-10-10 11:30', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Asistencias', accion: 'Crear', descripcion: 'Registró la entrada de un cliente', antes: '', despues: 'Entrada 11:30' },
-  { id: 1014, fecha: '2026-10-10 11:45', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Empleados', accion: 'Modificar', descripcion: 'Actualizó el puesto de un empleado', antes: 'Recepcionista', despues: 'Supervisor' },
-  { id: 1015, fecha: '2026-10-10 12:00', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Inventario', accion: 'Crear', descripcion: 'Registró nuevo equipo de gimnasio', antes: '', despues: 'Caminadora #12' },
-  { id: 1016, fecha: '2026-10-10 12:15', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Modificar', descripcion: 'Corrigió el monto de un pago', antes: '$450', despues: '$500' },
-  { id: 1017, fecha: '2026-10-10 12:30', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Usuarios', accion: 'Crear', descripcion: 'Creó una cuenta de empleado', antes: '', despues: 'Usuario #78' },
-  { id: 1018, fecha: '2026-10-10 12:45', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Membresías', accion: 'Modificar', descripcion: 'Renovó una membresía vencida', antes: 'Vencida', despues: 'Activa' },
-  { id: 1019, fecha: '2026-10-10 13:00', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Inventario', accion: 'Modificar', descripcion: 'Actualizó el estado de una máquina', antes: 'Disponible', despues: 'Mantenimiento' },
-  { id: 1020, fecha: '2026-10-10 13:15', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Clientes', accion: 'Modificar', descripcion: 'Actualizó el correo de un cliente', antes: 'cliente1@example.com', despues: 'cliente2@example.com' },
-  { id: 1021, fecha: '2026-10-10 13:30', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Promociones', accion: 'Eliminar', descripcion: 'Eliminó una promoción vencida', antes: 'Promoción octubre', despues: 'Eliminada' },
-  { id: 1022, fecha: '2026-10-10 13:45', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Horarios', accion: 'Modificar', descripcion: 'Cambió el horario de una clase', antes: '17:00', despues: '18:00' },
-  { id: 1023, fecha: '2026-10-10 14:00', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Crear', descripcion: 'Registró un pago quincenal', antes: '', despues: 'Pago #306 - $250' },
-  { id: 1024, fecha: '2026-10-10 14:15', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Configuración', accion: 'Modificar', descripcion: 'Actualizó el límite de usuarios', antes: '500', despues: '1000' },
-  { id: 1025, fecha: '2026-10-10 14:30', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Clientes', accion: 'Crear', descripcion: 'Registró un cliente nuevo', antes: '', despues: 'Cliente #127' },
-  { id: 1026, fecha: '2026-10-10 14:45', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Reportes', accion: 'Eliminar', descripcion: 'Exportó el reporte de ingresos', antes: '', despues: 'Reporte PDF generado' },
-  { id: 1027, fecha: '2026-10-10 15:00', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Asistencias', accion: 'Crear', descripcion: 'Registró la salida de un cliente', antes: '', despues: 'Salida 15:00' },
-  { id: 1028, fecha: '2026-10-10 15:15', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Usuarios', accion: 'Modificar', descripcion: 'Cambió los permisos de un usuario', antes: 'Recepcionista', despues: 'Gerente' },
-  { id: 1029, fecha: '2026-10-10 15:30', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Inventario', accion: 'Eliminar', descripcion: 'Retiró equipo fuera de servicio', antes: 'Bicicleta #08', despues: 'Equipo retirado' },
-  { id: 1030, fecha: '2026-10-10 15:45', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Modificar', descripcion: 'Cambió el método de pago', antes: 'Efectivo', despues: 'Transferencia' },
-  { id: 1031, fecha: '2026-10-10 16:00', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Sistema', accion: 'Acceso', descripcion: 'Inició sesión administrativa', antes: '', despues: 'Sesión iniciada' },
-  { id: 1032, fecha: '2026-10-10 16:15', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Membresías', accion: 'Modificar', descripcion: 'Cambió el tipo de membresía', antes: 'Mensual', despues: 'Quincenal' },
-  { id: 1033, fecha: '2026-10-10 16:30', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Empleados', accion: 'Modificar', descripcion: 'Actualizó el horario de un entrenador', antes: '08:00 - 14:00', despues: '09:00 - 15:00' },
-  { id: 1034, fecha: '2026-10-10 16:45', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Clientes', accion: 'Modificar', descripcion: 'Actualizó la dirección de un cliente', antes: 'Colonia Centro', despues: 'Colonia Obrera' },
-  { id: 1035, fecha: '2026-10-10 17:00', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Configuración', accion: 'Modificar', descripcion: 'Actualizó el horario de cierre', antes: '22:00', despues: '23:00' },
-  { id: 1036, fecha: '2026-10-10 17:15', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Promociones', accion: 'Modificar', descripcion: 'Actualizó el descuento promocional', antes: '10%', despues: '15%' },
-  { id: 1037, fecha: '2026-10-10 17:30', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Crear', descripcion: 'Registró un pago de inscripción', antes: '', despues: 'Pago #307 - $300' },
-  { id: 1038, fecha: '2026-10-10 17:45', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Usuarios', accion: 'Modificar', descripcion: 'Desactivó una cuenta de usuario', antes: 'Activo', despues: 'Inactivo' },
-  { id: 1039, fecha: '2026-10-10 18:00', usuario: 'Carlos Ruiz', rol: 'Recepcionista', sede: 'Norte', modulo: 'Clientes', accion: 'Modificar', descripcion: 'Actualizó el estado de un cliente', antes: 'Pendiente', despues: 'Activo' },
-  { id: 1040, fecha: '2026-10-10 18:15', usuario: 'Luis Torres', rol: 'Gerente', sede: 'Sur', modulo: 'Reportes', accion: 'Crear', descripcion: 'Descargó el reporte de asistencias', antes: '', despues: 'Reporte Excel generado' },
-  { id: 1041, fecha: '2026-10-10 18:30', usuario: 'María García', rol: 'Recepcionista', sede: 'Centro', modulo: 'Membresías', accion: 'Crear', descripcion: 'Asignó una membresía trimestral', antes: '', despues: 'Membresía 3 Meses' },
-  { id: 1042, fecha: '2026-10-10 18:45', usuario: 'Pedro Martínez', rol: 'Administrador', sede: 'Norte', modulo: 'Sistema', accion: 'Acceso', descripcion: 'Cerró sesión administrativa', antes: 'Sesión activa', despues: 'Sesión cerrada' },
-  { id: 1043, fecha: '2026-10-10 19:00', usuario: 'Sofía Hernández', rol: 'Gerente', sede: 'Sur', modulo: 'Horarios', accion: 'Crear', descripcion: 'Programó una clase de spinning', antes: '', despues: 'Clase 19:00 - 20:00' },
-  { id: 1044, fecha: '2026-10-10 19:15', usuario: 'Jorge Ramírez', rol: 'Recepcionista', sede: 'Centro', modulo: 'Pagos', accion: 'Modificar', descripcion: 'Corrigió la referencia de una transferencia', antes: 'REF-205', despues: 'REF-250' },
-  { id: 1045, fecha: '2026-10-10 19:30', usuario: 'Ana López', rol: 'Administrador', sede: 'Centro', modulo: 'Sistema', accion: 'Acceso', descripcion: 'Cerró sesión del sistema', antes: 'Sesión activa', despues: 'Sesión cerrada' }
-]);
+const records = ref<Audit[]>([]);
 
 
 const actionEN: Record<Action, string> = { Crear: 'Create', Modificar: 'Modify', Eliminar: 'Delete', Acceso: 'Login' };
@@ -236,14 +192,14 @@ const actions: Action[] = ['Crear', 'Modificar', 'Eliminar', 'Acceso'];
 const actionClass = (a: Action) => ({ Crear: 'tag-green', Modificar: 'tag-blue', Eliminar: 'tag-red', Acceso: 'tag-purple' }[a]);
 
 const search = ref('');
-const branch = ref('');
+const branch = ref('1');
 const action = ref('');
 const date = ref('');
 const page = ref(1);
 const selected = ref<Audit | null>(null);
 
-const branches = computed(() => [...new Set(records.value.map(x => x.sede))]);
-const scoped = computed(() => records.value.filter(x => !branch.value || x.sede === branch.value));
+const branches = ref<{ id: number; nombre: string }[]>([]);
+const scoped = computed(() => records.value.filter(x => Number(branch.value) === x.sedeId));
 const filtered = computed(() => {
   const term = search.value.toLowerCase().trim();
   return scoped.value.filter(x =>
@@ -265,7 +221,7 @@ const hasFilters = computed(() => !!(search.value || branch.value || action.valu
 watch([search, branch, action, date], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
 
-const reset = () => { search.value = ''; branch.value = ''; action.value = ''; date.value = ''; };
+const reset = () => { search.value = ''; branch.value = '1'; action.value = ''; date.value = ''; };
 
 const stats = computed(() => [
   { label: tx('Total de eventos', 'Total events'), value: String(scoped.value.length), tone: 'blue' },
@@ -304,6 +260,50 @@ const getInitials = (name: string): string => {
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
 };
 const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % avatarGradients.length] });
+
+
+const loading = ref(false);
+const loadError = ref('');
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const token = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const k of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+      const v = storage.getItem(k); if (v) return v;
+    }
+  }
+  return '';
+};
+let activeRequest = 0;
+const authGet = async (path: string) => {
+  const t = token();
+  if (!t) throw new Error('Inicia sesión nuevamente para consultar el historial.');
+  const res = await fetch(`${API}/api/gym/${path}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${t}` } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `Error HTTP ${res.status}`);
+  return data;
+};
+const loadBranches = async () => {
+  try {
+    const d = await authGet('sedes');
+    branches.value = (Array.isArray(d) ? d : (d.sedes || [])).map((x: any) => ({
+      id: Number(x.ID_Sede), nombre: String(x.Sede_Colonia || x.nombre || `Sede ${x.ID_Sede}`)
+    })).filter((x: {id:number}) => Number.isInteger(x.id));
+    if (!branches.value.some(x => x.id === Number(branch.value))) {
+      loadError.value = 'La sede 1 no pertenece a este gimnasio o no está registrada. Selecciona una sede disponible.';
+    }
+  } catch (e: any) { loadError.value = e.message || 'No fue posible consultar las sedes.'; }
+};
+const loadRecords = async () => {
+  const request = ++activeRequest;
+  loading.value = true; loadError.value = ''; records.value = [];
+  try {
+    const d = await authGet(`historiales/auditoria?sede_id=${encodeURIComponent(branch.value)}`);
+    if (request === activeRequest) records.value = Array.isArray(d.registros) ? d.registros : [];
+  } catch (e: any) { if (request === activeRequest) loadError.value = e.message || 'No fue posible cargar el historial.'; }
+  finally { if (request === activeRequest) loading.value = false; }
+};
+watch(branch, () => { selected.value = null; void loadRecords(); });
+onMounted(() => { void loadBranches(); void loadRecords(); });
 
 </script>
 <style scoped>
