@@ -66,15 +66,7 @@
 <svg class="select-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
 </div>
 </div>
-<div class="input-group cutoff-group">
-<label for="sel-corte">{{ t('cutoff') }}</label>
-<div class="select-wrapper">
-<select id="sel-corte" v-model.number="form.corte" class="custom-select cutoff-select">
-<option v-for="n in 31" :key="'cor-' + n" :value="n">{{ t('dayLabel') }} {{ n }}</option>
-</select>
-<svg class="select-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9" /></svg>
-</div>
-</div>
+<div class="input-group cutoff-group"><label>{{ t('cutoff') }} (puedes elegir varios)</label><div class="ff-corte-options"><button v-for="n in diasDe(form)" :key="n" type="button" class="chip-btn" :class="{active: form.cortes.includes(n)}" @click="toggleCorte(n)">{{ n }}</button></div><small>Selecciona uno o varios días dentro del período.</small></div>
 </div>
 <div v-if="formCruzaMes" class="wrap-note">
 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -94,7 +86,6 @@ role="radio"
 :aria-checked="form.tipo === 'Mensual'"
 class="payment-option"
 :class="{ active: form.tipo === 'Mensual', 'is-taken': tipoRegistrado('Mensual') }"
-:disabled="tipoRegistrado('Mensual')"
 @click="form.tipo = 'Mensual'"
 >
 <span class="payment-option-icon">
@@ -115,7 +106,6 @@ role="radio"
 :aria-checked="form.tipo === 'Quincenal'"
 class="payment-option"
 :class="{ active: form.tipo === 'Quincenal', 'is-taken': tipoRegistrado('Quincenal') }"
-:disabled="tipoRegistrado('Quincenal')"
 @click="form.tipo = 'Quincenal'"
 >
 <span class="payment-option-icon">
@@ -142,7 +132,7 @@ class="payment-option"
 </strong>
 <div class="rule-tags">
 <span class="tag tag-days">{{ diasEnRango(form) }} {{ t('daysUnit') }}</span>
-<span class="tag tag-cutoff">{{ t('cutoff') }} · {{ t('dayLabel') }} {{ form.corte }}</span>
+<span class="tag tag-cutoff">{{ t('cutoff') }} · {{ t('dayLabel') }} {{ form.cortes.join(', ') }}</span>
 <span class="tag" :class="form.tipo === 'Mensual' ? 'tag-mes' : 'tag-quin'">
 {{ form.tipo === 'Mensual' ? t('monthly') : t('biweekly') }}
 </span>
@@ -207,7 +197,7 @@ class="payment-option"
 <div class="saved-bottom">
 <span class="meta cutoff-info">
 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-{{ t('cutoffLabel') }} <strong>{{ item.corte }}</strong>
+{{ t('cutoffLabel') }} <strong>{{ item.cortes.join(', ') }}</strong>
 </span>
 <span class="meta">{{ diasEnRango(item) }} {{ t('daysUnit') }}</span>
 <span v-if="cruzaMes(item)" class="meta wrap-meta">
@@ -277,6 +267,7 @@ id?: number;
 inicio: number;
 termino: number;
 corte: number;
+cortes: number[];
 tipo: string;
 }
 const settings = reactive({
@@ -374,13 +365,14 @@ const form = reactive<CorteItem>({
 inicio: 1,
 termino: 15,
 corte: 2,
+cortes: [2],
 tipo: 'Mensual'
 });
 const cortes = ref<CorteItem[]>([]);
 const cargando = ref(false);
 const guardando = ref(false);
 const selectedSede = ref<number>(0);
-const base = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const api = `${base}${base.endsWith("/api") ? "" : "/api"}/gym/cortes`;
 const token = () => sessionStorage.getItem("auth_token") || "";
 const obtenerSede = () => Number(sessionStorage.getItem("selected_sede_id") || 0);
@@ -395,7 +387,7 @@ const sede = obtenerSede();
 selectedSede.value = sede;
 if (!sede) { cortes.value = []; toastRef.value?.notify?.("Selecciona una sucursal", "error"); return; }
 cargando.value = true;
-try { const data = await request(`?sede_id=${sede}`); cortes.value = (Array.isArray(data) ? data : data.data || []).map((x: any) => ({ id: Number(x.ID_Corte_Regla), inicio: Number(x.Inicio), termino: Number(x.Termino), corte: Number(x.Corte), tipo: x.Tipo_Pago })); }
+try { const data = await request(`?sede_id=${sede}`); cortes.value = (Array.isArray(data) ? data : data.data || []).map((x: any) => ({ id: Number(x.ID_Corte_Regla), inicio: Number(x.Inicio), termino: Number(x.Termino), corte: Number(x.Corte), cortes: (Array.isArray(x.Dias_Corte)?x.Dias_Corte:[Number(x.Corte)]).map(Number), tipo: x.Tipo_Pago })); }
 catch (e: any) { cortes.value = []; toastRef.value?.notify?.(e.message, "error"); }
 finally { cargando.value = false; }
 };
@@ -403,6 +395,8 @@ const toastRef = ref<any>(null);
 const cruzaMes = (c: { inicio: number; termino: number }) =>
 c.inicio > c.termino;
 const formCruzaMes = computed(() => cruzaMes(form));
+const toggleCorte=(n:number)=>{form.cortes=form.cortes.includes(n)?form.cortes.filter(x=>x!==n):[...form.cortes,n].sort((a,b)=>a-b);form.corte=form.cortes[0]||0;};
+watch([()=>form.inicio,()=>form.termino],()=>{form.cortes=form.cortes.filter(n=>enRango(n,form));form.corte=form.cortes[0]||0;});
 const diasEnRango = (c: { inicio: number; termino: number }) =>
 cruzaMes(c)
 ? 31 - c.inicio + 1 + c.termino
@@ -411,15 +405,13 @@ const enRango = (n: number, c: CorteItem) =>
 cruzaMes(c)
 ? n >= c.inicio || n <= c.termino
 : n >= c.inicio && n <= c.termino;
-const tipoRegistrado = (tipo: string) =>
-cortes.value.some((c) => c.tipo === tipo);
+const tipoRegistrado = (_tipo: string) => false;
 const diaOcupado = (n: number) =>
 cortes.value.some((c) => enRango(n, c));
 const diasDe = (c: CorteItem) =>
 Array.from({length:31},(_,i)=>i+1).filter(n=>enRango(n,c));
 const conflicto = computed<'type' | 'days' | 'full' | null>(() => {
-if (tipoRegistrado('Mensual') && tipoRegistrado('Quincenal')) return 'full';
-if (tipoRegistrado(form.tipo)) return 'type';
+if (!form.cortes.length) return 'full';
 if (diasDe(form).some((n) => diaOcupado(n))) return 'days';
 return null;
 });
@@ -439,7 +431,7 @@ const sede = obtenerSede();
 if (!sede) { toastRef.value?.notify?.('Selecciona una sucursal', 'error'); return; }
 guardando.value = true;
 try {
-await request('', { method: 'POST', body: JSON.stringify({ sede_id: sede, inicio: form.inicio, termino: form.termino, corte: form.corte, tipo: form.tipo }) });
+await request('', { method: 'POST', body: JSON.stringify({ sede_id: sede, inicio: form.inicio, termino: form.termino, corte: form.cortes[0], cortes: form.cortes, tipo: form.tipo }) });
 await cargarCortes();
 window.dispatchEvent(new CustomEvent('factorfit:cortes-changed', { detail: { sede_id: sede } }));
 toastRef.value?.notify?.(t('successMsg'), 'success');
@@ -459,7 +451,7 @@ toastRef.value?.notify?.(t('deleteMsg'), 'info');
 finally { guardando.value = false; }
 };
 const getDayClass = (n: number) => {
-if (cortes.value.some((c) => Number(c.corte) === n)) {
+if (cortes.value.some((c) => c.cortes.includes(n))) {
 return 'is-corte';
 }
 const rangeMatch = cortes.value.find((c) => enRango(n, c));
@@ -1105,4 +1097,4 @@ gap: 5px;
 transition: none !important;
 }
 }
-</style>
+.ff-corte-options{display:flex;flex-wrap:wrap;gap:7px;max-height:150px;overflow:auto;padding:7px;border:1px solid var(--line);border-radius:10px}.ff-corte-options .chip-btn{min-width:37px}</style>

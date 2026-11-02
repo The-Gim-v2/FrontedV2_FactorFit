@@ -19,7 +19,6 @@
         </div>
       </section>
     </div>
-
     <main class="main-content">
       <div class="profile-card">
         <!-- =====================================================
@@ -28,12 +27,10 @@
         <aside class="profile-section" id="tutorial-step-0">
           <div class="profile-content">
             <span class="profile-label">{{ t('personalData') }}</span>
-
             <h1 class="main-title">
               {{ t('title1') }}<br />
               <span class="highlight">{{ t('title2') }}</span>
             </h1>
-
             <!-- FOTO -->
             <div class="avatar-wrapper">
               <div class="avatar-ring">
@@ -51,7 +48,6 @@
                     :alt="t('altPreview')"
                     class="avatar-img"
                   />
-
                   <svg
                     v-else
                     viewBox="0 0 24 24"
@@ -62,7 +58,6 @@
                       d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
                     />
                   </svg>
-
                   <div class="avatar-overlay">
                     <svg
                       viewBox="0 0 24 24"
@@ -75,14 +70,12 @@
                       />
                       <circle cx="12" cy="13" r="4" />
                     </svg>
-
                     <span>
                       {{ currentLang === 'en' ? 'Change photo' : 'Cambiar foto' }}
                     </span>
                   </div>
                 </div>
               </div>
-
               <button
                 type="button"
                 class="avatar-action"
@@ -101,7 +94,6 @@
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </button>
-
               <!-- ÚNICAMENTE PARA GALERÍA/ARCHIVOS -->
               <input
                 ref="fileInput"
@@ -111,7 +103,6 @@
                 @change="handleFileChange"
               />
             </div>
-
             <p class="profile-hint">
               {{
                 currentLang === 'en'
@@ -119,7 +110,6 @@
                   : 'Toma una foto o selecciona una desde tu dispositivo.'
               }}
             </p>
-
             <dl class="profile-summary">
               <div class="summary-item">
                 <dt>{{ currentLang === 'en' ? 'Client' : 'Cliente' }}</dt>
@@ -130,7 +120,6 @@
                   }}
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('membershipData') }}</dt>
                 <dd>
@@ -145,14 +134,12 @@
                   </span>
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('enrollmentDate') }}</dt>
                 <dd :class="{ empty: !form.fechaInscripcion }">
                   {{ form.fechaInscripcion || '—' }}
                 </dd>
               </div>
-
               <div class="summary-item">
                 <dt>{{ t('dueDate') }}</dt>
                 <dd :class="{ empty: !form.fechaCorte }">
@@ -162,7 +149,6 @@
             </dl>
           </div>
         </aside>
-
         <!-- =====================================================
              FORMULARIOS
         ====================================================== -->
@@ -172,7 +158,6 @@
             <header class="card-header">
               <div class="card-header-text">
                 <h3 class="section-title">{{ t('personalData') }}</h3>
-
                 <p class="section-description">
                   {{
                     currentLang === 'en'
@@ -182,14 +167,12 @@
                 </p>
               </div>
             </header>
-
             <div class="form-grid form-grid-3">
               <div class="input-group">
                 <label>
                   {{ t('names') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.nombres"
@@ -197,13 +180,11 @@
                   autocomplete="given-name"
                 />
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('lastNameP') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.apellidoP"
@@ -211,35 +192,29 @@
                   autocomplete="family-name"
                 />
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('lastNameM') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="text"
                   v-model="form.apellidoM"
                   :placeholder="t('placeholderLastNameM')"
                 />
               </div>
-
               <div class="input-group">
                 <label>
                   {{ t('birthDate') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   type="date"
                   v-model="form.fechaNacimiento"
                 />
               </div>
-
               <div class="input-group">
                 <label>{{ t('cellphone') }}</label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -251,7 +226,6 @@
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
-
                   <input
                     type="tel"
                     :value="form.celular"
@@ -265,10 +239,8 @@
                   />
                 </div>
               </div>
-
               <div class="input-group">
                 <label>{{ t('email') }}</label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -281,7 +253,6 @@
                     />
                     <polyline points="22,6 12,13 2,6" />
                   </svg>
-
                   <input
                     type="email"
                     v-model="form.email"
@@ -292,7 +263,6 @@
               </div>
             </div>
           </section>
-
           <!-- REGISTRO FÍSICO -->
           <section
             class="login-card physical-card"
@@ -301,7 +271,6 @@
             <header class="card-header">
               <div class="card-header-text">
                 <h3 class="section-title">{{ t('physicalRecord') }}</h3>
-
                 <p class="section-description">
                   {{
                     currentLang === 'en'
@@ -311,7 +280,6 @@
                 </p>
               </div>
             </header>
-
             <div class="physical-grid">
               <div class="measurement-field">
                 <div class="measurement-icon">
@@ -325,10 +293,8 @@
                     <path d="M9 8a3 3 0 0 1 6 0" />
                   </svg>
                 </div>
-
                 <div class="measurement-content">
                   <label>{{ t('weight') }}</label>
-
                   <div class="measurement-input">
                     <input
                       type="number"
@@ -341,7 +307,6 @@
                   </div>
                 </div>
               </div>
-
               <div class="measurement-field">
                 <div class="measurement-icon">
                   <svg
@@ -361,10 +326,8 @@
                     <path d="m12 17 3 3 3-3" />
                   </svg>
                 </div>
-
                 <div class="measurement-content">
                   <label>{{ t('height') }}</label>
-
                   <div class="measurement-input">
                     <input
                       type="number"
@@ -378,7 +341,6 @@
               </div>
             </div>
           </section>
-
           <!-- =====================================================
                MEMBRESÍA + PAGO INICIAL (una sola tarjeta)
           ====================================================== -->
@@ -386,7 +348,6 @@
             <header class="card-header membership-header">
               <div class="card-header-text">
                 <h3 class="section-title">{{ t('membershipData') }}</h3>
-
                 <p class="section-description">
                   {{
                     currentLang === 'en'
@@ -395,7 +356,6 @@
                   }}
                 </p>
               </div>
-
               <div class="membership-actions-row">
                 <div
                   class="toggle-group-small"
@@ -409,7 +369,6 @@
                   >
                     {{ t('month') }}
                   </button>
-
                   <button
                     type="button"
                     class="btn-toggle-small"
@@ -423,8 +382,8 @@
                     @click="form.tipoMembresia = 'quincena'">
                     {{ currentLang === 'en' ? 'Fortnight' : 'Quincena' }}
                   </button>
+                  <button type="button" class="btn-toggle-small" :class="{ active: form.tipoMembresia === 'visita' }" @click="form.tipoMembresia = 'visita'">Visita</button>
                 </div>
-
                 <div class="actions-group">
                   <button
                     type="button"
@@ -446,7 +405,6 @@
                       <line x1="16" y1="17" x2="8" y2="17" />
                     </svg>
                   </button>
-
                   <button
                     type="button"
                     class="action-btn"
@@ -469,14 +427,12 @@
                 </div>
               </div>
             </header>
-
             <!-- TARIFA DE INSCRIPCIÓN (selector personalizado) -->
             <div class="input-group tarifa-group">
               <label id="tarifa-label">
                 {{ currentLang === 'en' ? 'Enrollment rate' : 'Tarifa de inscripción' }}
                 <span class="required">*</span>
               </label>
-
               <div
                 ref="tarifaRef"
                 class="ff-select"
@@ -505,7 +461,6 @@
                       <path d="M7 15h3" />
                     </svg>
                   </span>
-
                   <span
                     class="ff-select-value"
                     :class="{ placeholder: !tarifaSeleccionada }"
@@ -518,7 +473,6 @@
                       {{ currentLang === 'en' ? 'Select a rate' : 'Selecciona una tarifa' }}
                     </template>
                   </span>
-
                   <svg
                     class="ff-select-chevron"
                     viewBox="0 0 24 24"
@@ -531,7 +485,6 @@
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </button>
-
                 <transition name="ff-dd">
                   <ul
                     v-if="tarifaOpen"
@@ -549,7 +502,6 @@
                           : 'No hay tarifas disponibles para este periodo.'
                       }}
                     </li>
-
                     <li
                       v-for="p in tarifasFiltradas"
                       :key="p.ID_Precio"
@@ -560,7 +512,6 @@
                     >
                       <span class="opt-name">{{ p.Nombre_Paquete }}</span>
                       <span class="opt-price">{{ formatoPrecio(p.Precio) }}</span>
-
                       <svg
                         v-if="String(p.ID_Precio) === String(idPrecio)"
                         class="opt-check"
@@ -578,7 +529,6 @@
                 </transition>
               </div>
             </div>
-
             <div class="membership-date-grid">
               <div class="date-field">
                 <div class="date-icon">
@@ -594,7 +544,6 @@
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                 </div>
-
                 <div class="date-content">
                   <label>{{ t('enrollmentDate') }}</label>
                   <input
@@ -604,7 +553,6 @@
                   />
                 </div>
               </div>
-
               <div class="date-field">
                 <div class="date-icon">
                   <svg
@@ -619,7 +567,6 @@
                     <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                 </div>
-
                 <div class="date-content">
                   <label>{{ t('dueDate') }}</label>
                   <input
@@ -630,7 +577,6 @@
                 </div>
               </div>
             </div>
-
             <!-- ---------------- PAGO INICIAL (dentro de membresía) ---------------- -->
             <div class="ff-payment-block">
               <div class="ff-payment-heading">
@@ -643,13 +589,11 @@
                   }}
                 </p>
               </div>
-
               <div class="ff-payment-summary">
                 <span>{{ currentLang === 'en' ? 'Membership total' : 'Total de membresía' }}</span>
                 <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
               </div>
-
-              <div class="ff-payment-choice" role="radiogroup">
+              <div v-if="diasCorteDisponibles.length>1" class="input-group"><label>Día de corte fijo</label><select v-model.number="diaCorteElegido" class="ff-payment-input ff-payment-select"><option v-for="d in diasCorteDisponibles" :key="d" :value="d">Día {{ d }} (mes siguiente)</option></select></div><small v-if="!permitePendiente" style="color:#fb923c">El corte de este mes ya pasó. Es obligatorio cobrar ahora.</small><div class="ff-payment-choice" role="radiogroup">
                 <label class="ff-choice" :class="{ selected: cobrarAhora }">
                   <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="true" />
                   <span class="ff-choice-dot"></span>
@@ -658,9 +602,8 @@
                     <small>{{ currentLang === 'en' ? 'Activates the membership' : 'Activa la membresía' }}</small>
                   </span>
                 </label>
-
-                <label class="ff-choice" :class="{ selected: !cobrarAhora }">
-                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="false" />
+                <label class="ff-choice" :class="{ selected: !cobrarAhora, disabled: !permitePendiente }">
+                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="false" :disabled="!permitePendiente" />
                   <span class="ff-choice-dot"></span>
                   <span class="ff-choice-text">
                     <strong>{{ currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente de pago' }}</strong>
@@ -668,7 +611,6 @@
                   </span>
                 </label>
               </div>
-
               <div v-if="cobrarAhora" class="ff-payment-fields">
                 <div class="input-group">
                   <label>
@@ -690,11 +632,10 @@
                       <option value="">{{ currentLang === 'en' ? 'Select a method' : 'Selecciona un método' }}</option>
                       <option value="Efectivo">{{ currentLang === 'en' ? 'Cash' : 'Efectivo' }}</option>
                       <option value="Transferencia">{{ currentLang === 'en' ? 'Bank transfer' : 'Transferencia' }}</option>
-                      <option value="Tarjeta">{{ currentLang === 'en' ? 'Card' : 'Tarjeta' }}</option>
+                      <option value="Tarjeta" disabled>{{ currentLang === 'en' ? 'Card (use Payments / Stripe)' : 'Tarjeta (cobrar desde Pagos / Stripe)' }}</option>
                     </select>
                   </div>
                 </div>
-
                 <div class="input-group">
                   <label>
                     {{ currentLang === 'en' ? 'Folio / reference' : 'Folio / referencia' }}
@@ -729,7 +670,6 @@
                   </small>
                 </div>
               </div>
-
               <p v-if="cobrarAhora" class="ff-payment-note">
                 {{
                   currentLang === 'en'
@@ -746,7 +686,6 @@
               </p>
             </div>
           </section>
-
           <!-- GUARDAR -->
           <div class="registration-footer">
             <div class="required-hint">
@@ -757,7 +696,6 @@
                   : 'Campos obligatorios'
               }}
             </div>
-
             <button
               type="button"
               class="btn-primary"
@@ -776,14 +714,12 @@
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
-
               {{ guardando ? (currentLang === 'en' ? 'Saving...' : 'Guardando...') : cobrarAhora ? (currentLang === 'en' ? 'Register and charge' : 'Registrar y cobrar') : (currentLang === 'en' ? 'Register as pending' : 'Registrar pendiente') }}
             </button>
           </div>
         </div>
       </div>
     </main>
-
     <!-- =====================================================
          MODALES EXISTENTES
     ====================================================== -->
@@ -796,7 +732,6 @@
         <AddCorteComponent @close="activeModal = null" />
       </div>
     </transition>
-
     <transition name="pop">
       <div
         v-if="activeModal === 'help'"
@@ -806,7 +741,6 @@
         <Help @close="activeModal = null" />
       </div>
     </transition>
-
     <!-- =====================================================
          SELECCIONAR CÁMARA O GALERÍA
     ====================================================== -->
@@ -818,13 +752,11 @@
       >
         <div class="photo-options-modal">
           <div class="photo-options-handle"></div>
-
           <div class="photo-options-header">
             <div>
               <span class="photo-options-eyebrow">
                 {{ currentLang === 'en' ? 'PROFILE PHOTO' : 'FOTO DE PERFIL' }}
               </span>
-
               <h3>
                 {{
                   currentLang === 'en'
@@ -832,7 +764,6 @@
                     : 'Agregar foto del cliente'
                 }}
               </h3>
-
               <p>
                 {{
                   currentLang === 'en'
@@ -841,7 +772,6 @@
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close-btn"
@@ -850,7 +780,6 @@
               ×
             </button>
           </div>
-
           <div class="photo-options-grid">
             <!-- CÁMARA -->
             <button
@@ -871,12 +800,10 @@
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </div>
-
               <div class="photo-option-text">
                 <strong>
                   {{ currentLang === 'en' ? 'Take photo' : 'Tomar foto' }}
                 </strong>
-
                 <span>
                   {{
                     currentLang === 'en'
@@ -885,7 +812,6 @@
                   }}
                 </span>
               </div>
-
               <svg
                 class="photo-option-arrow"
                 viewBox="0 0 24 24"
@@ -896,7 +822,6 @@
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
-
             <!-- GALERÍA -->
             <button
               type="button"
@@ -915,7 +840,6 @@
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
               </div>
-
               <div class="photo-option-text">
                 <strong>
                   {{
@@ -924,7 +848,6 @@
                       : 'Subir desde galería'
                   }}
                 </strong>
-
                 <span>
                   {{
                     currentLang === 'en'
@@ -933,7 +856,6 @@
                   }}
                 </span>
               </div>
-
               <svg
                 class="photo-option-arrow"
                 viewBox="0 0 24 24"
@@ -945,7 +867,6 @@
               </svg>
             </button>
           </div>
-
           <button
             type="button"
             class="photo-cancel"
@@ -956,7 +877,6 @@
         </div>
       </div>
     </transition>
-
     <!-- =====================================================
          CÁMARA REAL
     ====================================================== -->
@@ -972,7 +892,6 @@
               <span class="camera-eyebrow">
                 {{ currentLang === 'en' ? 'CAMERA' : 'CÁMARA' }}
               </span>
-
               <h3>
                 {{
                   currentLang === 'en'
@@ -980,7 +899,6 @@
                     : 'Tomar foto del cliente'
                 }}
               </h3>
-
               <p>
                 {{
                   cameraFacingMode === 'user'
@@ -997,7 +915,6 @@
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close-btn"
@@ -1006,7 +923,6 @@
               ×
             </button>
           </div>
-
           <!-- VISOR -->
           <div class="camera-preview">
             <video
@@ -1018,7 +934,6 @@
                 'camera-mirrored': cameraFacingMode === 'user'
               }"
             ></video>
-
             <!-- CAMBIAR CÁMARA -->
             <button
               type="button"
@@ -1038,7 +953,6 @@
                 <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
                 <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
               </svg>
-
               <span>
                 {{
                   cameraFacingMode === 'user'
@@ -1055,11 +969,9 @@
                 }}
               </span>
             </button>
-
             <div class="camera-guide">
               <div class="face-guide"></div>
             </div>
-
             <div
               v-if="switchingCamera"
               class="camera-switching"
@@ -1067,12 +979,10 @@
               <span class="camera-loader"></span>
             </div>
           </div>
-
           <canvas
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
-
           <div class="camera-actions">
             <button
               type="button"
@@ -1081,7 +991,6 @@
             >
               {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
             </button>
-
             <button
               type="button"
               class="capture-btn"
@@ -1091,7 +1000,6 @@
               <span class="capture-circle">
                 <span></span>
               </span>
-
               {{
                 currentLang === 'en'
                   ? 'Take photo'
@@ -1104,7 +1012,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import {
   ref,
@@ -1115,22 +1022,18 @@ import {
   onMounted,
   onUnmounted
 } from 'vue';
-
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import AddCorteComponent from '../Componets/Cut.vue';
 import Help from '../Componets/Help.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 /* =========================================================
    ESTADO GENERAL
 ========================================================= */
-
 const fechaLocal = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-
 const form = reactive({
   nombres: '',
   apellidoP: '',
@@ -1144,7 +1047,6 @@ const form = reactive({
   fechaInscripcion: fechaLocal(),
   fechaCorte: ''
 });
-
 // CELULAR: 10 dígitos nacionales, visualmente 000 000 0000; sin +52.
 const soloDigitosCelular = (valor) => String(valor ?? '').replace(/\D/g, '');
 const formatearCelular = (valor) => {
@@ -1177,7 +1079,6 @@ const bloquearPrefijoCelular = (event) => {
 };
 const celularParaGuardar = () => soloDigitosCelular(form.celular);
 const celularValido = () => /^\d{10}$/.test(celularParaGuardar());
-
 const activeModal = ref(null);
 const guardando = ref(false);
 const cobrarAhora = ref(true);
@@ -1187,7 +1088,7 @@ const qrPagoConfirmado = ref(false);
 const qrFolio = ref('');
 const tarifas = ref([]);
 const idPrecio = ref('');
-
+const diasCorteDisponibles=ref([]);const diaCorteElegido=ref(null);const permitePendiente=ref(true);
 const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
 const clientesApi = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/clientes`;
 const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
@@ -1195,10 +1096,8 @@ const authHeaders = () => ({
   Accept: 'application/json',
   Authorization: `Bearer ${sessionStorage.getItem('auth_token') || ''}`
 });
-
 /* El folio de efectivo lo genera Laravel, no el navegador. */
 const esEfectivo = computed(() => metodoPagoRegistro.value === 'Efectivo');
-
 watch(metodoPagoRegistro, (metodo) => {
   if (metodo === 'Efectivo') {
     referenciaPagoRegistro.value = '';
@@ -1207,40 +1106,31 @@ watch(metodoPagoRegistro, (metodo) => {
     referenciaPagoRegistro.value = '';
   }
 });
-
 watch(cobrarAhora, (activo) => {
   if (!activo) {
     metodoPagoRegistro.value = '';
     referenciaPagoRegistro.value = '';
   }
 });
-
 /* =========================================================
    TARIFAS Y VENCIMIENTO
 ========================================================= */
-
 const tarifasFiltradas = computed(() => {
-  const periodos = { mes: 'mensual', semana: 'semanal', quincena: 'quincenal' };
+  const periodos = { mes: 'mensual', semana: 'semanal', quincena: 'quincenal', visita: 'diario' };
   return tarifas.value.filter(p => String(p.Periodo || '').trim().toLowerCase() === periodos[form.tipoMembresia]);
 });
-
 const cargarTarifas = async () => {
   idPrecio.value = '';
   tarifas.value = [];
-
   const sede = sedeActual();
   if (!sede) return;
-
   try {
     const res = await fetch(`${clientesApi}/tarifas?sede_id=${sede}`, { headers: authHeaders() });
     const data = await res.json().catch(() => ({}));
-
     if (!res.ok) {
       throw new Error(data.message || `Error HTTP ${res.status} al consultar tarifas`);
     }
-
     tarifas.value = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
-
     if (tarifasFiltradas.value.length === 1) {
       idPrecio.value = String(tarifasFiltradas.value[0].ID_Precio);
     }
@@ -1248,43 +1138,11 @@ const cargarTarifas = async () => {
     toastRef.value?.notify(e.message, 'error');
   }
 };
-
-let versionCalculo = 0;
-
-// La primera consulta obtiene el corte vigente. Si el cliente paga ahora,
-// se consulta el siguiente corte usando el día posterior al corte vigente.
-// El backend es quien calcula las fechas; no se suman 15 o 30 días fijos.
-const consultarCorte = async (fecha) => {
-  const q = new URLSearchParams({ sede_id: String(sedeActual()), id_precio: String(idPrecio.value), fechaInscripcion: fecha });
-  const res = await fetch(`${clientesApi}/vencimiento?${q}`, { headers: authHeaders() });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message && data.message !== 'Server Error' ? data.message : `Error HTTP ${res.status} al calcular vencimiento`);
-  return data.fecha_vencimiento || '';
-};
-const diaPosterior = (fecha) => {
-  const [y, m, d] = fecha.split('-').map(Number);
-  const siguiente = new Date(Date.UTC(y, m - 1, d + 1));
-  return siguiente.toISOString().slice(0, 10);
-};
-const calcularVencimiento = async () => {
-  const version = ++versionCalculo;
-  form.fechaCorte = '';
-  if (!idPrecio.value || !sedeActual() || !form.fechaInscripcion) return;
-  try {
-    const corteActual = await consultarCorte(form.fechaInscripcion);
-    if (!corteActual) throw new Error('El servidor no devolvió la fecha de corte.');
-    let fecha = corteActual;
-    if (cobrarAhora.value) {
-      const siguiente = await consultarCorte(diaPosterior(corteActual));
-      if (!siguiente || siguiente <= corteActual) throw new Error('No se pudo calcular el siguiente corte de la membresía.');
-      fecha = siguiente;
-    }
-    if (version === versionCalculo) form.fechaCorte = fecha;
-  } catch (e) {
-    if (version === versionCalculo) toastRef.value?.notify(e.message, 'error');
-  }
-};
-
+let versionCalculo=0;
+const calcularVencimiento=async()=>{const version=++versionCalculo;form.fechaCorte='';diasCorteDisponibles.value=[];permitePendiente.value=true;if(!idPrecio.value||!sedeActual()||!form.fechaInscripcion)return;try{const q=new URLSearchParams({sede_id:String(sedeActual()),id_precio:String(idPrecio.value),fechaInscripcion:form.fechaInscripcion});if(diaCorteElegido.value)q.set('dia_corte_elegido',String(diaCorteElegido.value));const res=await fetch(`${clientesApi}/vencimiento?${q}`,{headers:authHeaders()});const d=await res.json().catch(()=>({}));if(!res.ok)throw new Error(d.message||`HTTP ${res.status}`);if(version!==versionCalculo)return;form.fechaCorte=d.fecha_vencimiento||'';diasCorteDisponibles.value=Array.isArray(d.dias_corte)?d.dias_corte.map(Number):[];if(diasCorteDisponibles.value.length&&!diasCorteDisponibles.value.includes(Number(diaCorteElegido.value)))diaCorteElegido.value=Number(d.dia_corte_elegido||diasCorteDisponibles.value[0]);permitePendiente.value=d.permite_pendiente!==false;if(!permitePendiente.value)cobrarAhora.value=true;}catch(e){if(version===versionCalculo)toastRef.value?.notify(e.message,'error');}};
+watch([idPrecio,()=>form.fechaInscripcion,diaCorteElegido],calcularVencimiento);
+watch(()=>form.tipoMembresia,()=>{diaCorteElegido.value=null;});
+watch(()=>form.fechaInscripcion,()=>{diaCorteElegido.value=null;});
 watch(() => form.tipoMembresia, () => {
   tarifaOpen.value = false;
   if (!tarifasFiltradas.value.some((p) => String(p.ID_Precio) === idPrecio.value)) {
@@ -1292,48 +1150,38 @@ watch(() => form.tipoMembresia, () => {
   }
 });
 
-watch([idPrecio, () => form.fechaInscripcion, cobrarAhora], calcularVencimiento);
-
 /* =========================================================
    SELECTOR DE TARIFA (dropdown personalizado)
 ========================================================= */
-
 const tarifaOpen = ref(false);
 const tarifaRef = ref(null);
-
 const tarifaSeleccionada = computed(() =>
   tarifasFiltradas.value.find(
     (p) => String(p.ID_Precio) === String(idPrecio.value)
   ) || null
 );
-
 const elegirTarifa = (p) => {
   idPrecio.value = String(p.ID_Precio);
   tarifaOpen.value = false;
 };
-
 const formatoPrecio = (value) =>
   new Intl.NumberFormat(
     currentLang.value === 'en' ? 'en-US' : 'es-MX',
     { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }
   ).format(Number(value || 0));
-
 const cerrarTarifaAlClickFuera = (event) => {
   if (tarifaRef.value && !tarifaRef.value.contains(event.target)) {
     tarifaOpen.value = false;
   }
 };
-
 /* =========================================================
    QR
 ========================================================= */
-
 const qrModal = ref(null);
 const qrUrl = ref('');
 const qrError = ref('');
 const qrCargando = ref(false);
 let qrVersion = 0;
-
 const cerrarQR = () => {
   qrPagoConfirmado.value = false;
   qrFolio.value = '';
@@ -1343,20 +1191,16 @@ const cerrarQR = () => {
   qrError.value = '';
   qrCargando.value = false;
 };
-
 const mostrarQR = async (registro) => {
   const version = ++qrVersion;
   qrModal.value = registro;
   qrUrl.value = '';
   qrError.value = '';
   qrCargando.value = true;
-
   try {
     const res = await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`, { headers: authHeaders() });
     const data = await res.json().catch(() => ({}));
-
     if (!res.ok) throw new Error(data.message || `Error ${res.status}`);
-
     if (version === qrVersion) {
       if (!data.qr_url) throw new Error('El servidor no devolvió la imagen QR.');
       qrUrl.value = data.qr_url;
@@ -1367,61 +1211,47 @@ const mostrarQR = async (registro) => {
     if (version === qrVersion) qrCargando.value = false;
   }
 };
-
 const descargarQR = async () => {
   if (!qrModal.value) return;
-
   try {
     const res = await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`, { headers: authHeaders() });
-
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.message || `Error ${res.status}`);
     }
-
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-
     a.href = url;
     a.download = `factorfit-qr-${qrModal.value.ID_Inscripto}.png`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) {
     toastRef.value?.notify(e.message || 'No se pudo descargar el QR.', 'error');
   }
 };
-
 const toastRef = ref(null);
-
 /* =========================================================
    IDIOMA
 ========================================================= */
-
 const currentLang = ref(
   localStorage.getItem('GYM_ACCOUNT-idioma') || 'es'
 );
-
 const t = (key) => {
   const langTable =
     traducciones[currentLang.value] || traducciones.es;
-
   return langTable[key] || traducciones.es[key] || key;
 };
-
 const handleLangChange = (event) => {
   if (event.detail?.idioma) {
     currentLang.value = event.detail.idioma;
   }
 };
-
 /* =========================================================
    FORMULARIO
 ========================================================= */
-
 const clientName = computed(() =>
   [
     form.nombres,
@@ -1431,19 +1261,15 @@ const clientName = computed(() =>
     .filter(Boolean)
     .join(' ')
 );
-
 /* =========================================================
    FOTO / GALERÍA
 ========================================================= */
-
 const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
 const isValidImage = (file) =>
   !!file &&
   ALLOWED_IMAGE_TYPES.includes(file.type) &&
   file.size <= MAX_IMAGE_SIZE;
-
 const notifyInvalidImage = () => {
   toastRef.value?.notify(
     currentLang.value === 'en'
@@ -1452,86 +1278,63 @@ const notifyInvalidImage = () => {
     'warning'
   );
 };
-
 const fileInput = ref(null);
 const avatarPreview = ref(null);
 const avatarFile = ref(null);
-
 const showPhotoOptions = ref(false);
-
 const openPhotoOptions = () => {
   showPhotoOptions.value = true;
 };
-
 const closePhotoOptions = () => {
   showPhotoOptions.value = false;
 };
-
 const selectPhoto = () => {
   showPhotoOptions.value = false;
-
   if (!fileInput.value) return;
-
   fileInput.value.value = '';
   fileInput.value.click();
 };
-
 const setAvatarFile = (file) => {
   if (!file) return;
-
   if (
     avatarPreview.value &&
     avatarPreview.value.startsWith('blob:')
   ) {
     URL.revokeObjectURL(avatarPreview.value);
   }
-
   avatarFile.value = file;
   avatarPreview.value = URL.createObjectURL(file);
 };
-
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
-
   if (!file) return;
-
   if (!isValidImage(file)) {
     notifyInvalidImage();
-
     event.target.value = '';
     return;
   }
-
   setAvatarFile(file);
-
   toastRef.value?.notify(
     currentLang.value === 'en'
       ? 'Photo added successfully.'
       : 'Foto agregada correctamente.',
     'success'
   );
-
   event.target.value = '';
 };
-
 /* =========================================================
    CÁMARA
 ========================================================= */
-
 const showCamera = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
-
 const cameraStream = ref(null);
-
 /*
   user        = frontal
   environment = trasera
 */
 const cameraFacingMode = ref('user');
-
 const switchingCamera = ref(false);
-
 /*
   Detiene todos los tracks activos.
 */
@@ -1542,21 +1345,17 @@ const stopCamera = () => {
       .forEach((track) => {
         track.stop();
       });
-
     cameraStream.value = null;
   }
-
   if (videoRef.value) {
     videoRef.value.srcObject = null;
   }
 };
-
 /*
   Inicia la cámara correspondiente.
 */
 const startCamera = async () => {
   stopCamera();
-
   const constraints = {
     audio: false,
     video: {
@@ -1571,33 +1370,25 @@ const startCamera = async () => {
       }
     }
   };
-
   const stream =
     await navigator.mediaDevices.getUserMedia(
       constraints
     );
-
   cameraStream.value = stream;
-
   await nextTick();
-
   if (!videoRef.value) {
     throw new Error(
       'No se encontró el elemento de video.'
     );
   }
-
   videoRef.value.srcObject = stream;
-
   await videoRef.value.play();
 };
-
 /*
   Abre el modal y solicita permiso de cámara.
 */
 const takePhoto = async () => {
   showPhotoOptions.value = false;
-
   if (
     !navigator.mediaDevices ||
     !navigator.mediaDevices.getUserMedia
@@ -1608,15 +1399,11 @@ const takePhoto = async () => {
         : 'Este navegador no permite utilizar la cámara.',
       'warning'
     );
-
     return;
   }
-
   cameraFacingMode.value = 'user';
   showCamera.value = true;
-
   await nextTick();
-
   try {
     await startCamera();
   } catch (error) {
@@ -1624,61 +1411,49 @@ const takePhoto = async () => {
       'No se pudo abrir la cámara:',
       error
     );
-
     stopCamera();
     showCamera.value = false;
-
     let message =
       currentLang.value === 'en'
         ? 'Could not access the camera.'
         : 'No se pudo acceder a la cámara.';
-
     if (error?.name === 'NotAllowedError') {
       message =
         currentLang.value === 'en'
           ? 'Camera permission was denied. Enable camera permission in your browser.'
           : 'El permiso de cámara fue rechazado. Activa el permiso de cámara en tu navegador.';
     }
-
     if (error?.name === 'NotFoundError') {
       message =
         currentLang.value === 'en'
           ? 'No camera was found on this device.'
           : 'No se encontró una cámara en este dispositivo.';
     }
-
     if (error?.name === 'NotReadableError') {
       message =
         currentLang.value === 'en'
           ? 'The camera is being used by another application.'
           : 'La cámara está siendo utilizada por otra aplicación.';
     }
-
     toastRef.value?.notify(
       message,
       'warning'
     );
   }
 };
-
 /*
   Cambia entre frontal y trasera.
 */
 const switchCamera = async () => {
   if (switchingCamera.value) return;
-
   switchingCamera.value = true;
-
   const previousMode =
     cameraFacingMode.value;
-
   const nextMode =
     previousMode === 'user'
       ? 'environment'
       : 'user';
-
   cameraFacingMode.value = nextMode;
-
   try {
     await startCamera();
   } catch (error) {
@@ -1686,13 +1461,11 @@ const switchCamera = async () => {
       'No se pudo cambiar de cámara:',
       error
     );
-
     /*
       Regresamos a la cámara anterior.
     */
     cameraFacingMode.value =
       previousMode;
-
     try {
       await startCamera();
     } catch (restoreError) {
@@ -1700,10 +1473,8 @@ const switchCamera = async () => {
         'No se pudo restaurar la cámara:',
         restoreError
       );
-
       closeCamera();
     }
-
     toastRef.value?.notify(
       currentLang.value === 'en'
         ? 'The selected camera is not available.'
@@ -1714,7 +1485,6 @@ const switchCamera = async () => {
     switchingCamera.value = false;
   }
 };
-
 /*
   Cierra modal y apaga cámara.
 */
@@ -1723,18 +1493,14 @@ const closeCamera = () => {
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
 /*
   Captura el frame actual.
 */
 const capturePhoto = () => {
   if (switchingCamera.value) return;
-
   const video = videoRef.value;
   const canvas = canvasRef.value;
-
   if (!video || !canvas) return;
-
   if (
     !video.videoWidth ||
     !video.videoHeight
@@ -1745,16 +1511,12 @@ const capturePhoto = () => {
         : 'La cámara todavía no está lista.',
       'warning'
     );
-
     return;
   }
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
   const context =
     canvas.getContext('2d');
-
   if (!context) {
     toastRef.value?.notify(
       currentLang.value === 'en'
@@ -1762,17 +1524,14 @@ const capturePhoto = () => {
         : 'No se pudo procesar la fotografía.',
       'error'
     );
-
     return;
   }
-
   context.clearRect(
     0,
     0,
     canvas.width,
     canvas.height
   );
-
   /*
     Frontal:
     guardamos la imagen como se ve
@@ -1780,14 +1539,11 @@ const capturePhoto = () => {
   */
   if (cameraFacingMode.value === 'user') {
     context.save();
-
     context.translate(
       canvas.width,
       0
     );
-
     context.scale(-1, 1);
-
     context.drawImage(
       video,
       0,
@@ -1795,7 +1551,6 @@ const capturePhoto = () => {
       canvas.width,
       canvas.height
     );
-
     context.restore();
   } else {
     /*
@@ -1810,7 +1565,6 @@ const capturePhoto = () => {
       canvas.height
     );
   }
-
   canvas.toBlob(
     (blob) => {
       if (!blob) {
@@ -1820,10 +1574,8 @@ const capturePhoto = () => {
             : 'No se pudo capturar la fotografía.',
           'error'
         );
-
         return;
       }
-
       const file = new File(
         [blob],
         `cliente-${Date.now()}.jpg`,
@@ -1831,16 +1583,12 @@ const capturePhoto = () => {
           type: 'image/jpeg'
         }
       );
-
       if (!isValidImage(file)) {
         notifyInvalidImage();
         return;
       }
-
       setAvatarFile(file);
-
       closeCamera();
-
       toastRef.value?.notify(
         currentLang.value === 'en'
           ? 'Photo captured successfully.'
@@ -1852,16 +1600,12 @@ const capturePhoto = () => {
     0.92
   );
 };
-
 /* =========================================================
    REGISTRO
 ========================================================= */
-
 const saveRegistration = async () => {
   if (guardando.value) return;
-
   const avisar = (mensaje, tipo = 'warning') => toastRef.value?.notify(mensaje, tipo);
-
   if (!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value) {
     avisar('Nombre, apellido paterno y tarifa son obligatorios.');
     return;
@@ -1871,17 +1615,17 @@ const saveRegistration = async () => {
     return;
   }
   if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
+  if (!permitePendiente.value&&!cobrarAhora.value){avisar('El corte de este mes pasó. Cobra ahora.');return;}
   if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
   if (!form.fechaInscripcion || !form.fechaCorte) {
     avisar('Espera a que se calcule la fecha de vencimiento.');
     return;
   }
   if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
-
   if (cobrarAhora.value) {
     if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
-
-    if (!esEfectivo.value && !referenciaPagoRegistro.value.trim()) {
+    if (metodoPagoRegistro.value==='Tarjeta'){avisar('Para tarjeta registra pendiente y confirma el cobro desde Pagos con Stripe.');return;}
+    if (metodoPagoRegistro.value==='Transferencia' && !referenciaPagoRegistro.value.trim()) {
       avisar('Ingresa la referencia del pago.');
       return;
     }
@@ -1890,9 +1634,7 @@ const saveRegistration = async () => {
       return;
     }
   }
-
   guardando.value = true;
-
   try {
     const data = new FormData();
     const values = {
@@ -1908,32 +1650,25 @@ const saveRegistration = async () => {
       altura: form.altura,
       fechaInscripcion: form.fechaInscripcion
     };
-
     Object.entries(values).forEach(([key, value]) => {
       if (value !== '' && value !== null && value !== undefined) data.append(key, String(value));
     });
-
     if (avatarFile.value) data.append('foto', avatarFile.value);
-
+    if(diaCorteElegido.value)data.append('dia_corte_elegido',String(diaCorteElegido.value));
     // Contrato propuesto: Laravel debe aceptar y procesar estos campos.
     data.append('cobrar_ahora', cobrarAhora.value ? '1' : '0');
-
     const folioEnviado = cobrarAhora.value ? referenciaPagoRegistro.value.trim() : '';
-
     if (cobrarAhora.value) {
       data.append('metodo_pago', metodoPagoRegistro.value);
       // Se envía siempre el folio: autogenerado (efectivo) o la referencia capturada.
       data.append('referencia_pago', folioEnviado);
     }
-
     const res = await fetch(clientesApi, {
       method: 'POST',
       headers: authHeaders(),
       body: data
     });
-
     const result = await res.json().catch(() => ({}));
-
     if (!res.ok) {
       console.error('Error API registro de cliente', { status: res.status, response: result });
       throw new Error(
@@ -1942,13 +1677,11 @@ const saveRegistration = async () => {
         `Error HTTP ${res.status}: revisa los logs de Laravel.`
       );
     }
-
     // Nunca inferir pago exitoso de HTTP 200/201 ni de un mensaje genérico.
     // Laravel debe devolver pago_confirmado === true y membresia_activa === true.
     const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
     qrPagoConfirmado.value = cobrarAhora.value && pagoConfirmado;
     qrFolio.value = result.folio || '';
-
     if (cobrarAhora.value && !pagoConfirmado) {
       avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
     } else {
@@ -1957,9 +1690,7 @@ const saveRegistration = async () => {
         'success'
       );
     }
-
     if (result.ID_Inscripto) await mostrarQR(result);
-
     Object.assign(form, {
       nombres: '',
       apellidoP: '',
@@ -1973,7 +1704,6 @@ const saveRegistration = async () => {
       fechaInscripcion: fechaLocal(),
       fechaCorte: ''
     });
-
     if (avatarPreview.value?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
     avatarPreview.value = null;
     avatarFile.value = null;
@@ -1981,7 +1711,6 @@ const saveRegistration = async () => {
     metodoPagoRegistro.value = '';
     referenciaPagoRegistro.value = '';
     cobrarAhora.value = true;
-
     window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', {
       detail: { sede_id: sedeActual() }
     }));
@@ -1991,29 +1720,22 @@ const saveRegistration = async () => {
     guardando.value = false;
   }
 };
-
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
-
 onMounted(() => {
   if (!form.fechaInscripcion) form.fechaInscripcion = fechaLocal();
-
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', cargarTarifas);
   document.addEventListener('click', cerrarTarifaAlClickFuera);
-
   cargarTarifas();
 });
-
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('factorfit:branch-changed', cargarTarifas);
   document.removeEventListener('click', cerrarTarifaAlClickFuera);
-
   stopCamera();
   cerrarQR();
-
   if (
     avatarPreview.value &&
     avatarPreview.value.startsWith('blob:')
@@ -2024,19 +1746,15 @@ onUnmounted(() => {
   }
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
-
 * {
   box-sizing: border-box;
 }
-
 .hidden-input,
 .hidden-canvas {
   display: none;
 }
-
 .main-content {
   display: flex;
   justify-content: center;
@@ -2044,11 +1762,9 @@ onUnmounted(() => {
   padding: 36px clamp(16px, 3vw, 40px) 56px;
   color: var(--color-texto-general, #e5e5e5);
 }
-
 .highlight {
   color: var(--color-highlight, #3b82f6);
 }
-
 .profile-card {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
@@ -2058,11 +1774,9 @@ onUnmounted(() => {
   margin: 0 auto;
   align-items: start;
 }
-
 /* =========================================================
    PERFIL
 ========================================================= */
-
 .profile-section {
   position: relative;
   align-self: start;
@@ -2073,7 +1787,6 @@ onUnmounted(() => {
   border-radius: var(--app-border-radius, 24px);
   background: var(--bg-cards, rgba(18, 18, 18, .75));
 }
-
 .profile-section::before {
   content: '';
   position: absolute;
@@ -2091,12 +1804,10 @@ onUnmounted(() => {
     );
   pointer-events: none;
 }
-
 .profile-content {
   position: relative;
   width: 100%;
 }
-
 .profile-label {
   display: inline-block;
   margin-bottom: 12px;
@@ -2118,7 +1829,6 @@ onUnmounted(() => {
   font: 600 .66rem 'Inter', sans-serif;
   letter-spacing: .3px;
 }
-
 .main-title {
   margin: 0 0 26px;
   color: var(--color-titulos, #fff);
@@ -2129,17 +1839,14 @@ onUnmounted(() => {
   letter-spacing: .4px;
   text-transform: uppercase;
 }
-
 /* =========================================================
    AVATAR
 ========================================================= */
-
 .avatar-wrapper {
   position: relative;
   width: 140px;
   margin: 0 auto 14px;
 }
-
 .avatar-ring {
   padding: 4px;
   border-radius: 50%;
@@ -2152,7 +1859,6 @@ onUnmounted(() => {
     );
   box-shadow: 0 12px 30px rgba(0, 0, 0, .4);
 }
-
 .avatar-circle {
   position: relative;
   width: 132px;
@@ -2167,20 +1873,17 @@ onUnmounted(() => {
   outline: none;
   background: #17191f;
 }
-
 .default-avatar {
   width: 52px;
   height: 52px;
   color: #fff;
   opacity: .55;
 }
-
 .avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .avatar-overlay {
   position: absolute;
   inset: 0;
@@ -2195,25 +1898,20 @@ onUnmounted(() => {
   opacity: 0;
   transition: opacity .2s ease;
 }
-
 .avatar-overlay svg {
   width: 23px;
   height: 23px;
 }
-
 .avatar-overlay span {
   font: 600 .6rem 'Inter', sans-serif;
 }
-
 .avatar-circle:hover .avatar-overlay,
 .avatar-circle:focus-visible .avatar-overlay {
   opacity: 1;
 }
-
 .avatar-circle:focus-visible {
   box-shadow: 0 0 0 3px var(--color-highlight, #3b82f6);
 }
-
 .avatar-action {
   position: absolute;
   z-index: 3;
@@ -2234,17 +1932,14 @@ onUnmounted(() => {
     transform .2s ease,
     filter .2s ease;
 }
-
 .avatar-action:hover {
   transform: scale(1.08);
   filter: brightness(1.08);
 }
-
 .avatar-action svg {
   width: 17px;
   height: 17px;
 }
-
 .profile-hint {
   max-width: 230px;
   margin: 0 auto;
@@ -2252,11 +1947,9 @@ onUnmounted(() => {
   font: 400 .76rem/1.5 'Inter', sans-serif;
   opacity: .7;
 }
-
 /* =========================================================
    RESUMEN
 ========================================================= */
-
 .profile-summary {
   display: grid;
   gap: 2px;
@@ -2267,7 +1960,6 @@ onUnmounted(() => {
   border-radius: var(--app-border-radius, 14px);
   background: rgba(255, 255, 255, .025);
 }
-
 .summary-item {
   display: flex;
   align-items: center;
@@ -2275,17 +1967,14 @@ onUnmounted(() => {
   gap: 12px;
   padding: 10px 12px;
 }
-
 .summary-item + .summary-item {
   border-top: 1px solid rgba(255, 255, 255, .05);
 }
-
 .summary-item dt {
   color: var(--color-texto-general, #94a3b8);
   font: 500 .7rem 'Inter', sans-serif;
   opacity: .7;
 }
-
 .summary-item dd {
   min-width: 0;
   margin: 0;
@@ -2296,11 +1985,9 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .summary-item dd.empty {
   opacity: .4;
 }
-
 .plan-chip {
   display: inline-block;
   padding: 3px 10px;
@@ -2313,11 +2000,9 @@ onUnmounted(() => {
     );
   color: var(--color-highlight, #60a5fa);
 }
-
 /* =========================================================
    FORMULARIOS
 ========================================================= */
-
 .forms-wrapper {
   display: flex;
   flex-direction: column;
@@ -2325,7 +2010,6 @@ onUnmounted(() => {
   width: 100%;
   min-width: 0;
 }
-
 .login-card {
   width: 100%;
   padding: 26px 28px 28px;
@@ -2334,7 +2018,6 @@ onUnmounted(() => {
   background: var(--bg-cards, rgba(18, 18, 18, .75));
   backdrop-filter: blur(12px);
 }
-
 .card-header {
   display: flex;
   align-items: center;
@@ -2343,12 +2026,10 @@ onUnmounted(() => {
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, .07);
 }
-
 .card-header-text {
   flex: 1;
   min-width: 0;
 }
-
 .section-title {
   display: flex;
   align-items: center;
@@ -2361,7 +2042,6 @@ onUnmounted(() => {
   letter-spacing: .5px;
   text-transform: uppercase;
 }
-
 .section-title::before {
   content: '';
   width: 4px;
@@ -2369,40 +2049,33 @@ onUnmounted(() => {
   border-radius: 4px;
   background: var(--color-highlight, #3b82f6);
 }
-
 .section-description {
   margin: 3px 0 0;
   color: var(--color-texto-general, #94a3b8);
   font: 400 .74rem/1.4 'Inter', sans-serif;
   opacity: .6;
 }
-
 .form-grid {
   display: grid;
   gap: 18px;
 }
-
 .form-grid-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;
 }
-
 label {
   color: var(--color-texto-general, #f5f5f4);
   font: 600 .78rem 'Oswald', sans-serif;
   letter-spacing: .4px;
 }
-
 .required {
   color: var(--color-highlight, #3b82f6);
 }
-
 input {
   width: 100%;
   height: 46px;
@@ -2415,16 +2088,13 @@ input {
   color-scheme: var(--color-scheme, dark);
   font: 400 .88rem 'Inter', sans-serif;
 }
-
 input:focus {
   border-color: var(--color-highlight, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
 }
-
 .input-with-icon {
   position: relative;
 }
-
 .input-with-icon > svg {
   position: absolute;
   z-index: 2;
@@ -2436,22 +2106,18 @@ input:focus {
   color: var(--color-texto-general, #94a3b8);
   opacity: .55;
 }
-
 .input-with-icon input {
   padding-left: 40px;
 }
-
 /* =========================================================
    MEDIDAS
 ========================================================= */
-
 .physical-grid,
 .membership-date-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-
 .measurement-field,
 .date-field {
   display: flex;
@@ -2462,7 +2128,6 @@ input:focus {
   border-radius: var(--app-border-radius, 14px);
   background: rgba(255, 255, 255, .02);
 }
-
 .measurement-icon,
 .date-icon {
   width: 44px;
@@ -2479,33 +2144,27 @@ input:focus {
     );
   color: var(--color-highlight, #60a5fa);
 }
-
 .measurement-icon svg,
 .date-icon svg {
   width: 20px;
   height: 20px;
 }
-
 .measurement-content,
 .date-content {
   flex: 1;
   min-width: 0;
 }
-
 .measurement-content label,
 .date-content label {
   display: block;
   margin-bottom: 7px;
 }
-
 .measurement-input {
   position: relative;
 }
-
 .measurement-input input {
   padding-right: 46px;
 }
-
 .measurement-input span {
   position: absolute;
   top: 50%;
@@ -2514,21 +2173,17 @@ input:focus {
   color: var(--color-texto-general, #94a3b8);
   font: 600 .74rem 'Inter', sans-serif;
 }
-
 /* =========================================================
    MEMBRESÍA
 ========================================================= */
-
 .membership-header {
   flex-wrap: wrap;
 }
-
 .membership-actions-row {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
 .toggle-group-small {
   position: relative;
   display: grid;
@@ -2538,7 +2193,6 @@ input:focus {
   border-radius: 12px;
   background: rgba(255, 255, 255, .05);
 }
-
 .toggle-group-small::before {
   content: '';
   position: absolute;
@@ -2550,15 +2204,12 @@ input:focus {
   background: var(--color-highlight, #3b82f6);
   transition: transform .25s ease;
 }
-
 .toggle-group-small[data-active='semana']::before {
   transform: translateX(100%);
 }
-
 .toggle-group-small[data-active='quincena']::before {
   transform: translateX(200%);
 }
-
 .btn-toggle-small {
   position: relative;
   z-index: 1;
@@ -2569,16 +2220,13 @@ input:focus {
   color: #a1a1aa;
   cursor: pointer;
 }
-
 .btn-toggle-small.active {
   color: #fff;
 }
-
 .actions-group {
   display: flex;
   gap: 8px;
 }
-
 .action-btn {
   width: 38px;
   height: 38px;
@@ -2590,33 +2238,26 @@ input:focus {
   color: var(--color-texto-general, #cbd5e1);
   cursor: pointer;
 }
-
 .action-btn:hover {
   background: var(--color-highlight, #3b82f6);
   color: #fff;
 }
-
 .action-btn svg {
   width: 16px;
   height: 16px;
 }
-
 /* =========================================================
    SELECTOR DE TARIFA
 ========================================================= */
-
 .tarifa-group {
   margin-bottom: 16px;
 }
-
 .ff-select {
   position: relative;
 }
-
 .ff-select.open {
   z-index: 60;
 }
-
 .ff-select-trigger {
   width: 100%;
   min-height: 54px;
@@ -2636,7 +2277,6 @@ input:focus {
     box-shadow .18s ease,
     background .18s ease;
 }
-
 .ff-select-trigger:hover {
   border-color:
     color-mix(
@@ -2645,7 +2285,6 @@ input:focus {
       transparent
     );
 }
-
 .ff-select.open .ff-select-trigger,
 .ff-select-trigger:focus-visible {
   outline: none;
@@ -2658,7 +2297,6 @@ input:focus {
       transparent
     );
 }
-
 .ff-select-icon {
   width: 34px;
   height: 34px;
@@ -2674,12 +2312,10 @@ input:focus {
     );
   color: var(--color-highlight, #60a5fa);
 }
-
 .ff-select-icon svg {
   width: 17px;
   height: 17px;
 }
-
 .ff-select-value {
   flex: 1;
   min-width: 0;
@@ -2688,13 +2324,11 @@ input:focus {
   justify-content: space-between;
   gap: 12px;
 }
-
 .ff-select-value.placeholder {
   justify-content: flex-start;
   opacity: .55;
   font-weight: 400;
 }
-
 .ff-select-value strong {
   min-width: 0;
   overflow: hidden;
@@ -2702,7 +2336,6 @@ input:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .ff-select-value em {
   flex-shrink: 0;
   color: #34d399;
@@ -2710,7 +2343,6 @@ input:focus {
   font-style: normal;
   letter-spacing: .3px;
 }
-
 .ff-select-chevron {
   width: 18px;
   height: 18px;
@@ -2718,11 +2350,9 @@ input:focus {
   opacity: .65;
   transition: transform .2s ease;
 }
-
 .ff-select.open .ff-select-chevron {
   transform: rotate(180deg);
 }
-
 .ff-select-menu {
   position: absolute;
   z-index: 70;
@@ -2745,7 +2375,6 @@ input:focus {
   box-shadow: 0 18px 44px rgba(0, 0, 0, .5);
   backdrop-filter: blur(14px);
 }
-
 .ff-select-menu li {
   display: flex;
   align-items: center;
@@ -2757,11 +2386,9 @@ input:focus {
   cursor: pointer;
   transition: background .15s ease;
 }
-
 .ff-select-menu li + li {
   margin-top: 2px;
 }
-
 .ff-select-menu li:hover {
   background:
     color-mix(
@@ -2770,7 +2397,6 @@ input:focus {
       transparent
     );
 }
-
 .ff-select-menu li.selected {
   background:
     color-mix(
@@ -2780,7 +2406,6 @@ input:focus {
     );
   color: var(--color-titulos, #fff);
 }
-
 .opt-name {
   flex: 1;
   min-width: 0;
@@ -2788,21 +2413,18 @@ input:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .opt-price {
   flex-shrink: 0;
   color: #34d399;
   font: 600 .92rem 'Oswald', sans-serif;
   letter-spacing: .3px;
 }
-
 .opt-check {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   color: var(--color-highlight, #60a5fa);
 }
-
 .ff-select-menu li.ff-select-empty {
   justify-content: center;
   padding: 16px 12px;
@@ -2812,28 +2434,23 @@ input:focus {
   opacity: .7;
   cursor: default;
 }
-
 .ff-select-menu li.ff-select-empty:hover {
   background: transparent;
 }
-
 .ff-dd-enter-active,
 .ff-dd-leave-active {
   transition:
     opacity .16s ease,
     transform .16s ease;
 }
-
 .ff-dd-enter-from,
 .ff-dd-leave-to {
   opacity: 0;
   transform: translateY(-6px);
 }
-
 /* =========================================================
    PAGO INICIAL (dentro de la tarjeta de membresía)
 ========================================================= */
-
 .ff-payment-block {
   display: grid;
   gap: 16px;
@@ -2841,7 +2458,6 @@ input:focus {
   padding-top: 22px;
   border-top: 1px solid rgba(255, 255, 255, .07);
 }
-
 .ff-payment-heading h4 {
   display: flex;
   align-items: center;
@@ -2854,7 +2470,6 @@ input:focus {
   letter-spacing: .5px;
   text-transform: uppercase;
 }
-
 .ff-payment-heading h4::before {
   content: '';
   width: 4px;
@@ -2862,14 +2477,12 @@ input:focus {
   border-radius: 4px;
   background: var(--color-highlight, #3b82f6);
 }
-
 .ff-payment-heading p {
   margin: 4px 0 0 14px;
   color: var(--color-texto-general, #94a3b8);
   font: 400 .74rem/1.4 'Inter', sans-serif;
   opacity: .6;
 }
-
 /* Total */
 .ff-payment-summary {
   display: flex;
@@ -2881,25 +2494,21 @@ input:focus {
   border-radius: var(--app-border-radius, 14px);
   background: rgba(255, 255, 255, .02);
 }
-
 .ff-payment-summary span {
   color: var(--color-texto-general, #cbd5e1);
   font: 500 .88rem 'Inter', sans-serif;
 }
-
 .ff-payment-summary strong {
   color: #34d399;
   font: 700 1.5rem 'Oswald', sans-serif;
   letter-spacing: .3px;
 }
-
 /* Opciones de cobro (radio personalizado) */
 .ff-payment-choice {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-
 .ff-choice {
   position: relative;
   display: flex;
@@ -2916,7 +2525,6 @@ input:focus {
     background .18s ease,
     box-shadow .18s ease;
 }
-
 .ff-choice:hover {
   border-color:
     color-mix(
@@ -2925,7 +2533,6 @@ input:focus {
       transparent
     );
 }
-
 .ff-choice.selected {
   border-color: var(--color-highlight, #3b82f6);
   background:
@@ -2935,7 +2542,6 @@ input:focus {
       transparent
     );
 }
-
 /* El input real se oculta; se anula el estilo global de "input" */
 .ff-choice input[type='radio'] {
   position: absolute;
@@ -2947,7 +2553,6 @@ input:focus {
   opacity: 0;
   pointer-events: none;
 }
-
 .ff-choice:focus-within {
   box-shadow:
     0 0 0 3px
@@ -2957,7 +2562,6 @@ input:focus {
       transparent
     );
 }
-
 .ff-choice-dot {
   position: relative;
   width: 22px;
@@ -2967,7 +2571,6 @@ input:focus {
   border-radius: 50%;
   transition: border-color .18s ease;
 }
-
 .ff-choice-dot::after {
   content: '';
   position: absolute;
@@ -2977,47 +2580,39 @@ input:focus {
   transform: scale(0);
   transition: transform .18s ease;
 }
-
 .ff-choice.selected .ff-choice-dot {
   border-color: var(--color-highlight, #3b82f6);
 }
-
 .ff-choice.selected .ff-choice-dot::after {
   transform: scale(1);
 }
-
 .ff-choice-text {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
-
 .ff-choice-text strong {
   color: var(--color-titulos, #fff);
   font: 600 .86rem 'Inter', sans-serif;
   line-height: 1.25;
 }
-
 .ff-choice-text small {
   color: var(--color-texto-general, #94a3b8);
   font: 400 .72rem 'Inter', sans-serif;
   opacity: .7;
 }
-
 /* Método + folio */
 .ff-payment-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-
 .ff-field-control {
   position: relative;
   display: flex;
   align-items: center;
   min-width: 0;
 }
-
 .ff-field-icon {
   position: absolute;
   z-index: 2;
@@ -3028,7 +2623,6 @@ input:focus {
   opacity: .55;
   pointer-events: none;
 }
-
 .ff-payment-input {
   width: 100%;
   height: 46px;
@@ -3041,12 +2635,10 @@ input:focus {
   color: var(--color-texto-input, var(--color-texto-general, #fff));
   font: 400 .88rem 'Inter', sans-serif;
 }
-
 .ff-payment-input:focus {
   border-color: var(--color-highlight, #3b82f6);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
 }
-
 .ff-payment-select {
   padding-right: 38px;
   appearance: none;
@@ -3057,52 +2649,43 @@ input:focus {
   background-position: right 13px center;
   background-size: 15px;
 }
-
 .ff-payment-select option {
   background: #16181c;
   color: #fff;
 }
-
 /* Folio autogenerado (efectivo) o bloqueado */
 .ff-field-control.is-locked .ff-payment-input {
   cursor: not-allowed;
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   letter-spacing: .5px;
 }
-
 .ff-field-control.is-locked {
   opacity: .8;
 }
-
 .ff-field-help {
   color: var(--color-texto-general, #94a3b8);
   font: 400 .72rem 'Inter', sans-serif;
   opacity: .7;
 }
-
 .ff-payment-note {
   margin: 0;
   color: var(--color-texto-general, #94a3b8);
   font: 400 .78rem/1.5 'Inter', sans-serif;
   opacity: .75;
 }
-
 /* =========================================================
    GUARDAR
 ========================================================= */
-
 .registration-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
-
 .required-hint {
   color: var(--color-texto-general, #94a3b8);
   font: 500 .74rem 'Inter', sans-serif;
 }
-
 .btn-primary {
   min-width: 240px;
   display: inline-flex;
@@ -3117,21 +2700,17 @@ input:focus {
   cursor: pointer;
   font: 700 .95rem 'Oswald', sans-serif;
 }
-
 .btn-primary:disabled {
   cursor: wait;
   opacity: .6;
 }
-
 .btn-primary svg {
   width: 17px;
   height: 17px;
 }
-
 /* =========================================================
    MODALES
 ========================================================= */
-
 .modal-wrapper,
 .photo-options-overlay,
 .camera-overlay {
@@ -3144,12 +2723,10 @@ input:focus {
   padding: 18px;
   background: rgba(0, 0, 0, .78);
 }
-
 .camera-overlay {
   z-index: 4000;
   background: rgba(0, 0, 0, .9);
 }
-
 .photo-options-modal,
 .camera-modal {
   width: 100%;
@@ -3160,15 +2737,12 @@ input:focus {
   background: var(--bg-cards, #151515);
   box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
 }
-
 .camera-modal {
   max-width: 620px;
 }
-
 .photo-options-handle {
   display: none;
 }
-
 .photo-options-header,
 .camera-header {
   display: flex;
@@ -3177,7 +2751,6 @@ input:focus {
   gap: 18px;
   margin-bottom: 20px;
 }
-
 .photo-options-eyebrow,
 .camera-eyebrow {
   display: block;
@@ -3186,7 +2759,6 @@ input:focus {
   font: 700 .6rem 'Inter', sans-serif;
   letter-spacing: 1px;
 }
-
 .photo-options-header h3,
 .camera-header h3 {
   margin: 0;
@@ -3194,7 +2766,6 @@ input:focus {
   font: 400 1.25rem 'Anton', sans-serif;
   text-transform: uppercase;
 }
-
 .photo-options-header p,
 .camera-header p {
   margin: 5px 0 0;
@@ -3202,7 +2773,6 @@ input:focus {
   font: 400 .74rem/1.5 'Inter', sans-serif;
   opacity: .7;
 }
-
 .modal-close-btn {
   width: 34px;
   height: 34px;
@@ -3217,17 +2787,14 @@ input:focus {
   cursor: pointer;
   font-size: 1.3rem;
 }
-
 /* =========================================================
    OPCIONES FOTO
 ========================================================= */
-
 .photo-options-grid {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
-
 .photo-option {
   width: 100%;
   min-height: 72px;
@@ -3242,11 +2809,9 @@ input:focus {
   text-align: left;
   cursor: pointer;
 }
-
 .photo-option:hover {
   border-color: var(--color-highlight, #3b82f6);
 }
-
 .photo-option-icon {
   width: 44px;
   height: 44px;
@@ -3262,34 +2827,28 @@ input:focus {
     );
   color: var(--color-highlight, #60a5fa);
 }
-
 .photo-option-icon svg {
   width: 20px;
   height: 20px;
 }
-
 .photo-option-text {
   flex: 1;
 }
-
 .photo-option-text strong {
   display: block;
   color: var(--color-titulos, #fff);
   font: 600 .8rem 'Inter', sans-serif;
 }
-
 .photo-option-text span {
   display: block;
   margin-top: 3px;
   color: var(--color-texto-general, #94a3b8);
   font: 400 .68rem 'Inter', sans-serif;
 }
-
 .photo-option-arrow {
   width: 16px;
   color: var(--color-texto-general, #94a3b8);
 }
-
 .photo-cancel {
   width: 100%;
   height: 40px;
@@ -3300,11 +2859,9 @@ input:focus {
   color: var(--color-texto-general, #94a3b8);
   cursor: pointer;
 }
-
 /* =========================================================
    CÁMARA
 ========================================================= */
-
 .camera-preview {
   position: relative;
   width: 100%;
@@ -3314,20 +2871,16 @@ input:focus {
   border-radius: 18px;
   background: #000;
 }
-
 .camera-preview video {
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
 }
-
 .camera-preview video.camera-mirrored {
   transform: scaleX(-1);
 }
-
 /* GUÍA DEL ROSTRO */
-
 .camera-guide {
   position: absolute;
   z-index: 2;
@@ -3336,18 +2889,15 @@ input:focus {
   place-items: center;
   pointer-events: none;
 }
-
 .face-guide {
   width: 47%;
   height: 70%;
   border: 2px dashed rgba(255, 255, 255, .45);
   border-radius: 50%;
 }
-
 /* =========================================================
    CAMBIAR CÁMARA
 ========================================================= */
-
 .switch-camera-btn {
   position: absolute;
   z-index: 10;
@@ -3366,33 +2916,26 @@ input:focus {
   cursor: pointer;
   box-shadow: 0 5px 16px rgba(0, 0, 0, .3);
 }
-
 .switch-camera-btn:hover {
   background: rgba(0, 0, 0, .8);
 }
-
 .switch-camera-btn:disabled {
   cursor: wait;
   opacity: .65;
 }
-
 .switch-camera-btn svg {
   width: 16px;
   height: 16px;
 }
-
 .switch-camera-btn svg.rotating {
   animation: cameraRotate .7s linear infinite;
 }
-
 @keyframes cameraRotate {
   to {
     transform: rotate(360deg);
   }
 }
-
 /* LOADER AL CAMBIAR */
-
 .camera-switching {
   position: absolute;
   z-index: 8;
@@ -3402,7 +2945,6 @@ input:focus {
   background: rgba(0, 0, 0, .28);
   pointer-events: none;
 }
-
 .camera-loader {
   width: 38px;
   height: 38px;
@@ -3411,11 +2953,9 @@ input:focus {
   border-radius: 50%;
   animation: cameraRotate .7s linear infinite;
 }
-
 /* =========================================================
    CAPTURAR
 ========================================================= */
-
 .camera-actions {
   display: flex;
   align-items: center;
@@ -3423,7 +2963,6 @@ input:focus {
   gap: 14px;
   margin-top: 18px;
 }
-
 .camera-cancel-btn {
   min-width: 110px;
   padding: 11px 18px;
@@ -3433,7 +2972,6 @@ input:focus {
   color: var(--color-texto-general, #cbd5e1);
   cursor: pointer;
 }
-
 .capture-btn {
   display: flex;
   align-items: center;
@@ -3446,12 +2984,10 @@ input:focus {
   font: 700 .78rem 'Inter', sans-serif;
   cursor: pointer;
 }
-
 .capture-btn:disabled {
   cursor: wait;
   opacity: .6;
 }
-
 .capture-circle {
   width: 38px;
   height: 38px;
@@ -3460,7 +2996,6 @@ input:focus {
   border: 2px solid #fff;
   border-radius: 50%;
 }
-
 .capture-circle span {
   width: 27px;
   height: 27px;
@@ -3469,20 +3004,16 @@ input:focus {
   background: #fff;
   transition: transform .15s ease;
 }
-
 .capture-btn:hover:not(:disabled) .capture-circle span {
   transform: scale(.85);
 }
-
 /* =========================================================
    ANIMACIONES
 ========================================================= */
-
 .photo-menu-enter-active,
 .photo-menu-leave-active {
   transition: opacity .2s ease;
 }
-
 .photo-menu-enter-active .photo-options-modal,
 .photo-menu-leave-active .photo-options-modal,
 .photo-menu-enter-active .camera-modal,
@@ -3491,12 +3022,10 @@ input:focus {
     opacity .2s ease,
     transform .22s ease;
 }
-
 .photo-menu-enter-from,
 .photo-menu-leave-to {
   opacity: 0;
 }
-
 .photo-menu-enter-from .photo-options-modal,
 .photo-menu-leave-to .photo-options-modal,
 .photo-menu-enter-from .camera-modal,
@@ -3504,52 +3033,42 @@ input:focus {
   opacity: 0;
   transform: translateY(10px) scale(.97);
 }
-
 .pop-enter-active,
 .pop-leave-active {
   transition: all .25s ease;
 }
-
 .pop-enter-from,
 .pop-leave-to {
   opacity: 0;
   transform: scale(.95);
 }
-
 /* =========================================================
    RESPONSIVE
 ========================================================= */
-
 @media (max-width: 1050px) {
   .profile-card {
     grid-template-columns: 260px minmax(0, 1fr);
   }
-
   .form-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 850px) {
   .profile-card {
     grid-template-columns: 1fr;
   }
-
   .profile-content {
     max-width: 420px;
     margin: 0 auto;
   }
 }
-
 @media (max-width: 650px) {
   .main-content {
     padding: 14px 12px 30px;
   }
-
   .login-card {
     padding: 20px 17px 22px;
   }
-
   .form-grid-3,
   .physical-grid,
   .membership-date-grid,
@@ -3557,11 +3076,9 @@ input:focus {
   .ff-payment-fields {
     grid-template-columns: 1fr;
   }
-
   .ff-payment-summary {
     flex-wrap: wrap;
   }
-
   .membership-actions-row {
     width: 100%;
     justify-content: space-between;
@@ -3569,29 +3086,24 @@ input:focus {
   }
   .toggle-group-small { width: 100%; }
   .btn-toggle-small { min-width: 0; padding: 8px 5px; }
-
   .registration-footer {
     flex-direction: column-reverse;
     align-items: stretch;
   }
-
   .btn-primary {
     width: 100%;
     min-width: 0;
   }
-
   /* MODAL OPCIONES */
   .photo-options-overlay {
     align-items: flex-end;
     padding: 0;
   }
-
   .photo-options-modal {
     max-width: none;
     padding: 12px 17px 20px;
     border-radius: 22px 22px 0 0;
   }
-
   .photo-options-handle {
     width: 38px;
     height: 4px;
@@ -3600,13 +3112,11 @@ input:focus {
     border-radius: 999px;
     background: rgba(255, 255, 255, .16);
   }
-
   /* CÁMARA PANTALLA INFERIOR */
   .camera-overlay {
     align-items: flex-end;
     padding: 0;
   }
-
   .camera-modal {
     max-width: none;
     padding:
@@ -3615,64 +3125,52 @@ input:focus {
       calc(18px + env(safe-area-inset-bottom));
     border-radius: 24px 24px 0 0;
   }
-
   .camera-preview {
     aspect-ratio: 3 / 4;
   }
-
   .switch-camera-btn {
     top: 11px;
     right: 11px;
     min-height: 38px;
     padding: 0 12px;
   }
-
   .camera-actions {
     flex-direction: column-reverse;
   }
-
   .camera-cancel-btn,
   .capture-btn {
     width: 100%;
     justify-content: center;
   }
 }
-
 @media (max-width: 420px) {
   .profile-section {
     padding: 28px 16px 22px;
   }
-
   .main-title {
     font-size: 1.6rem;
   }
-
   .measurement-field,
   .date-field {
     padding: 13px;
   }
-
   .camera-header h3 {
     font-size: 1.05rem;
   }
-
   .switch-camera-btn span {
     display: none;
   }
-
   .switch-camera-btn {
     width: 40px;
     height: 40px;
     padding: 0;
     justify-content: center;
   }
-
   .switch-camera-btn svg {
     width: 19px;
     height: 19px;
   }
 }
-
 .profile-card,.profile-section,.profile-content,.profile-summary,.summary-item{min-width:0;max-width:100%;}
 .profile-summary{overflow:hidden;}
 .summary-item{min-width:0;}
@@ -3682,7 +3180,6 @@ input:focus {
 .date-content input[type="date"]{display:block;width:100%;min-width:0;color:var(--color-texto-input,#fff);color-scheme:dark;}
 @media(max-width:850px){.profile-card{grid-template-columns:minmax(0,1fr)}.profile-content{width:100%;min-width:0}}
 </style>
-
 <style scoped>
 /* QR */
 .ff-qr-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(5px)}
