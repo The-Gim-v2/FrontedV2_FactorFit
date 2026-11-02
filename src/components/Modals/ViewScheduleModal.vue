@@ -1,6 +1,5 @@
 <template>
   <div class="schedule-wrapper">
-
     <!-- TOAST -->
     <transition name="toast">
       <div v-if="toast.show" :class="['toast', toast.type]" role="status">
@@ -11,7 +10,6 @@
         <span>{{ toast.message }}</span>
       </div>
     </transition>
-
     <!-- CONFIRMAR ELIMINACIÓN -->
     <transition name="toast">
       <div v-if="pendingDelete" class="confirm-overlay" @click.self="pendingDelete = null">
@@ -31,7 +29,6 @@
         </div>
       </div>
     </transition>
-
     <!-- FORMULARIO: NUEVA / EDITAR ACTIVIDAD -->
     <transition name="toast">
       <div v-if="showForm" class="form-overlay" @click.self="closeForm">
@@ -43,9 +40,7 @@
         />
       </div>
     </transition>
-
     <div class="schedule-panel">
-
       <!-- ================= HEADER ================= -->
       <header class="schedule-header">
         <div class="header-info">
@@ -55,51 +50,43 @@
               <path d="M8 13h3v3H8z"/>
             </svg>
           </div>
-
           <div>
             <span class="header-eyebrow">{{ t('gymSchedule') }}</span>
             <h2>{{ t('scheduleTitle') }} <span>{{ t('weekly') }}</span></h2>
             <p>{{ t('headerDescription') }}</p>
           </div>
         </div>
-
         <button class="close-btn" type="button" :aria-label="t('close')" @click="$emit('close')">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </header>
-
       <!-- ================= TOOLBAR ================= -->
       <div class="calendar-toolbar">
         <div class="week-navigation">
           <button type="button" class="nav-btn" :aria-label="t('previousWeek')" @click="previousWeek">
             <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
           </button>
-
           <button type="button" class="today-btn" @click="goToday">{{ t('today') }}</button>
-
           <button type="button" class="nav-btn" :aria-label="t('nextWeek')" @click="nextWeek">
             <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
           </button>
-
           <div class="week-info">
             <strong>{{ weekTitle }}</strong>
             <span>{{ weekRange }}</span>
           </div>
         </div>
-
         <div class="toolbar-right">
           <div class="legend">
             <span><i class="dot scheduled"></i> {{ t('scheduled') }}</span>
             <span><i class="dot available"></i> {{ t('available') }}</span>
           </div>
-
           <button class="new-activity-btn" type="button" @click="createActivity">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             <span>{{ t('newActivity') }}</span>
           </button>
         </div>
       </div>
-
+      <p v-if="errorApi" role="alert" style="color:#f87171;padding:12px">{{ errorApi }} <button type="button" @click="cargarActividades">Reintentar</button></p>
       <!-- ================= RESUMEN ================= -->
       <div class="summary-grid">
         <article class="summary-card">
@@ -111,7 +98,6 @@
             <span>{{ t('activities') }}</span>
           </div>
         </article>
-
         <article class="summary-card">
           <div class="summary-icon green">
             <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a4 4 0 0 1 5 4v6"/></svg>
@@ -121,7 +107,6 @@
             <span>{{ t('totalCapacity') }}</span>
           </div>
         </article>
-
         <article class="summary-card">
           <div class="summary-icon purple">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
@@ -131,7 +116,6 @@
             <span>{{ t('instructors') }}</span>
           </div>
         </article>
-
         <article class="summary-card">
           <div class="summary-icon orange">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -142,17 +126,14 @@
           </div>
         </article>
       </div>
-
       <!-- ============================================================
            DESKTOP — AGENDA SEMANAL
       ============================================================ -->
       <div class="desktop-calendar">
         <div class="calendar-scroll">
-
           <!-- CABECERA DÍAS -->
           <div class="calendar-days-header">
             <div class="time-header"><span>{{ t('hour') }}</span></div>
-
             <div
               v-for="day in weekDays"
               :key="day.key"
@@ -162,25 +143,20 @@
               <span class="day-name">{{ day.short }}</span>
               <strong>{{ day.number }}</strong>
               <small>{{ day.month }}</small>
-
               <span v-if="day.isToday" class="today-indicator">{{ t('todayUpper') }}</span>
-
               <div class="day-count">
                 {{ activitiesForDay(day.key).length }}
                 {{ activitiesForDay(day.key).length === 1 ? t('activity') : t('activitiesLower') }}
               </div>
             </div>
           </div>
-
           <!-- CUERPO -->
           <div class="calendar-body">
-
             <div class="time-column">
               <div v-for="hour in hours" :key="hour" class="time-row">
                 <span>{{ formatHour(hour) }}</span>
               </div>
             </div>
-
             <div
               v-for="day in weekDays"
               :key="day.key"
@@ -204,43 +180,34 @@
                     @keydown.enter="openActivity(ev)"
                   >
                     <div class="event-accent"></div>
-
                     <div class="event-top">
                       <span class="event-time">{{ formatHour(ev.inicio) }}</span>
-
                       <span class="event-capacity">
                         <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21a6 6 0 0 1 12 0M17 11a4 4 0 0 1 4 4v6"/></svg>
                         {{ ev.inscritos || 0 }}/{{ ev.capacidad }}
                       </span>
                     </div>
-
                     <strong>{{ ev.nombre }}</strong>
-
                     <div class="event-detail">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
                       <span>{{ ev.instructor }}</span>
                     </div>
-
                     <div class="event-detail">
                       <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></svg>
                       <span>{{ ev.ubicacion }}</span>
                     </div>
-
                     <div class="event-progress"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
-
                     <!-- ACCIONES -->
                     <div class="event-actions">
                       <button type="button" class="icon-btn" :title="t('edit')" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
                         <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
                       </button>
-
                       <button type="button" class="icon-btn danger" :title="t('delete')" :aria-label="t('deleteActivity')" @click.stop="askDelete(ev)">
                         <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
                       </button>
                     </div>
                   </article>
                 </template>
-
                 <!-- SLOT VACÍO -->
                 <button
                   v-if="!getActivity(day.key, hour)"
@@ -256,12 +223,10 @@
           </div>
         </div>
       </div>
-
       <!-- ============================================================
            MOBILE
       ============================================================ -->
       <div class="mobile-calendar">
-
         <div class="mobile-days">
           <button
             v-for="(day, index) in weekDays"
@@ -275,25 +240,20 @@
             <i v-if="activitiesForDay(day.key).length"></i>
           </button>
         </div>
-
         <div class="mobile-day-header">
           <div>
             <span>{{ t('daySchedule') }}</span>
             <h3>{{ weekDays[activeDay]?.full }}</h3>
           </div>
-
           <strong>
             {{ activitiesForDay(activeKey).length }}
             {{ activitiesForDay(activeKey).length === 1 ? t('activity') : t('activitiesLower') }}
           </strong>
         </div>
-
         <div class="mobile-timeline">
           <div v-for="hour in hours" :key="hour" class="mobile-time-row">
             <div class="mobile-time">{{ formatHour(hour) }}</div>
-
             <div class="mobile-line"><span></span></div>
-
             <template v-for="ev in eventsAt(activeKey, hour)" :key="ev.id">
               <article
                 class="mobile-event"
@@ -305,44 +265,36 @@
                     <span>{{ catLabel(ev.categoria) }}</span>
                     <strong>{{ ev.nombre }}</strong>
                   </div>
-
                   <div class="mobile-actions">
                     <button type="button" class="icon-btn" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
                       <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
                     </button>
-
                     <button type="button" class="icon-btn danger" :aria-label="t('deleteActivity')" @click.stop="askDelete(ev)">
                       <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
                     </button>
                   </div>
                 </div>
-
                 <div class="mobile-event-details">
                   <span>
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                     {{ formatHour(ev.inicio) }} – {{ formatHour(ev.fin) }}
                   </span>
-
                   <span>
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
                     {{ ev.instructor }}
                   </span>
-
                   <span>
                     <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2"/></svg>
                     {{ ev.ubicacion }}
                   </span>
                 </div>
-
                 <div class="mobile-event-footer">
                   <span>{{ levelLabel(ev.nivel) }}</span>
                   <span>{{ ev.inscritos || 0 }}/{{ ev.capacidad }} {{ t('people') }}</span>
                 </div>
-
                 <div class="event-progress static"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
               </article>
             </template>
-
             <button
               v-if="!getActivity(activeKey, hour)"
               type="button"
@@ -355,26 +307,21 @@
           </div>
         </div>
       </div>
-
       <!-- ================= FOOTER ================= -->
       <footer class="calendar-footer">
         <div>
           <span class="footer-dot"></span>
           <p>{{ t('footerHint') }}</p>
         </div>
-
         <button type="button" @click="$emit('close')">{{ t('closeSchedule') }}</button>
       </footer>
-
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import AddScheduleModal from './AddScheduleModal.vue';
 import { categoryColor, categoryLabel } from './scheduleCategories.ts';
-
 interface Activity {
   id: number;
   dia: string;
@@ -390,14 +337,12 @@ interface Activity {
   descripcion?: string;
   color?: string;
 }
-
 const emit = defineEmits(['close', 'activity-click', 'save-activity', 'delete-activity']);
-
 const activeDay = ref(0);
 const showForm = ref(false);
 const formData = ref<Record<string, any> | null>(null);
 const idioma = ref(localStorage.getItem('owner-idioma') || 'es');
-
+const cargando=ref(false);const guardando=ref(false);const errorApi=ref('');
 const translations = {
   es: {
     deleteTitle: '¿Eliminar actividad?', deletePrefix: 'Se quitará', deleteFromSchedule: 'de la agenda',
@@ -438,51 +383,42 @@ const translations = {
     levelAll: 'All levels'
   }
 };
-
 const t = (key: string) => translations[idioma.value as 'es' | 'en']?.[key as keyof typeof translations.es] || translations.es[key as keyof typeof translations.es] || key;
-
 const normalizeLanguage = (value: unknown): 'es' | 'en' =>
   String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
-
 const syncLanguage = () => {
   idioma.value = normalizeLanguage(localStorage.getItem('owner-idioma') || 'es');
 };
-
 const handleLanguageChange = (event: Event) => {
   const customEvent = event as CustomEvent<{ idioma?: string }>;
   const nextLanguage = normalizeLanguage(customEvent.detail?.idioma || localStorage.getItem('owner-idioma') || 'es');
   idioma.value = nextLanguage;
   localStorage.setItem('owner-idioma', nextLanguage);
 };
-
 const currentDate = ref(new Date());
 const pendingDelete = ref<Activity | null>(null);
-
 const toast = reactive({
   show: false,
   message: '',
   type: 'success'
 });
-
 /*
   EJEMPLOS VISUALES.
   Después puedes reemplazar este arreglo con tus actividades
   provenientes del backend.
 */
-const activities = ref<Activity[]>([
-  { id: 1, dia: 'monday', nombre: 'CrossFit Funcional', categoria: 'crossfit', nivel: 'Intermedio', instructor: 'Carlos Mendoza', capacidad: 20, inscritos: 16, inicio: '08:00', fin: '09:00', ubicacion: 'Zona Funcional', color: '#3b82f6' },
-  { id: 2, dia: 'monday', nombre: 'Yoga Flow', categoria: 'yoga', nivel: 'Principiante', instructor: 'Marisol Reyes', capacidad: 18, inscritos: 11, inicio: '11:00', fin: '12:00', ubicacion: 'Sala 2', color: '#a855f7' },
-  { id: 3, dia: 'tuesday', nombre: 'Spinning', categoria: 'spinning', nivel: 'Intermedio', instructor: 'Andrea López', capacidad: 25, inscritos: 21, inicio: '09:00', fin: '10:00', ubicacion: 'Sala Cycling', color: '#f97316' },
-  { id: 4, dia: 'wednesday', nombre: 'Boxeo', categoria: 'boxing', nivel: 'Avanzado', instructor: 'Miguel Torres', capacidad: 16, inscritos: 14, inicio: '10:00', fin: '11:00', ubicacion: 'Zona Box', color: '#eab308' },
-  { id: 5, dia: 'thursday', nombre: 'Pilates', categoria: 'pilates', nivel: 'Principiante', instructor: 'Sofía Martínez', capacidad: 15, inscritos: 9, inicio: '08:00', fin: '09:00', ubicacion: 'Sala 1', color: '#14b8a6' },
-  { id: 6, dia: 'friday', nombre: 'Zumba Fitness', categoria: 'zumba', nivel: 'Todos', instructor: 'Daniela Ruiz', capacidad: 30, inscritos: 26, inicio: '12:00', fin: '13:00', ubicacion: 'Salón Principal', color: '#ec4899' }
-]);
-
+const activities = ref<Activity[]>([]);
+const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const sedeActual=()=>{for(const st of [sessionStorage,localStorage]){const v=st.getItem('selected_sede_id');if(v&&Number(v)>0)return Number(v);}return 1;};
+const tokenActual=()=>{for(const st of [sessionStorage,localStorage])for(const k of ['auth_token','token','access_token','GYM_ACCOUNT_token']){const v=st.getItem(k);if(v)return v.replace(/^Bearer\s+/i,'');}return '';};
+const consultar=async(path:string,init:RequestInit={})=>{const token=tokenActual();if(!token)throw new Error('No hay sesión activa.');const r=await fetch(`${API}/api/gym/agenda${path}`,{...init,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(init.body?{'Content-Type':'application/json'}:{}),...(init.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(Object.values(d.errors||{}).flat().join(' ')||d.message||`HTTP ${r.status}`);return d;};
+let ultimaConsulta=0;
+const cargarActividades=async()=>{const seq=++ultimaConsulta;cargando.value=true;errorApi.value='';try{const d=await consultar(`?sede_id=${sedeActual()}`);if(seq!==ultimaConsulta)return;activities.value=(d.actividades||[]).map((a:any)=>({...a,id:Number(a.id),capacidad:Number(a.capacidad),inscritos:Number(a.inscritos||0)}));}catch(e:any){if(seq===ultimaConsulta){activities.value=[];errorApi.value=e.message;}}finally{if(seq===ultimaConsulta)cargando.value=false;}};
+const cambiarSede=()=>{closeForm();pendingDelete.value=null;void cargarActividades();};
 const hours = [
   '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00',
   '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
 ];
-
 const dayData = [
   { key: 'monday', es: 'Lunes', en: 'Monday', shortEs: 'LUN', shortEn: 'MON' },
   { key: 'tuesday', es: 'Martes', en: 'Tuesday', shortEs: 'MAR', shortEn: 'TUE' },
@@ -492,9 +428,7 @@ const dayData = [
   { key: 'saturday', es: 'Sábado', en: 'Saturday', shortEs: 'SÁB', shortEn: 'SAT' },
   { key: 'sunday', es: 'Domingo', en: 'Sunday', shortEs: 'DOM', shortEn: 'SUN' }
 ];
-
 const catLabel = (key: string) => categoryLabel(key, idioma.value);
-
 const levelLabel = (level: string) => {
   const map: Record<string, string> = {
     Principiante: t('levelBeginner'),
@@ -505,31 +439,24 @@ const levelLabel = (level: string) => {
   return map[level] || level;
 };
 const colorOf = (activity: Activity) => categoryColor(activity.categoria) || activity.color || 'var(--color-highlight, #3b82f6)';
-
 const getMonday = (date: Date) => {
   const copy = new Date(date);
   const day = copy.getDay();
   const diff = copy.getDate() - day + (day === 0 ? -6 : 1);
-
   copy.setDate(diff);
   copy.setHours(0, 0, 0, 0);
-
   return copy;
 };
-
 const weekDays = computed(() => {
   const monday = getMonday(currentDate.value);
   const today = new Date();
-
   return dayData.map((day, index) => {
     const date = new Date(monday);
     date.setDate(monday.getDate() + index);
-
     const isToday =
       date.getDate() === today.getDate() &&
       date.getMonth() === today.getMonth() &&
       date.getFullYear() === today.getFullYear();
-
     return {
       ...day,
       short: idioma.value === 'en' ? day.shortEn : day.shortEs,
@@ -543,77 +470,56 @@ const weekDays = computed(() => {
     };
   });
 });
-
 const activeKey = computed(() => weekDays.value[activeDay.value]?.key || '');
-
 const weekTitle = computed(() => {
   const first = weekDays.value[0]?.date;
   if (!first) return '';
-
   const month = first.toLocaleDateString(idioma.value === 'en' ? 'en-US' : 'es-MX', { month: 'long' });
-
   return `${month.charAt(0).toUpperCase() + month.slice(1)} ${first.getFullYear()}`;
 });
-
 const weekRange = computed(() => {
   const first = weekDays.value[0];
   const last = weekDays.value[6];
-
   if (!first || !last) return '';
-
   return `${first.number} ${first.month} — ${last.number} ${last.month}`;
 });
-
 const totalCapacity = computed(() =>
   activities.value.reduce((total, item) => total + item.capacidad, 0)
 );
-
 const instructorsCount = computed(() =>
   new Set(activities.value.map(item => item.instructor)).size
 );
-
 const totalHours = computed(() => {
   const value = activities.value.reduce((total, activity) => {
     const [startHour = 0, startMinute = 0] = activity.inicio.split(':').map(Number);
     const [endHour = 0, endMinute = 0] = activity.fin.split(':').map(Number);
-
     return total + ((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60;
   }, 0);
-
   return Math.round(value * 10) / 10;
 });
-
 const activitiesForDay = (day: string) =>
   activities.value.filter(activity => activity.dia === day);
-
 const sameHour = (a: string, b: string) => a.slice(0, 2) === b.slice(0, 2);
-
 const getActivity = (day: string, hour: string) =>
   activities.value.find(activity => activity.dia === day && sameHour(activity.inicio, hour));
-
 /* Devuelve un arreglo (0 o 1 elemento) para poder usar la actividad con v-for en la plantilla */
 const eventsAt = (day: string, hour: string) => {
   const found = getActivity(day, hour);
   return found ? [found] : [];
 };
-
 const fillPercent = (activity: Activity) => {
   if (!activity.capacidad) return 0;
   return Math.min(100, Math.round(((activity.inscritos || 0) / activity.capacidad) * 100));
 };
-
 const dayLabel = (key: string) => {
   const day = dayData.find(item => item.key === key);
   if (!day) return key;
   return idioma.value === 'en' ? day.en : day.es;
 };
-
 const formatHour = (time: string) => {
   if (!time) return '';
-
   const [hoursValue, minutes] = time.split(':');
   const hour = Number(hoursValue);
-
   const date = new Date();
   date.setHours(hour, Number(minutes), 0, 0);
   return date.toLocaleTimeString(idioma.value === 'en' ? 'en-US' : 'es-MX', {
@@ -622,46 +528,37 @@ const formatHour = (time: string) => {
     hour12: true
   });
 };
-
 const showToast = (message: string, type = 'success') => {
   toast.message = message;
   toast.type = type;
   toast.show = true;
-
   setTimeout(() => {
     toast.show = false;
   }, 2400);
 };
-
 const addOneHour = (hour: string) => {
   const [h = 0, m = 0] = hour.split(':').map(Number);
   return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
-
 const openForm = (data: Record<string, any> | null = null) => {
   formData.value = data;
   showForm.value = true;
 };
-
 const closeForm = () => {
   showForm.value = false;
   formData.value = null;
 };
-
 /* Clic en un espacio libre del calendario */
 const selectSlot = (day: string, hour: string) => {
   openForm({ day: dayData.find(item => item.key === day)?.es || day, hour, fin: addOneHour(hour) });
 };
-
 /* Botón "Nueva actividad" */
 const createActivity = () => {
   openForm(null);
 };
-
 const openActivity = (activity: Activity) => {
   emit('activity-click', activity);
 };
-
 /* EDITAR: abre el formulario con los datos de la actividad */
 const editActivity = (activity: Activity) => {
   openForm({
@@ -678,113 +575,64 @@ const editActivity = (activity: Activity) => {
     descripcion: activity.descripcion || ''
   });
 };
-
 const dayKeyFromLabel = (label: string) => dayData.find(item => item.es === label || item.en === label)?.key || label;
-
 /* El calendario muestra una actividad por franja de hora: evita encimar clases */
 const validateActivity = (data: Record<string, any>) => {
   const dayKey = dayKeyFromLabel(data.dia);
   const conflict = activities.value.find(
     item => item.id !== data.id && item.dia === dayKey && sameHour(item.inicio, data.inicio)
   );
-
   return conflict
     ? `${t('conflictPrefix')} "${conflict.nombre}" ${t('conflictOn')} ${dayLabel(dayKey).toLowerCase()} ${t('conflictAt')} ${formatHour(conflict.inicio)}. ${t('conflictChoose')}`
     : null;
 };
-
 /* GUARDAR (nueva o editada) */
-const saveActivity = (data: Record<string, any>) => {
-  const dayKey = dayKeyFromLabel(data.dia);
-  const existing = activities.value.find(item => item.id === data.id);
-
-  const record: Activity = {
-    id: existing ? existing.id : Math.max(0, ...activities.value.map(item => item.id)) + 1,
-    dia: dayKey,
-    nombre: data.nombre,
-    categoria: data.categoria,
-    nivel: data.nivel,
-    instructor: data.instructor,
-    capacidad: Number(data.capacidad) || 0,
-    inscritos: existing?.inscritos || 0,
-    inicio: data.inicio,
-    fin: data.fin,
-    ubicacion: data.ubicacion,
-    descripcion: data.descripcion,
-    color: categoryColor(data.categoria)
-  };
-
-  activities.value = existing
-    ? activities.value.map(item => (item.id === record.id ? record : item))
-    : [...activities.value, record];
-
-  emit('save-activity', record);
-  showToast(existing ? `"${record.nombre}" ${t('updated')}` : `"${record.nombre}" ${t('added')}`);
-};
-
+const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||''})});closeForm();await cargarActividades();showToast(data.id?'Actividad actualizada.':'Actividad registrada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 /* ELIMINAR */
 const askDelete = (activity: Activity) => {
   pendingDelete.value = activity;
 };
-
-const confirmDelete = () => {
-  const activity = pendingDelete.value;
-  if (!activity) return;
-
-  activities.value = activities.value.filter(item => item.id !== activity.id);
-  emit('delete-activity', activity);
-
-  pendingDelete.value = null;
-  showToast(`"${activity.nombre}" ${t('removed')}`);
-};
-
+const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Actividad eliminada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 const previousWeek = () => {
   const date = new Date(currentDate.value);
   date.setDate(date.getDate() - 7);
   currentDate.value = date;
 };
-
 const nextWeek = () => {
   const date = new Date(currentDate.value);
   date.setDate(date.getDate() + 7);
   currentDate.value = date;
 };
-
 const goToday = () => {
   currentDate.value = new Date();
-
   const jsDay = new Date().getDay();
   activeDay.value = jsDay === 0 ? 6 : jsDay - 1;
 };
-
 const handleLanguage = (event: Event) => {
   const lang = (event as CustomEvent).detail?.idioma;
   if (lang) idioma.value = lang;
 };
-
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key !== 'Escape') return;
-
   if (pendingDelete.value) pendingDelete.value = null;
   else if (showForm.value) closeForm();
 };
-
 onMounted(() => {
   syncLanguage();
   window.addEventListener('idioma-changed', handleLanguageChange);
+  window.addEventListener('factorfit:branch-changed',cambiarSede);
+  void cargarActividades();
 });
-
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
+  window.removeEventListener('factorfit:branch-changed',cambiarSede);
+  ultimaConsulta++;
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
-
 * { box-sizing: border-box; }
 button { font: inherit; }
-
 .schedule-wrapper {
   --hl: var(--color-highlight, #3b82f6);
   --hl-soft: rgba(59,130,246,.1);
@@ -812,7 +660,6 @@ button { font: inherit; }
   --text-2: rgba(245,245,244,.64);
   --text-3: rgba(245,245,244,.42);
   --row: 100px;
-
   position: relative;
   width: 100%;
   display: flex;
@@ -821,7 +668,6 @@ button { font: inherit; }
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
   .schedule-wrapper {
     --hl-soft: color-mix(in srgb, var(--hl) 12%, transparent);
@@ -845,7 +691,6 @@ button { font: inherit; }
     --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
 }
-
 .schedule-panel {
   width: min(1280px, 97vw);
   max-height: 92vh;
@@ -857,9 +702,7 @@ button { font: inherit; }
   scrollbar-width: thin;
   scrollbar-color: var(--w14) transparent;
 }
-
 /* ============ HEADER ============ */
-
 .schedule-header {
   position: sticky;
   top: 0;
@@ -873,9 +716,7 @@ button { font: inherit; }
   border-bottom: 1px solid var(--line-soft);
   backdrop-filter: blur(18px);
 }
-
 .header-info { display: flex; align-items: center; gap: 14px; }
-
 .header-icon {
   width: 46px;
   height: 46px;
@@ -888,13 +729,11 @@ button { font: inherit; }
   border: 1px solid var(--hl-line);
   border-radius: 13px;
 }
-
 .header-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .header-eyebrow { display: block; margin-bottom: 3px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1.3px; }
 .header-info h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 23px; font-weight: 600; line-height: 1.1; text-transform: uppercase; }
 .header-info h2 span { color: var(--hl); }
 .header-info p { margin: 4px 0 0; color: var(--text-3); font-size: 12.5px; }
-
 .close-btn {
   width: 38px;
   height: 38px;
@@ -908,12 +747,9 @@ button { font: inherit; }
   border-radius: 11px;
   transition: .2s;
 }
-
 .close-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .close-btn:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-
 /* ============ TOOLBAR ============ */
-
 .calendar-toolbar {
   padding: 18px 24px;
   display: flex;
@@ -922,10 +758,8 @@ button { font: inherit; }
   gap: 16px;
   flex-wrap: wrap;
 }
-
 .week-navigation, .toolbar-right, .legend { display: flex; align-items: center; }
 .week-navigation { gap: 7px; }
-
 .nav-btn, .today-btn {
   height: 38px;
   display: flex;
@@ -938,23 +772,19 @@ button { font: inherit; }
   border-radius: 10px;
   transition: .2s;
 }
-
 .nav-btn { width: 38px; }
 .nav-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .today-btn { padding: 0 15px; font-size: 13px; font-weight: 650; }
 .nav-btn:hover, .today-btn:hover { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
-
 .week-info { margin-left: 10px; display: flex; flex-direction: column; gap: 2px; }
 .week-info strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
 .week-info span { color: var(--text-3); font-size: 12px; }
-
 .toolbar-right { gap: 18px; }
 .legend { gap: 14px; }
 .legend span { display: flex; align-items: center; gap: 7px; color: var(--text-3); font-size: 12px; font-weight: 600; }
 .dot { width: 8px; height: 8px; border-radius: 50%; }
 .dot.scheduled { background: var(--hl); }
 .dot.available { border: 1.5px dashed var(--w35); }
-
 .new-activity-btn {
   height: 40px;
   padding: 0 16px;
@@ -971,14 +801,10 @@ button { font: inherit; }
   box-shadow: 0 8px 20px rgba(28,79,214,.25);
   transition: .2s;
 }
-
 .new-activity-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; }
 .new-activity-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
-
 /* ============ RESUMEN ============ */
-
 .summary-grid { padding: 0 24px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-
 .summary-card {
   min-height: 68px;
   padding: 12px 14px;
@@ -989,29 +815,22 @@ button { font: inherit; }
   border: 1px solid var(--line-soft);
   border-radius: 14px;
 }
-
 .summary-icon { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 11px; }
 .summary-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .summary-icon.blue { color: #60a5fa; background: rgba(59,130,246,.1); }
 .summary-icon.green { color: #34d399; background: rgba(16,185,129,.1); }
 .summary-icon.purple { color: #c084fc; background: rgba(168,85,247,.1); }
 .summary-icon.orange { color: #fb923c; background: rgba(249,115,22,.1); }
-
 .summary-card > div:last-child { display: flex; flex-direction: column; }
 .summary-card strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 23px; font-weight: 600; line-height: 1; }
 .summary-card span { margin-top: 4px; color: var(--text-3); font-size: 11px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
-
 /* ============ CALENDARIO (DESKTOP) ============ */
-
 .desktop-calendar { margin: 0 24px 20px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--w3); }
 .calendar-scroll { min-width: 980px; overflow-x: auto; }
-
 .calendar-days-header, .calendar-body { display: grid; grid-template-columns: 76px repeat(7, minmax(0, 1fr)); }
 .calendar-days-header { background: var(--w3); border-bottom: 1px solid var(--line); }
-
 .time-header { display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--line-soft); }
 .time-header span { color: var(--text-3); font-size: 10px; font-weight: 800; letter-spacing: .9px; }
-
 .day-header {
   position: relative;
   min-height: 92px;
@@ -1022,32 +841,25 @@ button { font: inherit; }
   justify-content: center;
   border-right: 1px solid var(--line-soft);
 }
-
 .day-header:last-child { border-right: 0; }
 .day-header.today { background: var(--hl-soft); }
 .day-header.today::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--hl); }
-
 .day-name { color: var(--text-3); font-size: 11px; font-weight: 800; letter-spacing: .8px; }
 .day-header.today .day-name { color: var(--hl); }
 .day-header strong { margin: 3px 0 1px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1; }
 .day-header small { color: var(--text-3); font-size: 10.5px; font-weight: 600; }
-
 .today-indicator { position: absolute; top: 8px; right: 8px; padding: 2px 6px; color: var(--hl); background: var(--hl-soft); border-radius: 5px; font-size: 9px; font-weight: 800; letter-spacing: .5px; }
 .day-count { margin-top: 6px; color: var(--text-3); font-size: 10.5px; }
-
 .time-column { border-right: 1px solid var(--line-soft); background: rgba(0,0,0,.12); }
 .time-row { height: var(--row); padding: 9px 10px 0 0; display: flex; align-items: flex-start; justify-content: flex-end; border-bottom: 1px solid var(--line-soft); }
 .time-row:last-child { border-bottom: 0; }
 .time-row span { color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 500; }
-
 .day-column { min-width: 0; border-right: 1px solid var(--line-soft); }
 .day-column:last-child { border-right: 0; }
 .day-column.today { background: var(--w3); }
-
 .calendar-slot { position: relative; height: var(--row); padding: 5px; border-bottom: 1px solid var(--line-soft); transition: background .15s; }
 .day-column .calendar-slot:last-child { border-bottom: 0; }
 .calendar-slot:not(.occupied):hover { background: var(--hl-soft); }
-
 .empty-slot {
   width: 100%;
   height: 100%;
@@ -1063,13 +875,10 @@ button { font: inherit; }
   border-radius: 10px;
   transition: opacity .18s;
 }
-
 .empty-slot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .empty-slot span { font-size: 11.5px; font-weight: 700; }
 .calendar-slot:hover .empty-slot, .empty-slot:focus-visible { opacity: 1; }
-
 /* ============ EVENTOS ============ */
-
 .activity-event {
   position: relative;
   width: 100%;
@@ -1085,21 +894,16 @@ button { font: inherit; }
   border-radius: 11px;
   transition: transform .18s, border-color .18s, box-shadow .18s;
 }
-
 .activity-event:hover, .activity-event:focus-visible {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--event-color) 70%, transparent);
   box-shadow: 0 10px 22px rgba(0,0,0,.32);
 }
-
 .event-accent { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; background: var(--event-color); }
-
 .event-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .event-time { color: var(--event-color); font-size: 11px; font-weight: 800; white-space: nowrap; }
-
 .event-capacity { display: flex; align-items: center; gap: 4px; color: var(--text-2); font-size: 11px; font-weight: 650; }
 .event-capacity svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
-
 .activity-event > strong {
   display: block;
   margin: 4px 0 5px;
@@ -1112,14 +916,11 @@ button { font: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .event-detail { margin-top: 2px; display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--text-2); }
 .event-detail svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .event-detail span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-
 .event-progress { position: absolute; right: 0; bottom: 0; left: 4px; height: 3px; background: var(--w6); }
 .event-progress i { display: block; height: 100%; background: var(--event-color); border-radius: 0 3px 3px 0; }
-
 /* Acciones: editar / eliminar */
 .event-actions {
   position: absolute;
@@ -1131,10 +932,8 @@ button { font: inherit; }
   transform: translateY(-2px);
   transition: opacity .15s, transform .15s;
 }
-
 .activity-event:hover .event-actions,
 .activity-event:focus-within .event-actions { opacity: 1; transform: none; }
-
 .icon-btn {
   width: 28px;
   height: 28px;
@@ -1150,30 +949,21 @@ button { font: inherit; }
   backdrop-filter: blur(6px);
   transition: .18s;
 }
-
 .icon-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:hover { color: #fff; background: var(--hl); border-color: var(--hl); }
 .icon-btn.danger:hover { background: #dc2626; border-color: #dc2626; }
-
 /* ============ MOBILE ============ */
-
 .mobile-calendar { display: none; }
-
 /* ============ FOOTER ============ */
-
 .calendar-footer { min-height: 60px; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-top: 1px solid var(--line-soft); }
 .calendar-footer > div { display: flex; align-items: center; gap: 9px; }
 .footer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hl); box-shadow: 0 0 8px var(--hl); }
 .calendar-footer p { margin: 0; color: var(--text-3); font-size: 12.5px; }
 .calendar-footer button { padding: 9px 15px; cursor: pointer; color: var(--text-2); background: transparent; border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; font-weight: 650; transition: .2s; }
 .calendar-footer button:hover { color: var(--title); background: var(--w4); }
-
 /* ============ FORMULARIO (NUEVA / EDITAR) ============ */
-
 .form-overlay { position: fixed; inset: 0; z-index: 150; padding: 18px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
-
 /* ============ CONFIRMAR ELIMINACIÓN ============ */
-
 .confirm-overlay { position: fixed; inset: 0; z-index: 200; padding: 18px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
 .confirm-box { width: min(400px, 100%); padding: 26px 24px 22px; text-align: center; background: var(--card); border: 1px solid var(--line-strong); border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
 .confirm-icon { width: 52px; height: 52px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; color: #f87171; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 15px; }
@@ -1187,9 +977,7 @@ button { font: inherit; }
 .btn-ghost:hover { color: var(--title); background: var(--w5); }
 .btn-danger { color: #fff; background: #dc2626; border: 0; box-shadow: 0 8px 20px rgba(220,38,38,.28); }
 .btn-danger:hover { background: #ef4444; }
-
 /* ============ TOAST ============ */
-
 .toast { position: fixed; z-index: 300; left: 50%; bottom: 24px; max-width: min(420px, 92vw); padding: 12px 16px; display: flex; align-items: center; gap: 11px; color: var(--title); transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 20px 50px rgba(0,0,0,.55); }
 .toast-icon { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; color: #34d399; background: rgba(16,185,129,.12); border-radius: 9px; }
 .toast.error .toast-icon { color: #f87171; background: rgba(239,68,68,.12); }
@@ -1198,44 +986,34 @@ button { font: inherit; }
 .toast-enter-active, .toast-leave-active { transition: opacity .22s, transform .22s; }
 .toast-enter-from, .toast-leave-to { opacity: 0; }
 .toast.toast-enter-from, .toast.toast-leave-to { transform: translate(-50%, 10px); }
-
 .close-btn:focus-visible, .nav-btn:focus-visible, .today-btn:focus-visible, .new-activity-btn:focus-visible,
 .icon-btn:focus-visible, .mobile-day:focus-visible, .mobile-empty:focus-visible, .calendar-footer button:focus-visible,
 .confirm-actions button:focus-visible, .empty-slot:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
-
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
-
 /* ============ RESPONSIVE ============ */
-
 @media (max-width: 1100px) {
   .legend { display: none; }
 }
-
 @media (max-width: 767px) {
   .schedule-panel { width: 96vw; max-height: 94vh; border-radius: 18px; }
   .schedule-header { min-height: 74px; padding: 14px 16px; }
   .header-icon { width: 42px; height: 42px; }
   .header-info h2 { font-size: 20px; }
   .header-info p { display: none; }
-
   .calendar-toolbar { padding: 14px 16px; flex-wrap: nowrap; align-items: center; }
   .week-info { max-width: 150px; }
   .week-info strong { font-size: 16px; }
   .new-activity-btn { width: 40px; padding: 0; justify-content: center; }
   .new-activity-btn span { display: none; }
   .new-activity-btn svg { width: 18px; height: 18px; }
-
   .summary-grid { padding: 0 16px 14px; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .summary-card { min-height: 62px; padding: 10px 12px; }
   .summary-card strong { font-size: 21px; }
-
   .desktop-calendar { display: none; }
   .mobile-calendar { display: block; padding: 0 16px 20px; }
-
   .mobile-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; padding: 6px 0 16px; }
-
   .mobile-day {
     position: relative;
     min-width: 0;
@@ -1252,27 +1030,22 @@ button { font: inherit; }
     border-radius: 12px;
     transition: .2s;
   }
-
   .mobile-day span { font-size: 10px; font-weight: 800; letter-spacing: .3px; }
   .mobile-day strong { font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; }
   .mobile-day i { position: absolute; bottom: 6px; width: 4px; height: 4px; border-radius: 50%; background: var(--hl); }
   .mobile-day.active { color: var(--title); background: var(--hl-soft); border-color: var(--hl-line); }
   .mobile-day.active i { background: #fff; }
   .mobile-day.today strong { color: var(--hl); }
-
   .mobile-day-header { padding: 12px 0 14px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line-soft); }
   .mobile-day-header span { color: var(--hl); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; }
   .mobile-day-header h3 { margin: 3px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 600; text-transform: capitalize; }
   .mobile-day-header > strong { flex: none; color: var(--text-3); font-size: 12px; font-weight: 600; }
-
   .mobile-timeline { padding-top: 14px; }
   .mobile-time-row { min-height: 66px; display: grid; grid-template-columns: 62px 14px minmax(0, 1fr); gap: 6px; }
   .mobile-time { padding-top: 6px; color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; text-align: right; }
-
   .mobile-line { position: relative; display: flex; justify-content: center; }
   .mobile-line::after { content: ""; position: absolute; top: 14px; bottom: -6px; width: 1px; background: var(--line); }
   .mobile-line span { position: relative; z-index: 1; width: 8px; height: 8px; margin-top: 10px; border: 1.5px solid var(--w25); border-radius: 50%; background: var(--card); }
-
   .mobile-event {
     position: relative;
     margin-bottom: 10px;
@@ -1284,35 +1057,27 @@ button { font: inherit; }
     border-left: 4px solid var(--event-color);
     border-radius: 13px;
   }
-
   .mobile-event-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .mobile-event-top > div:first-child { min-width: 0; display: flex; flex-direction: column; }
   .mobile-event-top span { color: var(--event-color); font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; }
   .mobile-event-top strong { margin-top: 3px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; line-height: 1.2; }
-
   .mobile-actions { flex: none; display: flex; gap: 6px; }
   .mobile-actions .icon-btn { width: 36px; height: 36px; border-radius: 10px; background: var(--w6); }
   .mobile-actions .icon-btn svg { width: 16px; height: 16px; }
-
   .mobile-event-details { margin-top: 11px; display: flex; flex-direction: column; gap: 6px; }
   .mobile-event-details span { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
   .mobile-event-details svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-
   .mobile-event-footer { margin-top: 12px; padding-top: 10px; display: flex; justify-content: space-between; border-top: 1px solid var(--line-soft); }
   .mobile-event-footer span { color: var(--text-3); font-size: 11.5px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; }
   .event-progress.static { left: 0; }
-
   .mobile-empty { min-height: 52px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; color: var(--text-3); background: transparent; border: 1px dashed var(--line); border-radius: 12px; font-size: 13px; font-weight: 600; transition: .2s; }
   .mobile-empty svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
   .mobile-empty:hover { color: var(--hl); border-color: var(--hl-line); background: var(--hl-soft); }
-
   .calendar-footer { padding: 12px 16px; justify-content: center; }
   .calendar-footer > div { display: none; }
   .calendar-footer button { width: 100%; padding: 12px; font-size: 14px; }
-
   .toast { bottom: 16px; }
 }
-
 @media (max-width: 430px) {
   .mobile-days { gap: 3px; }
   .mobile-day { height: 58px; border-radius: 10px; }
