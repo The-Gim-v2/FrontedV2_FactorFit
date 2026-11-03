@@ -282,7 +282,7 @@ import {useRoute,useRouter} from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 
 import ModalComponent from '../../Modals/ModalComponent.vue';
-import ReactivateAccountModal from './ReactivateAccountModal.vue';
+import ReactivateAccountModal from '../Componets/Account-Recovery.vue';
 
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
