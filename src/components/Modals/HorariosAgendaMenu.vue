@@ -2,7 +2,7 @@
   <div class="agenda-menu-wrap"><div class="agenda-menu"><div class="agenda-kicker">— AGENDA</div><h2>Administración y Turnos</h2><div class="menu-line"></div><button type="button" class="agenda-option" @click="vista='gimnasio'"><span class="menu-icon">▦</span><span><strong>Añadir Horario</strong><small>Horario de apertura y cierre del gimnasio</small></span><b>›</b></button><button type="button" class="agenda-option" @click="vista='clases'"><span class="menu-icon">☷</span><span><strong>Ver Horario</strong><small>Calendario de clases y eventos · Lunes a Domingo</small></span><b>›</b></button></div><WeeklySchedule v-if="vista==='clases'" @close="vista=null"/><GymOpeningHours v-if="vista==='gimnasio'" @close="vista=null"/></div>
 </template>
 <script setup lang="ts">
-import {ref} from 'vue';import WeeklySchedule from './WeeklySchedule.vue';import GymOpeningHours from './GymOpeningHours.vue';
+import {ref} from 'vue';import WeeklySchedule from './ViewScheduleModal.vue';import GymOpeningHours from './GymOpeningHours.vue';
 const vista=ref<'clases'|'gimnasio'|null>(null);
 </script>
 <style scoped>
