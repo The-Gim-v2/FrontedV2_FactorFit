@@ -106,24 +106,39 @@
 
           <p class="profile-hint">{{ txt('Toma una foto o selecciona una desde tu dispositivo.', 'Take a photo or select one from your device.') }}</p>
 
-          <dl class="profile-summary">
-            <div class="summary-row">
-              <dt><i class="bi bi-person"></i>{{ txt('Cliente', 'Client') }}</dt>
-              <dd :class="{ empty: !clientName }">{{ clientName || txt('Nuevo cliente', 'New client') }}</dd>
-            </div>
-            <div class="summary-row">
-              <dt><i class="bi bi-tag"></i>{{ t('membershipData') }}</dt>
-              <dd><span class="plan-chip">{{ periodoLabel }}</span></dd>
-            </div>
-            <div class="summary-row">
-              <dt><i class="bi bi-calendar-event"></i>{{ t('enrollmentDate') }}</dt>
-              <dd :class="{ empty: !form.fechaInscripcion }">{{ form.fechaInscripcion || '—' }}</dd>
-            </div>
-            <div class="summary-row">
-              <dt><i class="bi bi-calendar-check"></i>{{ t('dueDate') }}</dt>
-              <dd :class="{ empty: !form.fechaCorte }">{{ form.fechaCorte || '—' }}</dd>
-            </div>
-          </dl>
+          <ul class="profile-summary">
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-person"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ txt('Cliente', 'Client') }}</span>
+                <strong class="summary-value" :class="{ empty: !clientName }">{{ clientName || txt('Nuevo cliente', 'New client') }}</strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-tag"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ txt('Membresía', 'Membership') }}</span>
+                <strong class="summary-value">
+                  <span class="plan-chip">{{ periodoLabel }}</span>
+                  <span v-if="tarifaSeleccionada" class="summary-price">{{ formatoPrecio(tarifaSeleccionada.Precio) }}</span>
+                </strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-calendar-event"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ t('enrollmentDate') }}</span>
+                <strong class="summary-value" :class="{ empty: !form.fechaInscripcion }">{{ fechaVista(form.fechaInscripcion) }}</strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico ok"><i class="bi bi-calendar-check"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ t('dueDate') }}</span>
+                <strong class="summary-value" :class="{ empty: !form.fechaCorte }">{{ fechaVista(form.fechaCorte) }}</strong>
+              </span>
+            </li>
+          </ul>
         </aside>
 
         <!-- =====================================================
@@ -187,24 +202,20 @@
             </header>
 
             <div class="grid grid-2">
-              <div class="tile-field">
-                <span class="tile-icon"><i class="bi bi-speedometer2"></i></span>
-                <div class="tile-body">
-                  <label>{{ t('weight') }}</label>
-                  <div class="control has-suffix">
-                    <input type="number" step="0.1" min="0" v-model="form.peso" placeholder="70" />
-                    <span class="control-suffix">kg</span>
-                  </div>
+              <div class="field">
+                <label>{{ t('weight') }}</label>
+                <div class="control has-icon has-suffix">
+                  <i class="bi bi-speedometer2 control-icon"></i>
+                  <input type="number" step="0.1" min="0" v-model="form.peso" placeholder="70" />
+                  <span class="control-suffix">kg</span>
                 </div>
               </div>
-              <div class="tile-field">
-                <span class="tile-icon"><i class="bi bi-rulers"></i></span>
-                <div class="tile-body">
-                  <label>{{ t('height') }}</label>
-                  <div class="control has-suffix">
-                    <input type="number" min="0" v-model="form.altura" placeholder="175" />
-                    <span class="control-suffix">cm</span>
-                  </div>
+              <div class="field">
+                <label>{{ t('height') }}</label>
+                <div class="control has-icon has-suffix">
+                  <i class="bi bi-rulers control-icon"></i>
+                  <input type="number" min="0" v-model="form.altura" placeholder="175" />
+                  <span class="control-suffix">cm</span>
                 </div>
               </div>
             </div>
@@ -276,17 +287,17 @@
 
             <!-- FECHAS -->
             <div class="grid grid-2">
-              <div class="tile-field">
-                <span class="tile-icon"><i class="bi bi-calendar-event"></i></span>
-                <div class="tile-body">
-                  <label>{{ t('enrollmentDate') }}</label>
+              <div class="field">
+                <label>{{ t('enrollmentDate') }}</label>
+                <div class="control has-icon">
+                  <i class="bi bi-calendar-event control-icon"></i>
                   <input type="date" v-model="form.fechaInscripcion" :max="fechaLocal()" />
                 </div>
               </div>
-              <div class="tile-field accent">
-                <span class="tile-icon"><i class="bi bi-calendar-check"></i></span>
-                <div class="tile-body">
-                  <label>{{ t('dueDate') }}</label>
+              <div class="field">
+                <label>{{ t('dueDate') }} <span class="badge auto">{{ txt('AUTOMÁTICA', 'AUTOMATIC') }}</span></label>
+                <div class="control has-icon locked ok">
+                  <i class="bi bi-calendar-check control-icon"></i>
                   <input type="date" v-model="form.fechaCorte" readonly />
                 </div>
               </div>
@@ -1355,6 +1366,12 @@ onUnmounted(() => {
   cerrarQR();
   if (avatarPreview.value && avatarPreview.value.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
 });
+// Fecha legible (dd/mm/aaaa) para el resumen del perfil
+const fechaVista = (v) => {
+  if (!v) return '—';
+  const [y, m, d] = String(v).slice(0, 10).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : String(v);
+};
 </script>
 
 <style scoped>
@@ -1422,21 +1439,25 @@ i.bi { display: inline-block; line-height: 1; }
 .avatar-action:hover { transform: scale(1.08); filter: brightness(1.08); }
 .profile-hint { max-width: 230px; margin: 0 auto; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
 
-.profile-summary { display: grid; margin: 24px 0 0; padding: 4px 6px; text-align: left; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
-.summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 10px; min-width: 0; }
-.summary-row + .summary-row { border-top: 1px solid var(--line); }
-.summary-row dt { display: flex; align-items: center; gap: 8px; flex-shrink: 0; color: var(--muted); font-size: 0.72rem; font-weight: 500; }
-.summary-row dt i { color: var(--accent); font-size: 0.85rem; }
-.summary-row dd { min-width: 0; margin: 0; overflow: hidden; color: var(--title); font-size: 0.8rem; font-weight: 600; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.summary-row dd.empty { opacity: 0.4; }
-.plan-chip { display: inline-block; padding: 3px 11px; color: var(--accent); border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
 
 /* =========================================================
    TARJETAS
 ========================================================= */
+.profile-summary { display: grid; gap: 0; margin: 24px 0 0; padding: 6px; list-style: none; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+.summary-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 11px 10px; }
+.summary-row + .summary-row { border-top: 1px solid var(--line); }
+.summary-ico { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 0.95rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.summary-ico.ok { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+.summary-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.summary-label { color: var(--muted); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+.summary-value { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; overflow: hidden; color: var(--title); font-size: 0.92rem; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; }
+.summary-value.empty { color: var(--muted-2); font-weight: 500; }
+.plan-chip { display: inline-block; padding: 3px 11px; color: var(--accent); font-size: 0.8rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.summary-price { color: var(--ok); font: 600 0.95rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
+
 .forms-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .card { position: relative; min-width: 0; padding: 26px 28px 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
-.membership-card { z-index: 2; display: flex; flex-direction: column; gap: 20px; }
+.membership-card { z-index: 2; display: flex; flex-direction: column; gap: 22px; }
 .card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .membership-card .card-head { margin-bottom: 2px; }
 .card-head .grow { flex: 1; min-width: 0; }
@@ -1455,7 +1476,7 @@ i.bi { display: inline-block; line-height: 1; }
    CAMPOS
 ========================================================= */
 .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.field > label, .tile-body > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; }
+.field > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; }
 
 input:not([type='radio']):not([type='file']) {
   width: 100%; height: 48px; min-width: 0; padding: 0 14px; outline: none;
@@ -1477,13 +1498,10 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .control-suffix { position: absolute; right: 14px; color: var(--muted); font-size: 0.74rem; font-weight: 600; pointer-events: none; }
 .control.has-suffix input { padding-right: 48px; }
 .control.locked input { border-style: dashed; background: color-mix(in srgb, var(--text) 3%, var(--input-bg)); }
+.control.ok .control-icon { color: var(--ok); }
+.control.locked.ok input { border-color: color-mix(in srgb, var(--ok) 38%, var(--line-strong)); }
 .control.locked input::placeholder { color: var(--muted); font-style: italic; }
 
-.tile-field { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 2%, transparent); }
-.tile-icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.15rem; border-radius: 12px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.tile-field.accent { border-color: color-mix(in srgb, var(--ok) 28%, var(--line)); }
-.tile-field.accent .tile-icon { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
-.tile-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 
 .badge { padding: 2px 8px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.6px; border-radius: 999px; }
 .badge.auto { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
@@ -1570,7 +1588,7 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .choice.selected .choice-icon { color: var(--accent); }
 
 /* Método de pago (igual que en Pagos) */
-.method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .method-tile { position: relative; min-width: 0; min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer; text-align: left; color: var(--text); font-family: inherit; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
 .method-tile:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong)); transform: translateY(-1px); }
 .method-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1712,7 +1730,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 @media (max-width: 1050px) {
   .reg-layout { grid-template-columns: 260px minmax(0, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .method-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 850px) {
@@ -1749,7 +1766,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 @media (max-width: 420px) {
   .profile-card { padding: 28px 16px 20px; }
   .main-title { font-size: 1.6rem; }
-  .tile-field { padding: 13px; }
   .switch-camera span { display: none; }
   .switch-camera { width: 40px; height: 40px; padding: 0; justify-content: center; }
   .dialog-actions .btn { width: 100%; }
