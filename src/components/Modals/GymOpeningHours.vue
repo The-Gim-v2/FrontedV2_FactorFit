@@ -165,6 +165,42 @@
             </div>
           </div>
 
+          <!-- Vista móvil: lista por día (sin scroll lateral) -->
+          <div class="gh-weeklist">
+            <article v-for="(dia, i) in horarios" :key="'m-' + dia.dia" class="gh-wd" :class="{ today: i === hoy }">
+              <header class="gh-wd-head">
+                <div class="gh-wd-name">
+                  <strong>{{ dias[i] }}</strong>
+                  <span v-if="i === hoy" class="gh-today">HOY</span>
+                </div>
+                <button type="button" class="gh-open-chip" :class="{ off: !dia.abierto }" @click="vista = 'apertura'" title="Editar apertura">
+                  <template v-if="dia.abierto"><i class="bi bi-door-open"></i>{{ corto(dia.apertura) }} – {{ corto(dia.cierre) }}</template>
+                  <template v-else><i class="bi bi-moon-stars"></i>Cerrado</template>
+                </button>
+              </header>
+
+              <div v-if="bloquesDe(dia.dia).length" class="gh-wd-blocks">
+                <button
+                  v-for="b in bloquesDe(dia.dia)"
+                  :key="b.uid"
+                  type="button"
+                  class="gh-wd-block"
+                  :style="{ '--c': b.color }"
+                  @click="abrirDlg({ titulo: b.titulo, dia: b.dia })"
+                >
+                  <i class="gh-wd-dot"></i>
+                  <span class="gh-wd-title">{{ b.titulo }}</span>
+                  <span class="gh-wd-time">{{ fmt12(b.inicio) }} – {{ fmt12(b.fin) }}</span>
+                </button>
+              </div>
+              <p v-else class="gh-wd-empty">Sin bloques este día</p>
+
+              <button type="button" class="gh-wd-add" :disabled="bloqueado" @click="abrirDlg({ dia: dia.dia })">
+                <i class="bi bi-plus-lg"></i>Añadir bloque
+              </button>
+            </article>
+          </div>
+
           <!-- Estado vacío -->
           <div v-if="!bloques.length" class="gh-emptybox">
             <span class="gh-emptybox-icon"><i class="bi bi-grid-3x3-gap"></i></span>
@@ -363,6 +399,7 @@ const copiarATodos = () => {
    BLOQUES: derivados para el horario semanal
 ========================================================= */
 const clave = (t: string) => t.trim().toLowerCase();
+const bloquesDe = (d: string) => bloques.value.filter(b => b.dia === d).sort((a, b) => minutos(a.inicio) - minutos(b.inicio));
 
 const leyenda = computed(() => {
   const mapa = new Map<string, { key: string; titulo: string; color: string; count: number }>();
@@ -914,97 +951,116 @@ button:focus-visible, .gh-swatch:focus-within { outline: 2px solid var(--hl); ou
 .gh-pop-enter-from, .gh-pop-leave-to { opacity: 0; }
 .gh-pop-enter-from .gh-dlg, .gh-pop-leave-to .gh-dlg { opacity: 0; transform: translateY(10px) scale(0.97); }
 
+/* ---------- Horario semanal en lista (móvil / tablet) ---------- */
+.gh-weeklist { display: none; }
+.gh-wd { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line-2); border-radius: 16px; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.gh-wd.today { border-color: var(--hl-line); background: linear-gradient(90deg, var(--hl-soft), color-mix(in srgb, var(--text) 3%, transparent) 60%); }
+.gh-wd-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gh-wd-name { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.gh-wd-name strong { color: var(--title); font-size: 15px; font-weight: 700; }
+.gh-wd .gh-open-chip { width: auto; min-height: 30px; flex: none; gap: 6px; padding: 4px 11px; font-size: 11px; border-radius: 999px; }
+.gh-wd .gh-open-chip i { font-size: 0.85rem; }
+.gh-wd-blocks { display: grid; gap: 8px; }
+.gh-wd-block { --c: var(--hl); width: 100%; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer; color: var(--title); text-align: left; border: 1.5px solid color-mix(in srgb, var(--c) 70%, transparent); border-radius: 12px; background: linear-gradient(150deg, color-mix(in srgb, var(--c) 28%, #14141f), color-mix(in srgb, var(--c) 10%, #14141f)); }
+.gh-wd-dot { width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); }
+.gh-wd-title { min-width: 0; flex: 1; overflow: hidden; font: 700 13px 'Inter', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.gh-wd-time { flex: none; color: var(--muted); font: 600 11.5px 'Inter', sans-serif; white-space: nowrap; }
+.gh-wd-empty { margin: 0; color: var(--muted-2); font-size: 12px; }
+.gh-wd-add { height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; color: var(--hl); font: 700 12.5px 'Inter', sans-serif; border: 1px dashed var(--hl-line); border-radius: 11px; background: transparent; transition: background 0.16s ease; }
+.gh-wd-add:hover:not(:disabled) { background: var(--hl-soft); }
+.gh-wd-add:disabled { opacity: 0.5; cursor: wait; }
+
+@media (max-width: 920px) {
+  .gh-gridwrap { display: none; }
+  .gh-weeklist { display: grid; gap: 10px; }
+}
+
 /* ---------- Responsive ---------- */
+.gh-panel, .gh-body, .gh-dlg, .gh-dlg-body { max-width: 100%; }
+.gh-body { overflow-x: hidden; }
+
 @media (max-width: 860px) {
   .gh-day { flex-direction: column; align-items: stretch; gap: 14px; }
-  .gh-times { width: 100%; }
-  .gh-time { flex: 1; min-width: 0; }
-  .gh-time-box input { width: 100%; font-size: 16px; }
-  .gh-duration, .gh-arrow { display: none; }
+  .gh-day-main { width: 100%; }
+  .gh-times { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: end; }
+  .gh-time { min-width: 0; }
+  .gh-time-box { width: 100%; min-width: 0; }
+  .gh-time-box input { width: 100%; min-width: 0; font-size: 16px; }
+  i.gh-arrow, .gh-duration { display: none; }
 }
+
 @media (max-width: 620px) {
   .gh-overlay { padding: 0; align-items: flex-end; }
-  .gh-panel { width: 100%; max-height: 96vh; border-radius: 22px 22px 0 0; }
-  .gh-head, .gh-body, .gh-footer { padding-left: 16px; padding-right: 16px; }
-  .gh-head h2 { font-size: 20px; }
+  .gh-panel { width: 100%; max-height: 92vh; max-height: 92dvh; border-radius: 22px 22px 0 0; }
+
+  .gh-head { padding: 16px 14px; gap: 10px; }
+  .gh-title { gap: 11px; }
+  .gh-symbol { width: 42px; height: 42px; font-size: 1.15rem; border-radius: 12px; }
+  .gh-head small { font-size: 9px; letter-spacing: 1px; }
+  .gh-head h2 { font-size: 19px; }
   .gh-head p { display: none; }
-  .gh-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .gh-stat { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; }
-  .gh-stat-icon { display: none; }
-  .gh-stat small { font-size: 8.5px; letter-spacing: 0.4px; }
-  .gh-stat strong em { display: none; }
-  .gh-toolbar { flex-direction: column; align-items: stretch; }
-  .gh-segmented button { min-width: 0; padding: 0 8px; }
-  .gh-presets { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; }
-  .gh-chip { flex: none; }
-  .gh-gridwrap { padding: 10px; }
-  .gh-emptybox { flex-direction: column; align-items: flex-start; }
-  .gh-footer { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-  .gh-footer .gh-btn { flex: 1; }
-  .gh-dlg-overlay { padding: 0; align-items: flex-end; }
-  .gh-dlg { width: 100%; max-height: 94%; border-radius: 20px 20px 0 0; }
-  .gh-dlg-head, .gh-dlg-body, .gh-dlg-foot { padding-left: 16px; padding-right: 16px; }
-  .gh-range { grid-template-columns: 1fr 1fr 14px 1fr; row-gap: 6px; }
-  .gh-range strong { grid-column: 1 / -1; }
-  .gh-range-dur { display: none; }
-  .gh-range input { font-size: 16px; }
-  .gh-preview { flex-direction: column; align-items: stretch; }
-  .gh-block.static { min-width: 0; }
-  .gh-dlg-foot { flex-wrap: wrap; }
-  .gh-dlg-foot .gh-btn { flex: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
-}
-
-/* ================= AJUSTES MÓVIL (corrección de ancho) ================= */
-.gh-body { overflow-x: hidden; }
-.gh-day, .gh-day-main, .gh-times, .gh-time, .gh-time-box { min-width: 0; }
-
-@media (max-width: 860px) {
-  .gh-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-  .gh-time-box { width: 100%; }
-  .gh-time-box input { width: 100%; min-width: 0; }
-}
-
-@media (max-width: 620px) {
-  .gh-panel { max-height: 94dvh; }
-  .gh-body { padding: 16px 14px; gap: 14px; }
-  .gh-head { padding: 16px 14px; }
-  .gh-symbol { width: 42px; height: 42px; font-size: 1.15rem; }
-  .gh-head h2 { font-size: 18px; }
   .gh-close { width: 36px; height: 36px; }
 
-  /* Pestañas: ocupan todo el ancho */
-  .gh-segmented { width: 100%; }
-  .gh-segmented button { min-width: 0; font-size: 12.5px; gap: 6px; padding: 0 6px; }
+  .gh-body { padding: 14px; gap: 12px; scrollbar-width: none; }
+  .gh-body::-webkit-scrollbar, .gh-dlg-body::-webkit-scrollbar { display: none; }
+  .gh-dlg-body { scrollbar-width: none; }
 
-  /* Apertura: tarjeta compacta, Abre / Cierra en 2 columnas */
-  .gh-day { padding: 12px; gap: 12px; }
-  .gh-day-name strong { font-size: 14px; }
-  .gh-time span { font-size: 10.5px; }
-  .gh-time-box i { left: 9px; font-size: 0.85rem; }
-  .gh-time-box input { height: 40px; padding: 0 6px 0 28px; font-size: 13px; border-radius: 10px; }
+  .gh-stats { gap: 8px; }
+  .gh-stat { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 11px; border-radius: 12px; }
+  .gh-stat-icon { display: none; }
+  .gh-stat strong { font-size: 17px; }
+  .gh-stat strong em { display: none; }
+  .gh-stat small { font-size: 8.5px; letter-spacing: 0.4px; white-space: normal; line-height: 1.25; }
+
+  .gh-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .gh-segmented { width: 100%; }
+  .gh-segmented button { min-width: 0; height: 40px; padding: 0 6px; gap: 6px; font-size: 12.5px; }
+  .gh-presets { flex-wrap: wrap; gap: 8px; }
+  .gh-chip { flex: 1 1 auto; justify-content: center; height: 38px; padding: 0 12px; font-size: 12px; }
+  .gh-toolbar > .gh-btn { width: 100%; }
+
+  .gh-day { padding: 14px; border-radius: 14px; }
+  .gh-day-name strong { font-size: 15px; }
+  .gh-time span { font-size: 11px; }
+  .gh-time-box i { left: 10px; }
+  .gh-time-box input { height: 44px; padding: 0 8px 0 32px; font-size: 14px; }
   .gh-note { font-size: 12px; padding: 11px 12px; }
 
-  /* Horario semanal: cuadrícula más angosta con scroll suave */
-  .gh-gridwrap { padding: 8px; border-radius: 14px; -webkit-overflow-scrolling: touch; }
-  .gh-grid { min-width: 590px; grid-template-columns: 74px repeat(7, minmax(0, 1fr)); gap: 6px; }
-  .gh-hour { background: var(--card); padding: 0 6px 0 4px; box-shadow: 8px 0 8px -6px rgba(0, 0, 0, 0.45); }
-  .gh-hour span { font-size: 11px; gap: 2px; }
-  .gh-hour.open span { font-size: 9px; letter-spacing: 0.4px; gap: 4px; }
-  .gh-dayhead { min-height: 40px; padding: 4px 2px; }
-  .gh-dayhead strong { font-size: 10.5px; letter-spacing: 0.2px; }
-  .gh-open-chip { min-height: 44px; font-size: 9.5px; white-space: normal; line-height: 1.2; padding: 3px; border-radius: 9px; }
-  .gh-block, .gh-empty { min-height: 54px; border-radius: 10px; }
-  .gh-block span { font-size: 10px; }
-  .gh-legend-item { height: 30px; font-size: 11px; }
+  .gh-emptybox { flex-direction: column; align-items: flex-start; }
+  .gh-emptybox .gh-btn { width: 100%; }
+  .gh-legend-item { height: 30px; font-size: 11.5px; }
 
-  /* Botones del pie y del diálogo */
-  .gh-footer { gap: 8px; }
-  .gh-btn { height: 44px; padding: 0 14px; font-size: 13.5px; }
+  .gh-footer { gap: 8px; padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .gh-footer .gh-btn { flex: 1; height: 44px; padding: 0 12px; font-size: 13.5px; min-width: 0; }
+
+  /* Diálogo de bloque */
+  .gh-dlg-overlay { padding: 0; align-items: flex-end; }
+  .gh-dlg { width: 100%; max-height: 92%; border-radius: 20px 20px 0 0; }
+  .gh-dlg-head { padding: 14px; }
+  .gh-dlg-head h3 { font-size: 19px; }
+  .gh-dlg-body { padding: 14px; gap: 14px; }
+  .gh-dlg-foot { flex-wrap: wrap; gap: 8px; padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .gh-dlg-foot .gh-spacer { display: none; }
+  .gh-dlg-foot .gh-btn { flex: 1 1 0; min-width: 0; height: 44px; padding: 0 10px; font-size: 13.5px; }
+  .gh-dlg-foot .gh-btn.danger { flex: 1 1 100%; }
+
   .gh-daychips { gap: 4px; }
-  .gh-daychip { height: 38px; font-size: 10.5px; border-radius: 9px; }
-  .gh-range { padding: 8px; }
+  .gh-daychip { height: 40px; font-size: 10.5px; letter-spacing: 0; border-radius: 9px; }
+  .gh-palette { gap: 8px; }
+
+  .gh-range { grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr); grid-template-areas: "name name dur" "ini arr fin"; row-gap: 8px; column-gap: 6px; padding: 10px; }
+  .gh-range strong { grid-area: name; }
+  .gh-range > input:nth-of-type(1) { grid-area: ini; }
+  .gh-range > i { grid-area: arr; }
+  .gh-range > input:nth-of-type(2) { grid-area: fin; }
+  .gh-range-dur { grid-area: dur; display: block; align-self: center; }
+  .gh-range input { display: block; width: 100%; min-width: 0; height: 44px; font-size: 16px; }
+
+  .gh-preview { flex-direction: column; align-items: stretch; gap: 8px; }
+  .gh-block.static { width: 100%; min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 </style>
