@@ -220,17 +220,91 @@
         </template>
         <!-- CIERRES POR FESTIVOS Y HORARIOS ESPECIALES -->
         <section class="gh-exceptions">
-          <h3><i class="bi bi-calendar-event"></i> Festivos y cierres especiales</h3>
-          <p>Esta configuración tiene prioridad sobre la apertura semanal y se mostrará a los miembros de esta sede.</p>
+          <header class="gh-ex-head">
+            <span class="gh-ex-icon"><i class="bi bi-calendar-event"></i></span>
+            <div>
+              <h3>Festivos y cierres especiales</h3>
+              <p>Tiene prioridad sobre la apertura semanal y se mostrará a los miembros de esta sede.</p>
+            </div>
+          </header>
+
           <form class="gh-ex-form" @submit.prevent="guardarExcepcion">
-            <label>Fecha<input v-model="exForm.fecha" type="date" required :disabled="bloqueado || guardandoExcepcion" /></label>
-            <label>Tipo<select v-model="exForm.tipo" :disabled="bloqueado || guardandoExcepcion"><option value="cerrado">Cerrado por festivo o imprevisto</option><option value="especial">Horario especial</option><option value="abierto">Abierto todo el día (excepcional)</option></select></label>
-            <label>Motivo<input v-model.trim="exForm.motivo" type="text" maxlength="200" placeholder="Ej. Día festivo, mantenimiento" required :disabled="bloqueado || guardandoExcepcion" /></label>
-            <template v-if="exForm.tipo === 'especial'"><label>Apertura<input v-model="exForm.apertura" type="time" required /></label><label>Cierre<input v-model="exForm.cierre" type="time" required /></label></template>
-            <button type="submit" class="gh-btn primary" :disabled="bloqueado || guardandoExcepcion">{{ guardandoExcepcion ? 'Guardando...' : 'Guardar fecha especial' }}</button>
+            <div class="gh-ex-field">
+              <label for="gh-ex-fecha">Fecha</label>
+              <div class="gh-ex-control">
+                <i class="bi bi-calendar3"></i>
+                <input id="gh-ex-fecha" v-model="exForm.fecha" type="date" required :disabled="bloqueado || guardandoExcepcion" />
+              </div>
+            </div>
+
+            <div class="gh-ex-field">
+              <label for="gh-ex-tipo">Tipo</label>
+              <div class="gh-ex-control">
+                <i class="bi bi-toggles"></i>
+                <select id="gh-ex-tipo" v-model="exForm.tipo" :disabled="bloqueado || guardandoExcepcion">
+                  <option value="cerrado">Cerrado por festivo o imprevisto</option>
+                  <option value="especial">Horario especial</option>
+                  <option value="abierto">Abierto todo el día (excepcional)</option>
+                </select>
+                <i class="bi bi-chevron-down gh-ex-chev"></i>
+              </div>
+            </div>
+
+            <div class="gh-ex-field wide">
+              <label for="gh-ex-motivo">Motivo</label>
+              <div class="gh-ex-control">
+                <i class="bi bi-chat-left-text"></i>
+                <input id="gh-ex-motivo" v-model.trim="exForm.motivo" type="text" maxlength="200" placeholder="Ej. Día festivo, mantenimiento" required :disabled="bloqueado || guardandoExcepcion" />
+              </div>
+            </div>
+
+            <template v-if="exForm.tipo === 'especial'">
+              <div class="gh-ex-field">
+                <label for="gh-ex-apertura">Apertura</label>
+                <div class="gh-ex-control">
+                  <i class="bi bi-sunrise"></i>
+                  <input id="gh-ex-apertura" v-model="exForm.apertura" type="time" required :disabled="bloqueado || guardandoExcepcion" />
+                </div>
+              </div>
+              <div class="gh-ex-field">
+                <label for="gh-ex-cierre">Cierre</label>
+                <div class="gh-ex-control">
+                  <i class="bi bi-sunset"></i>
+                  <input id="gh-ex-cierre" v-model="exForm.cierre" type="time" required :disabled="bloqueado || guardandoExcepcion" />
+                </div>
+              </div>
+            </template>
+
+            <button type="submit" class="gh-btn primary gh-ex-submit" :disabled="bloqueado || guardandoExcepcion">
+              <i class="bi" :class="guardandoExcepcion ? 'bi-arrow-repeat gh-spin' : 'bi-plus-lg'"></i>
+              {{ guardandoExcepcion ? 'Guardando...' : 'Guardar fecha especial' }}
+            </button>
           </form>
-          <div v-for="x in excepciones" :key="x.fecha" class="gh-ex-row"><div><strong>{{ x.fecha }} · {{ x.tipo === 'cerrado' ? 'Cerrado' : x.tipo === 'especial' ? 'Horario especial' : 'Abierto extraordinariamente' }}</strong><small>{{ x.motivo }} {{ x.tipo === 'especial' ? `(${x.apertura}–${x.cierre})` : '' }}</small></div><button class="gh-btn ghost sm" type="button" :disabled="bloqueado || guardandoExcepcion" @click="eliminarExcepcion(x.fecha)"><i class="bi bi-trash"></i> Eliminar</button></div>
-          <p v-if="estadoActual"><strong>Estado actual:</strong> {{ estadoActual.abierto ? 'Abierto' : 'Cerrado' }} · {{ estadoActual.motivo }} <span v-if="estadoActual.apertura">({{ estadoActual.apertura }}–{{ estadoActual.cierre }})</span></p>
+
+          <div v-if="excepciones.length" class="gh-ex-list">
+            <article v-for="x in excepciones" :key="x.fecha" class="gh-ex-row" :class="x.tipo">
+              <span class="gh-ex-badge"><i class="bi" :class="exTipoIcono(x.tipo)"></i></span>
+              <div class="gh-ex-info">
+                <div class="gh-ex-title">
+                  <strong>{{ exFechaTxt(x.fecha) }}</strong>
+                  <span class="gh-ex-tag">{{ exTipoTxt(x.tipo) }}</span>
+                </div>
+                <small>{{ x.motivo }}<template v-if="x.tipo === 'especial'"> · {{ x.apertura }}–{{ x.cierre }}</template></small>
+              </div>
+              <button type="button" class="gh-ex-del" :disabled="bloqueado || guardandoExcepcion" @click="eliminarExcepcion(x.fecha)">
+                <i class="bi bi-trash3"></i><span>Eliminar</span>
+              </button>
+            </article>
+          </div>
+          <p v-else class="gh-ex-empty">No hay fechas especiales programadas.</p>
+
+          <div v-if="estadoActual" class="gh-ex-state" :class="estadoActual.abierto ? 'open' : 'closed'">
+            <i class="bi" :class="estadoActual.abierto ? 'bi-door-open' : 'bi-door-closed'"></i>
+            <span>
+              <strong>Estado actual:</strong> {{ estadoActual.abierto ? 'Abierto' : 'Cerrado' }} · {{ estadoActual.motivo }}
+              <template v-if="estadoActual.apertura"> ({{ estadoActual.apertura }}–{{ estadoActual.cierre }})</template>
+            </span>
+          </div>
         </section>
       </div>
 
@@ -359,6 +433,13 @@ const exito = ref('');
 const aviso = ref('');
 const soportaBloques = ref(true);
 const excepciones=ref<any[]>([]);const estadoActual=ref<any>(null);const guardandoExcepcion=ref(false);const exForm=reactive({fecha:'',tipo:'cerrado',motivo:'',apertura:'09:00',cierre:'18:00'});
+const exFechaTxt = (f: string) => {
+  const [y, m, d] = String(f || '').slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return String(f || '');
+  return new Date(y, m - 1, d).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+const exTipoTxt = (t: string) => (t === 'cerrado' ? 'Cerrado' : t === 'especial' ? 'Horario especial' : 'Abierto extra');
+const exTipoIcono = (t: string) => (t === 'cerrado' ? 'bi-door-closed' : t === 'especial' ? 'bi-clock' : 'bi-door-open');
 const vista = ref<'apertura' | 'semana'>('apertura');
 const bloqueado = computed(() => guardando.value || cargando.value);
 const hor = (d: string): Dia => horarios.value.find(x => x.dia === d) ?? horarios.value[0]!;
@@ -1083,6 +1164,60 @@ button:focus-visible, .gh-swatch:focus-within { outline: 2px solid var(--hl); ou
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
-.gh-exceptions{margin:26px 0 8px;padding:20px;border:1px solid var(--line-strong);border-radius:16px;background:var(--w3)}
-.gh-exceptions h3{margin:0 0 7px;color:var(--title);font-family:Oswald,sans-serif;font-size:19px}.gh-exceptions p{color:var(--text-2);font-size:12px}.gh-ex-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}.gh-ex-form label{display:flex;flex-direction:column;gap:6px;color:var(--text-2);font-size:12px}.gh-ex-form input,.gh-ex-form select{width:100%;height:43px;min-width:0;padding:8px;color:var(--text);background:var(--field);border:1px solid var(--line-strong);border-radius:10px;color-scheme:dark}.gh-ex-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px;border-bottom:1px solid var(--line)}.gh-ex-row div{display:flex;flex-direction:column;gap:4px;min-width:0}.gh-ex-row strong{color:var(--title);font-size:12px}.gh-ex-row small{color:var(--text-2);font-size:11px}@media(max-width:650px){.gh-ex-form{grid-template-columns:1fr}.gh-ex-row{align-items:flex-start;flex-direction:column}}
+
+/* ---------- Festivos y cierres especiales ---------- */
+.gh-exceptions { margin-top: 6px; padding: 20px; display: flex; flex-direction: column; gap: 16px; border: 1px solid var(--line-2); border-radius: 18px; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.gh-ex-head { display: flex; align-items: center; gap: 14px; }
+.gh-ex-icon { width: 42px; height: 42px; flex: none; display: grid; place-items: center; color: var(--hl); font-size: 1.15rem; border: 1px solid var(--hl-line); border-radius: 12px; background: var(--hl-soft); }
+.gh-ex-head h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 600; line-height: 1.15; }
+.gh-ex-head p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+
+.gh-ex-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
+.gh-ex-field { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.gh-ex-field.wide { grid-column: 1 / -1; }
+.gh-ex-field > label { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }
+.gh-ex-control { position: relative; display: flex; align-items: center; }
+.gh-ex-control > i:first-child { position: absolute; left: 13px; z-index: 1; color: var(--hl); font-size: 1rem; pointer-events: none; }
+.gh-ex-control input, .gh-ex-control select { width: 100%; min-width: 0; height: 46px; padding: 0 14px 0 40px; outline: none; color: var(--title); color-scheme: dark; font: 500 14px 'Inter', sans-serif; border: 1.5px solid var(--line-2); border-radius: 12px; background: var(--field); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.gh-ex-control select { padding-right: 38px; cursor: pointer; appearance: none; -webkit-appearance: none; text-overflow: ellipsis; }
+.gh-ex-control select option { background: #15171b; color: #f4f4f5; }
+.gh-ex-control input::placeholder { color: var(--muted-2); }
+.gh-ex-control input:focus, .gh-ex-control select:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.gh-ex-control input:disabled, .gh-ex-control select:disabled { opacity: 0.6; cursor: not-allowed; }
+.gh-ex-chev { position: absolute; right: 14px; color: var(--muted-2); font-size: 0.8rem; pointer-events: none; }
+.gh-btn.gh-ex-submit { grid-column: 1 / -1; justify-self: end; min-width: 230px; }
+
+.gh-ex-list { display: grid; gap: 10px; }
+.gh-ex-row { --t: var(--hl); display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.gh-ex-row.cerrado { --t: #f87171; }
+.gh-ex-row.especial { --t: #facc15; }
+.gh-ex-row.abierto { --t: var(--ok); }
+.gh-ex-badge { width: 40px; height: 40px; display: grid; place-items: center; color: var(--t); font-size: 1.05rem; border-radius: 11px; background: color-mix(in srgb, var(--t) 14%, transparent); }
+.gh-ex-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.gh-ex-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.gh-ex-title strong { color: var(--title); font-size: 13.5px; font-weight: 700; text-transform: capitalize; }
+.gh-ex-tag { padding: 2px 8px; color: var(--t); font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; border-radius: 999px; background: color-mix(in srgb, var(--t) 14%, transparent); }
+.gh-ex-info small { color: var(--muted); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.gh-ex-del { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; cursor: pointer; color: #f87171; font: 700 12.5px 'Inter', sans-serif; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; background: rgba(239, 68, 68, 0.08); transition: background 0.16s ease; }
+.gh-ex-del:hover:not(:disabled) { background: rgba(239, 68, 68, 0.18); }
+.gh-ex-del:disabled { opacity: 0.5; cursor: wait; }
+.gh-ex-empty { margin: 0; padding: 14px; color: var(--muted-2); font-size: 12.5px; text-align: center; border: 1px dashed var(--line-2); border-radius: 12px; }
+
+.gh-ex-state { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; border: 1px solid; border-radius: 12px; }
+.gh-ex-state i { flex: none; margin-top: 2px; font-size: 1rem; }
+.gh-ex-state strong { font-weight: 800; }
+.gh-ex-state.open { color: #5eead4; border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.08); }
+.gh-ex-state.closed { color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); }
+
+@media (max-width: 620px) {
+  .gh-exceptions { padding: 14px; gap: 14px; border-radius: 14px; }
+  .gh-ex-head { align-items: flex-start; gap: 12px; }
+  .gh-ex-icon { width: 38px; height: 38px; }
+  .gh-ex-head h3 { font-size: 17px; }
+  .gh-ex-form { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .gh-ex-control input, .gh-ex-control select { height: 48px; font-size: 16px; }
+  .gh-btn.gh-ex-submit { justify-self: stretch; width: 100%; min-width: 0; }
+  .gh-ex-row { grid-template-columns: 40px minmax(0, 1fr); }
+  .gh-ex-del { grid-column: 1 / -1; width: 100%; height: 40px; }
+}
 </style>

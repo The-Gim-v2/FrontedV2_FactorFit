@@ -395,6 +395,35 @@
           </div>
         </div>
       </transition>
+
+      <!-- CONFIRMAR CAMBIO DE ESTADO DEL GIMNASIO -->
+      <transition name="pop">
+        <div v-if="confirmEstado" class="modal-overlay" @click.self="cancelarEstado">
+          <section class="confirm-modal" :class="confirmEstado" role="alertdialog" aria-modal="true" aria-labelledby="confirm-estado-title" aria-describedby="confirm-estado-desc">
+            <span class="confirm-icon">
+              <svg v-if="confirmEstado === 'cerrado'" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/><path d="M2 20h20"/><path d="M14 12v.01"/></svg>
+              <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1A2 2 0 0 1 13 4.561Z"/></svg>
+            </span>
+
+            <h2 id="confirm-estado-title">{{ confirmTxt.titulo }}</h2>
+            <p id="confirm-estado-desc" class="confirm-sub">{{ confirmTxt.sub }}</p>
+
+            <ol class="confirm-steps">
+              <li v-for="(s, i) in confirmTxt.pasos" :key="i">
+                <span class="confirm-num">{{ i + 1 }}</span>
+                <div><strong>{{ s[0] }}</strong><small>{{ s[1] }}</small></div>
+              </li>
+            </ol>
+
+            <p v-if="confirmError" class="confirm-error" role="alert">{{ confirmError }}</p>
+
+            <div class="confirm-actions">
+              <button type="button" class="confirm-btn ghost" :disabled="cambiandoEstado" @click="cancelarEstado">{{ confirmTxt.cancelar }}</button>
+              <button type="button" class="confirm-btn primary" :disabled="cambiandoEstado" @click="confirmarEstado">{{ cambiandoEstado ? confirmTxt.guardando : confirmTxt.confirmar }}</button>
+            </div>
+          </section>
+        </div>
+      </transition>
     </div>
   </HeadingAdmin>
 </template>
@@ -856,7 +885,64 @@ const billingStatusText = computed(() => {
 });
 
 const loadGymStatus=async()=>{try{const d=await apiGet(`/api/gym/estado?sede_id=${sedeId()}`);gymStatus.value=d.estado||null;isGymOpen.value=!!d.estado?.abierto;gymStatusError.value='';}catch(e){gymStatus.value=null;isGymOpen.value=false;gymStatusError.value=e?.message||'No se pudo consultar el estado del gimnasio.';}};
-const toggleGymStatus=async()=>{const siguiente=isGymOpen.value?'cerrado':'abierto';const mensaje=siguiente==='cerrado'?'¿Cerrar el gimnasio durante el resto del día? Los miembros verán que está cerrado.':'¿Marcar el gimnasio abierto durante el resto del día, incluso fuera de su horario habitual?';if(!window.confirm(mensaje))return;try{const token=getToken();const r=await fetch(`${API}/api/gym/estado?sede_id=${sedeId()}`,{method:'PUT',headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({sede_id:sedeId(),estado:siguiente,motivo:'Cambio manual desde Dashboard'})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||`Error HTTP ${r.status}`);gymStatus.value=d.estado;isGymOpen.value=!!d.estado?.abierto;gymStatusError.value='';}catch(e){gymStatusError.value=e?.message||'No se pudo actualizar el estado.';}};
+const confirmEstado = ref(null);
+const cambiandoEstado = ref(false);
+const confirmError = ref('');
+const confirmTxt = computed(() => {
+  const en = currentLang.value === 'en';
+  const cerrar = confirmEstado.value === 'cerrado';
+  const registro = en
+    ? ['Saved as a special date', 'It is stored as "Cambio manual desde Dashboard" in Special dates.']
+    : ['Se registra', 'Queda guardado como fecha especial: «Cambio manual desde Dashboard».'];
+  if (cerrar) {
+    return en
+      ? { titulo: 'Close the gym', sub: 'You are about to mark the gym as closed for the rest of the day.', cancelar: 'Cancel', confirmar: 'Close gym', guardando: 'Saving...',
+          pasos: [['Closed today', 'It will show as closed for the rest of the day.'], ['Members see it', 'Members will see that the gym is closed.'], registro] }
+      : { titulo: 'Cerrar el gimnasio', sub: 'Vas a marcar el gimnasio como cerrado durante el resto del día.', cancelar: 'Cancelar', confirmar: 'Cerrar gimnasio', guardando: 'Guardando...',
+          pasos: [['Se cierra hoy', 'Quedará como cerrado durante el resto del día.'], ['Los miembros lo ven', 'Verán que el gimnasio está cerrado.'], registro] };
+  }
+  return en
+    ? { titulo: 'Open the gym', sub: 'You are about to mark the gym as open for the rest of the day, even outside its usual hours.', cancelar: 'Cancel', confirmar: 'Open gym', guardando: 'Saving...',
+        pasos: [['Open today', 'It will show as open for the rest of the day, even outside its usual hours.'], ['Members see it', 'Members will see that the gym is open.'], registro] }
+    : { titulo: 'Abrir el gimnasio', sub: 'Vas a marcar el gimnasio como abierto durante el resto del día, incluso fuera de su horario habitual.', cancelar: 'Cancelar', confirmar: 'Abrir gimnasio', guardando: 'Guardando...',
+        pasos: [['Se abre hoy', 'Quedará como abierto el resto del día, aunque sea fuera de su horario habitual.'], ['Los miembros lo ven', 'Verán que el gimnasio está abierto.'], registro] };
+});
+const toggleGymStatus = () => {
+  if (cambiandoEstado.value) return;
+  confirmError.value = '';
+  confirmEstado.value = isGymOpen.value ? 'cerrado' : 'abierto';
+};
+const cancelarEstado = () => { if (!cambiandoEstado.value) confirmEstado.value = null; };
+const confirmarEstado = async () => {
+  const siguiente = confirmEstado.value;
+  if (!siguiente || cambiandoEstado.value) return;
+  cambiandoEstado.value = true;
+  confirmError.value = '';
+  try {
+    const token = getToken();
+    const r = await fetch(`${API}/api/gym/estado?sede_id=${sedeId()}`, {
+      method: 'PUT',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ sede_id: sedeId(), estado: siguiente, motivo: 'Cambio manual desde Dashboard' })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d?.message || `Error HTTP ${r.status}`);
+    gymStatus.value = d.estado;
+    isGymOpen.value = !!d.estado?.abierto;
+    gymStatusError.value = '';
+    confirmEstado.value = null;
+  } catch (e) {
+    confirmError.value = e?.message || 'No se pudo actualizar el estado.';
+  } finally {
+    cambiandoEstado.value = false;
+  }
+};
+const onEscConfirm = (e) => { if (e.key === 'Escape') cancelarEstado(); };
+watch(confirmEstado, (v) => {
+  if (v) window.addEventListener('keydown', onEscConfirm);
+  else window.removeEventListener('keydown', onEscConfirm);
+});
+onBeforeUnmount(() => window.removeEventListener('keydown', onEscConfirm));
 
 /* =========================================================
    IDIOMA
@@ -2454,6 +2540,167 @@ button {
 .pop-enter-from,
 .pop-leave-to {
   opacity: 0;
+}
+
+/* ---------- Confirmar abrir / cerrar el gimnasio ---------- */
+.confirm-modal {
+  --tone: var(--hl);
+  width: min(440px, 100%);
+  padding: 30px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--text2);
+  border: 1px solid var(--line2);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 35%),
+    var(--card);
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+  animation: confirm-in 0.24s var(--ease);
+}
+.confirm-modal.cerrado { --tone: #f87171; }
+.confirm-modal.abierto { --tone: #34d399; }
+
+@keyframes confirm-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.confirm-icon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--tone);
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+}
+.confirm-icon svg {
+  width: 27px;
+  height: 27px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.confirm-modal h2 {
+  margin: 0;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.confirm-sub {
+  margin: 10px 0 20px;
+  max-width: 340px;
+  color: var(--text2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.confirm-steps {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  text-align: left;
+}
+.confirm-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.confirm-num {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--hl);
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid var(--hl-line);
+  border-radius: 8px;
+  background: var(--hl-soft);
+}
+.confirm-steps strong {
+  display: block;
+  color: var(--title);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.confirm-steps small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.confirm-error {
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  color: #fca5a5;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.09);
+}
+
+.confirm-actions {
+  width: 100%;
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.confirm-btn {
+  width: 100%;
+  height: 48px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: filter 0.17s ease, background 0.17s ease, transform 0.17s ease;
+}
+.confirm-btn.ghost {
+  color: var(--title);
+  border: 1px solid var(--line2);
+  background: var(--surface);
+}
+.confirm-btn.ghost:hover:not(:disabled) { background: var(--surface-hover); }
+.confirm-btn.primary {
+  color: var(--color-texto-botones, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--color-botones, #e34d78);
+  box-shadow: 0 12px 28px -12px var(--color-botones, #e34d78);
+}
+.confirm-btn.primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.confirm-btn:disabled { opacity: 0.6; cursor: wait; }
+.confirm-btn:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+  .confirm-modal { padding: 24px 18px 20px; border-radius: 20px; }
+  .confirm-modal h2 { font-size: 21px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm-modal { animation: none; }
 }
 
 @keyframes scan {
