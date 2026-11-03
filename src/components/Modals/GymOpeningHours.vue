@@ -236,7 +236,7 @@
                 <label>Días en que se repite</label>
                 <div class="gh-daychips" role="group">
                   <button v-for="(d, i) in ids" :key="d" type="button" class="gh-daychip" :class="{ on: dlg.dias[d]?.on }" :aria-pressed="!!dlg.dias[d]?.on" @click="alternarDia(d)">
-                    <span>{{ dias[i].slice(0, 3).toUpperCase() }}</span>
+                    <span>{{ nombreDia(d).slice(0, 3).toUpperCase() }}</span>
                   </button>
                 </div>
               </div>
@@ -251,10 +251,10 @@
                 <div v-else class="gh-ranges">
                   <div v-for="d in seleccionados" :key="d" class="gh-range">
                     <strong>{{ dias[ids.indexOf(d)] }}</strong>
-                    <input type="time" v-model="dlg.dias[d].inicio" aria-label="Inicio" />
+                    <input type="time" v-model="rg(d).inicio" aria-label="Inicio" />
                     <i class="bi bi-arrow-right"></i>
-                    <input type="time" v-model="dlg.dias[d].fin" aria-label="Fin" />
-                    <span class="gh-range-dur" :class="{ bad: rangoMin(dlg.dias[d]) <= 0 }">{{ rangoMin(dlg.dias[d]) > 0 ? durTxt(rangoMin(dlg.dias[d])) : 'Revisar' }}</span>
+                    <input type="time" v-model="rg(d).fin" aria-label="Fin" />
+                    <span class="gh-range-dur" :class="{ bad: rangoMin(rg(d)) <= 0 }">{{ rangoMin(rg(d)) > 0 ? durTxt(rangoMin(rg(d))) : 'Revisar' }}</span>
                   </div>
                 </div>
               </div>
@@ -293,7 +293,9 @@ type Bloque = { uid: string; dia: string; titulo: string; color: string; inicio:
 
 const ids = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const PALETA = ['#34d399', '#fb923c', '#60a5fa', '#f87171', '#a78bfa', '#f472b6', '#2dd4bf', '#facc15', '#818cf8', '#a3e635'];
+const COLOR_BASE = '#34d399';
+const PALETA: string[] = ['#34d399', '#fb923c', '#60a5fa', '#f87171', '#a78bfa', '#f472b6', '#2dd4bf', '#facc15', '#818cf8', '#a3e635'];
+const nombreDia = (d: string): string => dias[ids.indexOf(d)] ?? d;
 const nuevos = (): Dia[] => ids.map(dia => ({ dia, abierto: false, apertura: '06:00', cierre: '22:00' }));
 
 const horarios = ref<Dia[]>(nuevos());
@@ -308,6 +310,7 @@ const aviso = ref('');
 const soportaBloques = ref(true);
 const vista = ref<'apertura' | 'semana'>('apertura');
 const bloqueado = computed(() => guardando.value || cargando.value);
+const hor = (d: string): Dia => horarios.value.find(x => x.dia === d) ?? horarios.value[0]!;
 const hoy = (new Date().getDay() + 6) % 7;
 const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -394,11 +397,12 @@ const secciones = computed(() => {
 ========================================================= */
 type Rango = { on: boolean; inicio: string; fin: string };
 const ultimoRango = ref({ inicio: '07:00', fin: '08:00' });
+const SIN_RANGO: Rango = { on: false, inicio: '07:00', fin: '08:00' };
 const dlg = reactive({
   abierto: false,
   edit: null as string | null,
   titulo: '',
-  color: PALETA[0] as string,
+  color: COLOR_BASE as string,
   dias: {} as Record<string, Rango>,
   error: '',
   confirmar: false
@@ -406,7 +410,7 @@ const dlg = reactive({
 
 const siguienteColor = () => {
   const usados = new Set(leyenda.value.map(l => l.color.toLowerCase()));
-  return PALETA.find(c => !usados.has(c)) || PALETA[leyenda.value.length % PALETA.length];
+  return PALETA.find(c => !usados.has(c)) ?? PALETA[leyenda.value.length % PALETA.length] ?? COLOR_BASE;
 };
 
 const abrirDlg = (opts: { titulo?: string; dia?: string; inicio?: string; fin?: string } = {}) => {
@@ -420,13 +424,14 @@ const abrirDlg = (opts: { titulo?: string; dia?: string; inicio?: string; fin?: 
     const existentes = bloques.value.filter(b => clave(b.titulo) === clave(opts.titulo!));
     dlg.edit = clave(opts.titulo);
     dlg.titulo = existentes[0]?.titulo || opts.titulo;
-    dlg.color = existentes[0]?.color || siguienteColor();
+    dlg.color = existentes[0]?.color ?? siguienteColor();
     existentes.forEach(b => { nuevo[b.dia] = { on: true, inicio: b.inicio, fin: b.fin }; });
   } else {
     dlg.edit = null;
     dlg.titulo = '';
     dlg.color = siguienteColor();
-    if (opts.dia && nuevo[opts.dia]) nuevo[opts.dia].on = true;
+    const objetivo = opts.dia ? nuevo[opts.dia] : undefined;
+    if (objetivo) objetivo.on = true;
   }
   dlg.dias = nuevo;
   dlg.abierto = true;
@@ -446,15 +451,17 @@ const alternarDia = (d: string) => {
   r.on = !r.on;
   if (r.on) {
     const otro = seleccionados.value.find(x => x !== d);
-    if (otro && !dlg.edit) { r.inicio = dlg.dias[otro].inicio; r.fin = dlg.dias[otro].fin; }
+    const ref0 = otro ? dlg.dias[otro] : undefined;
+    if (ref0 && !dlg.edit) { r.inicio = ref0.inicio; r.fin = ref0.fin; }
   }
 };
 const mismasHoras = () => {
   const primero = seleccionados.value[0];
   if (!primero) return;
-  const { inicio, fin } = dlg.dias[primero];
-  seleccionados.value.forEach(d => { dlg.dias[d].inicio = inicio; dlg.dias[d].fin = fin; });
+  const { inicio, fin } = rg(primero);
+  seleccionados.value.forEach(d => { const r = dlg.dias[d]; if (r) { r.inicio = inicio; r.fin = fin; } });
 };
+const rg = (d: string): Rango => dlg.dias[d] ?? SIN_RANGO;
 const rangoMin = (r: Rango) => minutos(r.fin) - minutos(r.inicio);
 
 const guardarDlg = () => {
@@ -467,10 +474,10 @@ const guardarDlg = () => {
 
   const candidatos: Bloque[] = [];
   for (const d of seleccionados.value) {
-    const r = dlg.dias[d];
-    const nombreDia = dias[ids.indexOf(d)];
-    if (!HORA_RE.test(r.inicio) || !HORA_RE.test(r.fin)) return void (dlg.error = `Revisa las horas del ${nombreDia}.`);
-    if (rangoMin(r) <= 0) return void (dlg.error = `El ${nombreDia}: la hora de fin debe ser posterior a la de inicio.`);
+    const r = rg(d);
+    const nombre = nombreDia(d);
+    if (!HORA_RE.test(r.inicio) || !HORA_RE.test(r.fin)) return void (dlg.error = `Revisa las horas del ${nombre}.`);
+    if (rangoMin(r) <= 0) return void (dlg.error = `El ${nombre}: la hora de fin debe ser posterior a la de inicio.`);
     candidatos.push({ uid: nuevoUid(), dia: d, titulo, color: dlg.color, inicio: r.inicio, fin: r.fin });
   }
 
@@ -495,7 +502,7 @@ const guardarDlg = () => {
   /* Si el día estaba cerrado (o el bloque queda fuera), se ajusta la apertura */
   let ajustes = 0;
   for (const c of candidatos) {
-    const h = horarios.value[ids.indexOf(c.dia)];
+    const h = hor(c.dia);
     if (!h.abierto) { h.abierto = true; h.apertura = c.inicio; h.cierre = c.fin; ajustes++; }
     else {
       if (minutos(c.inicio) < minutos(h.apertura)) { h.apertura = c.inicio; ajustes++; }
@@ -505,7 +512,7 @@ const guardarDlg = () => {
 
   bloques.value = [...recoloreados, ...candidatos];
   const primero = candidatos[0];
-  ultimoRango.value = { inicio: primero.inicio, fin: primero.fin };
+  if (primero) ultimoRango.value = { inicio: primero.inicio, fin: primero.fin };
   aviso.value = `Bloque «${titulo}» ${claveEdit ? 'actualizado' : 'agregado'}${ajustes ? ' y se ajustó la apertura de los días necesarios' : ''}. Recuerda pulsar «Guardar horario».`;
   exito.value = '';
   cerrarDlg();
@@ -601,7 +608,7 @@ const cargar = async () => {
         uid: nuevoUid(),
         dia: String(b.dia),
         titulo: String(b.titulo || '').trim(),
-        color: COLOR_RE.test(String(b.color)) ? String(b.color) : PALETA[0],
+        color: COLOR_RE.test(String(b.color)) ? String(b.color) : COLOR_BASE,
         inicio: String(b.inicio || '').slice(0, 5),
         fin: String(b.fin || '').slice(0, 5)
       }))
@@ -626,7 +633,7 @@ const guardar = async () => {
     }
   }
   for (const b of bloques.value) {
-    const h = horarios.value[ids.indexOf(b.dia)];
+    const h = hor(b.dia);
     if (!h.abierto || b.inicio < h.apertura || b.fin > h.cierre) {
       error.value = `«${b.titulo}» (${dias[ids.indexOf(b.dia)]}, ${fmt12(b.inicio)} – ${fmt12(b.fin)}) queda fuera del horario de apertura de ese día. Ajusta la apertura o el bloque.`;
       return;
