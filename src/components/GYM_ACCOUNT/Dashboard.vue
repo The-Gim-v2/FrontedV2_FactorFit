@@ -401,8 +401,8 @@
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, h } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
-import AddScheduleModal from '../Modals/AddScheduleModal.vue';
-import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
+import AddScheduleModal from '../Modals/GymOpeningHours.vue';
+import ViewScheduleModal from '../Modals/HorariosAgendaMenu.vue';
 import RegisterGymModal from '../Record/Record-Gym.vue';
 import CorreoMasivo from './Componets/Bulk-Email.vue';
 import AddCorteComponent from './Componets/Cut.vue';
