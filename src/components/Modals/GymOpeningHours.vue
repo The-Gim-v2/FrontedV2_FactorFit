@@ -956,4 +956,55 @@ button:focus-visible, .gh-swatch:focus-within { outline: 2px solid var(--hl); ou
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* ================= AJUSTES MÓVIL (corrección de ancho) ================= */
+.gh-body { overflow-x: hidden; }
+.gh-day, .gh-day-main, .gh-times, .gh-time, .gh-time-box { min-width: 0; }
+
+@media (max-width: 860px) {
+  .gh-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+  .gh-time-box { width: 100%; }
+  .gh-time-box input { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 620px) {
+  .gh-panel { max-height: 94dvh; }
+  .gh-body { padding: 16px 14px; gap: 14px; }
+  .gh-head { padding: 16px 14px; }
+  .gh-symbol { width: 42px; height: 42px; font-size: 1.15rem; }
+  .gh-head h2 { font-size: 18px; }
+  .gh-close { width: 36px; height: 36px; }
+
+  /* Pestañas: ocupan todo el ancho */
+  .gh-segmented { width: 100%; }
+  .gh-segmented button { min-width: 0; font-size: 12.5px; gap: 6px; padding: 0 6px; }
+
+  /* Apertura: tarjeta compacta, Abre / Cierra en 2 columnas */
+  .gh-day { padding: 12px; gap: 12px; }
+  .gh-day-name strong { font-size: 14px; }
+  .gh-time span { font-size: 10.5px; }
+  .gh-time-box i { left: 9px; font-size: 0.85rem; }
+  .gh-time-box input { height: 40px; padding: 0 6px 0 28px; font-size: 13px; border-radius: 10px; }
+  .gh-note { font-size: 12px; padding: 11px 12px; }
+
+  /* Horario semanal: cuadrícula más angosta con scroll suave */
+  .gh-gridwrap { padding: 8px; border-radius: 14px; -webkit-overflow-scrolling: touch; }
+  .gh-grid { min-width: 590px; grid-template-columns: 74px repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .gh-hour { background: var(--card); padding: 0 6px 0 4px; box-shadow: 8px 0 8px -6px rgba(0, 0, 0, 0.45); }
+  .gh-hour span { font-size: 11px; gap: 2px; }
+  .gh-hour.open span { font-size: 9px; letter-spacing: 0.4px; gap: 4px; }
+  .gh-dayhead { min-height: 40px; padding: 4px 2px; }
+  .gh-dayhead strong { font-size: 10.5px; letter-spacing: 0.2px; }
+  .gh-open-chip { min-height: 44px; font-size: 9.5px; white-space: normal; line-height: 1.2; padding: 3px; border-radius: 9px; }
+  .gh-block, .gh-empty { min-height: 54px; border-radius: 10px; }
+  .gh-block span { font-size: 10px; }
+  .gh-legend-item { height: 30px; font-size: 11px; }
+
+  /* Botones del pie y del diálogo */
+  .gh-footer { gap: 8px; }
+  .gh-btn { height: 44px; padding: 0 14px; font-size: 13.5px; }
+  .gh-daychips { gap: 4px; }
+  .gh-daychip { height: 38px; font-size: 10.5px; border-radius: 9px; }
+  .gh-range { padding: 8px; }
+}
 </style>
