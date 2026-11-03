@@ -280,28 +280,28 @@
             <div class="module-section">
               <div class="section-header">
                 <span class="section-eyebrow">{{ ui.schedule }}</span>
-                <h2>{{ t.adminTurnos }}</h2>
+                <h2>{{ ui.scheduleHeading }}</h2>
               </div>
 
               <div class="action-list">
                 <button type="button" class="action-card" @click="activeModal = 'add-schedule'">
                   <div class="action-icon accent">
-                    <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2ZM8 2v4M16 2v4M3 9h18M8 13h3v3H8z"/></svg>
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                   </div>
                   <div class="action-info">
-                    <strong>{{ t.anadirHorario }}</strong>
-                    <span>{{ t.gestionTurnos }}</span>
+                    <strong>{{ ui.gymScheduleTitle }}</strong>
+                    <span>{{ ui.gymScheduleDesc }}</span>
                   </div>
                   <ArrowIcon />
                 </button>
 
                 <button type="button" class="action-card" @click="activeModal = 'view-schedule'">
                   <div class="action-icon accent">
-                    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2ZM8 2v4M16 2v4M3 9h18M12 12v5M9.5 14.5h5"/></svg>
                   </div>
                   <div class="action-info">
-                    <strong>{{ t.verHorario }}</strong>
-                    <span>{{ t.calendarioActivo }}</span>
+                    <strong>{{ ui.eventsTitle }}</strong>
+                    <span>{{ ui.eventsDesc }}</span>
                   </div>
                   <ArrowIcon />
                 </button>
@@ -402,7 +402,7 @@ import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, watch, h } from
 import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
 import AddScheduleModal from '../Modals/GymOpeningHours.vue';
-import ViewScheduleModal from '../Modals/HorariosAgendaMenu.vue';
+import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
 import RegisterGymModal from '../Record/Record-Gym.vue';
 import CorreoMasivo from './Componets/Bulk-Email.vue';
 import AddCorteComponent from './Componets/Cut.vue';
@@ -633,6 +633,11 @@ const dashboardTranslations = {
     GYM_ACCOUNTPanel: 'Panel del gimnasio',
     operation: 'OPERACIÓN',
     schedule: 'AGENDA',
+    scheduleHeading: 'Horarios y Eventos',
+    gymScheduleTitle: 'Añadir Horario',
+    gymScheduleDesc: 'Días y horas de apertura del gimnasio',
+    eventsTitle: 'Añadir Eventos',
+    eventsDesc: 'Clases, torneos y actividades especiales',
     expansion: 'EXPANSIÓN',
     moreTools: 'Operación y configuración',
     branches: 'Sucursales',
@@ -678,6 +683,11 @@ const dashboardTranslations = {
     GYM_ACCOUNTPanel: 'Gym Account Panel',
     operation: 'OPERATIONS',
     schedule: 'SCHEDULE',
+    scheduleHeading: 'Schedules & Events',
+    gymScheduleTitle: 'Add Schedule',
+    gymScheduleDesc: 'Gym opening days and hours',
+    eventsTitle: 'Add Events',
+    eventsDesc: 'Classes, tournaments and special activities',
     expansion: 'EXPANSION',
     moreTools: 'Operations & settings',
     branches: 'Branches',

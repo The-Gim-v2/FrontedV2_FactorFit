@@ -345,39 +345,39 @@ const idioma = ref(localStorage.getItem('owner-idioma') || 'es');
 const cargando=ref(false);const guardando=ref(false);const errorApi=ref('');
 const translations = {
   es: {
-    deleteTitle: '¿Eliminar actividad?', deletePrefix: 'Se quitará', deleteFromSchedule: 'de la agenda',
+    deleteTitle: '¿Eliminar evento?', deletePrefix: 'Se quitará', deleteFromSchedule: 'de la agenda',
     deleteWarning: 'Esta acción no se puede deshacer.', cancel: 'Cancelar', yesDelete: 'Sí, eliminar',
-    gymSchedule: 'AGENDA DEL GIMNASIO', scheduleTitle: 'Horario', weekly: 'Semanal',
-    headerDescription: 'Consulta y administra las actividades programadas.', close: 'Cerrar',
+    gymSchedule: 'AGENDA DE EVENTOS', scheduleTitle: 'Eventos', weekly: 'Semanales',
+    headerDescription: 'Agrega y administra los eventos del gimnasio.', close: 'Cerrar',
     previousWeek: 'Semana anterior', today: 'Hoy', nextWeek: 'Semana siguiente',
-    scheduled: 'Programado', available: 'Disponible', newActivity: 'Nueva actividad',
-    activities: 'Actividades', totalCapacity: 'Cupos totales', instructors: 'Instructores',
+    scheduled: 'Programado', available: 'Disponible', newActivity: 'Nuevo evento',
+    activities: 'Eventos', totalCapacity: 'Cupos totales', instructors: 'Responsables',
     scheduledHours: 'Horas agendadas', hour: 'HORA', todayUpper: 'HOY',
-    activity: 'actividad', activitiesLower: 'actividades', edit: 'Editar', delete: 'Eliminar',
-    editActivity: 'Editar actividad', deleteActivity: 'Eliminar actividad', schedule: 'Agendar',
-    daySchedule: 'AGENDA DEL DÍA', people: 'personas', availableSchedule: 'Horario disponible',
-    footerHint: 'Selecciona un espacio libre para registrar una nueva actividad.',
+    activity: 'evento', activitiesLower: 'eventos', edit: 'Editar', delete: 'Eliminar',
+    editActivity: 'Editar evento', deleteActivity: 'Eliminar evento', schedule: 'Agendar',
+    daySchedule: 'AGENDA DEL DÍA', people: 'personas', availableSchedule: 'Espacio libre',
+    footerHint: 'Selecciona un espacio libre para registrar un nuevo evento.',
     closeSchedule: 'Cerrar agenda',
-    conflictPrefix: 'Ya existe', conflictOn: 'el', conflictAt: 'a las', conflictChoose: 'Elige otra hora.',
+    conflictPrefix: 'Ya existe el evento', conflictOn: 'el', conflictAt: 'a las', conflictChoose: 'Elige otra hora.',
     updated: 'se actualizó.', added: 'se agregó a la agenda.', removed: 'fue eliminada de la agenda.',
     levelBeginner: 'Principiante', levelIntermediate: 'Intermedio', levelAdvanced: 'Avanzado',
     levelAll: 'Todos'
   },
   en: {
-    deleteTitle: 'Delete activity?', deletePrefix: 'This will remove', deleteFromSchedule: 'from the schedule',
+    deleteTitle: 'Delete event?', deletePrefix: 'This will remove', deleteFromSchedule: 'from the schedule',
     deleteWarning: 'This action cannot be undone.', cancel: 'Cancel', yesDelete: 'Yes, delete',
-    gymSchedule: 'GYM SCHEDULE', scheduleTitle: 'Weekly', weekly: 'Schedule',
-    headerDescription: 'View and manage scheduled activities.', close: 'Close',
+    gymSchedule: 'EVENT SCHEDULE', scheduleTitle: 'Weekly', weekly: 'Events',
+    headerDescription: 'Add and manage the gym events.', close: 'Close',
     previousWeek: 'Previous week', today: 'Today', nextWeek: 'Next week',
-    scheduled: 'Scheduled', available: 'Available', newActivity: 'New activity',
-    activities: 'Activities', totalCapacity: 'Total capacity', instructors: 'Instructors',
+    scheduled: 'Scheduled', available: 'Available', newActivity: 'New event',
+    activities: 'Events', totalCapacity: 'Total capacity', instructors: 'Hosts',
     scheduledHours: 'Scheduled hours', hour: 'TIME', todayUpper: 'TODAY',
-    activity: 'activity', activitiesLower: 'activities', edit: 'Edit', delete: 'Delete',
-    editActivity: 'Edit activity', deleteActivity: 'Delete activity', schedule: 'Schedule',
-    daySchedule: 'DAY SCHEDULE', people: 'people', availableSchedule: 'Available time',
-    footerHint: 'Select an available time slot to schedule a new activity.',
+    activity: 'event', activitiesLower: 'events', edit: 'Edit', delete: 'Delete',
+    editActivity: 'Edit event', deleteActivity: 'Delete event', schedule: 'Schedule',
+    daySchedule: 'DAY SCHEDULE', people: 'people', availableSchedule: 'Free slot',
+    footerHint: 'Select a free time slot to add a new event.',
     closeSchedule: 'Close schedule',
-    conflictPrefix: 'There is already', conflictOn: 'on', conflictAt: 'at', conflictChoose: 'Choose another time.',
+    conflictPrefix: 'There is already the event', conflictOn: 'on', conflictAt: 'at', conflictChoose: 'Choose another time.',
     updated: 'was updated.', added: 'was added to the schedule.', removed: 'was removed from the schedule.',
     levelBeginner: 'Beginner', levelIntermediate: 'Intermediate', levelAdvanced: 'Advanced',
     levelAll: 'All levels'
@@ -587,12 +587,12 @@ const validateActivity = (data: Record<string, any>) => {
     : null;
 };
 /* GUARDAR (nueva o editada) */
-const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||''})});closeForm();await cargarActividades();showToast(data.id?'Actividad actualizada.':'Actividad registrada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
+const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||''})});closeForm();await cargarActividades();showToast(data.id?'Evento actualizado.':'Evento registrado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 /* ELIMINAR */
 const askDelete = (activity: Activity) => {
   pendingDelete.value = activity;
 };
-const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Actividad eliminada.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
+const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Evento eliminado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 const previousWeek = () => {
   const date = new Date(currentDate.value);
   date.setDate(date.getDate() - 7);
@@ -659,7 +659,7 @@ button { font: inherit; }
   --line-soft: var(--w6);
   --text-2: rgba(245,245,244,.64);
   --text-3: rgba(245,245,244,.42);
-  --row: 100px;
+  --row: 104px;
   position: relative;
   width: 100%;
   display: flex;
@@ -900,13 +900,14 @@ button { font: inherit; }
   box-shadow: 0 10px 22px rgba(0,0,0,.32);
 }
 .event-accent { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; background: var(--event-color); }
+.activity-event > * { flex-shrink: 0; }
 .event-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .event-time { color: var(--event-color); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .event-capacity { display: flex; align-items: center; gap: 4px; color: var(--text-2); font-size: 11px; font-weight: 650; }
 .event-capacity svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
 .activity-event > strong {
   display: block;
-  margin: 4px 0 5px;
+  margin: 3px 0 4px;
   overflow: hidden;
   color: var(--title);
   font-family: 'Oswald', sans-serif;
@@ -916,7 +917,7 @@ button { font: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.event-detail { margin-top: 2px; display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--text-2); }
+.event-detail { margin-top: 1px; display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--text-2); }
 .event-detail svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .event-detail span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .event-progress { position: absolute; right: 0; bottom: 0; left: 4px; height: 3px; background: var(--w6); }
