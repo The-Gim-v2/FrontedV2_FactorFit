@@ -218,6 +218,20 @@
             </button>
           </div>
         </template>
+        <!-- CIERRES POR FESTIVOS Y HORARIOS ESPECIALES -->
+        <section class="gh-exceptions">
+          <h3><i class="bi bi-calendar-event"></i> Festivos y cierres especiales</h3>
+          <p>Esta configuración tiene prioridad sobre la apertura semanal y se mostrará a los miembros de esta sede.</p>
+          <form class="gh-ex-form" @submit.prevent="guardarExcepcion">
+            <label>Fecha<input v-model="exForm.fecha" type="date" required :disabled="bloqueado || guardandoExcepcion" /></label>
+            <label>Tipo<select v-model="exForm.tipo" :disabled="bloqueado || guardandoExcepcion"><option value="cerrado">Cerrado por festivo o imprevisto</option><option value="especial">Horario especial</option><option value="abierto">Abierto todo el día (excepcional)</option></select></label>
+            <label>Motivo<input v-model.trim="exForm.motivo" type="text" maxlength="200" placeholder="Ej. Día festivo, mantenimiento" required :disabled="bloqueado || guardandoExcepcion" /></label>
+            <template v-if="exForm.tipo === 'especial'"><label>Apertura<input v-model="exForm.apertura" type="time" required /></label><label>Cierre<input v-model="exForm.cierre" type="time" required /></label></template>
+            <button type="submit" class="gh-btn primary" :disabled="bloqueado || guardandoExcepcion">{{ guardandoExcepcion ? 'Guardando...' : 'Guardar fecha especial' }}</button>
+          </form>
+          <div v-for="x in excepciones" :key="x.fecha" class="gh-ex-row"><div><strong>{{ x.fecha }} · {{ x.tipo === 'cerrado' ? 'Cerrado' : x.tipo === 'especial' ? 'Horario especial' : 'Abierto extraordinariamente' }}</strong><small>{{ x.motivo }} {{ x.tipo === 'especial' ? `(${x.apertura}–${x.cierre})` : '' }}</small></div><button class="gh-btn ghost sm" type="button" :disabled="bloqueado || guardandoExcepcion" @click="eliminarExcepcion(x.fecha)"><i class="bi bi-trash"></i> Eliminar</button></div>
+          <p v-if="estadoActual"><strong>Estado actual:</strong> {{ estadoActual.abierto ? 'Abierto' : 'Cerrado' }} · {{ estadoActual.motivo }} <span v-if="estadoActual.apertura">({{ estadoActual.apertura }}–{{ estadoActual.cierre }})</span></p>
+        </section>
       </div>
 
       <!-- ================= FOOTER ================= -->
@@ -344,6 +358,7 @@ const error = ref('');
 const exito = ref('');
 const aviso = ref('');
 const soportaBloques = ref(true);
+const excepciones=ref<any[]>([]);const estadoActual=ref<any>(null);const guardandoExcepcion=ref(false);const exForm=reactive({fecha:'',tipo:'cerrado',motivo:'',apertura:'09:00',cierre:'18:00'});
 const vista = ref<'apertura' | 'semana'>('apertura');
 const bloqueado = computed(() => guardando.value || cargando.value);
 const hor = (d: string): Dia => horarios.value.find(x => x.dia === d) ?? horarios.value[0]!;
@@ -639,6 +654,7 @@ const cargar = async () => {
         ? { dia: x.dia, abierto: !!found.abierto, apertura: String(found.apertura || x.apertura).slice(0, 5), cierre: String(found.cierre || x.cierre).slice(0, 5) }
         : x;
     });
+    excepciones.value=Array.isArray(d.excepciones)?d.excepciones:[];estadoActual.value=d.estado||null;
     soportaBloques.value = Array.isArray(d.bloques);
     bloques.value = (Array.isArray(d.bloques) ? d.bloques : [])
       .map((b: any): Bloque => ({
@@ -686,6 +702,7 @@ const guardar = async () => {
     aviso.value = '';
     exito.value = 'El horario del gimnasio se guardó correctamente.';
     emit('saved', { horarios: horarios.value, bloques: bloques.value });
+    window.dispatchEvent(new CustomEvent('factorfit:gym-hours-updated',{detail:{sede_id:sede.value}}));
   } catch (e: any) {
     error.value = e?.message || 'No se pudo guardar.';
   } finally {
@@ -693,6 +710,9 @@ const guardar = async () => {
   }
 };
 
+const guardarExcepcion=async()=>{if(guardandoExcepcion.value||bloqueado.value)return;error.value='';exito.value='';if(exForm.tipo==='especial'&&exForm.apertura>=exForm.cierre){error.value='La hora de cierre debe ser posterior a la apertura.';return;}guardandoExcepcion.value=true;try{await requestExcepcion('PUT','',exForm);exito.value='Fecha especial guardada correctamente.';await cargar();exito.value='Fecha especial guardada correctamente.';emit('saved',{excepcion:true});window.dispatchEvent(new CustomEvent('factorfit:gym-hours-updated',{detail:{sede_id:sede.value}}));}catch(e:any){error.value=e.message||'No se pudo guardar.';}finally{guardandoExcepcion.value=false;}};
+const eliminarExcepcion=async(fecha:string)=>{if(guardandoExcepcion.value||bloqueado.value)return;guardandoExcepcion.value=true;error.value='';try{await requestExcepcion('DELETE',`/${encodeURIComponent(fecha)}`);await cargar();exito.value='Fecha especial eliminada.';window.dispatchEvent(new CustomEvent('factorfit:gym-hours-updated',{detail:{sede_id:sede.value}}));}catch(e:any){error.value=e.message||'No se pudo eliminar.';}finally{guardandoExcepcion.value=false;}};
+const requestExcepcion=async(method:'PUT'|'DELETE',extra='',body?:object)=>{const token=getToken();if(!token)throw new Error('Sesión vencida.');const r=await fetch(`${base}/api/gym/horario-excepciones${extra}?sede_id=${sede.value}`,{method,headers:{Accept:'application/json',Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify({...body,sede_id:sede.value})}:{})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.errors?Object.values(d.errors).flat().join(' '):d?.message||`Error HTTP ${r.status}`);return d;};
 const cambioSede = () => { cerrarDlg(); void cargar(); };
 const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && dlg.abierto) { e.stopPropagation(); cerrarDlg(); } };
 onMounted(() => {
@@ -1063,4 +1083,6 @@ button:focus-visible, .gh-swatch:focus-within { outline: 2px solid var(--hl); ou
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+.gh-exceptions{margin:26px 0 8px;padding:20px;border:1px solid var(--line-strong);border-radius:16px;background:var(--w3)}
+.gh-exceptions h3{margin:0 0 7px;color:var(--title);font-family:Oswald,sans-serif;font-size:19px}.gh-exceptions p{color:var(--text-2);font-size:12px}.gh-ex-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}.gh-ex-form label{display:flex;flex-direction:column;gap:6px;color:var(--text-2);font-size:12px}.gh-ex-form input,.gh-ex-form select{width:100%;height:43px;min-width:0;padding:8px;color:var(--text);background:var(--field);border:1px solid var(--line-strong);border-radius:10px;color-scheme:dark}.gh-ex-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px;border-bottom:1px solid var(--line)}.gh-ex-row div{display:flex;flex-direction:column;gap:4px;min-width:0}.gh-ex-row strong{color:var(--title);font-size:12px}.gh-ex-row small{color:var(--text-2);font-size:11px}@media(max-width:650px){.gh-ex-form{grid-template-columns:1fr}.gh-ex-row{align-items:flex-start;flex-direction:column}}
 </style>

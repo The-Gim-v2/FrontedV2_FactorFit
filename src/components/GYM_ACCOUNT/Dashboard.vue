@@ -3,6 +3,7 @@
     <div class="dashboard">
       <main class="dashboard-container">
 
+        <p v-if="gymStatusError" class="dashboard-data-error" role="alert">{{ gymStatusError }}</p>
         <p v-if="profileError" class="dashboard-data-error" role="alert">{{ profileError }} <button type="button" @click="loadDashboard">{{ ui.retry }}</button></p>
         <p v-if="metricsError" class="dashboard-data-error" role="alert">{{ metricsError }}</p>
         <!-- 1. ENCABEZADO -->
@@ -31,6 +32,7 @@
               type="button"
               class="status-pill"
               :class="isGymOpen ? 'open' : 'closed'"
+              :title="gymStatus ? `${gymStatus.motivo} · ${gymStatus.apertura || '—'}–${gymStatus.cierre || '—'} · Clic para cambiar el estado de hoy` : 'Consultar horario del gimnasio'"
               @click="toggleGymStatus"
             >
               <span class="status-dot"></span>
@@ -345,7 +347,7 @@
       <!-- MODALES -->
       <transition name="pop">
         <div v-if="activeModal" class="modal-overlay" @click.self="closeModal">
-          <AddScheduleModal v-if="activeModal === 'add-schedule'" @close="closeModal" />
+          <AddScheduleModal v-if="activeModal === 'add-schedule'" @close="closeModal" @saved="loadGymStatus" />
           <ViewScheduleModal v-if="activeModal === 'view-schedule'" @close="closeModal" />
           <CorreoMasivo v-if="activeModal === 'enviomasivo'" @close="closeModal" />
           <AddCorteComponent v-if="activeModal === 'corte'" @close="closeModal" />
@@ -415,7 +417,7 @@ const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const activeModal = ref(null);
 const showBranchModal = ref(false);
 const videoPlayer = ref(null);
-const isGymOpen = ref(true);
+const isGymOpen = ref(false);const gymStatus=ref(null);const gymStatusError=ref('');let statusTimer=null;
 const billingStatus = ref('active');
 
 let stream = null;
@@ -545,15 +547,15 @@ const onBranchChanged = (event) => {
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedBranchId());
   branchFromEvent.value = Number.isInteger(id) && id > 0 ? id : 0;
-  void loadDashboard();
+  void loadDashboard();void loadGymStatus();
 };
 const onProfileUpdated = (event) => {
   const changed = Number(event.detail?.sede_id || 0);
   if (!changed || changed === sedeId()) void loadDashboard();
 };
-const onFocus = () => { void loadDashboard(); };
-const onVisible = () => { if (document.visibilityState === 'visible') void loadDashboard(); };
-watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadDashboard(); });
+const onFocus = () => { void loadDashboard();void loadGymStatus(); };
+const onVisible = () => { if (document.visibilityState === 'visible') { void loadDashboard();void loadGymStatus(); } };
+watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadDashboard();void loadGymStatus(); });
 
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
@@ -853,10 +855,8 @@ const billingStatusText = computed(() => {
   return t.value.bloqueadoPago;
 });
 
-const toggleGymStatus = () => {
-  isGymOpen.value = !isGymOpen.value;
-  localStorage.setItem('isGymOpen', JSON.stringify(isGymOpen.value));
-};
+const loadGymStatus=async()=>{try{const d=await apiGet(`/api/gym/estado?sede_id=${sedeId()}`);gymStatus.value=d.estado||null;isGymOpen.value=!!d.estado?.abierto;gymStatusError.value='';}catch(e){gymStatus.value=null;isGymOpen.value=false;gymStatusError.value=e?.message||'No se pudo consultar el estado del gimnasio.';}};
+const toggleGymStatus=async()=>{const siguiente=isGymOpen.value?'cerrado':'abierto';const mensaje=siguiente==='cerrado'?'¿Cerrar el gimnasio durante el resto del día? Los miembros verán que está cerrado.':'¿Marcar el gimnasio abierto durante el resto del día, incluso fuera de su horario habitual?';if(!window.confirm(mensaje))return;try{const token=getToken();const r=await fetch(`${API}/api/gym/estado?sede_id=${sedeId()}`,{method:'PUT',headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({sede_id:sedeId(),estado:siguiente,motivo:'Cambio manual desde Dashboard'})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||`Error HTTP ${r.status}`);gymStatus.value=d.estado;isGymOpen.value=!!d.estado?.abierto;gymStatusError.value='';}catch(e){gymStatusError.value=e?.message||'No se pudo actualizar el estado.';}};
 
 /* =========================================================
    IDIOMA
@@ -947,19 +947,12 @@ const handleKeydown = (event) => {
 ========================================================= */
 
 onMounted(() => {
-  const saved = localStorage.getItem('isGymOpen');
-
-  if (saved !== null) {
-    try {
-      isGymOpen.value = JSON.parse(saved);
-    } catch {
-      /* valor inválido: se queda el predeterminado */
-    }
-  }
+  void loadGymStatus();statusTimer=window.setInterval(()=>void loadGymStatus(),60000);
 
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
   window.addEventListener('factorfit:gym-profile-updated', onProfileUpdated);
+  window.addEventListener('factorfit:gym-hours-updated', loadGymStatus);
   window.addEventListener('focus', onFocus);
   document.addEventListener('visibilitychange', onVisible);
   void loadDashboard();
@@ -971,6 +964,8 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('factorfit:branch-changed', onBranchChanged);
   window.removeEventListener('factorfit:gym-profile-updated', onProfileUpdated);
+  window.removeEventListener('factorfit:gym-hours-updated', loadGymStatus);
+  if(statusTimer!==null)window.clearInterval(statusTimer);
   window.removeEventListener('focus', onFocus);
   document.removeEventListener('visibilitychange', onVisible);
   window.removeEventListener('keydown', handleKeydown);

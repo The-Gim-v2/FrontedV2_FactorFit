@@ -24,14 +24,14 @@
       </button>
     </div>
 
-    <WeeklySchedule v-if="vista === 'eventos'" @close="vista = null" />
+    <ViewScheduleModal v-if="vista === 'eventos'" @close="vista = null" />
     <GymOpeningHours v-if="vista === 'gimnasio'" @close="vista = null" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import WeeklySchedule from './ViewScheduleModal.vue';
+import ViewScheduleModal from './ViewScheduleModal.vue';
 import GymOpeningHours from './GymOpeningHours.vue';
 
 const vista = ref<'eventos' | 'gimnasio' | null>(null);
