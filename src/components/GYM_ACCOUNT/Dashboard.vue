@@ -352,26 +352,7 @@
           <CorreoMasivo v-if="activeModal === 'enviomasivo'" @close="closeModal" />
           <AddCorteComponent v-if="activeModal === 'corte'" @close="closeModal" />
 
-          <div v-if="activeModal === 'facial' || activeModal === 'scanner'" class="camera-panel">
-            <div class="camera-header">
-              <div>
-                <span>{{ ui.accessControl }}</span>
-                <h3>{{ activeModal === 'facial' ? t.escaneoFacialTitle : t.escaneandoQrTitle }}</h3>
-              </div>
-              <button type="button" @click="closeModal">&times;</button>
-            </div>
-
-            <div class="camera-container">
-              <video ref="videoPlayer" autoplay playsinline></video>
-              <div v-if="activeModal === 'facial'" class="face-overlay"></div>
-              <div v-else class="qr-overlay"><div class="scanner-line"></div></div>
-            </div>
-
-            <div class="camera-footer">
-              <p>{{ activeModal === 'facial' ? t.instruccionFacial : t.instruccionQr }}</p>
-              <button type="button" @click="closeModal">{{ t.cancelar }}</button>
-            </div>
-          </div>
+           <AccessAttendanceModal v-if="activeModal === 'facial' || activeModal === 'scanner'" :mode="activeModal" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
         </div>
       </transition>
 
@@ -438,6 +419,7 @@ import RegisterGymModal from '../Record/Record-Gym.vue';
 import CorreoMasivo from './Componets/Bulk-Email.vue';
 import AddCorteComponent from './Componets/Cut.vue';
 import HeadingAdmin from './HeadingGYM_ACCOUNT.vue';
+import AccessAttendanceModal from '../Modals/AccessAttendanceModal.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -576,15 +558,15 @@ const onBranchChanged = (event) => {
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedBranchId());
   branchFromEvent.value = Number.isInteger(id) && id > 0 ? id : 0;
-  void loadDashboard();void loadGymStatus();
+  void loadDashboard();void loadGymStatus();void loadAccessAlerts();
 };
 const onProfileUpdated = (event) => {
   const changed = Number(event.detail?.sede_id || 0);
   if (!changed || changed === sedeId()) void loadDashboard();
 };
-const onFocus = () => { void loadDashboard();void loadGymStatus(); };
-const onVisible = () => { if (document.visibilityState === 'visible') { void loadDashboard();void loadGymStatus(); } };
-watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadDashboard();void loadGymStatus(); });
+const onFocus = () => { void loadDashboard();void loadGymStatus();void loadAccessAlerts(); };
+const onVisible = () => { if (document.visibilityState === 'visible') { void loadDashboard();void loadGymStatus();void loadAccessAlerts(); } };
+watch(() => route.query.sede_id, () => { branchFromEvent.value = 0; void loadDashboard();void loadGymStatus();void loadAccessAlerts(); });
 
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
@@ -807,8 +789,8 @@ const recentActivity = computed(() => {
 });
 const alertOrder = { danger: 0, warning: 1, info: 2 };
 const alerts = computed(() => {
-  if (!ingresosLoaded.value) return [];
-  const result = [];
+  const result = alertasAcceso.value.slice(0,5).map(a=>({title:'Asistencia con advertencia de pago',subtitle:a.Descripcion,level:'warning',route:'/GYM_ACCOUNT/attendance'}));
+  if (!ingresosLoaded.value) return result;
   if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ACCOUNT/debtors' });
   if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ACCOUNT/renewals' });
   if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ACCOUNT/renewals' });
@@ -976,38 +958,10 @@ const stopStream = () => {
   }
 };
 
-const openCamera = async (type) => {
-  activeModal.value = type;
-
-  setTimeout(async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('getUserMedia no disponible');
-      }
-
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: type === 'scanner' ? 'environment' : 'user' }
-      });
-
-      /* Si el usuario cerró el modal mientras se pedía el permiso,
-         se apaga la cámara para que no quede encendida en segundo plano */
-      if (activeModal.value !== type) {
-        newStream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      stream = newStream;
-
-      if (videoPlayer.value) {
-        videoPlayer.value.srcObject = stream;
-      }
-    } catch (err) {
-      console.error(err);
-      alert(ui.value.cameraError);
-      activeModal.value = null;
-    }
-  }, 100);
-};
+const openCamera=(type)=>{activeModal.value=type;};
+const onAttendanceRegistered=()=>{void loadDashboard();void loadAccessAlerts();};
+const alertasAcceso=ref([]);
+const loadAccessAlerts=async()=>{try{const d=await apiGet(`/api/gym/control-acceso/alertas?sede_id=${sedeId()}`);alertasAcceso.value=Array.isArray(d.alertas)?d.alertas:[];}catch{alertasAcceso.value=[];}};
 
 const closeModal = () => {
   stopStream();
@@ -1033,7 +987,7 @@ const handleKeydown = (event) => {
 ========================================================= */
 
 onMounted(() => {
-  void loadGymStatus();statusTimer=window.setInterval(()=>void loadGymStatus(),60000);
+  void loadGymStatus();statusTimer=window.setInterval(()=>{void loadGymStatus();void loadAccessAlerts();},60000);
 
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
@@ -1041,7 +995,7 @@ onMounted(() => {
   window.addEventListener('factorfit:gym-hours-updated', loadGymStatus);
   window.addEventListener('focus', onFocus);
   document.addEventListener('visibilitychange', onVisible);
-  void loadDashboard();
+  void loadDashboard();void loadAccessAlerts();
   window.addEventListener('keydown', handleKeydown);
 });
 
