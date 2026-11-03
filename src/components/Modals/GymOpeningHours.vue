@@ -7,8 +7,8 @@
           <span class="gh-symbol"><i class="bi bi-clock-history"></i></span>
           <div>
             <small>CONFIGURACIÓN DEL GIMNASIO</small>
-            <h2 id="gh-title">HORARIO <span>DEL GIMNASIO</span></h2>
-            <p>Define los días y las horas en que abre tu sede.</p>
+            <h2 id="gh-title">HORARIOS <span>DEL GIMNASIO</span></h2>
+            <p>Sede {{ sede }} · Define cuándo abres y, si quieres, las clases o bloques de cada día.</p>
           </div>
         </div>
         <button class="gh-close" type="button" aria-label="Cerrar" @click="emit('close')"><i class="bi bi-x-lg"></i></button>
@@ -18,113 +18,170 @@
         <!-- ================= RESUMEN ================= -->
         <div class="gh-stats">
           <article class="gh-stat">
-            <span class="gh-stat-icon"><i class="bi bi-building"></i></span>
-            <div><strong>Sede {{ sede }}</strong><small>SEDE SELECCIONADA</small></div>
-          </article>
-          <article class="gh-stat">
             <span class="gh-stat-icon ok"><i class="bi bi-door-open"></i></span>
             <div><strong>{{ abiertos }} <em>de 7</em></strong><small>DÍAS ABIERTOS</small></div>
           </article>
           <article class="gh-stat">
             <span class="gh-stat-icon warm"><i class="bi bi-stopwatch"></i></span>
-            <div><strong>{{ horasSemana }} h</strong><small>HORAS A LA SEMANA</small></div>
+            <div><strong>{{ horasSemana }} h</strong><small>ABIERTO A LA SEMANA</small></div>
+          </article>
+          <article class="gh-stat">
+            <span class="gh-stat-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+            <div><strong>{{ bloques.length }} <em>{{ leyenda.length }} {{ leyenda.length === 1 ? 'clase' : 'clases' }}</em></strong><small>BLOQUES EN LA SEMANA</small></div>
           </article>
         </div>
 
-        <p v-if="error" class="gh-alert error" role="alert"><i class="bi bi-exclamation-triangle"></i>{{ error }}</p>
-        <p v-if="exito" class="gh-alert success" role="status"><i class="bi bi-check-circle"></i>{{ exito }}</p>
+        <p v-if="error" class="gh-alert error" role="alert"><i class="bi bi-exclamation-triangle"></i><span>{{ error }}</span></p>
+        <p v-if="exito" class="gh-alert success" role="status"><i class="bi bi-check-circle"></i><span>{{ exito }}</span></p>
+        <p v-if="aviso && !exito" class="gh-alert info" role="status"><i class="bi bi-info-circle"></i><span>{{ aviso }}</span></p>
+        <p v-if="!soportaBloques" class="gh-alert warn" role="status">
+          <i class="bi bi-hdd-network"></i>
+          <span>El servidor todavía no devuelve «bloques». Podrás armarlos aquí, pero no se conservarán hasta que el endpoint <b>horario-funcionamiento</b> los acepte.</span>
+        </p>
 
-        <!-- ================= BARRA DE HERRAMIENTAS ================= -->
+        <!-- ================= TABS ================= -->
         <div class="gh-toolbar">
           <div class="gh-segmented" role="tablist" :style="{ '--i': vista === 'semana' ? 1 : 0 }">
             <span class="gh-thumb"></span>
-            <button type="button" role="tab" :aria-selected="vista === 'dia'" :class="{ active: vista === 'dia' }" @click="vista = 'dia'">
-              <i class="bi bi-sliders"></i>Por día
+            <button type="button" role="tab" :aria-selected="vista === 'apertura'" :class="{ active: vista === 'apertura' }" @click="vista = 'apertura'">
+              <i class="bi bi-door-open"></i>Apertura
             </button>
             <button type="button" role="tab" :aria-selected="vista === 'semana'" :class="{ active: vista === 'semana' }" @click="vista = 'semana'">
-              <i class="bi bi-calendar-week"></i>Semana
+              <i class="bi bi-calendar-week"></i>Horario semanal
             </button>
           </div>
 
-          <div class="gh-presets">
+          <div v-if="vista === 'apertura'" class="gh-presets">
             <button type="button" class="gh-chip" :disabled="bloqueado" @click="abrirLunesViernes"><i class="bi bi-briefcase"></i>Lun – Vie</button>
             <button type="button" class="gh-chip" :disabled="bloqueado" @click="abrirTodos"><i class="bi bi-calendar-check"></i>Todos los días</button>
             <button type="button" class="gh-chip" :disabled="bloqueado || !abiertos" @click="copiarATodos" title="Copia el horario del primer día abierto a los demás días abiertos">
               <i class="bi bi-copy"></i>Copiar a todos
             </button>
           </div>
+          <button v-else type="button" class="gh-btn primary sm" :disabled="bloqueado" @click="abrirDlg()">
+            <i class="bi bi-plus-lg"></i>Añadir bloque
+          </button>
         </div>
 
-        <!-- ================= VISTA: POR DÍA ================= -->
-        <div v-if="vista === 'dia'" class="gh-list">
-          <article v-for="(dia, i) in horarios" :key="dia.dia" class="gh-day" :class="{ closed: !dia.abierto, today: i === hoy }">
-            <div class="gh-day-main">
-              <label class="gh-switch" :aria-label="`${dias[i]} abierto`">
-                <input type="checkbox" v-model="dia.abierto" :disabled="bloqueado" />
-                <span class="gh-track"></span>
-              </label>
-              <div class="gh-day-name">
-                <strong>{{ dias[i] }}<span v-if="i === hoy" class="gh-today">HOY</span></strong>
-                <small :class="{ on: dia.abierto }">
-                  <i class="bi" :class="dia.abierto ? 'bi-circle-fill' : 'bi-moon-stars'"></i>
-                  {{ dia.abierto ? 'Abierto al público' : 'Cerrado' }}
-                </small>
+        <!-- ============================================================
+             TAB 1: APERTURA (simple: abierto de X a Y)
+        ============================================================ -->
+        <template v-if="vista === 'apertura'">
+          <div class="gh-list">
+            <article v-for="(dia, i) in horarios" :key="dia.dia" class="gh-day" :class="{ closed: !dia.abierto, today: i === hoy }">
+              <div class="gh-day-main">
+                <label class="gh-switch" :aria-label="`${dias[i]} abierto`">
+                  <input type="checkbox" v-model="dia.abierto" :disabled="bloqueado" />
+                  <span class="gh-track"></span>
+                </label>
+                <div class="gh-day-name">
+                  <strong>{{ dias[i] }}<span v-if="i === hoy" class="gh-today">HOY</span></strong>
+                  <small :class="{ on: dia.abierto }">
+                    <i class="bi" :class="dia.abierto ? 'bi-circle-fill' : 'bi-moon-stars'"></i>
+                    {{ dia.abierto ? 'Abierto al público' : 'Cerrado' }}
+                  </small>
+                </div>
               </div>
-            </div>
 
-            <div class="gh-times" :class="{ off: !dia.abierto }">
-              <label class="gh-time">
-                <span>Abre</span>
-                <div class="gh-time-box">
-                  <i class="bi bi-sunrise"></i>
-                  <input type="time" v-model="dia.apertura" :disabled="!dia.abierto || bloqueado" />
-                </div>
-              </label>
-              <i class="bi bi-arrow-right gh-arrow"></i>
-              <label class="gh-time">
-                <span>Cierra</span>
-                <div class="gh-time-box">
-                  <i class="bi bi-sunset"></i>
-                  <input type="time" v-model="dia.cierre" :disabled="!dia.abierto || bloqueado" />
-                </div>
-              </label>
-              <span class="gh-duration" :class="{ bad: dia.abierto && duracion(dia) <= 0 }">
-                {{ dia.abierto ? textoDuracion(dia) : '—' }}
-              </span>
-            </div>
-          </article>
-        </div>
+              <div class="gh-times" :class="{ off: !dia.abierto }">
+                <label class="gh-time">
+                  <span>Abre</span>
+                  <div class="gh-time-box">
+                    <i class="bi bi-sunrise"></i>
+                    <input type="time" v-model="dia.apertura" :disabled="!dia.abierto || bloqueado" />
+                  </div>
+                </label>
+                <i class="bi bi-arrow-right gh-arrow"></i>
+                <label class="gh-time">
+                  <span>Cierra</span>
+                  <div class="gh-time-box">
+                    <i class="bi bi-sunset"></i>
+                    <input type="time" v-model="dia.cierre" :disabled="!dia.abierto || bloqueado" />
+                  </div>
+                </label>
+                <span class="gh-duration" :class="{ bad: dia.abierto && duracion(dia) <= 0 }">
+                  {{ dia.abierto ? textoDuracion(dia) : '—' }}
+                </span>
+              </div>
+            </article>
+          </div>
 
-        <!-- ================= VISTA: SEMANA ================= -->
-        <div v-else class="gh-week">
-          <div class="gh-scale">
-            <span class="gh-scale-label">DÍA</span>
-            <div class="gh-scale-track">
-              <span v-for="h in marcas" :key="h" :style="{ left: pct(h * 60) + '%' }">{{ etiquetaHora(h) }}</span>
+          <div class="gh-note">
+            <i class="bi bi-lightbulb"></i>
+            <span>Con esto basta: por ejemplo <b>abierto de 6:00 a 11:00</b>. Si además quieres mostrar clases con nombre y color, ve a <b>Horario semanal</b>.</span>
+          </div>
+        </template>
+
+        <!-- ============================================================
+             TAB 2: HORARIO SEMANAL (bloques con título y color)
+        ============================================================ -->
+        <template v-else>
+          <div class="gh-gridwrap">
+            <div class="gh-grid">
+              <!-- Cabecera de días -->
+              <div class="gh-cell gh-corner">HORA</div>
+              <div v-for="(d, i) in dias" :key="d" class="gh-dayhead" :class="{ today: i === hoy }">
+                <strong>{{ d.toUpperCase() }}</strong>
+                <small v-if="i === hoy">HOY</small>
+              </div>
+
+              <!-- Fila: apertura -->
+              <div class="gh-cell gh-hour open"><span><i class="bi bi-door-open"></i>ABIERTO</span></div>
+              <div v-for="(dia, i) in horarios" :key="'a-' + dia.dia" class="gh-slot">
+                <button type="button" class="gh-open-chip" :class="{ off: !dia.abierto }" @click="vista = 'apertura'" title="Editar apertura">
+                  <template v-if="dia.abierto">{{ corto(dia.apertura) }} – {{ corto(dia.cierre) }}</template>
+                  <template v-else><i class="bi bi-moon-stars"></i>Cerrado</template>
+                </button>
+              </div>
+
+              <!-- Secciones: Mañana / Tarde y noche -->
+              <template v-for="sec in secciones" :key="sec.id">
+                <div class="gh-section">{{ sec.titulo }}</div>
+                <template v-for="fila in sec.filas" :key="fila.key">
+                  <div class="gh-cell gh-hour">
+                    <span>{{ hm(fila.inicio) }} – {{ hm(fila.fin) }}<em>{{ suf(fila.inicio) }}</em></span>
+                  </div>
+                  <div v-for="(d, i) in ids" :key="fila.key + d" class="gh-slot">
+                    <button
+                      v-if="fila.porDia[d]"
+                      type="button"
+                      class="gh-block"
+                      :style="{ '--c': fila.porDia[d]!.color }"
+                      :title="`${fila.porDia[d]!.titulo} · ${fmt12(fila.inicio)} – ${fmt12(fila.fin)}`"
+                      @click="abrirDlg({ titulo: fila.porDia[d]!.titulo, dia: d })"
+                    >
+                      <span>{{ fila.porDia[d]!.titulo }}</span>
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="gh-empty"
+                      :aria-label="`Añadir bloque el ${dias[i]} de ${fmt12(fila.inicio)} a ${fmt12(fila.fin)}`"
+                      @click="abrirDlg({ dia: d, inicio: fila.inicio, fin: fila.fin })"
+                    ><i class="bi bi-plus-lg"></i></button>
+                  </div>
+                </template>
+              </template>
             </div>
           </div>
 
-          <div v-for="(dia, i) in horarios" :key="dia.dia" class="gh-week-row" :class="{ today: i === hoy }">
-            <div class="gh-week-day">
-              <strong>{{ dias[i]?.slice(0, 3).toUpperCase() }}</strong>
-              <small v-if="i === hoy">HOY</small>
+          <!-- Estado vacío -->
+          <div v-if="!bloques.length" class="gh-emptybox">
+            <span class="gh-emptybox-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+            <div>
+              <strong>Aún no hay clases ni bloques</strong>
+              <p>Crea un bloque con nombre y color (por ejemplo «Zumba») y aplícalo a varios días con horas distintas. Si no lo necesitas, el horario de apertura ya es suficiente.</p>
             </div>
-            <div class="gh-lane">
-              <i v-for="h in marcas" :key="h" class="gh-grid-line" :style="{ left: pct(h * 60) + '%' }"></i>
-              <div v-if="dia.abierto && duracion(dia) > 0" class="gh-bar" :style="barra(dia)">
-                <span>{{ dia.apertura }} – {{ dia.cierre }}</span>
-              </div>
-              <span v-else class="gh-closed-tag"><i class="bi bi-moon-stars"></i>Cerrado</span>
-            </div>
+            <button type="button" class="gh-btn ghost sm" @click="abrirDlg()"><i class="bi bi-plus-lg"></i>Crear el primero</button>
           </div>
 
-          <p class="gh-week-hint"><i class="bi bi-hand-index"></i>Cambia a «Por día» para editar los horarios.</p>
-        </div>
-
-        <div class="gh-note">
-          <i class="bi bi-info-circle"></i>
-          <span>Este horario define cuándo abre el gimnasio. Las clases, torneos y demás actividades se administran por separado en «Añadir eventos».</span>
-        </div>
+          <!-- Leyenda -->
+          <div v-if="leyenda.length" class="gh-legend">
+            <button v-for="l in leyenda" :key="l.key" type="button" class="gh-legend-item" @click="abrirDlg({ titulo: l.titulo })" :title="`Editar «${l.titulo}»`">
+              <i :style="{ background: l.color }"></i>{{ l.titulo }}<em>{{ l.count }}</em>
+            </button>
+          </div>
+        </template>
       </div>
 
       <!-- ================= FOOTER ================= -->
@@ -135,31 +192,128 @@
           {{ guardando ? 'Guardando...' : 'Guardar horario' }}
         </button>
       </footer>
+
+      <!-- ============================================================
+           DIÁLOGO: NUEVO / EDITAR BLOQUE
+      ============================================================ -->
+      <transition name="gh-pop">
+        <div v-if="dlg.abierto" class="gh-dlg-overlay" @click.self="cerrarDlg">
+          <form class="gh-dlg" @submit.prevent="guardarDlg" role="dialog" aria-modal="true" aria-labelledby="gh-dlg-title">
+            <header class="gh-dlg-head">
+              <div>
+                <small>{{ dlg.edit ? 'EDITAR BLOQUE' : 'NUEVO BLOQUE' }}</small>
+                <h3 id="gh-dlg-title">{{ dlg.edit ? 'Editar' : 'Añadir' }} <span>bloque</span></h3>
+              </div>
+              <button type="button" class="gh-close sm" aria-label="Cerrar" @click="cerrarDlg"><i class="bi bi-x-lg"></i></button>
+            </header>
+
+            <div class="gh-dlg-body">
+              <!-- Título + color -->
+              <div class="gh-field">
+                <label for="gh-titulo">Título</label>
+                <div class="gh-input">
+                  <i class="bi bi-type"></i>
+                  <input id="gh-titulo" v-model="dlg.titulo" list="gh-titulos" maxlength="60" placeholder="Ej. Zumba, Yoga, Funcional..." autocomplete="off" @input="alEscribirTitulo" />
+                  <datalist id="gh-titulos"><option v-for="l in leyenda" :key="l.key" :value="l.titulo"></option></datalist>
+                </div>
+              </div>
+
+              <div class="gh-field">
+                <label>Color</label>
+                <div class="gh-palette" role="radiogroup" aria-label="Color del bloque">
+                  <button v-for="c in PALETA" :key="c" type="button" role="radio" :aria-checked="dlg.color === c" class="gh-swatch" :class="{ on: dlg.color === c }" :style="{ '--c': c }" :aria-label="c" @click="dlg.color = c">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                  <label class="gh-swatch custom" :class="{ on: !PALETA.includes(dlg.color) }" :style="{ '--c': dlg.color }" title="Otro color">
+                    <i class="bi bi-eyedropper"></i>
+                    <input type="color" v-model="dlg.color" />
+                  </label>
+                </div>
+              </div>
+
+              <!-- Días -->
+              <div class="gh-field">
+                <label>Días en que se repite</label>
+                <div class="gh-daychips" role="group">
+                  <button v-for="(d, i) in ids" :key="d" type="button" class="gh-daychip" :class="{ on: dlg.dias[d]?.on }" :aria-pressed="!!dlg.dias[d]?.on" @click="alternarDia(d)">
+                    <span>{{ dias[i].slice(0, 3).toUpperCase() }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Horas por día -->
+              <div class="gh-field">
+                <div class="gh-field-top">
+                  <label>Horas de cada día</label>
+                  <button v-if="seleccionados.length > 1" type="button" class="gh-link" @click="mismasHoras"><i class="bi bi-copy"></i>Usar las mismas horas en todos</button>
+                </div>
+                <p v-if="!seleccionados.length" class="gh-hint">Elige al menos un día para definir sus horas.</p>
+                <div v-else class="gh-ranges">
+                  <div v-for="d in seleccionados" :key="d" class="gh-range">
+                    <strong>{{ dias[ids.indexOf(d)] }}</strong>
+                    <input type="time" v-model="dlg.dias[d].inicio" aria-label="Inicio" />
+                    <i class="bi bi-arrow-right"></i>
+                    <input type="time" v-model="dlg.dias[d].fin" aria-label="Fin" />
+                    <span class="gh-range-dur" :class="{ bad: rangoMin(dlg.dias[d]) <= 0 }">{{ rangoMin(dlg.dias[d]) > 0 ? durTxt(rangoMin(dlg.dias[d])) : 'Revisar' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Vista previa -->
+              <div class="gh-preview">
+                <span>VISTA PREVIA</span>
+                <div class="gh-block static" :style="{ '--c': dlg.color }"><span>{{ dlg.titulo.trim() || 'Título del bloque' }}</span></div>
+              </div>
+
+              <p v-if="dlg.error" class="gh-alert error" role="alert"><i class="bi bi-exclamation-triangle"></i><span>{{ dlg.error }}</span></p>
+            </div>
+
+            <footer class="gh-dlg-foot">
+              <button v-if="dlg.edit" type="button" class="gh-btn danger" @click="eliminarDlg">
+                <i class="bi bi-trash3"></i>{{ dlg.confirmar ? '¿Seguro? Eliminar' : 'Eliminar' }}
+              </button>
+              <span class="gh-spacer"></span>
+              <button type="button" class="gh-btn ghost" @click="cerrarDlg">Cancelar</button>
+              <button type="submit" class="gh-btn primary"><i class="bi bi-check-lg"></i>{{ dlg.edit ? 'Guardar cambios' : 'Añadir bloque' }}</button>
+            </footer>
+          </form>
+        </div>
+      </transition>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 
 const emit = defineEmits(['close', 'saved']);
 
 type Dia = { dia: string; abierto: boolean; apertura: string; cierre: string };
+type Bloque = { uid: string; dia: string; titulo: string; color: string; inicio: string; fin: string };
 
 const ids = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const PALETA = ['#34d399', '#fb923c', '#60a5fa', '#f87171', '#a78bfa', '#f472b6', '#2dd4bf', '#facc15', '#818cf8', '#a3e635'];
 const nuevos = (): Dia[] => ids.map(dia => ({ dia, abierto: false, apertura: '06:00', cierre: '22:00' }));
 
 const horarios = ref<Dia[]>(nuevos());
+const bloques = ref<Bloque[]>([]);
 const sede = ref(1);
 const abiertos = ref(0);
 const cargando = ref(false);
 const guardando = ref(false);
 const error = ref('');
 const exito = ref('');
-const vista = ref<'dia' | 'semana'>('dia');
+const aviso = ref('');
+const soportaBloques = ref(true);
+const vista = ref<'apertura' | 'semana'>('apertura');
 const bloqueado = computed(() => guardando.value || cargando.value);
 const hoy = (new Date().getDay() + 6) % 7;
+const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+let seq = 0;
+const nuevoUid = () => `b${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 watch(horarios, () => {
   abiertos.value = horarios.value.filter(x => x.abierto).length;
@@ -170,66 +324,206 @@ const minutos = (hhmm: string) => {
   const [h = 0, m = 0] = String(hhmm || '').split(':').map(Number);
   return h * 60 + m;
 };
+const aHHMM = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 const duracion = (d: Dia) => minutos(d.cierre) - minutos(d.apertura);
-const textoDuracion = (d: Dia) => {
-  const total = duracion(d);
-  if (total <= 0) return 'Revisar';
+const durTxt = (total: number) => {
   const h = Math.floor(total / 60);
   const m = total % 60;
   return h && m ? `${h} h ${m} min` : h ? `${h} h` : `${m} min`;
 };
+const textoDuracion = (d: Dia) => (duracion(d) <= 0 ? 'Revisar' : durTxt(duracion(d)));
+const hm = (t: string) => {
+  const [h = 0, m = 0] = String(t || '').split(':').map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')}`;
+};
+const suf = (t: string) => (Number(String(t || '0').split(':')[0]) < 12 ? 'AM' : 'PM');
+const corto = (t: string) => {
+  const [h = 0, m = 0] = String(t || '').split(':').map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}${m ? ':' + String(m).padStart(2, '0') : ''} ${h < 12 ? 'AM' : 'PM'}`;
+};
+const fmt12 = (t: string) => `${hm(t)} ${suf(t) === 'AM' ? 'a.m.' : 'p.m.'}`;
 const horasSemana = computed(() => {
   const total = horarios.value.reduce((sum, d) => (d.abierto && duracion(d) > 0 ? sum + duracion(d) : sum), 0);
   return Math.round((total / 60) * 10) / 10;
 });
 
-/* ---------- Vista semanal: escala dinámica ---------- */
-const rango = computed(() => {
-  const activos = horarios.value.filter(d => d.abierto && duracion(d) > 0);
-  if (!activos.length) return { ini: 6 * 60, fin: 22 * 60 };
-  const ini = Math.floor(Math.min(...activos.map(d => minutos(d.apertura))) / 60) * 60;
-  const fin = Math.ceil(Math.max(...activos.map(d => minutos(d.cierre))) / 60) * 60;
-  const iniAjustado = Math.max(0, ini - 60);
-  const finAjustado = Math.min(24 * 60, fin + 60);
-  return { ini: iniAjustado, fin: Math.max(finAjustado, iniAjustado + 4 * 60) };
-});
-const pct = (min: number) => ((min - rango.value.ini) / (rango.value.fin - rango.value.ini)) * 100;
-const marcas = computed(() => {
-  const ini = Math.ceil(rango.value.ini / 60);
-  const fin = Math.floor(rango.value.fin / 60);
-  const paso = fin - ini > 14 ? 3 : fin - ini > 8 ? 2 : 1;
-  const out: number[] = [];
-  for (let h = ini; h <= fin; h += paso) out.push(h);
-  return out;
-});
-const etiquetaHora = (h: number) => {
-  const hh = h % 24;
-  const sufijo = hh < 12 ? 'a.m.' : 'p.m.';
-  const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  return `${h12} ${sufijo}`;
-};
-const barra = (d: Dia) => {
-  const left = Math.max(0, pct(minutos(d.apertura)));
-  const right = Math.min(100, pct(minutos(d.cierre)));
-  return { left: left + '%', width: Math.max(2, right - left) + '%' };
-};
-
-/* ---------- Atajos ---------- */
-const abrirLunesViernes = () => {
-  horarios.value.forEach((d, i) => { d.abierto = i < 5; });
-};
-const abrirTodos = () => {
-  horarios.value.forEach(d => { d.abierto = true; });
-};
+/* ---------- Atajos de apertura ---------- */
+const abrirLunesViernes = () => { horarios.value.forEach((d, i) => { d.abierto = i < 5; }); };
+const abrirTodos = () => { horarios.value.forEach(d => { d.abierto = true; }); };
 const copiarATodos = () => {
   const base = horarios.value.find(d => d.abierto);
   if (!base) return;
-  horarios.value.forEach(d => {
-    if (d.abierto) { d.apertura = base.apertura; d.cierre = base.cierre; }
-  });
+  horarios.value.forEach(d => { if (d.abierto) { d.apertura = base.apertura; d.cierre = base.cierre; } });
 };
 
-/* ---------- API ---------- */
+/* =========================================================
+   BLOQUES: derivados para el horario semanal
+========================================================= */
+const clave = (t: string) => t.trim().toLowerCase();
+
+const leyenda = computed(() => {
+  const mapa = new Map<string, { key: string; titulo: string; color: string; count: number }>();
+  for (const b of bloques.value) {
+    const k = clave(b.titulo);
+    const item = mapa.get(k);
+    if (item) item.count++;
+    else mapa.set(k, { key: k, titulo: b.titulo, color: b.color, count: 1 });
+  }
+  return [...mapa.values()].sort((a, b) => a.titulo.localeCompare(b.titulo, 'es'));
+});
+
+/* Una fila por cada rango de horas distinto; se agrupan en Mañana / Tarde y noche */
+const secciones = computed(() => {
+  const filas = new Map<string, { key: string; inicio: string; fin: string; porDia: Record<string, Bloque | undefined> }>();
+  for (const b of bloques.value) {
+    const key = `${b.inicio}|${b.fin}`;
+    if (!filas.has(key)) filas.set(key, { key, inicio: b.inicio, fin: b.fin, porDia: {} });
+    filas.get(key)!.porDia[b.dia] = b;
+  }
+  const ordenadas = [...filas.values()].sort((a, b) => minutos(a.inicio) - minutos(b.inicio) || minutos(a.fin) - minutos(b.fin));
+  const manana = ordenadas.filter(f => minutos(f.inicio) < 12 * 60);
+  const tarde = ordenadas.filter(f => minutos(f.inicio) >= 12 * 60);
+  return [
+    ...(manana.length ? [{ id: 'm', titulo: 'MAÑANA', filas: manana }] : []),
+    ...(tarde.length ? [{ id: 't', titulo: 'TARDE Y NOCHE', filas: tarde }] : [])
+  ];
+});
+
+/* =========================================================
+   DIÁLOGO DE BLOQUE
+========================================================= */
+type Rango = { on: boolean; inicio: string; fin: string };
+const ultimoRango = ref({ inicio: '07:00', fin: '08:00' });
+const dlg = reactive({
+  abierto: false,
+  edit: null as string | null,
+  titulo: '',
+  color: PALETA[0] as string,
+  dias: {} as Record<string, Rango>,
+  error: '',
+  confirmar: false
+});
+
+const siguienteColor = () => {
+  const usados = new Set(leyenda.value.map(l => l.color.toLowerCase()));
+  return PALETA.find(c => !usados.has(c)) || PALETA[leyenda.value.length % PALETA.length];
+};
+
+const abrirDlg = (opts: { titulo?: string; dia?: string; inicio?: string; fin?: string } = {}) => {
+  dlg.error = '';
+  dlg.confirmar = false;
+  const base = { inicio: opts.inicio || ultimoRango.value.inicio, fin: opts.fin || ultimoRango.value.fin };
+  const nuevo: Record<string, Rango> = {};
+  ids.forEach(d => { nuevo[d] = { on: false, ...base }; });
+
+  if (opts.titulo) {
+    const existentes = bloques.value.filter(b => clave(b.titulo) === clave(opts.titulo!));
+    dlg.edit = clave(opts.titulo);
+    dlg.titulo = existentes[0]?.titulo || opts.titulo;
+    dlg.color = existentes[0]?.color || siguienteColor();
+    existentes.forEach(b => { nuevo[b.dia] = { on: true, inicio: b.inicio, fin: b.fin }; });
+  } else {
+    dlg.edit = null;
+    dlg.titulo = '';
+    dlg.color = siguienteColor();
+    if (opts.dia && nuevo[opts.dia]) nuevo[opts.dia].on = true;
+  }
+  dlg.dias = nuevo;
+  dlg.abierto = true;
+};
+const cerrarDlg = () => { dlg.abierto = false; dlg.confirmar = false; };
+
+/* Si el título ya existe, hereda su color para que la leyenda sea coherente */
+const alEscribirTitulo = () => {
+  if (dlg.edit) return;
+  const existente = leyenda.value.find(l => l.key === clave(dlg.titulo));
+  if (existente) dlg.color = existente.color;
+};
+const seleccionados = computed(() => ids.filter(d => dlg.dias[d]?.on));
+const alternarDia = (d: string) => {
+  const r = dlg.dias[d];
+  if (!r) return;
+  r.on = !r.on;
+  if (r.on) {
+    const otro = seleccionados.value.find(x => x !== d);
+    if (otro && !dlg.edit) { r.inicio = dlg.dias[otro].inicio; r.fin = dlg.dias[otro].fin; }
+  }
+};
+const mismasHoras = () => {
+  const primero = seleccionados.value[0];
+  if (!primero) return;
+  const { inicio, fin } = dlg.dias[primero];
+  seleccionados.value.forEach(d => { dlg.dias[d].inicio = inicio; dlg.dias[d].fin = fin; });
+};
+const rangoMin = (r: Rango) => minutos(r.fin) - minutos(r.inicio);
+
+const guardarDlg = () => {
+  dlg.error = '';
+  const titulo = dlg.titulo.trim();
+  if (!titulo) return void (dlg.error = 'Escribe un título para el bloque.');
+  if (titulo.length > 60) return void (dlg.error = 'El título no puede pasar de 60 caracteres.');
+  if (!COLOR_RE.test(dlg.color)) return void (dlg.error = 'Elige un color válido.');
+  if (!seleccionados.value.length) return void (dlg.error = 'Elige al menos un día.');
+
+  const candidatos: Bloque[] = [];
+  for (const d of seleccionados.value) {
+    const r = dlg.dias[d];
+    const nombreDia = dias[ids.indexOf(d)];
+    if (!HORA_RE.test(r.inicio) || !HORA_RE.test(r.fin)) return void (dlg.error = `Revisa las horas del ${nombreDia}.`);
+    if (rangoMin(r) <= 0) return void (dlg.error = `El ${nombreDia}: la hora de fin debe ser posterior a la de inicio.`);
+    candidatos.push({ uid: nuevoUid(), dia: d, titulo, color: dlg.color, inicio: r.inicio, fin: r.fin });
+  }
+
+  const claveNueva = clave(titulo);
+  const claveEdit = dlg.edit;
+  /* Los bloques de la misma clase (título) que se está editando se reemplazan por completo */
+  const otros = claveEdit
+    ? bloques.value.filter(b => clave(b.titulo) !== claveEdit)
+    : bloques.value.slice();
+
+  /* No se pueden empalmar bloques el mismo día */
+  for (const c of candidatos) {
+    const choque = otros.find(o => o.dia === c.dia && minutos(c.inicio) < minutos(o.fin) && minutos(o.inicio) < minutos(c.fin));
+    if (choque) {
+      return void (dlg.error = `Se empalma con «${choque.titulo}» el ${dias[ids.indexOf(c.dia)]} (${fmt12(choque.inicio)} – ${fmt12(choque.fin)}).`);
+    }
+  }
+
+  /* Misma clase = mismo color */
+  const recoloreados = otros.map(o => (clave(o.titulo) === claveNueva ? { ...o, color: dlg.color, titulo } : o));
+
+  /* Si el día estaba cerrado (o el bloque queda fuera), se ajusta la apertura */
+  let ajustes = 0;
+  for (const c of candidatos) {
+    const h = horarios.value[ids.indexOf(c.dia)];
+    if (!h.abierto) { h.abierto = true; h.apertura = c.inicio; h.cierre = c.fin; ajustes++; }
+    else {
+      if (minutos(c.inicio) < minutos(h.apertura)) { h.apertura = c.inicio; ajustes++; }
+      if (minutos(c.fin) > minutos(h.cierre)) { h.cierre = c.fin; ajustes++; }
+    }
+  }
+
+  bloques.value = [...recoloreados, ...candidatos];
+  const primero = candidatos[0];
+  ultimoRango.value = { inicio: primero.inicio, fin: primero.fin };
+  aviso.value = `Bloque «${titulo}» ${claveEdit ? 'actualizado' : 'agregado'}${ajustes ? ' y se ajustó la apertura de los días necesarios' : ''}. Recuerda pulsar «Guardar horario».`;
+  exito.value = '';
+  cerrarDlg();
+};
+
+const eliminarDlg = () => {
+  if (!dlg.edit) return;
+  if (!dlg.confirmar) { dlg.confirmar = true; return; }
+  const k = dlg.edit;
+  bloques.value = bloques.value.filter(b => clave(b.titulo) !== k);
+  aviso.value = `Se eliminó «${dlg.titulo}». Recuerda pulsar «Guardar horario».`;
+  exito.value = '';
+  cerrarDlg();
+};
+
+/* =========================================================
+   API
+========================================================= */
 const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const getSede = () => {
   for (const st of [sessionStorage, localStorage])
@@ -290,6 +584,7 @@ const cargar = async () => {
   cargando.value = true;
   error.value = '';
   exito.value = '';
+  aviso.value = '';
   try {
     const d = await request('GET');
     if (id !== solicitud) return;
@@ -300,6 +595,18 @@ const cargar = async () => {
         ? { dia: x.dia, abierto: !!found.abierto, apertura: String(found.apertura || x.apertura).slice(0, 5), cierre: String(found.cierre || x.cierre).slice(0, 5) }
         : x;
     });
+    soportaBloques.value = Array.isArray(d.bloques);
+    bloques.value = (Array.isArray(d.bloques) ? d.bloques : [])
+      .map((b: any): Bloque => ({
+        uid: nuevoUid(),
+        dia: String(b.dia),
+        titulo: String(b.titulo || '').trim(),
+        color: COLOR_RE.test(String(b.color)) ? String(b.color) : PALETA[0],
+        inicio: String(b.inicio || '').slice(0, 5),
+        fin: String(b.fin || '').slice(0, 5)
+      }))
+      .filter((b: Bloque) => ids.includes(b.dia) && b.titulo && HORA_RE.test(b.inicio) && HORA_RE.test(b.fin));
+    if (bloques.value.length) vista.value = 'semana';
   } catch (e: any) {
     if (id === solicitud) error.value = e?.message || 'Error al consultar los horarios.';
   } finally {
@@ -312,17 +619,29 @@ const guardar = async () => {
   error.value = '';
   exito.value = '';
   for (const h of horarios.value) {
-    if (h.abierto && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(h.apertura) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(h.cierre) || h.apertura >= h.cierre)) {
+    if (h.abierto && (!HORA_RE.test(h.apertura) || !HORA_RE.test(h.cierre) || h.apertura >= h.cierre)) {
       error.value = `Revisa las horas de ${dias[ids.indexOf(h.dia)]}. El cierre debe ser posterior a la apertura.`;
-      vista.value = 'dia';
+      vista.value = 'apertura';
+      return;
+    }
+  }
+  for (const b of bloques.value) {
+    const h = horarios.value[ids.indexOf(b.dia)];
+    if (!h.abierto || b.inicio < h.apertura || b.fin > h.cierre) {
+      error.value = `«${b.titulo}» (${dias[ids.indexOf(b.dia)]}, ${fmt12(b.inicio)} – ${fmt12(b.fin)}) queda fuera del horario de apertura de ese día. Ajusta la apertura o el bloque.`;
       return;
     }
   }
   guardando.value = true;
   try {
-    await request('PUT', { horarios: horarios.value });
+    const payload = {
+      horarios: horarios.value,
+      bloques: bloques.value.map(({ dia, titulo, color, inicio, fin }) => ({ dia, titulo, color, inicio, fin }))
+    };
+    await request('PUT', payload);
+    aviso.value = '';
     exito.value = 'El horario del gimnasio se guardó correctamente.';
-    emit('saved', horarios.value);
+    emit('saved', { horarios: horarios.value, bloques: bloques.value });
   } catch (e: any) {
     error.value = e?.message || 'No se pudo guardar.';
   } finally {
@@ -330,13 +649,16 @@ const guardar = async () => {
   }
 };
 
-const cambioSede = () => { void cargar(); };
+const cambioSede = () => { cerrarDlg(); void cargar(); };
+const alTeclear = (e: KeyboardEvent) => { if (e.key === 'Escape' && dlg.abierto) { e.stopPropagation(); cerrarDlg(); } };
 onMounted(() => {
   window.addEventListener('factorfit:branch-changed', cambioSede);
+  window.addEventListener('keydown', alTeclear, true);
   void cargar();
 });
 onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', cambioSede);
+  window.removeEventListener('keydown', alTeclear, true);
   solicitud++;
 });
 </script>
@@ -371,7 +693,7 @@ i.bi { display: inline-block; line-height: 1; }
   -webkit-font-smoothing: antialiased;
 }
 .gh-panel {
-  width: min(860px, 100%); max-height: 94vh; display: flex; flex-direction: column; overflow: hidden;
+  position: relative; width: min(1060px, 100%); max-height: 94vh; display: flex; flex-direction: column; overflow: hidden;
   border: 1px solid var(--line-2); border-radius: 22px; background: var(--card);
   box-shadow: 0 32px 90px rgba(0, 0, 0, 0.6);
 }
@@ -385,11 +707,13 @@ i.bi { display: inline-block; line-height: 1; }
 .gh-head h2 span { color: var(--hl); }
 .gh-head p { margin: 5px 0 0; color: var(--muted); font-size: 12.5px; }
 .gh-close { width: 40px; height: 40px; flex: none; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: 0.95rem; border: 1px solid var(--line-2); border-radius: 11px; background: color-mix(in srgb, var(--text) 4%, transparent); transition: all 0.18s ease; }
+.gh-close.sm { width: 36px; height: 36px; }
 .gh-close:hover { color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.09); }
 
 /* ---------- Cuerpo ---------- */
 .gh-body { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; }
 
+.gh-body > * { flex-shrink: 0; }
 .gh-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .gh-stat { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 3%, transparent); }
 .gh-stat-icon { width: 40px; height: 40px; flex: none; display: grid; place-items: center; color: #8ab4ff; font-size: 1.05rem; border-radius: 11px; background: rgba(96, 165, 250, 0.12); }
@@ -404,12 +728,15 @@ i.bi { display: inline-block; line-height: 1; }
 .gh-alert i { flex: none; margin-top: 2px; }
 .gh-alert.error { color: #ff9a9a; border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.09); }
 .gh-alert.success { color: #5eead4; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.09); }
+.gh-alert.info { color: var(--muted); border: 1px solid var(--hl-line); background: var(--hl-soft); }
+.gh-alert.info i { color: var(--hl); }
+.gh-alert.warn { color: #fcd34d; border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.08); }
 
 /* ---------- Toolbar ---------- */
 .gh-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .gh-segmented { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border: 1px solid var(--line-2); border-radius: 14px; background: var(--field); }
 .gh-thumb { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 10px; background: var(--hl); box-shadow: 0 6px 16px -6px var(--hl-line); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1); }
-.gh-segmented button { position: relative; z-index: 1; min-width: 110px; height: 38px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; cursor: pointer; color: var(--muted); font: 700 13px 'Inter', sans-serif; border: 0; border-radius: 10px; background: transparent; transition: color 0.2s ease; }
+.gh-segmented button { position: relative; z-index: 1; min-width: 150px; height: 38px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; cursor: pointer; color: var(--muted); font: 700 13px 'Inter', sans-serif; white-space: nowrap; border: 0; border-radius: 10px; background: transparent; transition: color 0.2s ease; }
 .gh-segmented button.active { color: #1a1208; }
 .gh-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .gh-chip { height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; cursor: pointer; color: var(--muted); font: 600 12.5px 'Inter', sans-serif; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; transition: all 0.18s ease; }
@@ -417,7 +744,7 @@ i.bi { display: inline-block; line-height: 1; }
 .gh-chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .gh-chip i { color: var(--hl); font-size: 0.9rem; }
 
-/* ---------- Vista por día ---------- */
+/* ---------- Apertura ---------- */
 .gh-list { display: grid; gap: 10px; }
 .gh-day { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; border: 1px solid var(--line-2); border-radius: 16px; background: color-mix(in srgb, var(--text) 3%, transparent); transition: border-color 0.18s ease, background 0.18s ease; }
 .gh-day.today { border-color: var(--hl-line); background: linear-gradient(90deg, var(--hl-soft), color-mix(in srgb, var(--text) 3%, transparent) 55%); }
@@ -444,56 +771,149 @@ i.bi { display: inline-block; line-height: 1; }
 .gh-time { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .gh-time-box { position: relative; display: flex; align-items: center; }
 .gh-time-box i { position: absolute; left: 11px; z-index: 1; color: var(--hl); font-size: 0.95rem; pointer-events: none; }
-.gh-time-box input { width: 138px; height: 42px; padding: 0 10px 0 34px; outline: none; color: var(--title); color-scheme: dark; font: 500 14px 'Inter', sans-serif; border: 1.5px solid var(--line-2); border-radius: 11px; background: var(--field); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.gh-time-box input { width: 168px; height: 42px; padding: 0 8px 0 34px; outline: none; color: var(--title); color-scheme: dark; font: 500 14px 'Inter', sans-serif; border: 1.5px solid var(--line-2); border-radius: 11px; background: var(--field); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
 .gh-time-box input:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
 .gh-time-box input:disabled { cursor: not-allowed; }
 .gh-arrow { align-self: flex-end; margin-bottom: 14px; color: var(--muted-2); font-size: 0.9rem; }
-.gh-duration { align-self: flex-end; min-width: 74px; height: 42px; display: grid; place-items: center; padding: 0 10px; color: var(--ok); font-size: 12px; font-weight: 700; white-space: nowrap; border-radius: 11px; background: rgba(52, 211, 153, 0.1); }
+.gh-duration { align-self: flex-end; min-width: 78px; height: 42px; display: grid; place-items: center; padding: 0 10px; color: var(--ok); font-size: 12px; font-weight: 700; white-space: nowrap; border-radius: 11px; background: rgba(52, 211, 153, 0.1); }
 .gh-duration.bad { color: #f87171; background: rgba(239, 68, 68, 0.1); }
 .gh-times.off .gh-duration { color: var(--muted-2); background: transparent; }
 
-/* ---------- Vista semanal ---------- */
-.gh-week { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid var(--line-2); border-radius: 16px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
-.gh-scale, .gh-week-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; }
-.gh-scale-label { color: var(--muted-2); font-size: 10px; font-weight: 800; letter-spacing: 1px; }
-.gh-scale-track { position: relative; height: 20px; }
-.gh-scale-track span { position: absolute; top: 0; transform: translateX(-50%); color: var(--muted-2); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
-.gh-scale-track span:first-child { transform: none; }
-.gh-week-row { padding: 4px 0; border-radius: 12px; }
-.gh-week-day { display: flex; flex-direction: column; gap: 2px; padding-left: 4px; }
-.gh-week-day strong { color: var(--text); font-family: 'Oswald', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.6px; }
-.gh-week-day small { width: fit-content; padding: 1px 6px; color: var(--hl); font-size: 8.5px; font-weight: 800; letter-spacing: 0.6px; border-radius: 4px; background: var(--hl-soft); }
-.gh-week-row.today .gh-week-day strong { color: var(--hl); }
-.gh-lane { position: relative; height: 44px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--field); }
-.gh-grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
-.gh-bar { position: absolute; top: 6px; bottom: 6px; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0 10px; overflow: hidden; color: #1a1208; border-radius: 9px; background: linear-gradient(135deg, var(--hl), color-mix(in srgb, var(--hl) 70%, #ff7a59)); box-shadow: 0 6px 16px -8px var(--hl-line); }
-.gh-bar span { overflow: hidden; font: 700 12px 'Inter', sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-.gh-week-row.today .gh-lane { border-color: var(--hl-line); }
-.gh-closed-tag { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 7px; color: var(--muted-2); font-size: 12px; font-weight: 600; background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--text) 3%, transparent) 8px 16px); }
-.gh-week-hint { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; color: var(--muted-2); font-size: 11.5px; }
-
-/* ---------- Nota + footer ---------- */
-.gh-note { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; color: var(--muted); font-size: 12px; line-height: 1.55; border: 1px solid var(--hl-line); border-radius: 13px; background: var(--hl-soft); }
+.gh-note { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; color: var(--muted); font-size: 12.5px; line-height: 1.55; border: 1px solid var(--hl-line); border-radius: 13px; background: var(--hl-soft); }
 .gh-note i { flex: none; margin-top: 2px; color: var(--hl); font-size: 1rem; }
+.gh-note b { color: var(--title); font-weight: 700; }
+
+/* ---------- Horario semanal (cuadrícula) ---------- */
+.gh-gridwrap { overflow-x: auto; padding: 14px; border: 1px solid var(--line-2); border-radius: 18px; background: color-mix(in srgb, var(--text) 2.5%, transparent); scrollbar-width: thin; }
+.gh-grid { min-width: 860px; display: grid; grid-template-columns: 104px repeat(7, minmax(0, 1fr)); gap: 8px; align-items: stretch; }
+.gh-cell { display: flex; align-items: center; }
+.gh-corner { padding-left: 6px; color: var(--muted-2); font-size: 10px; font-weight: 800; letter-spacing: 1.1px; }
+.gh-dayhead { min-height: 46px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px; color: var(--muted); font-size: 11.5px; letter-spacing: 0.5px; border: 1px solid var(--line-2); border-radius: 12px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.gh-dayhead strong { font-family: 'Oswald', sans-serif; font-size: 12.5px; font-weight: 600; letter-spacing: 0.7px; }
+.gh-dayhead small { font-size: 8.5px; font-weight: 800; letter-spacing: 0.8px; opacity: 0.85; }
+.gh-dayhead.today { color: #1a1208; border-color: transparent; background: linear-gradient(145deg, color-mix(in srgb, var(--hl) 92%, white), var(--hl)); box-shadow: 0 8px 22px -10px var(--hl-line); }
+
+.gh-section { grid-column: 1 / -1; margin-top: 8px; padding: 0 4px; color: var(--muted-2); font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+.gh-hour { position: sticky; left: 0; z-index: 2; padding: 0 8px 0 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--card) 100%, transparent) 85%, transparent); }
+.gh-hour span { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 12.5px; font-weight: 500; line-height: 1.25; }
+.gh-hour em { padding: 1px 5px; color: var(--muted); font-family: 'Inter', sans-serif; font-size: 8.5px; font-style: normal; font-weight: 800; letter-spacing: 0.5px; border-radius: 4px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+.gh-hour.open span { color: var(--ok); font-family: 'Inter', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px; gap: 6px; }
+
+.gh-slot { min-width: 0; display: flex; }
+.gh-open-chip { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; padding: 4px 6px; cursor: pointer; color: var(--ok); font: 700 11px 'Inter', sans-serif; white-space: nowrap; text-align: center; border: 1px solid rgba(52, 211, 153, 0.32); border-radius: 11px; background: rgba(52, 211, 153, 0.08); transition: filter 0.18s ease; }
+.gh-open-chip:hover { filter: brightness(1.2); }
+.gh-open-chip em { margin-left: 1px; font-size: 8.5px; font-style: normal; opacity: 0.75; }
+.gh-open-chip.off { gap: 6px; color: var(--muted-2); border-style: dashed; border-color: var(--line-2); background: transparent; font-weight: 600; }
+
+.gh-block {
+  --c: var(--hl);
+  width: 100%; min-height: 62px; display: flex; align-items: center; justify-content: center; padding: 6px 4px; cursor: pointer;
+  color: var(--title); text-align: center; text-transform: uppercase;
+  border: 1.5px solid color-mix(in srgb, var(--c) 85%, white 8%); border-radius: 13px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 34%, #14141f), color-mix(in srgb, var(--c) 13%, #14141f));
+  box-shadow: 0 8px 20px -12px color-mix(in srgb, var(--c) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+}
+.gh-block:hover { transform: translateY(-2px); filter: brightness(1.12); box-shadow: 0 14px 26px -12px color-mix(in srgb, var(--c) 90%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18); }
+.gh-block span { display: -webkit-box; overflow: hidden; font: 700 11.5px/1.22 'Inter', sans-serif; letter-spacing: 0.3px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow-wrap: break-word; }
+.gh-block.static { width: auto; min-width: 190px; min-height: 54px; cursor: default; }
+.gh-block.static:hover { transform: none; filter: none; }
+
+.gh-empty { width: 100%; min-height: 62px; display: grid; place-items: center; cursor: pointer; color: var(--muted-2); font-size: 1rem; border: 1px dashed var(--line-2); border-radius: 13px; background: transparent; opacity: 0.55; transition: all 0.16s ease; }
+.gh-empty:hover, .gh-empty:focus-visible { color: var(--hl); border-color: var(--hl-line); background: var(--hl-soft); opacity: 1; }
+
+.gh-emptybox { display: flex; align-items: center; gap: 16px; padding: 18px; border: 1px dashed var(--line-2); border-radius: 16px; background: color-mix(in srgb, var(--text) 2%, transparent); }
+.gh-emptybox-icon { width: 46px; height: 46px; flex: none; display: grid; place-items: center; color: var(--hl); font-size: 1.2rem; border-radius: 13px; background: var(--hl-soft); }
+.gh-emptybox > div { min-width: 0; flex: 1; }
+.gh-emptybox strong { color: var(--title); font-size: 14px; }
+.gh-emptybox p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
+.gh-legend { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.gh-legend-item { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; cursor: pointer; color: var(--muted); font: 600 12px 'Inter', sans-serif; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; transition: all 0.16s ease; }
+.gh-legend-item:hover { color: var(--title); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.gh-legend-item i { width: 9px; height: 9px; border-radius: 50%; }
+.gh-legend-item em { padding: 0 6px; color: var(--muted-2); font-size: 10.5px; font-style: normal; border-radius: 999px; background: color-mix(in srgb, var(--text) 9%, transparent); }
+
+/* ---------- Footer / botones ---------- */
 .gh-footer { flex: none; display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px 20px; border-top: 1px solid var(--line); }
-.gh-btn { height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 22px; cursor: pointer; font: 700 14px 'Inter', sans-serif; border-radius: 12px; transition: all 0.18s ease; }
+.gh-btn { height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 22px; cursor: pointer; font: 700 14px 'Inter', sans-serif; white-space: nowrap; border-radius: 12px; transition: all 0.18s ease; }
+.gh-btn.sm { height: 40px; padding: 0 16px; font-size: 13px; }
 .gh-btn.ghost { color: var(--text); border: 1px solid var(--line-2); background: transparent; }
 .gh-btn.ghost:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
-.gh-btn.primary { min-width: 180px; color: var(--btn-text); border: 0; background: var(--btn); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--btn) 70%, transparent); }
+.gh-btn.primary { min-width: 150px; color: var(--btn-text); border: 0; background: var(--btn); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--btn) 70%, transparent); }
+.gh-btn.primary.sm { min-width: 0; }
 .gh-btn.primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.gh-btn.danger { color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.08); }
+.gh-btn.danger:hover { background: rgba(239, 68, 68, 0.18); }
 .gh-btn:disabled { opacity: 0.6; cursor: wait; }
 .gh-spin { animation: gh-spin 0.8s linear infinite; }
 @keyframes gh-spin { to { transform: rotate(360deg); } }
-button:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
+button:focus-visible, .gh-swatch:focus-within { outline: 2px solid var(--hl); outline-offset: 2px; }
+
+/* ---------- Diálogo de bloque ---------- */
+.gh-dlg-overlay { position: absolute; inset: 0; z-index: 20; padding: 16px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 14, 0.72); backdrop-filter: blur(3px); }
+.gh-dlg { width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line-2); border-radius: 20px; background: var(--card); box-shadow: 0 26px 70px rgba(0, 0, 0, 0.6); }
+.gh-dlg-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.gh-dlg-head small { color: var(--hl); font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+.gh-dlg-head h3 { margin: 3px 0 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 21px; font-weight: 600; }
+.gh-dlg-head h3 span { color: var(--hl); }
+.gh-dlg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; scrollbar-width: thin; }
+.gh-dlg-foot { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 22px 18px; border-top: 1px solid var(--line); }
+.gh-spacer { flex: 1; }
+
+.gh-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gh-field > label, .gh-field-top > label { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }
+.gh-field-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.gh-link { display: inline-flex; align-items: center; gap: 6px; padding: 0; cursor: pointer; color: var(--hl); font: 600 12px 'Inter', sans-serif; border: 0; background: transparent; }
+.gh-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.gh-hint { margin: 0; padding: 12px 14px; color: var(--muted-2); font-size: 12.5px; border: 1px dashed var(--line-2); border-radius: 12px; }
+
+.gh-input { position: relative; display: flex; align-items: center; }
+.gh-input i { position: absolute; left: 13px; color: var(--muted-2); font-size: 1rem; pointer-events: none; }
+.gh-input input { width: 100%; height: 46px; padding: 0 14px 0 40px; outline: none; color: var(--title); font: 500 14px 'Inter', sans-serif; border: 1.5px solid var(--line-2); border-radius: 12px; background: var(--field); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.gh-input input:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.gh-input input::placeholder { color: var(--muted-2); }
+
+.gh-palette { display: flex; flex-wrap: wrap; gap: 9px; }
+.gh-swatch { position: relative; width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer; color: #101018; font-size: 1rem; border: 2px solid transparent; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.gh-swatch i { opacity: 0; transform: scale(0.6); transition: all 0.15s ease; }
+.gh-swatch:hover { transform: scale(1.1); }
+.gh-swatch.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--c); }
+.gh-swatch.on i { opacity: 1; transform: scale(1); }
+.gh-swatch.custom { overflow: hidden; background: conic-gradient(from 0deg, #f87171, #facc15, #34d399, #60a5fa, #a78bfa, #f472b6, #f87171); }
+.gh-swatch.custom.on { background: var(--c); }
+.gh-swatch.custom i { opacity: 1; transform: none; }
+.gh-swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; cursor: pointer; opacity: 0; }
+
+.gh-daychips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; }
+.gh-daychip { height: 42px; cursor: pointer; color: var(--muted); font: 700 11.5px 'Inter', sans-serif; letter-spacing: 0.4px; border: 1.5px solid var(--line-2); border-radius: 11px; background: transparent; transition: all 0.16s ease; }
+.gh-daychip:hover { border-color: var(--hl-line); color: var(--title); }
+.gh-daychip.on { color: #1a1208; border-color: transparent; background: var(--hl); box-shadow: 0 6px 16px -8px var(--hl-line); }
+
+.gh-ranges { display: grid; gap: 8px; }
+.gh-range { display: grid; grid-template-columns: 92px minmax(0, 1fr) 16px minmax(0, 1fr) 74px; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--text) 3%, transparent); }
+.gh-range strong { color: var(--title); font-size: 13px; font-weight: 700; }
+.gh-range input { width: 100%; min-width: 0; height: 40px; padding: 0 8px; outline: none; color: var(--title); color-scheme: dark; font: 500 13.5px 'Inter', sans-serif; border: 1.5px solid var(--line-2); border-radius: 10px; background: var(--field); }
+.gh-range input:focus { border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.gh-range > i { color: var(--muted-2); font-size: 0.8rem; text-align: center; }
+.gh-range-dur { color: var(--ok); font-size: 11.5px; font-weight: 700; text-align: right; white-space: nowrap; }
+.gh-range-dur.bad { color: #f87171; }
+
+.gh-preview { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+.gh-preview > span { color: var(--muted-2); font-size: 10px; font-weight: 800; letter-spacing: 1.1px; }
+
+.gh-pop-enter-active, .gh-pop-leave-active { transition: opacity 0.18s ease; }
+.gh-pop-enter-active .gh-dlg, .gh-pop-leave-active .gh-dlg { transition: transform 0.2s ease, opacity 0.2s ease; }
+.gh-pop-enter-from, .gh-pop-leave-to { opacity: 0; }
+.gh-pop-enter-from .gh-dlg, .gh-pop-leave-to .gh-dlg { opacity: 0; transform: translateY(10px) scale(0.97); }
 
 /* ---------- Responsive ---------- */
-@media (max-width: 760px) {
+@media (max-width: 860px) {
   .gh-day { flex-direction: column; align-items: stretch; gap: 14px; }
   .gh-times { width: 100%; }
   .gh-time { flex: 1; min-width: 0; }
   .gh-time-box input { width: 100%; font-size: 16px; }
-  .gh-duration { display: none; }
-  .gh-arrow { display: none; }
+  .gh-duration, .gh-arrow { display: none; }
 }
 @media (max-width: 620px) {
   .gh-overlay { padding: 0; align-items: flex-end; }
@@ -501,16 +921,30 @@ button:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
   .gh-head, .gh-body, .gh-footer { padding-left: 16px; padding-right: 16px; }
   .gh-head h2 { font-size: 20px; }
   .gh-head p { display: none; }
-  .gh-stats { grid-template-columns: 1fr; }
-  .gh-stat { padding: 10px 12px; }
+  .gh-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .gh-stat { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; }
+  .gh-stat-icon { display: none; }
+  .gh-stat small { font-size: 8.5px; letter-spacing: 0.4px; }
+  .gh-stat strong em { display: none; }
   .gh-toolbar { flex-direction: column; align-items: stretch; }
-  .gh-segmented button { min-width: 0; }
+  .gh-segmented button { min-width: 0; padding: 0 8px; }
   .gh-presets { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; scrollbar-width: none; }
   .gh-chip { flex: none; }
-  .gh-scale, .gh-week-row { grid-template-columns: 44px minmax(0, 1fr); gap: 8px; }
-  .gh-week { padding: 12px; }
+  .gh-gridwrap { padding: 10px; }
+  .gh-emptybox { flex-direction: column; align-items: flex-start; }
   .gh-footer { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-  .gh-btn { flex: 1; }
+  .gh-footer .gh-btn { flex: 1; }
+  .gh-dlg-overlay { padding: 0; align-items: flex-end; }
+  .gh-dlg { width: 100%; max-height: 94%; border-radius: 20px 20px 0 0; }
+  .gh-dlg-head, .gh-dlg-body, .gh-dlg-foot { padding-left: 16px; padding-right: 16px; }
+  .gh-range { grid-template-columns: 1fr 1fr 14px 1fr; row-gap: 6px; }
+  .gh-range strong { grid-column: 1 / -1; }
+  .gh-range-dur { display: none; }
+  .gh-range input { font-size: 16px; }
+  .gh-preview { flex-direction: column; align-items: stretch; }
+  .gh-block.static { min-width: 0; }
+  .gh-dlg-foot { flex-wrap: wrap; }
+  .gh-dlg-foot .gh-btn { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
