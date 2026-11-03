@@ -6,7 +6,7 @@
       <p v-if="error" class="access-error" role="alert">{{ error }}</p>
       <template v-if="mode==='scanner'"><p class="access-help">{{ scanning?'Apunta la cámara hacia el QR del cliente.':'Si el navegador no puede detectar QR, escribe o pega el código del pase.' }}</p><form class="access-form" @submit.prevent="registrar"><input v-model.trim="codigo" maxlength="64" minlength="64" placeholder="Código QR (64 caracteres)" autocomplete="off" aria-label="Código del QR" /><button :disabled="saving || codigo.length!==64" type="submit">{{ saving?'Registrando...':'Registrar entrada' }}</button></form></template>
       <p v-else class="access-help">La cámara funciona, pero todavía no existe un motor de identificación facial ni consentimiento y enrolamiento biométrico. Para registrar entradas verificadas utiliza Escáner QR; no se registrarán rostros sin identificar.</p>
-      <div v-if="resultado" class="access-result" :class="resultado.duplicado?'dup':resultado.permitido?'ok':'warn"><strong>{{ resultado.mensaje }}</strong><p>{{ resultado.nombre }} · {{ resultado.estatus }}</p><p>Inscrito en sede {{ resultado.sede_registro }} · Escaneado en sede {{ resultado.sede_escaneo }}</p><p v-if="resultado.aviso">{{ resultado.aviso }}</p></div>
+      <div v-if="resultado" class="access-result" :class="resultado.duplicado?'dup':resultado.permitido?'ok':'warn'"><strong>{{ resultado.mensaje }}</strong><p>{{ resultado.nombre }} · {{ resultado.estatus }}</p><p>Inscrito en sede {{ resultado.sede_registro }} · Escaneado en sede {{ resultado.sede_escaneo }}</p><p v-if="resultado.aviso">{{ resultado.aviso }}</p></div>
     </div>
     <footer><button type="button" @click="$emit('close')">Cerrar</button></footer>
   </section>
