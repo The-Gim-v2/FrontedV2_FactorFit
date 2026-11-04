@@ -29,7 +29,7 @@
           </div>
 
           <div class="header-actions">
-            <button type="button" class="icon-button" :title="t('settingsTooltip')" :aria-label="t('settingsTooltip')" @click="currentView = 'settings'">
+            <button type="button" class="icon-button" :title="t('settingsTooltip')" :aria-label="t('settingsTooltip')" @click="currentView = 'settings'; refreshPush()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.2.08.42.12.64.12H21a2 2 0 1 1 0 4h-.09c-.66 0-1.26.39-1.51 1z" />
@@ -276,7 +276,7 @@
             {{ t('manageNotifications') }}
           </button>
           <span></span>
-          <button type="button" @click="currentView = 'settings'">
+          <button type="button" @click="currentView = 'settings'; refreshPush()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
               <circle cx="16" cy="6" r="2" />
@@ -363,6 +363,17 @@
                 </label>
               </div>
 
+              <!-- WEB PUSH: permiso solo al pulsar el botón (no solicitar al cargar). -->
+              <div class="setting-row">
+                <div class="setting-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                <div class="setting-copy">
+                  <strong>Notificaciones en mi dispositivo</strong>
+                  <span>{{ pushMessage || (pushEnabled ? 'Este dispositivo recibe avisos, incluso con la página cerrada.' : 'Actívalas para recibir avisos fuera del navegador.') }}</span>
+                  <button type="button" class="push-toggle-action" :disabled="pushBusy || !pushSupported" @click="togglePush">
+                    {{ pushBusy ? 'Procesando…' : pushEnabled ? 'Desactivar en este dispositivo' : 'Activar en este dispositivo' }}
+                  </button>
+                </div>
+              </div>
               <div class="setting-row">
                 <div class="setting-icon green">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -519,6 +530,60 @@ const token = () => {
   return '';
 };
 const baseApi=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+
+// Dispositivo: suscripción real del navegador ligada a la sesión autenticada.
+const pushEnabled = ref(false);
+const pushBusy = ref(false);
+const pushMessage = ref('');
+const pushSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+const decodeVapid = (base64:string):Uint8Array<ArrayBuffer> => {
+  const pad='='.repeat((4-base64.length%4)%4);
+  const raw=atob((base64+pad).replace(/-/g,'+').replace(/_/g,'/'));
+  const bytes=new Uint8Array(new ArrayBuffer(raw.length));
+  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  return bytes;
+};
+const pushApi=async(path:string,payload:Record<string,unknown>|null=null)=>{
+  const t=token();if(!t)throw new Error('Inicia sesión nuevamente.');
+  const r=await fetch(`${baseApi}/api/gym/push/${path}`,{method:payload?'POST':'GET',headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify({...payload,sede_id:scopeSede()})}:{}),cache:'no-store'});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||`Error HTTP ${r.status}`);return d;
+};
+const getPushReg=async()=>navigator.serviceWorker.register('/push-sw.js',{scope:'/'});
+const refreshPush=async()=>{
+  if(!pushSupported){pushMessage.value='Este navegador o conexión no permite notificaciones push.';return;}
+  try{
+    const reg=await getPushReg();const s=await reg.pushManager.getSubscription();
+    if(!s){pushEnabled.value=false;return;}
+    const d=await pushApi('estado',{endpoint:s.endpoint});pushEnabled.value=!!d.enabled;
+  }catch(e){pushMessage.value=e instanceof Error?e.message:'No se pudo comprobar Web Push.';}
+};
+const togglePush=async()=>{
+  if(!pushSupported||pushBusy.value)return;
+  pushBusy.value=true;pushMessage.value='';
+  try{
+    const reg=await getPushReg();let s=await reg.pushManager.getSubscription();
+    if(pushEnabled.value){
+      if(s){await pushApi('desuscribir',{endpoint:s.endpoint});await s.unsubscribe();}
+      pushEnabled.value=false;pushMessage.value='Notificaciones desactivadas en este dispositivo.';
+    }else{
+      const d=await pushApi(`config?sede_id=${scopeSede()}`);
+      if(!d.configured||!d.publicKey)throw new Error('Web Push aún no está configurado en Railway.');
+      if(Notification.permission!=='granted'){
+        const permission=await Notification.requestPermission();
+        if(permission!=='granted')throw new Error('No se concedió permiso para recibir notificaciones.');
+      }
+      // Sincronizar los avisos previos antes del alta del dispositivo: no enviar historial antiguo.
+      await apiRequest('/sincronizar','POST',{sede_id:scopeSede()});
+      if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeVapid(d.publicKey)});
+      const json=s.toJSON();
+      if(!json.keys?.p256dh||!json.keys?.auth)throw new Error('No fue posible obtener las claves de suscripción.');
+      await pushApi('suscribir',{endpoint:s.endpoint,keys:json.keys});
+      pushEnabled.value=true;pushMessage.value='Notificaciones activadas en este dispositivo.';
+    }
+  }catch(e){pushMessage.value=e instanceof Error?e.message:'No se pudo cambiar la suscripción.';}
+  finally{pushBusy.value=false;}
+};
+
 const apiRequest = async (path:string,method='GET',payload?:unknown) => {
   const t=token();if(!t) throw new Error('Sesión no disponible. Inicia sesión nuevamente.');
   const r=await fetch(`${baseApi}/api/gym/notificaciones${path}`,{method,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),cache:'no-store'});
@@ -1045,7 +1110,8 @@ watch(
 );
 
 onMounted(() => {
-  loadPreferences();if(props.isOpen){void loadRemote(true);startPolling();}
+  loadPreferences();
+  void refreshPush();if(props.isOpen){void loadRemote(true);startPolling();}
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   window.addEventListener('factorfit:branch-changed', onBranchUpdate);
   document.addEventListener('mousedown', handleClickOutside);
@@ -2286,4 +2352,5 @@ input:focus-visible + .check-box {
     animation-duration: 0.01ms !important;
   }
 }
+.push-toggle-action{margin-top:9px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--title);cursor:pointer;font-size:12px;font-weight:600}.push-toggle-action:disabled{opacity:.55;cursor:not-allowed}
 </style>
