@@ -6,7 +6,7 @@
           <h1 class="main-title">{{ t('configPageTitle') }} <span class="highlight">{{ t('configPageHighlight') }}</span></h1>
           <p class="subtitle">{{ t('configPageSubtitle') }}</p>
         </div>
-        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios">
+        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios" :disabled="guardandoConfig || cargandoConfig">
           <span>{{ t('saveChangesBtn') }}</span>
         </button>
       </div>
@@ -55,7 +55,7 @@
         <div class="config-row" id="row-notificaciones">
           <div class="config-info">
             <label for="input-notificaciones">{{ t('notificationsLabel') }}</label>
-            <p>{{ t('notificationsDesc') }}</p>
+            <p>{{ t('notificationsDesc') }} <span v-if="pushMessage" role="status">{{ pushMessage }}</span></p>
           </div>
 
           <label
@@ -67,6 +67,8 @@
               type="checkbox"
               id="input-notificaciones"
               v-model="settings.notificaciones"
+              :disabled="pushBusy || !pushSupported"
+              @change="cambiarNotificaciones"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
@@ -347,7 +349,7 @@
             <button
               id="btn-export-excel"
               class="btn-export excel"
-              @click="exportar('excel')"
+              @click="exportarExcel" :disabled="exportandoExcel"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -360,26 +362,9 @@
                 <line x1="8" y1="13" x2="16" y2="13"></line>
                 <line x1="8" y1="17" x2="16" y2="17"></line>
               </svg>
-              Excel
+              {{ exportandoExcel ? 'Generando...' : 'Excel' }}
             </button>
 
-            <button
-              id="btn-export-yml"
-              class="btn-export yml"
-              @click="exportar('yml')"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              YML
-            </button>
           </div>
         </div>
       </section>
@@ -398,11 +383,14 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted } from 'vue';
+import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
 import HeadingGYM_ACCOUNT from './HeadingGYM_ACCOUNT.vue';
 
 const { setLang } = useLang();
+const guardandoConfig = ref(false);
+const exportandoExcel = ref(false);
+const cargandoConfig = ref(false);
 
 const translations = {
   es: {
@@ -451,7 +439,7 @@ const translations = {
     borderRounded: "Muy Redondeado",
     exportSectionTitle: "Exportación de datos",
     exportFormatLabel: "Formato de exportación",
-    exportFormatDesc: "Formato al descargar bitácoras y respaldos.",
+    exportFormatDesc: "Descarga las bitácoras de esta sucursal en un archivo Excel con hojas, columnas y filtros.",
     toastColorsRestored: "Colores restaurados y guardados.",
     toastPresetApplied: "Tema combinado '{label}' aplicado y guardado.",
     toastGYM_ACCOUNTSaved: "Configuración de GYM_ACCOUNT guardada globalmente.",
@@ -505,7 +493,7 @@ const translations = {
     borderRounded: "Fully Rounded",
     exportSectionTitle: "Data Export",
     exportFormatLabel: "Export Format",
-    exportFormatDesc: "Format when downloading logs and backups.",
+    exportFormatDesc: "Download this branch’s logs as a formatted Excel workbook.",
     toastColorsRestored: "Colors restored and saved.",
     toastPresetApplied: "Combined theme '{label}' applied and saved.",
     toastGYM_ACCOUNTSaved: "GYM_ACCOUNT configuration saved globally.",
@@ -1101,6 +1089,116 @@ const settings = reactive({
     ) || { ...defaultColors }
 });
 
+// =========================================================
+// WEB PUSH — configuración por dispositivo, API real Laravel
+// =========================================================
+const pushBusy = ref(false);
+const pushMessage = ref('');
+const pushSupported = typeof window !== 'undefined' && window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const pushBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const pushSede = () => {
+  for (const store of [sessionStorage, localStorage]) for (const key of ['selected_sede_id','sede_id','ID_Sede','selectedSedeId']) {
+    const value = Number(store.getItem(key));
+    if (Number.isInteger(value) && value > 0) return value;
+  }
+  return 1;
+};
+const pushToken = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+      const value = store.getItem(key);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const key of ['auth','user','session','gymAccount','gym_account']) {
+      try {
+        const value = JSON.parse(store.getItem(key) || 'null');
+        const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, '');
+      } catch { /* sesión no JSON */ }
+    }
+  }
+  return '';
+};
+const pushRequest = async (path, payload = null) => {
+  const token = pushToken();
+  if (!token) throw new Error('Sesión no disponible. Inicia sesión nuevamente.');
+  const response = await fetch(`${pushBase}/api/gym/push/${path}`, {
+    method: payload ? 'POST' : 'GET',
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+    ...(payload ? { body: JSON.stringify({ ...payload, sede_id: pushSede() }) } : {}),
+    cache: 'no-store'
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || `Error HTTP ${response.status}`);
+  return result;
+};
+const vapidBytes = (key) => {
+  const pad = '='.repeat((4 - key.length % 4) % 4);
+  const raw = atob((key + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes;
+};
+const pushRegistration = () => navigator.serviceWorker.register('/push-sw.js', { scope: '/' });
+const consultarNotificacionesDispositivo = async () => {
+  if (!pushSupported) {
+    settings.notificaciones = false;
+    pushMessage.value = 'Tu navegador no permite Web Push o falta una conexión HTTPS.';
+    return;
+  }
+  try {
+    const reg = await pushRegistration();
+    const subscription = await reg.pushManager.getSubscription();
+    if (!subscription) { settings.notificaciones = false; return; }
+    const data = await pushRequest('estado', { endpoint: subscription.endpoint });
+    settings.notificaciones = !!data.enabled;
+  } catch (error) {
+    settings.notificaciones = false;
+    pushMessage.value = error instanceof Error ? error.message : 'No se pudo consultar Web Push.';
+  }
+};
+const cambiarNotificaciones = async () => {
+  if (pushBusy.value) return;
+  const activar = settings.notificaciones;
+  if (!pushSupported) { settings.notificaciones = false; return; }
+  pushBusy.value = true;
+  pushMessage.value = '';
+  try {
+    // Se solicita inmediatamente desde el evento real del interruptor.
+    const permiso = activar && Notification.permission !== 'granted' ? Notification.requestPermission() : null;
+    const reg = await pushRegistration();
+    let subscription = await reg.pushManager.getSubscription();
+    if (activar) {
+      if (permiso && await permiso !== 'granted') throw new Error('No se autorizó recibir notificaciones.');
+      const config = await pushRequest(`config?sede_id=${pushSede()}`);
+      if (!config.configured || !config.publicKey) throw new Error('Configura primero las claves VAPID en Railway.');
+      // Evita mandar el historial anterior al registrar un dispositivo nuevo.
+      await fetch(`${pushBase}/api/gym/notificaciones/sincronizar`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${pushToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sede_id: pushSede() })
+      }).then(async r => { if (!r.ok) throw new Error('No se pudo sincronizar el historial de notificaciones.'); });
+      if (!subscription) subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes(config.publicKey) });
+      const json = subscription.toJSON();
+      if (!json.keys?.p256dh || !json.keys?.auth) throw new Error('No se pudo obtener la suscripción del dispositivo.');
+      await pushRequest('suscribir', { endpoint: subscription.endpoint, keys: json.keys });
+      pushMessage.value = 'Notificaciones activadas en este dispositivo.';
+    } else {
+      if (subscription) {
+        await pushRequest('desuscribir', { endpoint: subscription.endpoint });
+        await subscription.unsubscribe();
+      }
+      pushMessage.value = 'Notificaciones desactivadas en este dispositivo.';
+    }
+    window.dispatchEvent(new CustomEvent('factorfit:push-changed', { detail: { enabled: activar } }));
+  } catch (error) {
+    settings.notificaciones = !activar;
+    pushMessage.value = error instanceof Error ? error.message : 'No se pudo modificar la suscripción.';
+  } finally {
+    pushBusy.value = false;
+  }
+};
+
 const presetActivo = computed(() => {
   const actual = JSON.stringify(settings.colors);
 
@@ -1134,177 +1232,76 @@ const showToast = (msg) => {
   }, 3000);
 };
 
-const restaurarColoresPorDefecto = () => {
-  settings.colors = {
-    ...defaultColors
-  };
-
-  guardarCambios();
-
-  showToast(
-    t('toastColorsRestored')
-  );
+// Apariencia compartida por gimnasio/sucursal, preferencias individuales permanecen locales.
+const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const apiApariencia = async (method = 'GET', datos = null) => {
+  const token = pushToken();
+  if (!token) throw new Error('No hay sesión activa. Inicia sesión nuevamente.');
+  const sede = pushSede();
+  const response = await fetch(`${configBase}/api/gym/configuracion-apariencia${method === 'GET' ? `?sede_id=${sede}` : ''}`, {
+    method,
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(datos ? {'Content-Type':'application/json'} : {}) },
+    ...(datos ? {body:JSON.stringify({sede_id:sede, ...datos})} : {}), cache:'no-store'
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(json.message || `Error HTTP ${response.status}`);
+  return json;
 };
-
-const aplicarPreset = (tipoPreset) => {
-  if (colorPresets[tipoPreset]) {
-    settings.colors = {
-      ...colorPresets[tipoPreset].colors
-    };
-
-    localStorage.setItem(
-      claveColores(),
-      JSON.stringify(settings.colors)
-    );
-
-    aplicarEstilos();
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'app-settings-updated',
-        {
-          detail: settings
-        }
-      )
-    );
-
-    showToast(
-      t('toastPresetApplied').replace(
-        '{label}',
-        colorPresets[tipoPreset].label
-      )
-    );
-  }
+const guardarLocalApariencia = () => {
+  localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
+  localStorage.setItem(claveDensidad(), settings.densidad);
+  localStorage.setItem(claveRadius(), settings.borderRadius);
+  aplicarEstilos();
+  window.dispatchEvent(new CustomEvent('app-settings-updated', {detail: settings}));
 };
-
-const guardarCambios = async () => {
+const cargarAparienciaRemota = async () => {
+  cargandoConfig.value = true;
   try {
-    const userRole =
-      localStorage.getItem(ROLE_KEY) ||
-      'GYM_ACCOUNT';
-
-    localStorage.setItem(
-      'tutorialActivo',
-      settings.tutorial
-    );
-
-    localStorage.setItem(
-      'GYM_ACCOUNT-idioma',
-      settings.idioma
-    );
-
-    localStorage.setItem(
-      claveColores(),
-      JSON.stringify(settings.colors)
-    );
-
-    localStorage.setItem(
-      claveDensidad(),
-      settings.densidad
-    );
-
-    localStorage.setItem(
-      claveRadius(),
-      settings.borderRadius
-    );
-
-    aplicarEstilos();
-
-    window.dispatchEvent(
-      new Event('tutorial-updated')
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'app-settings-updated',
-        {
-          detail: settings
-        }
-      )
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'idioma-changed',
-        {
-          detail: {
-            idioma: settings.idioma
-          }
-        }
-      )
-    );
-
-    if (settings.notificaciones) {
-      await fetch(
-        '/api/notificaciones/activar',
-        {
-          method: 'POST'
-        }
-      ).catch(() => {});
-    }
-
-    if (userRole === 'GYM_ACCOUNT') {
-      try {
-        await fetch(
-          '/api/GYM_ACCOUNT/configuracion',
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json',
-
-              'Authorization':
-                `Bearer ${
-                  localStorage.getItem(
-                    'token'
-                  ) || ''
-                }`
-            },
-
-            body: JSON.stringify({
-              idioma:
-                settings.idioma,
-
-              densidad:
-                settings.densidad,
-
-              borderRadius:
-                settings.borderRadius,
-
-              colors:
-                settings.colors,
-
-              tutorial:
-                settings.tutorial
-            })
-          }
-        );
-      } catch (backendError) {
-        console.warn(
-          'Sincronización en la nube omitida temporalmente:',
-          backendError
-        );
+    const respuesta = await apiApariencia();
+    const apariencia = respuesta.apariencia;
+    if (apariencia && typeof apariencia === 'object') {
+      if (apariencia.colors && typeof apariencia.colors === 'object') {
+        settings.colors = {...defaultColors, ...apariencia.colors};
       }
-
-      showToast(
-        t('toastGYM_ACCOUNTSaved')
-      );
-    } else {
-      showToast(
-        t('toastLocalSaved')
-      );
+      if (['normal','compacto','espacioso'].includes(apariencia.densidad)) settings.densidad = apariencia.densidad;
+      if (['8px','16px','24px'].includes(apariencia.borderRadius)) settings.borderRadius = apariencia.borderRadius;
+      guardarLocalApariencia();
     }
   } catch (error) {
-    console.error(
-      'Error al guardar:',
-      error
-    );
-
-    showToast(
-      t('toastSaveError')
-    );
-  }
+    console.warn('No se pudo consultar la apariencia guardada:', error);
+    showToast(error?.message || 'No se pudo cargar la configuración de Railway.');
+  } finally { cargandoConfig.value = false; }
+};
+const restaurarColoresPorDefecto = async () => {
+  settings.colors = { ...defaultColors };
+  guardarLocalApariencia();
+  await guardarCambios();
+};
+const aplicarPreset = async (tipoPreset) => {
+  if (!colorPresets[tipoPreset]) return;
+  settings.colors = { ...colorPresets[tipoPreset].colors };
+  guardarLocalApariencia();
+  // Los presets también se guardan automáticamente, igual que en el componente original.
+  await guardarCambios();
+};
+const guardarCambios = async () => {
+  if (guardandoConfig.value || cargandoConfig.value) return;
+  guardandoConfig.value = true;
+  try {
+    // Guardar primero en Railway; solo confirmar éxito si la API responde correctamente.
+    await apiApariencia('PUT', {
+      apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}
+    });
+    guardarLocalApariencia();
+    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    localStorage.setItem('GYM_ACCOUNT-idioma', settings.idioma);
+    window.dispatchEvent(new Event('tutorial-updated'));
+    window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
+    showToast(t('toastGYM_ACCOUNTSaved'));
+  } catch(error) {
+    console.error('Error al guardar apariencia en Railway:', error);
+    showToast(error?.message || t('toastSaveError'));
+  } finally { guardandoConfig.value = false; }
 };
 
 const aplicarEstilos = () => {
@@ -1417,118 +1414,40 @@ const aplicarEstilos = () => {
 
 onMounted(async () => {
   aplicarEstilos();
-
-  window.addEventListener(
-    'idioma-changed',
-    (e) => {
-      if (
-        e.detail &&
-        e.detail.idioma
-      ) {
-        settings.idioma =
-          e.detail.idioma;
-      }
-    }
-  );
-
-  const userRole =
-    localStorage.getItem(ROLE_KEY) ||
-    'GYM_ACCOUNT';
-
-  if (userRole === 'GYM_ACCOUNT') {
-    try {
-      const res = await fetch(
-        '/api/GYM_ACCOUNT/configuracion',
-        {
-          headers: {
-            'Authorization':
-              `Bearer ${
-                localStorage.getItem(
-                  'token'
-                ) || ''
-              }`
-          }
-        }
-      );
-
-      if (res.ok) {
-        const data =
-          await res.json();
-
-        if (
-          data &&
-          data.idioma
-        ) {
-          settings.idioma =
-            data.idioma;
-
-          localStorage.setItem(
-            'GYM_ACCOUNT-idioma',
-            data.idioma
-          );
-        }
-      }
-    } catch (e) {
-      // Ignorar si no hay red
-    }
-  }
+  void consultarNotificacionesDispositivo();
+  await cargarAparienciaRemota();
+  // Idioma y tutorial son preferencias de este navegador, no cambian para todo el gimnasio.
+  window.addEventListener('idioma-changed', (e) => {if(e.detail?.idioma) settings.idioma = e.detail.idioma;});
 });
 
-const exportar = async (tipo) => {
+const exportarExcel = async () => {
+  if (exportandoExcel.value) return;
+  exportandoExcel.value = true;
   try {
-    const endpoint =
-      tipo === 'excel'
-        ? '/api/exportar/bitacoras'
-        : '/api/exportar/basedatos';
-
-    const response =
-      await fetch(endpoint);
-
-    const blob =
-      await response.blob();
-
-    const url =
-      window.URL.createObjectURL(
-        blob
-      );
-
-    const a =
-      document.createElement('a');
-
-    a.href = url;
-
-    a.download =
-      tipo === 'excel'
-        ? 'bitacora_completa.xlsx'
-        : 'backup_db.yml';
-
-    document.body.appendChild(a);
-
-    a.click();
-
-    a.remove();
-
-    window.URL.revokeObjectURL(url);
-
-    showToast(
-      t('toastDownloading').replace(
-        '{tipo}',
-        tipo.toUpperCase()
-      )
-    );
+    const token = pushToken();
+    if (!token) throw new Error('Tu sesión no está disponible. Inicia sesión nuevamente.');
+    const sede = pushSede();
+    const respuesta = await fetch(`${configBase}/api/gym/exportar/bitacoras/excel?sede_id=${encodeURIComponent(sede)}`, {
+      method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, cache: 'no-store'
+    });
+    if (!respuesta.ok) {
+      const error = await respuesta.json().catch(() => ({}));
+      throw new Error(error.message || `No se pudo descargar el Excel (HTTP ${respuesta.status}).`);
+    }
+    const archivo = await respuesta.blob();
+    if (!archivo.size) throw new Error('El servidor devolvió un archivo vacío.');
+    const url = URL.createObjectURL(archivo);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = `FactorFit_Bitacoras_Sede_${sede}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(enlace);
+    enlace.click(); enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    showToast('Excel de bitácoras descargado correctamente.');
   } catch (error) {
-    console.error(
-      `Error al descargar ${tipo}:`,
-      error
-    );
-
-    showToast(
-      t('toastDownloading').replace(
-        '{tipo}',
-        tipo.toUpperCase()
-      ) + ' (Simulado)'
-    );
-  }
+    console.error('Exportación de bitácoras:', error);
+    showToast(error?.message || 'No se pudo descargar el Excel.');
+  } finally { exportandoExcel.value = false; }
 };
 </script>
 
