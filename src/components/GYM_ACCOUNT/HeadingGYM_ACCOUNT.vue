@@ -246,7 +246,7 @@
             @click="isNotificationsOpen = true"
           >
             <span v-if="unreadNotifications > 0" class="notification-count">
-              {{ unreadNotifications > 9 ? '9+' : unreadNotifications }}
+              {{ unreadNotifications > 99 ? '99+' : unreadNotifications }}
             </span>
             <svg viewBox="0 0 24 24">
               <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
@@ -663,6 +663,7 @@
     <NotificationsPanel
       :is-open="isNotificationsOpen"
       :notifications="notifications"
+      @notifications-updated="onNotificationsUpdated"
       @close="isNotificationsOpen = false"
     />
   </div>
@@ -809,17 +810,9 @@ const readAccount = () => { try { const x = JSON.parse(sessionStorage.getItem('g
 const gyms = ref(Array.isArray(readAccount().sedes) ? readAccount().sedes : []);
 const selectedGym = ref(gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null);
 const syncBranch = () => { const account = readAccount(); gyms.value = Array.isArray(account.sedes) ? account.sedes : []; selectedGym.value = gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null; };
-const onBranchChanged = () => syncBranch();
+const onBranchChanged = () => { syncBranch(); refreshNotificationsOnBranch(); };
 
-const notifications = ref([
-  {
-    id: 1,
-    title: 'Sistema',
-    message: 'Bienvenido',
-    time: 'ahora',
-    read: false
-  }
-]);
+const notifications = ref([]); // Notificaciones reales de Laravel, sin datos de prueba
 
 /* =========================================================
    PERFIL (datos de prueba)
@@ -874,9 +867,31 @@ const handleIdiomaChanged = (event) => {
    NOTIFICACIONES
 ========================================================= */
 
-const unreadNotifications = computed(() => {
-  return notifications.value.filter((n) => !n.read).length;
-});
+const unreadNotifications = computed(() => notifications.value.filter(n => !n.read).length);
+const onNotificationsUpdated = (items) => { if (Array.isArray(items)) notifications.value = items; };
+const notificationsBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const notificationsToken = () => { for (const store of [sessionStorage, localStorage]) { for (const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) { const v = store.getItem(key); if (v) return v.replace(/^Bearer\s+/i, ''); } } return ''; };
+let notificationsRequestVersion = 0;
+let notificationsTimer = null;
+const fetchNotifications = async (sync = false) => {
+  const version = ++notificationsRequestVersion;
+  const token = notificationsToken();
+  const sede = Number(sessionStorage.getItem('selected_sede_id') || selectedGym.value?.ID_Sede || 1);
+  if (!token || !Number.isInteger(sede) || sede <= 0) { notifications.value = []; return; }
+  const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+  try {
+    if (sync) {
+      const response = await fetch(`${notificationsBase}/api/gym/notificaciones/sincronizar`, { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ sede_id: sede }), cache: 'no-store' });
+      if (!response.ok) throw new Error(`No se pudieron sincronizar notificaciones (${response.status})`);
+    }
+    const response = await fetch(`${notificationsBase}/api/gym/notificaciones?sede_id=${sede}`, { headers, cache: 'no-store' });
+    if (!response.ok) throw new Error(`No se pudieron cargar notificaciones (${response.status})`);
+    const data = await response.json();
+    if (version === notificationsRequestVersion && sede === Number(sessionStorage.getItem('selected_sede_id') || selectedGym.value?.ID_Sede || 1)) notifications.value = Array.isArray(data.notifications) ? data.notifications : [];
+  } catch (e) { console.warn('Error al actualizar contador de notificaciones:', e); }
+};
+const refreshNotificationsOnBranch = () => { notificationsRequestVersion++; notifications.value = []; void fetchNotifications(true); };
+const refreshNotificationsOnFocus = () => { if (document.visibilityState === 'visible') void fetchNotifications(true); };
 
 /* =========================================================
    GRUPO ACTIVO (resalta el menú cuando estás en una de sus páginas)
@@ -1161,6 +1176,9 @@ const aplicarEstilosGlobales = () => {
 
 onMounted(() => {
   syncBranch();
+  void fetchNotifications(true);
+  notificationsTimer = window.setInterval(() => { void fetchNotifications(true); }, 60000);
+  document.addEventListener('visibilitychange', refreshNotificationsOnFocus);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
   aplicarEstilosGlobales();
 
@@ -1172,6 +1190,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  notificationsRequestVersion++;
+  if (notificationsTimer !== null) window.clearInterval(notificationsTimer);
+  document.removeEventListener('visibilitychange', refreshNotificationsOnFocus);
   window.removeEventListener('factorfit:branch-changed', onBranchChanged);
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleKeydown);

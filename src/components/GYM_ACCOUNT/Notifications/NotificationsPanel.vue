@@ -495,7 +495,8 @@ const emit = defineEmits([
   'close',
   'mark-read',
   'delete-notifications',
-  'toggle-read'
+  'toggle-read',
+  'notifications-updated'
 ]);
 
 // Fuente real: Laravel/PostgreSQL. El prop externo se conserva como respaldo para no romper el padre.
@@ -532,6 +533,7 @@ const loadRemote = async (sync=false) => {
     if(sync)await apiRequest('/sincronizar','POST',{sede_id:sede});
     const d=await apiRequest(`?sede_id=${sede}`);
     remoteNotifications.value=Array.isArray(d.notifications)?d.notifications:[];apiLoaded.value=true;
+    emit('notifications-updated',remoteNotifications.value);
     if(d.preferences){
       if(d.preferences.settings)settings.value={...settings.value,...d.preferences.settings};
       if(Array.isArray(d.preferences.types))notificationTypes.value.forEach(x=>{const v=d.preferences.types.find((z:{key:string,value:boolean})=>z.key===x.key);if(v)x.value=!!v.value;});
@@ -546,6 +548,7 @@ const updateNotifications = async(ids:Array<string|number>,accion:'leer'|'no_lee
       await apiRequest('','PATCH',{sede_id:scopeSede(),ids:ids.map(Number),accion});
       if(accion==='eliminar')remoteNotifications.value=remoteNotifications.value.filter(n=>!ids.some(id=>String(id)===String(n.id)));
       else remoteNotifications.value=remoteNotifications.value.map(n=>ids.some(id=>String(id)===String(n.id))?{...n,read:accion==='leer'}:n);
+      emit('notifications-updated',remoteNotifications.value);
     }else{
       if(accion==='eliminar')emit('delete-notifications',ids);
       else if(accion==='leer')emit('mark-read',ids);
@@ -556,6 +559,7 @@ const updateNotifications = async(ids:Array<string|number>,accion:'leer'|'no_lee
 let polling:ReturnType<typeof setInterval>|null=null;
 const stopPolling=()=>{if(polling){clearInterval(polling);polling=null;}};
 const startPolling=()=>{stopPolling();polling=setInterval(()=>{if(props.isOpen)void loadRemote(false);},60000);};
+const onBranchUpdate=()=>{apiLoaded.value=false;remoteNotifications.value=[];emit('notifications-updated',[]);if(props.isOpen)void loadRemote(true);};
 const panelRef = ref<HTMLElement | null>(null);
 const currentView = ref<'list' | 'settings'>('list');
 const listFilter = ref<'all' | 'unread' | 'read'>('all');
@@ -1043,12 +1047,14 @@ watch(
 onMounted(() => {
   loadPreferences();if(props.isOpen){void loadRemote(true);startPolling();}
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
+  window.addEventListener('factorfit:branch-changed', onBranchUpdate);
   document.addEventListener('mousedown', handleClickOutside);
 });
 
 onUnmounted(() => {
   stopPolling();
   window.removeEventListener('idioma-changed', handleLangChange as EventListener);
+  window.removeEventListener('factorfit:branch-changed', onBranchUpdate);
   document.removeEventListener('mousedown', handleClickOutside);
 });
 </script>
