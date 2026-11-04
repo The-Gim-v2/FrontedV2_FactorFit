@@ -42,6 +42,8 @@
           </div>
         </header>
 
+        <p v-if="apiError" role="alert" style="padding:8px 16px;color:#fca5a5;font-size:12px">{{ apiError }}</p>
+
         <!-- RESUMEN / ACCIÓN -->
         <section class="notification-summary">
           <div class="summary-status">
@@ -65,7 +67,7 @@
         <nav class="filter-tabs">
           <button type="button" :class="{ active: listFilter === 'all' }" @click="changeFilter('all')">
             {{ t('filterAll') }}
-            <span>{{ notifications.length }}</span>
+            <span>{{ filteredTypes.length }}</span>
           </button>
 
           <button type="button" :class="{ active: listFilter === 'unread' }" @click="changeFilter('unread')">
@@ -436,7 +438,7 @@ type NotificationItem = {
 
 const props = defineProps<{
   isOpen: boolean;
-  notifications: NotificationItem[];
+  notifications?: NotificationItem[];
 }>();
 
 const emit = defineEmits([
@@ -446,6 +448,64 @@ const emit = defineEmits([
   'toggle-read'
 ]);
 
+// Fuente real: Laravel/PostgreSQL. El prop externo se conserva como respaldo para no romper el padre.
+const remoteNotifications = ref<NotificationItem[]>([]);
+const apiLoaded = ref(false);
+const apiError = ref('');
+const loading = ref(false);
+const scopeSede = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['selected_sede_id','sede_id','ID_Sede','selectedSedeId']) {
+      const n = Number(store.getItem(key)); if (Number.isInteger(n) && n > 0) return n;
+    }
+  }
+  return 1;
+};
+const token = () => {
+  for (const store of [sessionStorage,localStorage]) for(const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+    const v=store.getItem(key);if(v) return v.replace(/^Bearer\s+/i,'');
+  }
+  return '';
+};
+const baseApi=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const apiRequest = async (path:string,method='GET',payload?:unknown) => {
+  const t=token();if(!t) throw new Error('Sesión no disponible. Inicia sesión nuevamente.');
+  const r=await fetch(`${baseApi}/api/gym/notificaciones${path}`,{method,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),cache:'no-store'});
+  const d=await r.json().catch(()=>({}));if(!r.ok) throw new Error(d?.message||`Error HTTP ${r.status}`);return d;
+};
+const notificationsData = computed(()=>apiLoaded.value ? remoteNotifications.value : (props.notifications||[]));
+const filteredTypes = computed(()=>notificationsData.value.filter(n=>settings.value.inApp && (notificationTypes.value.find(x=>({payments:'payment',memberships:'membership',clients:'client',schedule:'schedule',system:'system'}[x.key]||'system')===getNotificationType(n))?.value!==false)));
+const loadRemote = async (sync=false) => {
+  if(loading.value)return;loading.value=true;apiError.value='';
+  try {
+    const sede=scopeSede();
+    if(sync)await apiRequest('/sincronizar','POST',{sede_id:sede});
+    const d=await apiRequest(`?sede_id=${sede}`);
+    remoteNotifications.value=Array.isArray(d.notifications)?d.notifications:[];apiLoaded.value=true;
+    if(d.preferences){
+      if(d.preferences.settings)settings.value={...settings.value,...d.preferences.settings};
+      if(Array.isArray(d.preferences.types))notificationTypes.value.forEach(x=>{const v=d.preferences.types.find((z:{key:string,value:boolean})=>z.key===x.key);if(v)x.value=!!v.value;});
+    }
+  }catch(e){apiError.value=e instanceof Error?e.message:'No se pudieron cargar las notificaciones.';}
+  finally{loading.value=false;}
+};
+const updateNotifications = async(ids:Array<string|number>,accion:'leer'|'no_leer'|'eliminar')=>{
+  if(!ids.length)return;
+  try{
+    if(apiLoaded.value){
+      await apiRequest('','PATCH',{sede_id:scopeSede(),ids:ids.map(Number),accion});
+      if(accion==='eliminar')remoteNotifications.value=remoteNotifications.value.filter(n=>!ids.some(id=>String(id)===String(n.id)));
+      else remoteNotifications.value=remoteNotifications.value.map(n=>ids.some(id=>String(id)===String(n.id))?{...n,read:accion==='leer'}:n);
+    }else{
+      if(accion==='eliminar')emit('delete-notifications',ids);
+      else if(accion==='leer')emit('mark-read',ids);
+      else ids.forEach(id=>emit('toggle-read',id));
+    }
+  }catch(e){apiError.value=e instanceof Error?e.message:'No fue posible guardar el cambio.';}
+};
+let polling:ReturnType<typeof setInterval>|null=null;
+const stopPolling=()=>{if(polling){clearInterval(polling);polling=null;}};
+const startPolling=()=>{stopPolling();polling=setInterval(()=>{if(props.isOpen)void loadRemote(false);},60000);};
 const panelRef = ref<HTMLElement | null>(null);
 const currentView = ref<'list' | 'settings'>('list');
 const listFilter = ref<'all' | 'unread' | 'read'>('all');
@@ -616,17 +676,17 @@ const notificationTypes = ref([
 ========================================================= */
 
 const unreadCount = computed(
-  () => props.notifications.filter(item => !item.read).length
+  () => filteredTypes.value.filter(item => !item.read).length
 );
 
 const filteredNotifications = computed(() => {
   if (listFilter.value === 'unread') {
-    return props.notifications.filter(item => !item.read);
+    return filteredTypes.value.filter(item => !item.read);
   }
   if (listFilter.value === 'read') {
-    return props.notifications.filter(item => item.read);
+    return filteredTypes.value.filter(item => item.read);
   }
-  return props.notifications;
+  return filteredTypes.value;
 });
 
 /* =========================================================
@@ -748,7 +808,7 @@ const cancelSelection = () => {
 const markSelectedAsRead = () => {
   if (!selectedIds.value.length) return;
 
-  emit('mark-read', selectedIds.value);
+  void updateNotifications([...selectedIds.value],'leer');
 
   selectedIds.value = [];
   selectionMode.value = false;
@@ -757,14 +817,14 @@ const markSelectedAsRead = () => {
 const deleteSelected = () => {
   if (!selectedIds.value.length) return;
 
-  emit('delete-notifications', selectedIds.value);
+  void updateNotifications([...selectedIds.value],'eliminar');
 
   selectedIds.value = [];
   selectionMode.value = false;
 };
 
 const deleteOne = (id: string | number) => {
-  emit('delete-notifications', [id]);
+  void updateNotifications([id],'eliminar');
   openMenuId.value = null;
 };
 
@@ -773,15 +833,15 @@ const deleteOne = (id: string | number) => {
 ========================================================= */
 
 const markAllAsRead = () => {
-  const ids = props.notifications.filter(item => !item.read).map(item => item.id);
+  const ids = filteredTypes.value.filter(item => !item.read).map(item => item.id);
 
   if (!ids.length) return;
 
-  emit('mark-read', ids);
+  void updateNotifications(ids,'leer');
 };
 
 const toggleRead = (item: NotificationItem) => {
-  emit('toggle-read', item.id);
+  void updateNotifications([item.id],item.read?'no_leer':'leer');
   openMenuId.value = null;
 };
 
@@ -801,7 +861,7 @@ const handleNotificationClick = (item: NotificationItem) => {
   }
 
   if (!item.read) {
-    emit('toggle-read', item.id);
+    void updateNotifications([item.id],item.read?'no_leer':'leer');
   }
 };
 
@@ -847,7 +907,7 @@ const toggleMenu = (id: string | number, event: MouseEvent) => {
    GUARDAR / CARGAR PREFERENCIAS
 ========================================================= */
 
-const saveSettings = () => {
+const saveSettings = async () => {
   localStorage.setItem(
     'notification-preferences',
     JSON.stringify({
@@ -859,7 +919,7 @@ const saveSettings = () => {
     })
   );
 
-  currentView.value = 'list';
+  try{await apiRequest('/preferencias','PUT',{sede_id:scopeSede(),settings:settings.value,types:notificationTypes.value.map(x=>({key:x.key,value:x.value}))});currentView.value='list';}catch(e){apiError.value=e instanceof Error?e.message:'No se pudieron guardar preferencias.';}
 };
 
 const loadPreferences = () => {
@@ -909,8 +969,8 @@ const handleClickOutside = (event: MouseEvent) => {
 watch(
   () => props.isOpen,
   value => {
-    if (!value) return;
-
+    if (!value){stopPolling();return;}
+    void loadRemote(true);startPolling();
     currentView.value = 'list';
     selectedIds.value = [];
     selectionMode.value = false;
@@ -919,12 +979,13 @@ watch(
 );
 
 onMounted(() => {
-  loadPreferences();
+  loadPreferences();if(props.isOpen){void loadRemote(true);startPolling();}
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   document.addEventListener('mousedown', handleClickOutside);
 });
 
 onUnmounted(() => {
+  stopPolling();
   window.removeEventListener('idioma-changed', handleLangChange as EventListener);
   document.removeEventListener('mousedown', handleClickOutside);
 });
