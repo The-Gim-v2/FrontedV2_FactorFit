@@ -3,7 +3,6 @@
     <div v-if="isOpen" ref="panelRef" class="notifications-panel" role="dialog" :aria-label="t('notificationsTitle')">
       <!-- Barra de carga -->
       <div v-if="loading" class="loading-bar" aria-hidden="true"></div>
-
       <!-- ==================================================
            LISTA DE NOTIFICACIONES
       =================================================== -->
@@ -18,7 +17,6 @@
               </svg>
               <span v-if="unreadCount > 0" class="header-indicator"></span>
             </div>
-
             <div class="header-copy">
               <div class="header-title-row">
                 <h3>{{ t('notificationsTitle') }}</h3>
@@ -27,15 +25,13 @@
               <p>{{ unreadCount > 0 ? t('pendingNotifications') : t('everythingUpToDate') }}</p>
             </div>
           </div>
-
           <div class="header-actions">
-            <button type="button" class="icon-button" :title="t('settingsTooltip')" :aria-label="t('settingsTooltip')" @click="currentView = 'settings'; refreshPush()">
+            <button type="button" class="icon-button" :title="t('settingsTooltip')" :aria-label="t('settingsTooltip')" @click="currentView = 'settings'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.39 1.26 1 1.51.2.08.42.12.64.12H21a2 2 0 1 1 0 4h-.09c-.66 0-1.26.39-1.51 1z" />
               </svg>
             </button>
-
             <button type="button" class="icon-button" :title="t('closeTooltip')" :aria-label="t('closeTooltip')" @click="$emit('close')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 6 6 18" />
@@ -44,7 +40,6 @@
             </button>
           </div>
         </header>
-
         <!-- ERROR -->
         <div v-if="apiError" class="api-error" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -53,7 +48,6 @@
           <span>{{ apiError }}</span>
           <button type="button" @click="loadRemote(true)">{{ t('retry') }}</button>
         </div>
-
         <!-- FILTROS -->
         <nav class="filter-tabs" role="tablist">
           <div class="segmented">
@@ -61,18 +55,15 @@
               {{ t('filterAll') }}
               <span>{{ filteredTypes.length }}</span>
             </button>
-
             <button type="button" role="tab" :aria-selected="listFilter === 'unread'" :class="{ active: listFilter === 'unread' }" @click="changeFilter('unread')">
               {{ t('filterUnread') }}
               <span>{{ unreadCount }}</span>
             </button>
-
             <button type="button" role="tab" :aria-selected="listFilter === 'read'" :class="{ active: listFilter === 'read' }" @click="changeFilter('read')">
               {{ t('filterRead') }}
             </button>
           </div>
         </nav>
-
         <!-- RESUMEN / ACCIÓN -->
         <section class="notification-summary">
           <div class="summary-status">
@@ -82,7 +73,6 @@
             </span>
             <span v-else>{{ t('noPending') }}</span>
           </div>
-
           <button v-if="unreadCount > 0" type="button" class="mark-all-button" @click="markAllAsRead">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 12 4 4L17 6" />
@@ -91,7 +81,6 @@
             {{ t('markAllRead') }}
           </button>
         </section>
-
         <!-- SELECCIÓN MÚLTIPLE -->
         <div v-if="selectionMode" class="selection-toolbar">
           <label>
@@ -101,20 +90,16 @@
               {{ selectedIds.length > 0 ? `${selectedIds.length} ${t('selected')}` : t('selectAll') }}
             </span>
           </label>
-
           <div class="selection-actions">
             <button v-if="selectedIds.length > 0" type="button" @click="markSelectedAsRead">
               {{ t('markAsReadBtn') }}
             </button>
-
             <button v-if="selectedIds.length > 0" type="button" class="danger-action" @click="deleteSelected">
               {{ t('deleteSelectedBtn') }}
             </button>
-
             <button type="button" class="ghost-action" @click="cancelSelection">{{ t('cancel') }}</button>
           </div>
         </div>
-
         <!-- LISTA -->
         <div class="notifications-scroll" @scroll.passive="openMenuId = null">
           <!-- VACÍO -->
@@ -128,7 +113,6 @@
             <h4>{{ t('emptyTitle') }}</h4>
             <p>{{ t('emptyList') }}</p>
           </div>
-
           <template v-else>
             <!-- GRUPOS: HOY / ANTERIORES -->
             <section v-for="group in groups" :key="group.key" class="notification-group">
@@ -137,7 +121,6 @@
                 <span class="group-count">{{ group.items.length }}</span>
                 <span class="group-line"></span>
               </div>
-
               <article
                 v-for="item in group.items"
                 :key="item.id"
@@ -152,26 +135,22 @@
                   <input v-model="selectedIds" type="checkbox" :value="item.id" />
                   <span class="check-box"></span>
                 </label>
-
                 <div class="notification-icon" :class="getNotificationType(item)">
                   <!-- ALERTA -->
                   <svg v-if="isAlertItem(item)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   </svg>
-
                   <!-- PAGO -->
                   <svg v-else-if="getNotificationType(item) === 'payment'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="2" y="5" width="20" height="14" rx="2" />
                     <path d="M2 10h20" />
                     <path d="M6 15h2" />
                   </svg>
-
                   <!-- MEMBRESÍA -->
                   <svg v-else-if="getNotificationType(item) === 'membership'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="8" r="6" />
                     <path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11" />
                   </svg>
-
                   <!-- AGENDA -->
                   <svg v-else-if="getNotificationType(item) === 'schedule'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -179,28 +158,23 @@
                     <path d="M8 3v4" />
                     <path d="M3 11h18" />
                   </svg>
-
                   <!-- CLIENTE -->
                   <svg v-else-if="getNotificationType(item) === 'client'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-
                   <!-- SISTEMA -->
                   <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
                     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                   </svg>
                 </div>
-
                 <div class="notification-body">
                   <div class="notification-title-row">
                     <h4>{{ item.title }}</h4>
                     <span v-if="!item.read" class="unread-dot"></span>
                   </div>
-
                   <p>{{ item.message }}</p>
-
                   <footer class="notification-meta">
                     <span class="meta-time">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -212,7 +186,6 @@
                     <span class="type-chip">{{ getTypeLabel(item) }}</span>
                   </footer>
                 </div>
-
                 <button
                   v-if="!selectionMode"
                   type="button"
@@ -227,7 +200,6 @@
                     <circle cx="12" cy="19" r="1.7" />
                   </svg>
                 </button>
-
                 <!-- MENÚ (position: fixed, no se recorta por el scroll) -->
                 <div
                   v-if="openMenuId === item.id"
@@ -241,7 +213,6 @@
                     </svg>
                     {{ item.read ? t('markUnread') : t('markAsReadBtn') }}
                   </button>
-
                   <button type="button" @click="startSelection(item.id)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                       <rect x="4" y="4" width="16" height="16" rx="3" />
@@ -249,9 +220,7 @@
                     </svg>
                     {{ t('select') }}
                   </button>
-
                   <span class="menu-divider"></span>
-
                   <button type="button" class="delete-menu-item" @click="deleteOne(item.id)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M3 6h18" />
@@ -265,7 +234,6 @@
             </section>
           </template>
         </div>
-
         <!-- FOOTER -->
         <footer class="panel-footer">
           <button type="button" @click="selectionMode = true">
@@ -276,7 +244,7 @@
             {{ t('manageNotifications') }}
           </button>
           <span></span>
-          <button type="button" @click="currentView = 'settings'; refreshPush()">
+          <button type="button" @click="currentView = 'settings'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
               <circle cx="16" cy="6" r="2" />
@@ -287,7 +255,6 @@
           </button>
         </footer>
       </template>
-
       <!-- ==================================================
            CONFIGURACIÓN
       =================================================== -->
@@ -299,13 +266,11 @@
                 <path d="m15 18-6-6 6-6" />
               </svg>
             </button>
-
             <div class="header-copy">
               <h3>{{ t('settingsTitle') }}</h3>
               <p>{{ t('settingsSubtitle') }}</p>
             </div>
           </div>
-
           <button type="button" class="icon-button" :aria-label="t('closeTooltip')" @click="$emit('close')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 6 6 18" />
@@ -313,21 +278,18 @@
             </svg>
           </button>
         </header>
-
         <div v-if="apiError" class="api-error" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
           </svg>
           <span>{{ apiError }}</span>
         </div>
-
         <div class="settings-scroll">
           <!-- ENTREGA -->
           <section class="settings-section">
             <div class="settings-heading">
               <span>{{ t('deliverySection') }}</span>
             </div>
-
             <div class="settings-card">
               <div class="setting-row">
                 <div class="setting-icon blue">
@@ -345,7 +307,6 @@
                   <span></span>
                 </label>
               </div>
-
               <div class="setting-row">
                 <div class="setting-icon purple">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -361,18 +322,6 @@
                   <input v-model="settings.email" type="checkbox" />
                   <span></span>
                 </label>
-              </div>
-
-              <!-- WEB PUSH: permiso solo al pulsar el botón (no solicitar al cargar). -->
-              <div class="setting-row">
-                <div class="setting-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-                <div class="setting-copy">
-                  <strong>Notificaciones en mi dispositivo</strong>
-                  <span>{{ pushMessage || (pushEnabled ? 'Este dispositivo recibe avisos, incluso con la página cerrada.' : 'Actívalas para recibir avisos fuera del navegador.') }}</span>
-                  <button type="button" class="push-toggle-action" :disabled="pushBusy || !pushSupported" @click="togglePush">
-                    {{ pushBusy ? 'Procesando…' : pushEnabled ? 'Desactivar en este dispositivo' : 'Activar en este dispositivo' }}
-                  </button>
-                </div>
               </div>
               <div class="setting-row">
                 <div class="setting-icon green">
@@ -393,14 +342,12 @@
               </div>
             </div>
           </section>
-
           <!-- TIPOS -->
           <section class="settings-section">
             <div class="settings-heading">
               <span>{{ t('typesSectionTitle') }}</span>
               <small>{{ t('chooseAlerts') }}</small>
             </div>
-
             <div class="settings-card">
               <div v-for="item in notificationTypes" :key="item.key" class="setting-row">
                 <div class="setting-icon" :class="item.color">
@@ -408,34 +355,28 @@
                     <rect x="2" y="5" width="20" height="14" rx="2" />
                     <path d="M2 10h20" />
                   </svg>
-
                   <svg v-else-if="item.key === 'memberships'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="8" r="6" />
                     <path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11" />
                   </svg>
-
                   <svg v-else-if="item.key === 'clients'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
-
                   <svg v-else-if="item.key === 'schedule'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="5" width="18" height="16" rx="2" />
                     <path d="M16 3v4M8 3v4M3 11h18" />
                   </svg>
-
                   <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M12 8v4" />
                     <path d="M12 16h.01" />
                   </svg>
                 </div>
-
                 <div class="setting-copy">
                   <strong>{{ t(item.titleKey) }}</strong>
                   <span>{{ t(item.descKey) }}</span>
                 </div>
-
                 <label class="switch">
                   <input v-model="item.value" type="checkbox" />
                   <span></span>
@@ -443,13 +384,11 @@
               </div>
             </div>
           </section>
-
           <!-- PREFERENCIAS -->
           <section class="settings-section">
             <div class="settings-heading">
               <span>{{ t('preferences') }}</span>
             </div>
-
             <div class="settings-card">
               <div class="setting-row">
                 <div class="setting-icon neutral">
@@ -470,7 +409,6 @@
             </div>
           </section>
         </div>
-
         <footer class="settings-footer">
           <button type="button" class="save-settings-button" @click="saveSettings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
@@ -483,10 +421,8 @@
     </div>
   </transition>
 </template>
-
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-
 type NotificationItem = {
   id: string | number;
   title: string;
@@ -496,12 +432,10 @@ type NotificationItem = {
   type?: 'payment' | 'membership' | 'client' | 'schedule' | 'system';
   date?: string | Date;
 };
-
 const props = defineProps<{
   isOpen: boolean;
   notifications?: NotificationItem[];
 }>();
-
 const emit = defineEmits([
   'close',
   'mark-read',
@@ -509,7 +443,6 @@ const emit = defineEmits([
   'toggle-read',
   'notifications-updated'
 ]);
-
 // Fuente real: Laravel/PostgreSQL. El prop externo se conserva como respaldo para no romper el padre.
 const remoteNotifications = ref<NotificationItem[]>([]);
 const apiLoaded = ref(false);
@@ -530,60 +463,6 @@ const token = () => {
   return '';
 };
 const baseApi=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
-
-// Dispositivo: suscripción real del navegador ligada a la sesión autenticada.
-const pushEnabled = ref(false);
-const pushBusy = ref(false);
-const pushMessage = ref('');
-const pushSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
-const decodeVapid = (base64:string):Uint8Array<ArrayBuffer> => {
-  const pad='='.repeat((4-base64.length%4)%4);
-  const raw=atob((base64+pad).replace(/-/g,'+').replace(/_/g,'/'));
-  const bytes=new Uint8Array(new ArrayBuffer(raw.length));
-  for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-  return bytes;
-};
-const pushApi=async(path:string,payload:Record<string,unknown>|null=null)=>{
-  const t=token();if(!t)throw new Error('Inicia sesión nuevamente.');
-  const r=await fetch(`${baseApi}/api/gym/push/${path}`,{method:payload?'POST':'GET',headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify({...payload,sede_id:scopeSede()})}:{}),cache:'no-store'});
-  const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.message||`Error HTTP ${r.status}`);return d;
-};
-const getPushReg=async()=>navigator.serviceWorker.register('/push-sw.js',{scope:'/'});
-const refreshPush=async()=>{
-  if(!pushSupported){pushMessage.value='Este navegador o conexión no permite notificaciones push.';return;}
-  try{
-    const reg=await getPushReg();const s=await reg.pushManager.getSubscription();
-    if(!s){pushEnabled.value=false;return;}
-    const d=await pushApi('estado',{endpoint:s.endpoint});pushEnabled.value=!!d.enabled;
-  }catch(e){pushMessage.value=e instanceof Error?e.message:'No se pudo comprobar Web Push.';}
-};
-const togglePush=async()=>{
-  if(!pushSupported||pushBusy.value)return;
-  pushBusy.value=true;pushMessage.value='';
-  try{
-    const reg=await getPushReg();let s=await reg.pushManager.getSubscription();
-    if(pushEnabled.value){
-      if(s){await pushApi('desuscribir',{endpoint:s.endpoint});await s.unsubscribe();}
-      pushEnabled.value=false;pushMessage.value='Notificaciones desactivadas en este dispositivo.';
-    }else{
-      const d=await pushApi(`config?sede_id=${scopeSede()}`);
-      if(!d.configured||!d.publicKey)throw new Error('Web Push aún no está configurado en Railway.');
-      if(Notification.permission!=='granted'){
-        const permission=await Notification.requestPermission();
-        if(permission!=='granted')throw new Error('No se concedió permiso para recibir notificaciones.');
-      }
-      // Sincronizar los avisos previos antes del alta del dispositivo: no enviar historial antiguo.
-      await apiRequest('/sincronizar','POST',{sede_id:scopeSede()});
-      if(!s)s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:decodeVapid(d.publicKey)});
-      const json=s.toJSON();
-      if(!json.keys?.p256dh||!json.keys?.auth)throw new Error('No fue posible obtener las claves de suscripción.');
-      await pushApi('suscribir',{endpoint:s.endpoint,keys:json.keys});
-      pushEnabled.value=true;pushMessage.value='Notificaciones activadas en este dispositivo.';
-    }
-  }catch(e){pushMessage.value=e instanceof Error?e.message:'No se pudo cambiar la suscripción.';}
-  finally{pushBusy.value=false;}
-};
-
 const apiRequest = async (path:string,method='GET',payload?:unknown) => {
   const t=token();if(!t) throw new Error('Sesión no disponible. Inicia sesión nuevamente.');
   const r=await fetch(`${baseApi}/api/gym/notificaciones${path}`,{method,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),cache:'no-store'});
@@ -632,20 +511,16 @@ const selectedIds = ref<Array<string | number>>([]);
 const selectionMode = ref(false);
 const openMenuId = ref<string | number | null>(null);
 const menuStyle = ref<Record<string, string>>({});
-
 /* =========================================================
    IDIOMA
 ========================================================= */
-
-const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
-
+const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const handleLangChange = (event: Event) => {
   const customEvent = event as CustomEvent<{ idioma?: string }>;
   if (customEvent.detail?.idioma) {
     currentLang.value = customEvent.detail.idioma;
   }
 };
-
 const langData = {
   es: {
     notificationsTitle: 'Notificaciones',
@@ -706,7 +581,6 @@ const langData = {
     system: 'Sistema',
     alert: 'Alerta'
   },
-
   en: {
     notificationsTitle: 'Notifications',
     settingsTooltip: 'Notification settings',
@@ -767,7 +641,6 @@ const langData = {
     alert: 'Alert'
   }
 };
-
 const t = (key: string) => {
   const language = currentLang.value === 'en' ? 'en' : 'es';
   return (
@@ -776,18 +649,15 @@ const t = (key: string) => {
     key
   );
 };
-
 /* =========================================================
    CONFIGURACIÓN
 ========================================================= */
-
 const settings = ref({
   inApp: true,
   email: true,
   sound: true,
   quietHours: false
 });
-
 const notificationTypes = ref([
   { key: 'payments', titleKey: 'paymentsTitle', descKey: 'paymentsDesc', color: 'green', value: true },
   { key: 'memberships', titleKey: 'membershipsTitle', descKey: 'membershipsDesc', color: 'orange', value: true },
@@ -795,15 +665,12 @@ const notificationTypes = ref([
   { key: 'schedule', titleKey: 'scheduleTitle', descKey: 'scheduleDesc', color: 'purple', value: true },
   { key: 'system', titleKey: 'systemTitle', descKey: 'systemDesc', color: 'neutral', value: true }
 ]);
-
 /* =========================================================
    CONTADORES / FILTRO
 ========================================================= */
-
 const unreadCount = computed(
   () => filteredTypes.value.filter(item => !item.read).length
 );
-
 const filteredNotifications = computed(() => {
   if (listFilter.value === 'unread') {
     return filteredTypes.value.filter(item => !item.read);
@@ -813,27 +680,22 @@ const filteredNotifications = computed(() => {
   }
   return filteredTypes.value;
 });
-
 /* =========================================================
    AGRUPACIÓN
 ========================================================= */
-
 const isToday = (item: NotificationItem) => {
   // Si la API devuelve `date`, se usa la fecha real.
   // Si no, se infiere por el texto ("min", "hora", "ahora", etc.).
   if (item.date) {
     const date = new Date(item.date);
     const now = new Date();
-
     return (
       date.getFullYear() === now.getFullYear() &&
       date.getMonth() === now.getMonth() &&
       date.getDate() === now.getDate()
     );
   }
-
   const time = item.time?.toLowerCase() || '';
-
   return (
     time.includes('min') ||
     time.includes('hora') ||
@@ -844,26 +706,20 @@ const isToday = (item: NotificationItem) => {
     time.includes('today')
   );
 };
-
 const groups = computed(() => {
   const today = filteredNotifications.value.filter(isToday);
   const older = filteredNotifications.value.filter(item => !isToday(item));
-
   return [
     { key: 'today', labelKey: 'today', items: today },
     { key: 'earlier', labelKey: 'earlier', items: older }
   ].filter(group => group.items.length > 0);
 });
-
 /* =========================================================
    TIPO DE NOTIFICACIÓN
 ========================================================= */
-
 const getNotificationType = (item: NotificationItem) => {
   if (item.type) return item.type;
-
   const content = `${item.title} ${item.message}`.toLowerCase();
-
   if (content.includes('pago') || content.includes('payment') || content.includes('cobro')) {
     return 'payment';
   }
@@ -881,146 +737,109 @@ const getNotificationType = (item: NotificationItem) => {
   ) {
     return 'schedule';
   }
-
   return 'system';
 };
-
 /* Alertas de sistema (p. ej. "Alerta de control de acceso") se resaltan en ámbar */
 const isAlertItem = (item: NotificationItem) =>
   getNotificationType(item) === 'system' &&
   /alerta|atenci[oó]n|alert|warning/i.test(`${item.title} ${item.message}`);
-
 const getTypeLabel = (item: NotificationItem) =>
   isAlertItem(item) ? t('alert') : t(getNotificationType(item));
-
 /* =========================================================
    FILTROS
 ========================================================= */
-
 const changeFilter = (filter: 'all' | 'unread' | 'read') => {
   listFilter.value = filter;
   selectedIds.value = [];
   openMenuId.value = null;
 };
-
 /* =========================================================
    SELECCIÓN
 ========================================================= */
-
 const isAllSelected = computed(
   () =>
     filteredNotifications.value.length > 0 &&
     filteredNotifications.value.every(item => selectedIds.value.includes(item.id))
 );
-
 const toggleSelectAll = (event: Event) => {
   const input = event.target as HTMLInputElement;
-
   selectedIds.value = input.checked
     ? filteredNotifications.value.map(item => item.id)
     : [];
 };
-
 const startSelection = (id: string | number) => {
   selectionMode.value = true;
-
   if (!selectedIds.value.includes(id)) {
     selectedIds.value.push(id);
   }
-
   openMenuId.value = null;
 };
-
 const cancelSelection = () => {
   selectionMode.value = false;
   selectedIds.value = [];
 };
-
 const markSelectedAsRead = () => {
   if (!selectedIds.value.length) return;
-
   void updateNotifications([...selectedIds.value],'leer');
-
   selectedIds.value = [];
   selectionMode.value = false;
 };
-
 const deleteSelected = () => {
   if (!selectedIds.value.length) return;
-
   void updateNotifications([...selectedIds.value],'eliminar');
-
   selectedIds.value = [];
   selectionMode.value = false;
 };
-
 const deleteOne = (id: string | number) => {
   void updateNotifications([id],'eliminar');
   openMenuId.value = null;
 };
-
 /* =========================================================
    LEÍDAS
 ========================================================= */
-
 const markAllAsRead = () => {
   const ids = filteredTypes.value.filter(item => !item.read).map(item => item.id);
-
   if (!ids.length) return;
-
   void updateNotifications(ids,'leer');
 };
-
 const toggleRead = (item: NotificationItem) => {
   void updateNotifications([item.id],item.read?'no_leer':'leer');
   openMenuId.value = null;
 };
-
 const handleNotificationClick = (item: NotificationItem) => {
   openMenuId.value = null;
-
   if (selectionMode.value) {
     const index = selectedIds.value.indexOf(item.id);
-
     if (index >= 0) {
       selectedIds.value.splice(index, 1);
     } else {
       selectedIds.value.push(item.id);
     }
-
     return;
   }
-
   if (!item.read) {
     void updateNotifications([item.id],item.read?'no_leer':'leer');
   }
 };
-
 /* =========================================================
    MENÚ INDIVIDUAL (posicionado con coordenadas fijas)
 ========================================================= */
-
 const MENU_WIDTH = 200;
 const MENU_HEIGHT = 140;
 const MENU_GAP = 6;
 const VIEWPORT_MARGIN = 8;
-
 const toggleMenu = (id: string | number, event: MouseEvent) => {
   if (openMenuId.value === id) {
     openMenuId.value = null;
     return;
   }
-
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-
   const left = Math.max(
     VIEWPORT_MARGIN,
     Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - VIEWPORT_MARGIN)
   );
-
   const spaceBelow = window.innerHeight - rect.bottom;
   const openUp = spaceBelow < MENU_HEIGHT + MENU_GAP + VIEWPORT_MARGIN;
-
   menuStyle.value = openUp
     ? {
         left: `${left}px`,
@@ -1030,14 +849,11 @@ const toggleMenu = (id: string | number, event: MouseEvent) => {
         left: `${left}px`,
         top: `${rect.bottom + MENU_GAP}px`
       };
-
   openMenuId.value = id;
 };
-
 /* =========================================================
    GUARDAR / CARGAR PREFERENCIAS
 ========================================================= */
-
 const saveSettings = async () => {
   localStorage.setItem(
     'notification-preferences',
@@ -1049,22 +865,16 @@ const saveSettings = async () => {
       }))
     })
   );
-
   try{await apiRequest('/preferencias','PUT',{sede_id:scopeSede(),settings:settings.value,types:notificationTypes.value.map(x=>({key:x.key,value:x.value}))});currentView.value='list';}catch(e){apiError.value=e instanceof Error?e.message:'No se pudieron guardar preferencias.';}
 };
-
 const loadPreferences = () => {
   const stored = localStorage.getItem('notification-preferences');
-
   if (!stored) return;
-
   try {
     const data = JSON.parse(stored);
-
     if (data.settings) {
       settings.value = { ...settings.value, ...data.settings };
     }
-
     if (Array.isArray(data.types)) {
       notificationTypes.value.forEach(item => {
         const saved = data.types.find((savedItem: any) => savedItem.key === item.key);
@@ -1075,28 +885,22 @@ const loadPreferences = () => {
     // Preferencias inválidas: se conservan los valores por defecto.
   }
 };
-
 /* =========================================================
    CLICK EXTERIOR
 ========================================================= */
-
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as Element;
-
   if (props.isOpen && panelRef.value && !panelRef.value.contains(target)) {
     emit('close');
     return;
   }
-
   if (!target?.closest?.('.item-menu') && !target?.closest?.('.more-button')) {
     openMenuId.value = null;
   }
 };
-
 /* =========================================================
    WATCH / CICLO DE VIDA
 ========================================================= */
-
 watch(
   () => props.isOpen,
   value => {
@@ -1108,15 +912,13 @@ watch(
     openMenuId.value = null;
   }
 );
-
 onMounted(() => {
   loadPreferences();
-  void refreshPush();if(props.isOpen){void loadRemote(true);startPolling();}
+  if(props.isOpen){void loadRemote(true);startPolling();}
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   window.addEventListener('factorfit:branch-changed', onBranchUpdate);
   document.addEventListener('mousedown', handleClickOutside);
 });
-
 onUnmounted(() => {
   stopPolling();
   window.removeEventListener('idioma-changed', handleLangChange as EventListener);
@@ -1124,7 +926,6 @@ onUnmounted(() => {
   document.removeEventListener('mousedown', handleClickOutside);
 });
 </script>
-
 <style scoped>
 .notifications-panel {
   --accent: var(--color-highlight, #3b82f6);
@@ -1138,19 +939,15 @@ onUnmounted(() => {
   --surface: color-mix(in srgb, var(--text) 4%, transparent);
   --surface2: color-mix(in srgb, var(--text) 8%, transparent);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-
   position: fixed;
   z-index: 2500;
   top: 70px;
   right: 18px;
-
   width: min(460px, calc(100vw - 28px));
   height: min(720px, calc(100dvh - 88px));
-
   display: flex;
   flex-direction: column;
   overflow: hidden;
-
   border: 1px solid var(--line2);
   border-radius: 22px;
   background:
@@ -1159,21 +956,17 @@ onUnmounted(() => {
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.55),
     0 6px 20px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
-
 .notifications-panel * {
   box-sizing: border-box;
 }
-
 .notifications-panel button {
   font-family: inherit;
 }
-
 /* Barra de carga */
 .loading-bar {
   position: absolute;
@@ -1197,9 +990,7 @@ onUnmounted(() => {
   from { transform: translateX(-100%); }
   to { transform: translateX(250%); }
 }
-
 /* ================= HEADER ================= */
-
 .panel-header {
   flex: 0 0 auto;
   display: flex;
@@ -1208,14 +999,12 @@ onUnmounted(() => {
   gap: 14px;
   padding: 18px 18px 16px;
 }
-
 .header-main {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 13px;
 }
-
 .header-icon {
   position: relative;
   width: 46px;
@@ -1229,12 +1018,10 @@ onUnmounted(() => {
   color: var(--accent);
   box-shadow: 0 8px 22px -10px var(--accent);
 }
-
 .header-icon svg {
   width: 21px;
   height: 21px;
 }
-
 .header-indicator {
   position: absolute;
   top: -3px;
@@ -1245,17 +1032,14 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #ef4444;
 }
-
 .header-copy {
   min-width: 0;
 }
-
 .header-title-row {
   display: flex;
   align-items: center;
   gap: 9px;
 }
-
 .header-copy h3 {
   margin: 0;
   color: var(--title);
@@ -1264,7 +1048,6 @@ onUnmounted(() => {
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
-
 .header-copy p {
   margin: 4px 0 0;
   overflow: hidden;
@@ -1273,7 +1056,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .unread-counter {
   min-width: 24px;
   height: 22px;
@@ -1288,14 +1070,12 @@ onUnmounted(() => {
   font-weight: 800;
   box-shadow: 0 6px 14px -6px var(--accent);
 }
-
 .header-actions {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .icon-button,
 .back-button {
   width: 38px;
@@ -1310,27 +1090,22 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.25s var(--ease);
 }
-
 .icon-button:hover,
 .back-button:hover {
   border-color: var(--line2);
   background: var(--surface2);
   color: var(--title);
 }
-
 .icon-button svg,
 .back-button svg {
   width: 18px;
   height: 18px;
 }
-
 .back-button {
   flex: 0 0 38px;
 }
 .back-button:hover { transform: translateX(-2px); }
-
 /* ================= ERROR ================= */
-
 .api-error {
   flex: 0 0 auto;
   display: flex;
@@ -1345,18 +1120,15 @@ onUnmounted(() => {
   font-size: 12.5px;
   line-height: 1.4;
 }
-
 .api-error svg {
   width: 17px;
   height: 17px;
   flex: 0 0 17px;
 }
-
 .api-error span {
   flex: 1;
   min-width: 0;
 }
-
 .api-error button {
   flex: 0 0 auto;
   padding: 5px 10px;
@@ -1368,18 +1140,14 @@ onUnmounted(() => {
   font-weight: 650;
   cursor: pointer;
 }
-
 .api-error button:hover {
   background: rgba(248, 113, 113, 0.14);
 }
-
 /* ================= FILTROS ================= */
-
 .filter-tabs {
   flex: 0 0 auto;
   padding: 0 16px;
 }
-
 .segmented {
   display: flex;
   gap: 4px;
@@ -1388,7 +1156,6 @@ onUnmounted(() => {
   border-radius: 14px;
   background: var(--surface);
 }
-
 .segmented button {
   flex: 1;
   min-height: 36px;
@@ -1407,17 +1174,14 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
-
 .segmented button:hover {
   color: var(--title);
 }
-
 .segmented button.active {
   background: color-mix(in srgb, var(--accent) 17%, transparent);
   color: color-mix(in srgb, var(--accent) 80%, white);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
 }
-
 .segmented button span {
   min-width: 22px;
   height: 20px;
@@ -1430,13 +1194,10 @@ onUnmounted(() => {
   font-size: 11px;
   font-weight: 700;
 }
-
 .segmented button.active span {
   background: color-mix(in srgb, var(--accent) 28%, transparent);
 }
-
 /* ================= RESUMEN ================= */
-
 .notification-summary {
   flex: 0 0 auto;
   min-height: 46px;
@@ -1446,7 +1207,6 @@ onUnmounted(() => {
   gap: 10px;
   padding: 10px 18px 6px;
 }
-
 .summary-status {
   display: flex;
   align-items: center;
@@ -1455,7 +1215,6 @@ onUnmounted(() => {
   font-size: 12.5px;
   font-weight: 550;
 }
-
 .summary-dot {
   width: 7px;
   height: 7px;
@@ -1463,12 +1222,10 @@ onUnmounted(() => {
   background: var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
 }
-
 .summary-dot.idle {
   background: #34d399;
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.16);
 }
-
 .mark-all-button {
   display: inline-flex;
   align-items: center;
@@ -1483,18 +1240,14 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease;
 }
-
 .mark-all-button:hover {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-
 .mark-all-button svg {
   width: 15px;
   height: 15px;
 }
-
 /* ================= SELECCIÓN ================= */
-
 .selection-toolbar {
   flex: 0 0 auto;
   display: flex;
@@ -1507,7 +1260,6 @@ onUnmounted(() => {
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
-
 .selection-toolbar label {
   position: relative;
   display: flex;
@@ -1518,7 +1270,6 @@ onUnmounted(() => {
   font-weight: 600;
   cursor: pointer;
 }
-
 .selection-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1526,7 +1277,6 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 6px;
 }
-
 .selection-actions button {
   padding: 5px 10px;
   border: 0;
@@ -1537,30 +1287,24 @@ onUnmounted(() => {
   font-weight: 650;
   cursor: pointer;
 }
-
 .selection-actions button:hover {
   filter: brightness(1.15);
 }
-
 .selection-actions .danger-action {
   background: rgba(248, 113, 113, 0.14);
   color: #fca5a5;
 }
-
 .selection-actions .ghost-action {
   background: transparent;
   color: var(--muted);
 }
-
 /* ================= CHECKBOX ================= */
-
 .selection-toolbar input,
 .notification-checkbox input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-
 .check-box {
   position: relative;
   width: 18px;
@@ -1572,7 +1316,6 @@ onUnmounted(() => {
   background: transparent;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-
 .check-box::after {
   content: '';
   position: absolute;
@@ -1585,23 +1328,18 @@ onUnmounted(() => {
   opacity: 0;
   transform: rotate(45deg);
 }
-
 input:checked + .check-box {
   border-color: var(--accent);
   background: var(--accent);
 }
-
 input:checked + .check-box::after {
   opacity: 1;
 }
-
 input:focus-visible + .check-box {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 2px;
 }
-
 /* ================= SCROLL ================= */
-
 .notifications-scroll,
 .settings-scroll {
   flex: 1 1 auto;
@@ -1611,24 +1349,19 @@ input:focus-visible + .check-box {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
 }
-
 .notifications-scroll {
   padding: 0 12px 14px;
 }
-
 .notifications-scroll::-webkit-scrollbar,
 .settings-scroll::-webkit-scrollbar {
   width: 6px;
 }
-
 .notifications-scroll::-webkit-scrollbar-thumb,
 .settings-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
 }
-
 /* ================= GRUPOS ================= */
-
 .group-heading {
   position: sticky;
   top: 0;
@@ -1639,7 +1372,6 @@ input:focus-visible + .check-box {
   padding: 12px 6px 8px;
   background: linear-gradient(180deg, var(--card) 70%, transparent);
 }
-
 .group-heading > span:first-child {
   flex: 0 0 auto;
   color: var(--muted);
@@ -1648,7 +1380,6 @@ input:focus-visible + .check-box {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-
 .group-count {
   min-width: 20px;
   height: 18px;
@@ -1662,18 +1393,14 @@ input:focus-visible + .check-box {
   font-size: 10.5px;
   font-weight: 700;
 }
-
 .group-line {
   flex: 1;
   height: 1px;
   background: var(--line);
 }
-
 /* ================= NOTIFICACIÓN ================= */
-
 .notification-item {
   --tone: #94a3b8;
-
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -1687,14 +1414,12 @@ input:focus-visible + .check-box {
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.25s var(--ease), box-shadow 0.25s ease;
 }
-
 .notification-item.type-payment { --tone: #34d399; }
 .notification-item.type-membership { --tone: #fb923c; }
 .notification-item.type-client { --tone: var(--accent); }
 .notification-item.type-schedule { --tone: #a78bfa; }
 .notification-item.type-system { --tone: #94a3b8; }
 .notification-item.is-alert { --tone: #fbbf24; }
-
 .notification-item:hover,
 .notification-item.menu-open {
   border-color: var(--line2);
@@ -1702,7 +1427,6 @@ input:focus-visible + .check-box {
   transform: translateY(-1px);
   box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.6);
 }
-
 /* Barra lateral de color en las no leídas */
 .notification-item.unread {
   border-color: color-mix(in srgb, var(--tone) 24%, transparent);
@@ -1710,7 +1434,6 @@ input:focus-visible + .check-box {
     linear-gradient(90deg, color-mix(in srgb, var(--tone) 9%, transparent), transparent 55%),
     var(--surface);
 }
-
 .notification-item.unread::before {
   content: '';
   position: absolute;
@@ -1721,7 +1444,6 @@ input:focus-visible + .check-box {
   border-radius: 0 4px 4px 0;
   background: var(--tone);
 }
-
 .notification-checkbox {
   flex: 0 0 auto;
   position: relative;
@@ -1730,7 +1452,6 @@ input:focus-visible + .check-box {
   height: 42px;
   cursor: pointer;
 }
-
 .notification-icon {
   width: 42px;
   height: 42px;
@@ -1742,23 +1463,19 @@ input:focus-visible + .check-box {
   background: color-mix(in srgb, var(--tone) 13%, transparent);
   color: var(--tone);
 }
-
 .notification-icon svg {
   width: 20px;
   height: 20px;
 }
-
 .notification-body {
   flex: 1 1 auto;
   min-width: 0;
 }
-
 .notification-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
 .notification-title-row h4 {
   min-width: 0;
   margin: 0;
@@ -1770,12 +1487,10 @@ input:focus-visible + .check-box {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .notification-item:not(.unread) .notification-title-row h4 {
   color: color-mix(in srgb, var(--title) 78%, transparent);
   font-weight: 560;
 }
-
 .unread-dot {
   width: 8px;
   height: 8px;
@@ -1784,7 +1499,6 @@ input:focus-visible + .check-box {
   background: var(--tone);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone) 22%, transparent);
 }
-
 .notification-body p {
   display: -webkit-box;
   margin: 5px 0 0;
@@ -1795,7 +1509,6 @@ input:focus-visible + .check-box {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-
 .notification-meta {
   display: flex;
   align-items: center;
@@ -1803,7 +1516,6 @@ input:focus-visible + .check-box {
   gap: 8px;
   margin-top: 10px;
 }
-
 .meta-time {
   display: inline-flex;
   align-items: center;
@@ -1812,12 +1524,10 @@ input:focus-visible + .check-box {
   font-size: 11.5px;
   font-weight: 500;
 }
-
 .meta-time svg {
   width: 12px;
   height: 12px;
 }
-
 .type-chip {
   padding: 3px 9px;
   border-radius: 999px;
@@ -1827,7 +1537,6 @@ input:focus-visible + .check-box {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-
 .more-button {
   width: 32px;
   height: 32px;
@@ -1843,26 +1552,21 @@ input:focus-visible + .check-box {
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-
 .notification-item:hover .more-button,
 .notification-item.menu-open .more-button,
 .more-button:focus-visible {
   opacity: 1;
 }
-
 .more-button:hover,
 .notification-item.menu-open .more-button {
   background: var(--surface2);
   color: var(--title);
 }
-
 .more-button svg {
   width: 16px;
   height: 16px;
 }
-
 /* ================= MENÚ ================= */
-
 .item-menu {
   position: fixed;
   z-index: 3000;
@@ -1874,12 +1578,10 @@ input:focus-visible + .check-box {
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
   animation: menu-in 0.16s var(--ease);
 }
-
 @keyframes menu-in {
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
-
 .item-menu button {
   width: 100%;
   min-height: 38px;
@@ -1896,36 +1598,29 @@ input:focus-visible + .check-box {
   text-align: left;
   cursor: pointer;
 }
-
 .item-menu button:hover {
   background: var(--surface2);
   color: var(--title);
 }
-
 .item-menu svg {
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
 }
-
 .menu-divider {
   display: block;
   height: 1px;
   margin: 4px 6px;
   background: var(--line);
 }
-
 .item-menu .delete-menu-item {
   color: #f87171;
 }
-
 .item-menu .delete-menu-item:hover {
   background: rgba(248, 113, 113, 0.12);
   color: #fca5a5;
 }
-
 /* ================= VACÍO ================= */
-
 .empty-state {
   min-height: 320px;
   height: 100%;
@@ -1936,7 +1631,6 @@ input:focus-visible + .check-box {
   padding: 35px 25px;
   text-align: center;
 }
-
 .empty-icon {
   width: 68px;
   height: 68px;
@@ -1948,19 +1642,16 @@ input:focus-visible + .check-box {
   background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--accent) 14%, transparent), var(--surface));
   color: var(--accent);
 }
-
 .empty-icon svg {
   width: 30px;
   height: 30px;
 }
-
 .empty-state h4 {
   margin: 0;
   color: var(--title);
   font-size: 16px;
   font-weight: 700;
 }
-
 .empty-state p {
   max-width: 260px;
   margin: 7px 0 0;
@@ -1968,9 +1659,7 @@ input:focus-visible + .check-box {
   font-size: 13px;
   line-height: 1.5;
 }
-
 /* ================= FOOTER ================= */
-
 .panel-footer {
   flex: 0 0 auto;
   display: flex;
@@ -1980,7 +1669,6 @@ input:focus-visible + .check-box {
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--card) 88%, black);
 }
-
 .panel-footer button {
   flex: 1;
   min-height: 42px;
@@ -1998,40 +1686,32 @@ input:focus-visible + .check-box {
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
-
 .panel-footer button svg {
   width: 16px;
   height: 16px;
 }
-
 .panel-footer button:hover {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
 }
-
 .panel-footer > span {
   width: 1px;
   height: 20px;
   background: var(--line2);
 }
-
 /* =========================================================
    CONFIGURACIÓN
 ========================================================= */
-
 .settings-header .header-main {
   gap: 12px;
 }
-
 .settings-scroll {
   padding: 0 16px 22px;
 }
-
 .settings-section {
   margin-top: 8px;
   padding-top: 12px;
 }
-
 .settings-heading {
   display: flex;
   align-items: baseline;
@@ -2040,27 +1720,23 @@ input:focus-visible + .check-box {
   margin-bottom: 9px;
   padding: 0 4px;
 }
-
 .settings-heading > span {
   color: var(--muted);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.09em;
 }
-
 .settings-heading small {
   color: var(--faint);
   font-size: 11.5px;
   text-align: right;
 }
-
 .settings-card {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 18px;
   background: var(--surface);
 }
-
 .setting-row {
   min-height: 72px;
   display: flex;
@@ -2070,15 +1746,12 @@ input:focus-visible + .check-box {
   border-bottom: 1px solid var(--line);
   transition: background 0.18s ease;
 }
-
 .setting-row:hover {
   background: var(--surface);
 }
-
 .setting-row:last-child {
   border-bottom: 0;
 }
-
 .setting-icon {
   width: 40px;
   height: 40px;
@@ -2088,18 +1761,15 @@ input:focus-visible + .check-box {
   border: 1px solid transparent;
   border-radius: 12px;
 }
-
 .setting-icon svg {
   width: 19px;
   height: 19px;
 }
-
 .setting-icon.blue { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.24); color: #60a5fa; }
 .setting-icon.green { background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.24); color: #34d399; }
 .setting-icon.orange { background: rgba(251, 146, 60, 0.12); border-color: rgba(251, 146, 60, 0.24); color: #fb923c; }
 .setting-icon.purple { background: rgba(167, 139, 250, 0.12); border-color: rgba(167, 139, 250, 0.24); color: #a78bfa; }
 .setting-icon.neutral { background: rgba(148, 163, 184, 0.1); border-color: rgba(148, 163, 184, 0.22); color: #94a3b8; }
-
 .setting-copy {
   min-width: 0;
   display: flex;
@@ -2107,28 +1777,23 @@ input:focus-visible + .check-box {
   flex-direction: column;
   gap: 3px;
 }
-
 .setting-copy strong {
   color: var(--title);
   font-size: 13.5px;
   font-weight: 650;
 }
-
 .setting-copy span {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
 }
-
 /* ================= SWITCH ================= */
-
 .switch {
   position: relative;
   width: 44px;
   height: 26px;
   flex: 0 0 44px;
 }
-
 .switch input {
   position: absolute;
   inset: 0;
@@ -2139,7 +1804,6 @@ input:focus-visible + .check-box {
   cursor: pointer;
   z-index: 1;
 }
-
 .switch span {
   position: absolute;
   inset: 0;
@@ -2148,7 +1812,6 @@ input:focus-visible + .check-box {
   background: var(--surface2);
   transition: background 0.2s ease, border-color 0.2s ease;
 }
-
 .switch span::before {
   content: '';
   position: absolute;
@@ -2161,30 +1824,24 @@ input:focus-visible + .check-box {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   transition: transform 0.22s var(--ease);
 }
-
 .switch input:checked + span {
   border-color: transparent;
   background: var(--accent);
 }
-
 .switch input:checked + span::before {
   transform: translateX(18px);
 }
-
 .switch input:focus-visible + span {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 2px;
 }
-
 /* ================= GUARDAR ================= */
-
 .settings-footer {
   flex: 0 0 auto;
   padding: 12px 16px 16px;
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--card) 88%, black);
 }
-
 .save-settings-button {
   width: 100%;
   height: 48px;
@@ -2202,23 +1859,18 @@ input:focus-visible + .check-box {
   box-shadow: 0 14px 30px -14px var(--color-botones, var(--accent));
   transition: filter 0.18s ease, transform 0.18s ease;
 }
-
 .save-settings-button svg {
   width: 17px;
   height: 17px;
 }
-
 .save-settings-button:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
 }
-
 .save-settings-button:active {
   transform: scale(0.99);
 }
-
 /* ================= FOCO ================= */
-
 .icon-button:focus-visible,
 .back-button:focus-visible,
 .segmented button:focus-visible,
@@ -2230,30 +1882,23 @@ input:focus-visible + .check-box {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
 /* ================= TRANSICIÓN ================= */
-
 .notification-panel-enter-active,
 .notification-panel-leave-active {
   transition: opacity 0.2s ease, transform 0.22s var(--ease);
 }
-
 .notification-panel-enter-from,
 .notification-panel-leave-to {
   opacity: 0;
   transform: translateY(-8px) scale(0.985);
 }
-
 /* ================= TÁCTIL: botón ⋮ siempre visible ================= */
-
 @media (hover: none) {
   .more-button {
     opacity: 1;
   }
 }
-
 /* ================= RESPONSIVE ================= */
-
 @media (max-width: 600px) {
   .notifications-panel {
     top: 58px;
@@ -2263,87 +1908,70 @@ input:focus-visible + .check-box {
     height: calc(100dvh - 68px);
     border-radius: 18px;
   }
-
   .panel-header {
     padding: 14px 14px 12px;
   }
-
   .header-icon {
     width: 40px;
     height: 40px;
     flex-basis: 40px;
     border-radius: 12px;
   }
-
   .header-copy h3 {
     font-size: 16.5px;
   }
-
   .header-copy p {
     max-width: 190px;
     font-size: 12px;
   }
-
   .icon-button,
   .back-button {
     width: 36px;
     height: 36px;
   }
-
   .filter-tabs {
     padding: 0 12px;
   }
-
   .segmented button {
     padding: 0 6px;
     font-size: 12.5px;
   }
-
   .notification-summary {
     padding: 8px 14px 4px;
   }
-
   .notifications-scroll {
     padding: 0 8px 12px;
   }
-
   .notification-item {
     gap: 11px;
     padding: 12px 8px 12px 14px;
     border-radius: 14px;
   }
-
   .notification-icon {
     width: 38px;
     height: 38px;
     flex-basis: 38px;
     border-radius: 12px;
   }
-
   .notification-title-row h4 {
     font-size: 13.5px;
   }
-
   .selection-toolbar {
     flex-direction: column;
     align-items: flex-start;
     margin: 4px 10px 2px;
   }
-
   .selection-actions {
     justify-content: flex-start;
   }
-
   .settings-scroll {
     padding: 0 12px 18px;
   }
-
   .setting-row {
     padding: 12px;
     gap: 11px;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .notifications-panel *,
   .notifications-panel *::before,
@@ -2352,5 +1980,4 @@ input:focus-visible + .check-box {
     animation-duration: 0.01ms !important;
   }
 }
-.push-toggle-action{margin-top:9px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--title);cursor:pointer;font-size:12px;font-weight:600}.push-toggle-action:disabled{opacity:.55;cursor:not-allowed}
 </style>
