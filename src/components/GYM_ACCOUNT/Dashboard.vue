@@ -255,7 +255,14 @@
               </div>
 
               <div class="action-list">
-                <button type="button" class="action-card" @click="openCamera('facial')">
+                <!-- Asistencia facial: DESHABILITADA (pendiente de integración biométrica) -->
+                <button
+                  type="button"
+                  class="action-card is-disabled"
+                  disabled
+                  aria-disabled="true"
+                  :title="ui.comingSoon"
+                >
                   <div class="action-icon">
                     <svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M17 8a3 3 0 0 1 0 6M21 21v-2a5 5 0 0 0-3-4.58"/></svg>
                   </div>
@@ -263,7 +270,7 @@
                     <strong>{{ t.asistenciaFacial }}</strong>
                     <span>{{ t.reconocimientoBio }}</span>
                   </div>
-                  <ArrowIcon />
+                  <span class="soon-badge">{{ ui.comingSoon }}</span>
                 </button>
 
                 <button type="button" class="action-card" @click="openCamera('scanner')">
@@ -352,7 +359,7 @@
           <CorreoMasivo v-if="activeModal === 'enviomasivo'" @close="closeModal" />
           <AddCorteComponent v-if="activeModal === 'corte'" @close="closeModal" />
 
-           <AccessAttendanceModal v-if="activeModal === 'facial' || activeModal === 'scanner'" :mode="activeModal" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
+          <AccessAttendanceModal v-if="activeModal === 'scanner'" mode="scanner" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
         </div>
       </transition>
 
@@ -659,6 +666,7 @@ const dashboardTranslations = {
     accessControl: 'CONTROL DE ACCESO',
     branchManagement: 'GESTIÓN DE SUCURSALES',
     registerBranch: 'Registrar nueva sede',
+    comingSoon: 'Próximamente',
     cameraError: 'No se pudo acceder a la cámara. Verifica los permisos.',
     membershipExpires: 'Membresía vence el',
     membershipExpired: 'Membresía venció el',
@@ -709,6 +717,7 @@ const dashboardTranslations = {
     accessControl: 'ACCESS CONTROL',
     branchManagement: 'BRANCH MANAGEMENT',
     registerBranch: 'Register new location',
+    comingSoon: 'Coming soon',
     cameraError: 'Camera access failed. Check your permissions.',
     membershipExpires: 'Membership expires on',
     membershipExpired: 'Membership expired on',
@@ -958,7 +967,11 @@ const stopStream = () => {
   }
 };
 
-const openCamera=(type)=>{activeModal.value=type;};
+/* La asistencia facial está deshabilitada: solo se permite abrir el escáner QR */
+const openCamera = (type) => {
+  if (type !== 'scanner') return;
+  activeModal.value = type;
+};
 const onAttendanceRegistered=()=>{void loadDashboard();void loadAccessAlerts();};
 const alertasAcceso=ref([]);
 const loadAccessAlerts=async()=>{try{const d=await apiGet(`/api/gym/control-acceso/alertas?sede_id=${sedeId()}`);alertasAcceso.value=Array.isArray(d.alertas)?d.alertas:[];}catch{alertasAcceso.value=[];}};
@@ -2198,6 +2211,40 @@ button {
 
 .action-card.add-branch:hover {
   background: var(--hl-mid);
+}
+
+/* ---------- Tarjeta deshabilitada (Asistencia facial) ---------- */
+.action-card:disabled,
+.action-card.is-disabled {
+  cursor: not-allowed;
+}
+
+.action-card:disabled:hover,
+.action-card.is-disabled:hover {
+  transform: none;
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.action-card:disabled .action-icon,
+.action-card:disabled .action-info {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+
+.soon-badge {
+  flex: none;
+  padding: 5px 11px;
+  color: #fbbf24;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 999px;
 }
 
 .action-icon {
