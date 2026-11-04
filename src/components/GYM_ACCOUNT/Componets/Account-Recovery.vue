@@ -1,166 +1,165 @@
 <template>
 <div class="reactivate-backdrop" @click.self="emit('close')">
-  <section class="reactivate-window" role="dialog" aria-modal="true" aria-labelledby="react-title">
-    <!-- ENCABEZADO -->
-    <header class="react-header">
-      <span class="react-badge">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
-      </span>
-      <div class="react-titles">
-        <small>GESTIÓN DE MEMBRESÍAS / RENOVACIONES</small>
-        <h2 id="react-title">Reactivar <span>cuenta</span></h2>
-        <p>Regulariza el adeudo y confirma la renovación para habilitar el acceso.</p>
-      </div>
-      <button type="button" class="close" @click="emit('close')" aria-label="Cerrar">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </header>
-    <!-- CONTENIDO -->
-    <main class="react-body">
-      <div v-if="loading" class="skeleton" role="status" aria-label="Consultando el adeudo real del cliente">
-        <div class="sk sk-lg"></div><div class="sk sk-md"></div><div class="sk sk-md"></div>
-      </div>
-      <p v-if="error" class="feedback danger" role="alert">
-        <span>{{error}}</span>
-        <button type="button" @click="cargar">Reintentar</button>
-      </p>
-      <template v-if="cliente">
-        <!-- 01 CLIENTE -->
-        <section class="react-card">
-          <div class="section-head"><span>01</span><div><strong>Cuenta del cliente</strong><small>Datos registrados en la sucursal</small></div></div>
-          <div class="client-row">
-            <div class="client-avatar" :style="{backgroundImage:avatarBg(cliente.nombre)}">{{initials(cliente.nombre)}}</div>
-            <div class="client-info">
-              <strong>{{cliente.nombre}}</strong>
-              <span class="client-mail">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                {{cliente.correo||'Sin correo registrado'}}
-              </span>
-            </div>
-          </div>
-          <div class="client-tags">
-            <span class="tag" :class="estatusClass(cliente.estatus_inscripcion)"><i></i>{{cliente.estatus_inscripcion}}</span>
-            <span class="tag tag-plain">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-              {{cliente.plan}}
-            </span>
-            <span class="tag tag-plain">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              Vence: {{fecha(cliente.fecha_vencimiento)}}
-            </span>
-          </div>
-        </section>
-        <!-- 02 DESGLOSE -->
-        <section class="react-card">
-          <div class="section-head"><span>02</span><div><strong>Desglose de reactivación</strong><small>Importes calculados por el sistema</small></div></div>
-          <ul class="breakdown">
-            <li v-for="f in filas" :key="f.k" :class="['row-'+f.tone,{zero:!(f.amount>0)}]">
-              <span class="row-icon">
-                <svg v-if="f.icon==='alert'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-                <svg v-else-if="f.icon==='clock'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                <svg v-else-if="f.icon==='card'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
-                <svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
-              </span>
-              <span class="row-label">{{f.label}}</span>
-              <strong class="row-amount">{{f.negative&&f.amount>0?'- ':''}}{{moneda(f.amount)}}</strong>
-            </li>
-          </ul>
-        </section>
-        <!-- TOTAL -->
-        <div class="total-card" :class="{'total-free':desglose.total<=0}">
-          <span class="total-icon">$</span>
-          <div class="total-text"><small>TOTAL A COBRAR</small><strong>Reactivación de membresía</strong></div>
-          <div class="total-amount"><b>{{desglose.total>0?moneda(desglose.total):'Sin cobro'}}</b><em v-if="desglose.total>0">MXN</em></div>
-        </div>
-        <!-- 03 MÉTODO DE PAGO -->
-        <section class="react-card">
-          <div class="section-head"><span>03</span><div><strong>Método de pago</strong><small>El estado cambiará solo después de la respuesta del servidor</small></div></div>
-          <template v-if="desglose.total>0">
-            <div class="methods" role="radiogroup" aria-label="Método de pago">
-              <button v-for="m in metodosPago" :key="m.value" type="button" role="radio" class="method-tile" :class="{active:metodo===m.value}" :aria-checked="metodo===m.value" @click="metodo=m.value">
-                <span class="method-icon">
-                  <svg v-if="m.icon==='cash'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
-                  <svg v-else-if="m.icon==='transfer'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg>
-                  <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
-                </span>
-                <span class="method-text"><strong>{{m.label}}</strong><small>{{m.hint}}</small></span>
-                <span class="method-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-              </button>
-            </div>
-            <div class="reference">
-              <label for="folio-re">
-                Folio / Referencia
-                <span v-if="metodo" class="folio-badge" :class="folioAutomatico?'auto':'required'">{{folioAutomatico?'AUTOMÁTICO':'OBLIGATORIO'}}</span>
-              </label>
-              <div class="field-control" :class="{'is-disabled':metodo!=='Transferencia'}">
-                <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <template v-if="metodo!=='Transferencia'"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></template>
-                  <template v-else><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></template>
-                </svg>
-                <input id="folio-re" v-model.trim="referencia" type="text" autocomplete="off" :disabled="metodo!=='Transferencia'" :placeholder="folioPlaceholder" />
-              </div>
-              <p v-if="folioAyuda" class="folio-note">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-                <span>{{folioAyuda}}</span>
-              </p>
-            </div>
-          </template>
-          <p v-else class="info">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
-            <span>La cuenta ya tiene cobertura pagada. Se restaurará sin generar otro cobro.</span>
-          </p>
-        </section>
-        <p v-if="saveError" role="alert" class="feedback danger"><span>{{saveError}}</span></p>
-      </template>
-    </main>
-    <!-- PIE FIJO -->
-    <footer v-if="cliente" class="actions">
-      <p class="foot-hint" :class="{ok:footHint.ok}" role="status">
-        <svg v-if="footHint.ok" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-        <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-        <span>{{footHint.text}}</span>
-      </p>
-      <div class="foot-buttons">
-        <button type="button" class="cancel" @click="emit('close')">Cancelar</button>
-        <button type="button" class="confirm" :disabled="guardando||loading||!cliente||(desglose.total>0&&!metodo)" @click="guardar">
-          <span v-if="guardando" class="spin" aria-hidden="true"></span>
-          {{guardando?'Procesando...':desglose.total>0?'Cobrar y reactivar':'Restaurar cuenta'}}
-        </button>
-      </div>
-    </footer>
-  </section>
+<section class="reactivate-window" role="dialog" aria-modal="true" aria-labelledby="react-title">
+<!-- ENCABEZADO -->
+<header class="react-header">
+<span class="react-badge">
+<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+</span>
+<div class="react-titles">
+<small>{{ tr('heading') }}</small>
+<h2 id="react-title">{{ tr('reactivate') }} <span>{{ tr('account') }}</span></h2>
+<p>{{ tr('subtitle') }}</p>
+</div>
+<button type="button" class="close" @click="emit('close')" :aria-label="tr('close')">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+</button>
+</header>
+<!-- CONTENIDO -->
+<main class="react-body">
+<div v-if="loading" class="skeleton" role="status" :aria-label="tr('loadingDebt')">
+<div class="sk sk-lg"></div><div class="sk sk-md"></div><div class="sk sk-md"></div>
+</div>
+<p v-if="error" class="feedback danger" role="alert">
+<span>{{error}}</span>
+<button type="button" @click="cargar">{{ tr('retry') }}</button>
+</p>
+<template v-if="cliente">
+<!-- 01 CLIENTE -->
+<section class="react-card">
+<div class="section-head"><span>01</span><div><strong>{{ tr('clientAccount') }}</strong><small>{{ tr('branchData') }}</small></div></div>
+<div class="client-row">
+<div class="client-avatar" :style="{backgroundImage:avatarBg(cliente.nombre)}">{{initials(cliente.nombre)}}</div>
+<div class="client-info">
+<strong>{{cliente.nombre}}</strong>
+<span class="client-mail">
+<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+{{cliente.correo||tr('noEmail')}}
+</span>
+</div>
+</div>
+<div class="client-tags">
+<span class="tag" :class="estatusClass(cliente.estatus_inscripcion)"><i></i>{{ traducirEstatus(cliente.estatus_inscripcion) }}</span>
+<span class="tag tag-plain">
+<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+{{cliente.plan}}
+</span>
+<span class="tag tag-plain">
+<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+{{ tr('expires') }}: {{fecha(cliente.fecha_vencimiento)}}
+</span>
+</div>
+</section>
+<!-- 02 DESGLOSE -->
+<section class="react-card">
+<div class="section-head"><span>02</span><div><strong>{{ tr('breakdown') }}</strong><small>{{ tr('calculatedAmounts') }}</small></div></div>
+<ul class="breakdown">
+<li v-for="f in filas" :key="f.k" :class="['row-'+f.tone,{zero:!(f.amount>0)}]">
+<span class="row-icon">
+<svg v-if="f.icon==='alert'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+<svg v-else-if="f.icon==='clock'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+<svg v-else-if="f.icon==='card'" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+<svg v-else viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+</span>
+<span class="row-label">{{f.label}}</span>
+<strong class="row-amount">{{f.negative&&f.amount>0?'- ':''}}{{moneda(f.amount)}}</strong>
+</li>
+</ul>
+</section>
+<!-- TOTAL -->
+<div class="total-card" :class="{'total-free':desglose.total<=0}">
+<span class="total-icon">$</span>
+<div class="total-text"><small>{{ tr('totalCharge') }}</small><strong>{{ tr('membershipReactivation') }}</strong></div>
+<div class="total-amount"><b>{{desglose.total>0?moneda(desglose.total):tr('noCharge')}}</b><em v-if="desglose.total>0">MXN</em></div>
+</div>
+<!-- 03 MÉTODO DE PAGO -->
+<section class="react-card">
+<div class="section-head"><span>03</span><div><strong>{{ tr('paymentMethod') }}</strong><small>{{ tr('serverStatus') }}</small></div></div>
+<template v-if="desglose.total>0">
+<div class="methods" role="radiogroup" :aria-label="tr('paymentMethod')">
+<button v-for="m in metodosPago" :key="m.value" type="button" role="radio" class="method-tile" :class="{active:metodo===m.value}" :aria-checked="metodo===m.value" @click="metodo=m.value">
+<span class="method-icon">
+<svg v-if="m.icon==='cash'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>
+<svg v-else-if="m.icon==='transfer'" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 21h18"/></svg>
+<svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>
+</span>
+<span class="method-text"><strong>{{m.label}}</strong><small>{{m.hint}}</small></span>
+<span class="method-check" aria-hidden="true"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</button>
+</div>
+<div class="reference">
+<label for="folio-re">
+{{ tr('folioReference') }}
+<span v-if="metodo" class="folio-badge" :class="folioAutomatico?'auto':'required'">{{ folioAutomatico?tr('automatic'):tr('required') }}</span>
+</label>
+<div class="field-control" :class="{'is-disabled':metodo!=='Transferencia'}">
+<svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<*template* v-if="metodo!=='Transferencia'"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></*template*>
+<*template* v-else><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></*template*>
+</svg>
+<input id="folio-re" v-model.trim="referencia" type="text" autocomplete="off" :disabled="metodo!=='Transferencia'" :placeholder="folioPlaceholder" />
+</div>
+<p v-if="folioAyuda" class="folio-note">
+<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+<span>{{folioAyuda}}</span>
+</p>
+</div>
+</template>
+<p v-else class="info">
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>
+<span>{{ tr('alreadyPaid') }}</span>
+</p>
+</section>
+<p v-if="saveError" role="alert" class="feedback danger"><span>{{saveError}}</span></p>
+</template>
+</main>
+<!-- PIE FIJO -->
+<footer v-if="cliente" class="actions">
+<p class="foot-hint" :class="{ok:footHint.ok}" role="status">
+<svg v-if="footHint.ok" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+<svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+<span>{{footHint.text}}</span>
+</p>
+<div class="foot-buttons">
+<button type="button" class="cancel" @click="emit('close')">{{ tr('cancel') }}</button>
+<button type="button" class="confirm" :disabled="guardando||loading||!cliente||(desglose.total>0&&!metodo)" @click="guardar">
+<span v-if="guardando" class="spin" aria-hidden="true"></span>
+{{guardando?tr('processing'):desglose.total>0?tr('chargeReactivate'):tr('restoreAccount')}}
+</button>
+</div>
+</footer>
+</section>
 </div>
 </template>
 <script setup lang="ts">
 import {ref,onMounted,onUnmounted,computed,watch} from 'vue';
+const i18n={ heading:{"es":"GESTIÓN DE MEMBRESÍAS / RENOVACIONES","en":"MEMBERSHIP MANAGEMENT / RENEWALS"},reactivate:{"es":"Reactivar","en":"Reactivate"},account:{"es":"cuenta","en":"account"},subtitle:{"es":"Regulariza el adeudo y confirma la renovación para habilitar el acceso.","en":"Settle the outstanding balance and confirm renewal to restore access."},close:{"es":"Cerrar","en":"Close"},loadingDebt:{"es":"Consultando el adeudo real del cliente","en":"Loading the customer’s outstanding balance"},retry:{"es":"Reintentar","en":"Retry"},clientAccount:{"es":"Cuenta del cliente","en":"Member account"},branchData:{"es":"Datos registrados en la sucursal","en":"Details registered at this branch"},noEmail:{"es":"Sin correo registrado","en":"No email on file"},expires:{"es":"Vence","en":"Expires"},breakdown:{"es":"Desglose de reactivación","en":"Reactivation breakdown"},calculatedAmounts:{"es":"Importes calculados por el sistema","en":"Amounts calculated by the system"},totalCharge:{"es":"TOTAL A COBRAR","en":"TOTAL TO CHARGE"},membershipReactivation:{"es":"Reactivación de membresía","en":"Membership reactivation"},noCharge:{"es":"Sin cobro","en":"No charge"},paymentMethod:{"es":"Método de pago","en":"Payment method"},serverStatus:{"es":"El estado cambiará solo después de la respuesta del servidor","en":"The status will change only after server confirmation"},folioReference:{"es":"Folio / Referencia","en":"Receipt / Reference"},automatic:{"es":"AUTOMÁTICO","en":"AUTOMATIC"},required:{"es":"OBLIGATORIO","en":"REQUIRED"},alreadyPaid:{"es":"La cuenta ya tiene cobertura pagada. Se restaurará sin generar otro cobro.","en":"This account is already paid through the current period. It will be restored without an additional charge."},cancel:{"es":"Cancelar","en":"Cancel"},processing:{"es":"Procesando...","en":"Processing..."},chargeReactivate:{"es":"Cobrar y reactivar","en":"Charge and reactivate"},restoreAccount:{"es":"Restaurar cuenta","en":"Restore account"},cash:{"es":"Efectivo","en":"Cash"},transfer:{"es":"Transferencia","en":"Bank transfer"},card:{"es":"Tarjeta","en":"Card"},autoFolio:{"es":"Folio automático","en":"Automatic receipt number"},requiredRef:{"es":"Referencia obligatoria","en":"Reference required"},stripeQR:{"es":"QR de Stripe","en":"Stripe QR"},receiptNumber:{"es":"Número del comprobante","en":"Receipt reference number"},folioOnConfirm:{"es":"Se asigna al confirmar el pago","en":"Assigned when payment is confirmed"},folioStripe:{"es":"Lo asigna Stripe al cobrar","en":"Assigned by Stripe after payment"},chooseMethod:{"es":"Elige primero un método de pago","en":"Choose a payment method first"},cashHelp:{"es":"El folio real se genera al confirmar el pago y aparecerá en el recibo. No necesitas capturarlo.","en":"The receipt number is generated after payment confirmation. You do not need to enter it."},transferHelp:{"es":"Captura el folio o número de referencia que aparece en el comprobante de la transferencia.","en":"Enter the reference number shown on the bank transfer receipt."},cardHelp:{"es":"El folio se asigna cuando Stripe confirma el cobro y aparecerá en el recibo.","en":"The receipt number is assigned when Stripe confirms the payment."},pastDebt:{"es":"Adeudo anterior","en":"Previous balance"},fees:{"es":"Recargos ya registrados","en":"Accrued late fees"},newMembership:{"es":"Nueva membresía, cuando corresponde","en":"New membership, if applicable"},credit:{"es":"Saldo a favor","en":"Account credit"},processingHint:{"es":"Procesando el cobro, no cierres esta ventana...","en":"Processing payment, please do not close this window..."},noPaymentHint:{"es":"Sin cobro pendiente. La cuenta se restaurará.","en":"No outstanding payment. The account will be restored."},chooseHint:{"es":"Elige un método de pago para continuar.","en":"Choose a payment method to continue."},referenceHint:{"es":"Captura la referencia de la transferencia.","en":"Enter the bank transfer reference."},readyHint:{"es":"Todo listo para cobrar y reactivar.","en":"Ready to charge and reactivate."},loginAgain:{"es":"Inicia sesión nuevamente.","en":"Please sign in again."},loadError:{"es":"No se pudo consultar la cuenta.","en":"Could not load the account."},selectMethodError:{"es":"Selecciona un método de pago.","en":"Select a payment method."},referenceError:{"es":"La transferencia necesita su referencia.","en":"A bank transfer reference is required."},saveError:{"es":"No se pudo reactivar. No se confirmó ningún pago.","en":"Reactivation failed. No payment was confirmed."},statusActive:{"es":"Activo","en":"Active"},statusInactive:{"es":"Inactivo","en":"Inactive"},statusPending:{"es":"Pendiente","en":"Pending"},statusUpcoming:{"es":"Próximo a vencer","en":"Expiring soon"},statusTolerance:{"es":"En tolerancia","en":"In grace period"},statusExtra:{"es":"Pago con recargo","en":"Late fee due"},statusVisit:{"es":"Visita","en":"Day pass"},statusDeleted:{"es":"Eliminado temporal","en":"Temporarily removed"} } as Record<string,{es:string;en:string}>;
+const idioma=ref<'es'|'en'>('es');const idiomaActual=()=>{const v=localStorage.getItem('GYM_ACCOUNT-idioma')||localStorage.getItem('app-language')||localStorage.getItem('language')||'es';return v.toLowerCase().startsWith('en')?'en':'es';};const tr=(k:string)=>i18n[k]?.[idioma.value]||i18n[k]?.es||k;const traducirEstatus=(s:string)=>{const e=String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');const m:Record<string,string>={'activo':'statusActive','inactivo':'statusInactive','pendiente':'statusPending','proximo a vencer':'statusUpcoming','en tolerancia':'statusTolerance','tolerancia':'statusTolerance','pago con recargo':'statusExtra','visita':'statusVisit','eliminado temporal':'statusDeleted'};return m[e]?tr(m[e]):s;};const actualizarIdioma=(ev?:Event)=>{const v=(ev as CustomEvent)?.detail?.idioma;idioma.value=String(v||idiomaActual()).toLowerCase().startsWith('en')?'en':'es';};
+onMounted(()=>{actualizarIdioma();window.addEventListener('idioma-changed',actualizarIdioma);window.addEventListener('storage',actualizarIdioma);});onUnmounted(()=>{window.removeEventListener('idioma-changed',actualizarIdioma);window.removeEventListener('storage',actualizarIdioma);});
 const props=defineProps<{inscripcionId:number;sedeId:number}>();const emit=defineEmits<{(e:'close'):void;(e:'reactivated'):void}>();
 type Desglose={adeudo:number;recargos:number;renovacion:number;saldo_a_favor:number;total:number};type Cliente={nombre:string;correo:string|null;plan:string;estatus_inscripcion:string;fecha_vencimiento:string|null;desglose:Desglose};
 const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');const cliente=ref<Cliente|null>(null),loading=ref(false),guardando=ref(false),error=ref(''),saveError=ref(''),metodo=ref(''),referencia=ref('');const desglose=computed<Desglose>(()=>cliente.value?.desglose||{adeudo:0,recargos:0,renovacion:0,saldo_a_favor:0,total:0});
 // La tarjeta (Stripe) no está disponible al reactivar. Cambia a true cuando el servidor la soporte y aparecerá sola.
 const TARJETA_HABILITADA=false;
-const metodosPago=computed(()=>[
- {value:'Efectivo',label:'Efectivo',hint:'Folio automático',icon:'cash'},
- {value:'Transferencia',label:'Transferencia',hint:'Referencia obligatoria',icon:'transfer'},
- ...(TARJETA_HABILITADA?[{value:'Tarjeta',label:'Tarjeta',hint:'QR de Stripe',icon:'card'}]:[])
-]);
+const metodosPago=computed(()=>[{value:'Efectivo',label:tr('cash'),hint:tr('autoFolio'),icon:'cash'},{value:'Transferencia',label:tr('transfer'),hint:tr('requiredRef'),icon:'transfer'},...(TARJETA_HABILITADA?[{value:'Tarjeta',label:tr('card'),hint:tr('stripeQR'),icon:'card'}]:[])]);
 watch(metodo,n=>{if(n!=='Transferencia')referencia.value='';});
 const folioAutomatico=computed(()=>metodo.value==='Efectivo'||metodo.value==='Tarjeta');
-const folioPlaceholder=computed(()=>metodo.value==='Transferencia'?'Número del comprobante':metodo.value==='Efectivo'?'Se asigna al confirmar el pago':metodo.value==='Tarjeta'?'Lo asigna Stripe al cobrar':'Elige primero un método de pago');
-const folioAyuda=computed(()=>({Efectivo:'El folio real se genera al confirmar el pago y aparecerá en el recibo. No necesitas capturarlo.',Transferencia:'Captura el folio o número de referencia que aparece en el comprobante de la transferencia.',Tarjeta:'El folio se asigna cuando Stripe confirma el cobro y aparecerá en el recibo.'} as Record<string,string>)[metodo.value]||'');
+const folioPlaceholder=computed(()=>metodo.value==='Transferencia'?tr('receiptNumber'):metodo.value==='Efectivo'?tr('folioOnConfirm'):metodo.value==='Tarjeta'?tr('folioStripe'):tr('chooseMethod'));
+const folioAyuda=computed(()=>({Efectivo:tr('cashHelp'),Transferencia:tr('transferHelp'),Tarjeta:tr('cardHelp')} as Record<string,string>)[metodo.value]||'');
 // Filas del desglose (misma información, presentada con icono y color por concepto).
 const filas=computed(()=>[
- {k:'adeudo',label:'Adeudo anterior',amount:desglose.value.adeudo,tone:'bad',icon:'alert',negative:false},
- {k:'recargos',label:'Recargos ya registrados',amount:desglose.value.recargos,tone:'warn',icon:'clock',negative:false},
- {k:'renovacion',label:'Nueva membresía, cuando corresponde',amount:desglose.value.renovacion,tone:'info',icon:'card',negative:false},
- {k:'saldo',label:'Saldo a favor',amount:desglose.value.saldo_a_favor,tone:'ok',icon:'check',negative:true}
+{k:'adeudo',label:tr('pastDebt'),amount:desglose.value.adeudo,tone:'bad',icon:'alert',negative:false},
+{k:'recargos',label:tr('fees'),amount:desglose.value.recargos,tone:'warn',icon:'clock',negative:false},
+{k:'renovacion',label:tr('newMembership'),amount:desglose.value.renovacion,tone:'info',icon:'card',negative:false},
+{k:'saldo',label:tr('credit'),amount:desglose.value.saldo_a_favor,tone:'ok',icon:'check',negative:true}
 ]);
 // Mensaje guía del pie: dice qué falta antes de poder confirmar.
 const footHint=computed(()=>{
- if(guardando.value)return{ok:false,text:'Procesando el cobro, no cierres esta ventana...'};
- if(desglose.value.total<=0)return{ok:true,text:'Sin cobro pendiente. La cuenta se restaurará.'};
- if(!metodo.value)return{ok:false,text:'Elige un método de pago para continuar.'};
- if(metodo.value==='Transferencia'&&!referencia.value)return{ok:false,text:'Captura la referencia de la transferencia.'};
- return{ok:true,text:'Todo listo para cobrar y reactivar.'};
+if(guardando.value)return{ok:false,text:tr('processingHint')};
+if(desglose.value.total<=0)return{ok:true,text:tr('noPaymentHint')};
+if(!metodo.value)return{ok:false,text:tr('chooseHint')};
+if(metodo.value==='Transferencia'&&!referencia.value)return{ok:false,text:tr('referenceHint')};
+return{ok:true,text:tr('readyHint')};
 });
 const initials=(n:string)=>{const p=String(n||'').trim().split(/\s+/).filter(Boolean);return((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase()||'?';};
 const gradients=['linear-gradient(135deg,#7e22ce,#4c1d95)','linear-gradient(135deg,#ea580c,#9a3412)','linear-gradient(135deg,#db2777,#9d174d)','linear-gradient(135deg,#dc2626,#7f1d1d)','linear-gradient(135deg,#2563eb,#1e3a8a)','linear-gradient(135deg,#059669,#064e3b)'];
@@ -170,9 +169,9 @@ const onEsc=(e:KeyboardEvent)=>{if(e.key==='Escape'&&!guardando.value)emit('clos
 onMounted(()=>window.addEventListener('keydown',onEsc));
 onUnmounted(()=>window.removeEventListener('keydown',onEsc));
 const token=()=>{for(const st of [sessionStorage,localStorage]){for(const k of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const v=st.getItem(k);if(v)return v.replace(/^Bearer\s+/i,'');}for(const k of ['auth','user','session','gymAccount','gym_account'])try{const x=JSON.parse(st.getItem(k)||'null');if(x?.token||x?.access_token||x?.accessToken)return String(x.token||x.access_token||x.accessToken).replace(/^Bearer\s+/i,'');}catch{}}return '';};
-const request=async(path:string,init:RequestInit={})=>{const t=token();if(!t)throw new Error('Inicia sesión nuevamente.');const r=await fetch(`${API}/api/gym/reactivaciones/${props.inscripcionId}${path}`,{...init,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(init.body?{'Content-Type':'application/json'}:{}),...(init.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok){const e=d.errors?Object.values(d.errors).flat().join(' '):'';throw new Error(e||d.message||`Error HTTP ${r.status}`);}return d;};
-const cargar=async()=>{loading.value=true;error.value='';cliente.value=null;try{const d=await request(`?sede_id=${props.sedeId}`);cliente.value=d.cliente;}catch(e:any){error.value=e?.message||'No se pudo consultar la cuenta.';}finally{loading.value=false;}};
-const guardar=async()=>{if(guardando.value||!cliente.value)return;saveError.value='';if(desglose.value.total>0&&!metodo.value){saveError.value='Selecciona un método de pago.';return;}if(metodo.value==='Transferencia'&&!referencia.value){saveError.value='La transferencia necesita su referencia.';return;}guardando.value=true;try{await request('',{method:'POST',body:JSON.stringify({sede_id:props.sedeId,monto:desglose.value.total,metodo_pago:desglose.value.total>0?metodo.value:null,referencia_pago:metodo.value==='Transferencia'?referencia.value:null})});emit('reactivated');}catch(e:any){saveError.value=e.message||'No se pudo reactivar. No se confirmó ningún pago.';}finally{guardando.value=false;}};
+const request=async(path:string,init:RequestInit={})=>{const t=token();if(!t)throw new Error(tr('loginAgain'));const r=await fetch(`${API}/api/gym/reactivaciones/${props.inscripcionId}${path}`,{...init,headers:{Accept:'application/json',Authorization:`Bearer ${t}`,...(init.body?{'Content-Type':'application/json'}:{}),...(init.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok){const e=d.errors?Object.values(d.errors).flat().join(' '):'';throw new Error(e||d.message||`Error HTTP ${r.status}`);}return d;};
+const cargar=async()=>{loading.value=true;error.value='';cliente.value=null;try{const d=await request(`?sede_id=${props.sedeId}`);cliente.value=d.cliente;}catch(e:any){error.value=e?.message||tr('loadError');}finally{loading.value=false;}};
+const guardar=async()=>{if(guardando.value||!cliente.value)return;saveError.value='';if(desglose.value.total>0&&!metodo.value){saveError.value=tr('selectMethodError');return;}if(metodo.value==='Transferencia'&&!referencia.value){saveError.value=tr('referenceError');return;}guardando.value=true;try{await request('',{method:'POST',body:JSON.stringify({sede_id:props.sedeId,monto:desglose.value.total,metodo_pago:desglose.value.total>0?metodo.value:null,referencia_pago:metodo.value==='Transferencia'?referencia.value:null})});emit('reactivated');}catch(e:any){saveError.value=e.message||tr('saveError');}finally{guardando.value=false;}};
 const moneda=(n:number)=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Number(n)||0);const fecha=(v:string|null)=>{const m=String(v||'').match(/^(\d{4})-(\d\d)-(\d\d)/);return m?`${m[3]}/${m[2]}/${m[1]}`:'—';};onMounted(()=>void cargar());
 </script>
 <style scoped>

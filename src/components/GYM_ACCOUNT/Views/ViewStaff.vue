@@ -1,158 +1,158 @@
 <template>
-  <HeadingGYM_ACCOUNT>
-    <NotificationSystem ref="toastRef" />
-    <main class="main-content">
-      <header class="header-section">
-        <div class="title-wrapper">
-          <h1 class="main-title">{{ t('staffTitle') }}</h1>
-          <p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
-        </div>
-        <div class="actions-bar" id="tutorial-step-0">
-          <select v-model="selectedRoleFilter" class="status-select">
-            <option value="Todos">Status (Todos)</option>
-            <option value="Propietario">Propietario</option>
-            <option value="Gerente">Gerente</option>
-            <option value="Entrenador">{{ t('roleTrainer') }}</option>
-            <option value="Recepcionista">{{ t('roleReceptionist') }}</option>
-          </select>
-          <button class="btn-bulk" @click="activeModal = 'enviomasivo'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            Correo Masivo
-          </button>
-          <div class="search-wrapper">
-            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input v-model="searchQuery" class="search-input" type="text" :placeholder="t('searchPlaceholder')" />
-          </div>
-        </div>
-      </header>
-      <p v-if="loadingUsers" class="data-message">Cargando personal registrado...</p>
-      <p v-if="errorUsers" class="data-message" role="alert">{{ errorUsers }} <button type="button" @click="cargarPersonal">Reintentar</button></p>
-      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : null">
-        <table v-if="filteredUsers.length" class="user-table">
-          <thead>
-            <tr>
-              <th>{{ t('tablePhoto') }}</th>
-              <th>{{ t('tableName') }}</th>
-              <th>{{ t('tableEmail') }}</th>
-              <th>{{ t('tablePhone') }}</th>
-              <th>{{ t('tableSystemRole') }}</th>
-              <th class="th-actions">{{ t('tableActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(user,index) in pagedUsers" :key="user.id" :class="getRoleClass(user.role)">
-              <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div></td>
-              <td class="text-bold">{{ user.name }}</td>
-              <td class="text-muted">{{ user.email }}</td>
-              <td class="text-muted">{{ user.phone }}</td>
-              <td><span :class="['status-badge', getRoleClass(user.role)]"><i class="status-dot"></i>{{ roleText(user.role) }}</span></td>
-              <td class="actions-cell" :id="!isMobile && index===0 ? 'tutorial-step-2' : null">
-                <button class="icon-btn btn-email" :title="t('actionEmail')" @click="openEmail(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                </button>
-                <button class="icon-btn btn-wa" :title="t('actionWhatsApp')" @click="openWhatsApp(user.phone)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-                </button>
-                <button class="icon-btn btn-edit" :title="t('actionEdit')" @click="goToEdit(user.id)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="icon-btn btn-delete" title="Eliminar personal" @click="confirmDelete(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else-if="!loadingUsers && !errorUsers" class="empty-state">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>No hay personal registrado para esta sucursal o filtro.</p>
-        </div>
-      </div>
-      <div class="mobile-only" :id="isMobile ? 'tutorial-step-1' : null">
-        <div v-if="!loadingUsers && !errorUsers && !filteredUsers.length" class="empty-state">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>No hay personal registrado para esta sucursal o filtro.</p>
-        </div>
-        <div v-for="(user,index) in pagedUsers" :key="user.id" class="user-card" :class="getRoleClass(user.role)">
-          <div class="card-top-section">
-            <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div>
-            <div class="card-user-titles">
-              <div class="text-bold name-text">{{ user.name }}</div>
-              <span class="status-badge" :class="getRoleClass(user.role)"><i class="status-dot"></i>{{ roleText(user.role) }}</span>
-            </div>
-          </div>
-          <div class="card-meta">
-            <span class="email-text">{{ user.email }}</span>
-            <span class="phone-text">{{ user.phone || 'Sin teléfono' }}</span>
-          </div>
-          <div class="card-actions" :id="isMobile && index===0 ? 'tutorial-step-2' : null">
-            <button class="action-chip btn-email-chip" @click="openEmail(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <span>Email</span>
-            </button>
-            <button class="action-chip btn-wa-chip" @click="openWhatsApp(user.phone)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-              <span>WApp</span>
-            </button>
-            <button class="action-chip btn-edit-chip" @click="goToEdit(user.id)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              <span>{{ t('actionEdit') }}</span>
-            </button>
-            <button class="action-chip btn-delete-chip" @click="confirmDelete(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              <span>{{ t('actionDelete') }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      <nav v-if="showPager" class="pager" aria-label="Paginación">
-        <button class="pager-btn" type="button" :disabled="page <= 1" aria-label="Página anterior" @click="goPage(page - 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
-        <button class="pager-btn" type="button" :disabled="page >= totalPages" aria-label="Página siguiente" @click="goPage(page + 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </nav>
-    </main>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
-        <CorreoMasivo @close="activeModal = null" />
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviocorreo'" class="modal-wrapper" @click.self="activeModal = null">
-        <EnvioCorreo @close="activeModal = null" />
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="showDelete" class="modal-wrapper" @click.self="closeDelete">
-        <div class="custom-modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-title">
-          <div class="modal-body-custom">
-            <div class="modal-icon-container danger-bg">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-            <h2 id="delete-title">Eliminar personal</h2>
-            <p>¿Estás seguro de que deseas eliminar a <span class="highlight-name">{{ selectedUser?.name }}</span>?</p>
-            <p class="delete-warning">El empleado dejará de aparecer en todas las sucursales asignadas. Su historial permanecerá guardado.</p>
-            <div class="modal-buttons">
-              <button type="button" class="btn-modal secondary" :disabled="deleting" @click="closeDelete">Cancelar</button>
-              <button type="button" class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? 'Eliminando...' : 'Sí, eliminar' }}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-  </HeadingGYM_ACCOUNT>
+<HeadingGYM_ACCOUNT>
+<NotificationSystem ref="toastRef" />
+<main class="main-content">
+<header class="header-section">
+<div class="title-wrapper">
+<h1 class="main-title">{{ t('staffTitle') }}</h1>
+<p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
+</div>
+<div class="actions-bar">
+<select v-model="selectedRoleFilter" class="status-select">
+<option value="Todos">Status (Todos)</option>
+<option value="Propietario">Propietario</option>
+<option value="Gerente">Gerente</option>
+<option value="Entrenador">{{ t('roleTrainer') }}</option>
+<option value="Recepcionista">{{ t('roleReceptionist') }}</option>
+</select>
+<button class="btn-bulk" @click="activeModal = 'enviomasivo'">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+<polyline points="22,6 12,13 2,6"/>
+</svg>
+Correo Masivo
+</button>
+<div class="search-wrapper">
+<svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+</svg>
+<input v-model="searchQuery" class="search-input" type="text" :placeholder="t('searchPlaceholder')" />
+</div>
+</div>
+</header>
+<p v-if="loadingUsers" class="data-message">Cargando personal registrado...</p>
+<p v-if="errorUsers" class="data-message" role="alert">{{ errorUsers }} <button type="button" @click="cargarPersonal">Reintentar</button></p>
+<div class="table-container desktop-only">
+<table v-if="filteredUsers.length" class="user-table">
+<thead>
+<tr>
+<th>{{ t('tablePhoto') }}</th>
+<th>{{ t('tableName') }}</th>
+<th>{{ t('tableEmail') }}</th>
+<th>{{ t('tablePhone') }}</th>
+<th>{{ t('tableSystemRole') }}</th>
+<th class="th-actions">{{ t('tableActions') }}</th>
+</tr>
+</thead>
+<tbody>
+<tr v-for="user in pagedUsers" :key="user.id" :class="getRoleClass(user.role)">
+<td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div></td>
+<td class="text-bold">{{ user.name }}</td>
+<td class="text-muted">{{ user.email }}</td>
+<td class="text-muted">{{ user.phone }}</td>
+<td><span :class="['status-badge', getRoleClass(user.role)]"><i class="status-dot"></i>{{ roleText(user.role) }}</span></td>
+<td class="actions-cell">
+<button class="icon-btn btn-email" :title="t('actionEmail')" @click="openEmail(user)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+</button>
+<button class="icon-btn btn-wa" :title="t('actionWhatsApp')" @click="openWhatsApp(user.phone)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
+</button>
+<button class="icon-btn btn-edit" :title="t('actionEdit')" @click="goToEdit(user.id)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+</button>
+<button class="icon-btn btn-delete" title="Eliminar personal" @click="confirmDelete(user)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+<div v-else-if="!loadingUsers && !errorUsers" class="empty-state">
+<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<p>No hay personal registrado para esta sucursal o filtro.</p>
+</div>
+</div>
+<div class="mobile-only">
+<div v-if="!loadingUsers && !errorUsers && !filteredUsers.length" class="empty-state">
+<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<p>No hay personal registrado para esta sucursal o filtro.</p>
+</div>
+<div v-for="user in pagedUsers" :key="user.id" class="user-card" :class="getRoleClass(user.role)">
+<div class="card-top-section">
+<div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div>
+<div class="card-user-titles">
+<div class="text-bold name-text">{{ user.name }}</div>
+<span class="status-badge" :class="getRoleClass(user.role)"><i class="status-dot"></i>{{ roleText(user.role) }}</span>
+</div>
+</div>
+<div class="card-meta">
+<span class="email-text">{{ user.email }}</span>
+<span class="phone-text">{{ user.phone || 'Sin teléfono' }}</span>
+</div>
+<div class="card-actions">
+<button class="action-chip btn-email-chip" @click="openEmail(user)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+<span>Email</span>
+</button>
+<button class="action-chip btn-wa-chip" @click="openWhatsApp(user.phone)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
+<span>WApp</span>
+</button>
+<button class="action-chip btn-edit-chip" @click="goToEdit(user.id)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+<span>{{ t('actionEdit') }}</span>
+</button>
+<button class="action-chip btn-delete-chip" @click="confirmDelete(user)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+<span>{{ t('actionDelete') }}</span>
+</button>
+</div>
+</div>
+</div>
+<nav v-if="showPager" class="pager" aria-label="Paginación">
+<button class="pager-btn" type="button" :disabled="page <= 1" aria-label="Página anterior" @click="goPage(page - 1)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+<button class="pager-btn" type="button" :disabled="page >= totalPages" aria-label="Página siguiente" @click="goPage(page + 1)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+</nav>
+</main>
+<transition name="pop">
+<div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
+<CorreoMasivo @close="activeModal = null" />
+</div>
+</transition>
+<transition name="pop">
+<div v-if="activeModal === 'enviocorreo'" class="modal-wrapper" @click.self="activeModal = null">
+<EnvioCorreo @close="activeModal = null" />
+</div>
+</transition>
+<transition name="pop">
+<div v-if="showDelete" class="modal-wrapper" @click.self="closeDelete">
+<div class="custom-modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+<div class="modal-body-custom">
+<div class="modal-icon-container danger-bg">
+<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+<line x1="12" y1="9" x2="12" y2="13"/>
+<line x1="12" y1="17" x2="12.01" y2="17"/>
+</svg>
+</div>
+<h2 id="delete-title">{{ retiroT("titulo") }}</h2>
+<p>{{ retiroT("pregunta") }} <span class="highlight-name">{{ selectedUser?.name }}</span>{{ retiroT("preguntaFin") }}</p>
+<p class="delete-warning">{{ retiroT("aviso") }}</p>
+<div class="modal-buttons">
+<button type="button" class="btn-modal secondary" :disabled="deleting" @click="closeDelete">{{ retiroT("cancelar") }}</button>
+<button type="button" class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? retiroT('eliminando') : retiroT('confirmar') }}</button>
+</div>
+</div>
+</div>
+</div>
+</transition>
+</HeadingGYM_ACCOUNT>
 </template>
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -180,136 +180,138 @@ const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').repla
 const PAGE_SIZE = 40;
 let requestSequence = 0;
 const t = key => traducciones[currentLang.value]?.[key] || traducciones.es?.[key] || key;
+const retiroTraducciones={es:{titulo:'Eliminar personal',pregunta:'¿Estás seguro de que deseas eliminar a',preguntaFin:'?',aviso:'El empleado dejará de aparecer en todas las sucursales asignadas. Su historial permanecerá guardado.',cancelar:'Cancelar',eliminando:'Eliminando...',confirmar:'Sí, eliminar'},en:{titulo:'Remove staff member',pregunta:'Are you sure you want to remove',preguntaFin:'?',aviso:'This staff member will no longer appear in any assigned branches. Their history will remain saved.',cancelar:'Cancel',eliminando:'Removing...',confirmar:'Yes, remove'}};
+const retiroT=key=>(retiroTraducciones[currentLang.value==='en'?'en':'es']||retiroTraducciones.es)[key]||key;
 const roleText = role => ({
-  Propietario: ({ es: 'Propietario', en: 'Owner', fr: 'Propriétaire', pt: 'Proprietário' })[currentLang.value] || 'Propietario',
-  Gerente: ({ es: 'Gerente', en: 'Manager', fr: 'Gérant', pt: 'Gerente' })[currentLang.value] || 'Gerente',
-  Entrenador: t('roleTrainer'),
-  Recepcionista: t('roleReceptionist')
+Propietario: ({ es: 'Propietario', en: 'Owner', fr: 'Propriétaire', pt: 'Proprietário' })[currentLang.value] || 'Propietario',
+Gerente: ({ es: 'Gerente', en: 'Manager', fr: 'Gérant', pt: 'Gerente' })[currentLang.value] || 'Gerente',
+Entrenador: t('roleTrainer'),
+Recepcionista: t('roleReceptionist')
 })[role] || role;
 const getRoleClass = role => ({
-  Propietario: 'role-propietario',
-  Gerente: 'role-gerente',
-  Entrenador: 'role-entrenador',
-  Recepcionista: 'role-recepcionista'
+Propietario: 'role-propietario',
+Gerente: 'role-gerente',
+Entrenador: 'role-entrenador',
+Recepcionista: 'role-recepcionista'
 })[role] || 'role-default';
 const initials = (name = '') => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+const parts = name.trim().split(/\s+/).filter(Boolean);
+return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
 };
 const avatarColor = (name = '') => {
-  const colors = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ec4899','#14b8a6','#6366f1','#ef4444'];
-  let hash = 0;
-  for (const char of name) hash = char.charCodeAt(0) + ((hash << 5) - hash);
-  const color = colors[Math.abs(hash) % colors.length];
-  return `linear-gradient(135deg,${color},${color}99)`;
+const colors = ['#3b82f6','#a855f7','#22c55e','#f59e0b','#ec4899','#14b8a6','#6366f1','#ef4444'];
+let hash = 0;
+for (const char of name) hash = char.charCodeAt(0) + ((hash << 5) - hash);
+const color = colors[Math.abs(hash) % colors.length];
+return `linear-gradient(135deg,${color},${color}99)`;
 };
 const getToken = () => {
-  for (const storage of [sessionStorage, localStorage]) {
-    for (const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
-      const value = storage.getItem(key);
-      if (value) return value.replace(/^Bearer\s+/i, '');
-    }
-    for (const key of ['auth','user','session','gymAccount','gym_account']) {
-      try {
-        const data = JSON.parse(storage.getItem(key) || 'null');
-        const token = data?.token || data?.access_token || data?.accessToken;
-        if (token) return token;
-      } catch {}
-    }
-  }
-  return '';
+for (const storage of [sessionStorage, localStorage]) {
+for (const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+const value = storage.getItem(key);
+if (value) return value.replace(/^Bearer\s+/i, '');
+}
+for (const key of ['auth','user','session','gymAccount','gym_account']) {
+try {
+const data = JSON.parse(storage.getItem(key) || 'null');
+const token = data?.token || data?.access_token || data?.accessToken;
+if (token) return token;
+} catch {}
+}
+}
+return '';
 };
 const obtenerSedeId = () => {
-  const keys = ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
-  for (const storage of [sessionStorage, localStorage]) {
-    for (const key of keys) {
-      const raw = storage.getItem(key);
-      if (!raw) continue;
-      let value = raw;
-      try {
-        const obj = JSON.parse(raw);
-        value = typeof obj === 'object' ? (obj?.ID_Sede ?? obj?.sede_id ?? obj?.id ?? obj?.value) : obj;
-      } catch {}
-      const id = Number(value);
-      if (Number.isInteger(id) && id > 0) return id;
-    }
-  }
-  return null;
+const keys = ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+for (const storage of [sessionStorage, localStorage]) {
+for (const key of keys) {
+const raw = storage.getItem(key);
+if (!raw) continue;
+let value = raw;
+try {
+const obj = JSON.parse(raw);
+value = typeof obj === 'object' ? (obj?.ID_Sede ?? obj?.sede_id ?? obj?.id ?? obj?.value) : obj;
+} catch {}
+const id = Number(value);
+if (Number.isInteger(id) && id > 0) return id;
+}
+}
+return null;
 };
 const resolverSedeId = async (token) => {
-  let id = obtenerSedeId();
-  if (id) return id;
-  await new Promise(r => setTimeout(r, 700));
-  id = obtenerSedeId();
-  if (id) return id;
-  try {
-    const response = await fetch(`${API}/api/personal/sedes`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
-    });
-    const data = await response.json().catch(() => null);
-    const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
-    const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
-    if (Number.isInteger(first) && first > 0) {
-      sessionStorage.setItem('selected_sede_id', String(first));
-      return first;
-    }
-  } catch {}
-  return null;
+let id = obtenerSedeId();
+if (id) return id;
+await new Promise(r => setTimeout(r, 700));
+id = obtenerSedeId();
+if (id) return id;
+try {
+const response = await fetch(`${API}/api/personal/sedes`, {
+headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+});
+const data = await response.json().catch(() => null);
+const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
+const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
+if (Number.isInteger(first) && first > 0) {
+sessionStorage.setItem('selected_sede_id', String(first));
+return first;
+}
+} catch {}
+return null;
 };
 const cargarPersonal = async () => {
-  const current = ++requestSequence;
-  loadingUsers.value = true;
-  errorUsers.value = '';
-  users.value = [];
-  page.value = 1;
-  try {
-    const token = getToken();
-    if (!token) throw new Error('No se encontró el token de sesión.');
-    const sedeId = await resolverSedeId(token);
-      if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
-    const response = await fetch(`${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) {
-      const messages = Object.values(body?.errors || {}).flat().filter(Boolean);
-      throw new Error(messages.join(' ') || body?.message || `Error HTTP ${response.status}`);
-    }
-    if (current !== requestSequence) return;
-    const rows = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
-    const roles = { GYM_ADMIN: 'Propietario', GYM_MANAGER: 'Gerente', GYM_COACH: 'Entrenador', GYM_RECEPCIONIST: 'Recepcionista' };
-    const unique = new Map();
-    for (const row of rows) {
-      const id = Number(row.ID_Personal ?? row.id);
-      if (!Number.isInteger(id) || id <= 0) continue;
-      const role = row.Nombre_Rol ?? row.rol?.Nombre_Rol ?? row.role ?? '';
-      unique.set(id, {
-        id,
-        name: [row.Nombre, row.Apellido_P, row.Apellido_M].filter(Boolean).join(' ') || 'Sin nombre',
-        email: row.Correo_Electronico || '',
-        phone: row.Celular || '',
-        role: roles[role] || role || 'Sin rol',
-        status: row.Status || 'Activo',
-        sede: row.Nombre_Sede || '',
-        foto: row.foto_url || null
-      });
-    }
-    users.value = [...unique.values()];
-  } catch (error) {
-    if (current !== requestSequence) return;
-    errorUsers.value = error.message || 'No se pudo cargar el personal.';
-    toastRef.value?.notify(errorUsers.value, 'error');
-    console.error('Error al cargar personal:', error);
-  } finally {
-    if (current === requestSequence) loadingUsers.value = false;
-  }
+const current = ++requestSequence;
+loadingUsers.value = true;
+errorUsers.value = '';
+users.value = [];
+page.value = 1;
+try {
+const token = getToken();
+if (!token) throw new Error('No se encontró el token de sesión.');
+const sedeId = await resolverSedeId(token);
+if (!sedeId) throw new Error('Selecciona una sucursal para visualizar el personal.');
+const response = await fetch(`${API}/api/personal?sede_id=${encodeURIComponent(sedeId)}`, {
+headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+});
+const body = await response.json().catch(() => null);
+if (!response.ok) {
+const messages = Object.values(body?.errors || {}).flat().filter(Boolean);
+throw new Error(messages.join(' ') || body?.message || `Error HTTP ${response.status}`);
+}
+if (current !== requestSequence) return;
+const rows = Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
+const roles = { GYM_ADMIN: 'Propietario', GYM_MANAGER: 'Gerente', GYM_COACH: 'Entrenador', GYM_RECEPCIONIST: 'Recepcionista' };
+const unique = new Map();
+for (const row of rows) {
+const id = Number(row.ID_Personal ?? row.id);
+if (!Number.isInteger(id) || id <= 0) continue;
+const role = row.Nombre_Rol ?? row.rol?.Nombre_Rol ?? row.role ?? '';
+unique.set(id, {
+id,
+name: [row.Nombre, row.Apellido_P, row.Apellido_M].filter(Boolean).join(' ') || 'Sin nombre',
+email: row.Correo_Electronico || '',
+phone: row.Celular || '',
+role: roles[role] || role || 'Sin rol',
+status: row.Status || 'Activo',
+sede: row.Nombre_Sede || '',
+foto: row.foto_url || null
+});
+}
+users.value = [...unique.values()];
+} catch (error) {
+if (current !== requestSequence) return;
+errorUsers.value = error.message || 'No se pudo cargar el personal.';
+toastRef.value?.notify(errorUsers.value, 'error');
+console.error('Error al cargar personal:', error);
+} finally {
+if (current === requestSequence) loadingUsers.value = false;
+}
 };
 const filteredUsers = computed(() => {
-  const term = searchQuery.value.trim().toLocaleLowerCase();
-  return users.value.filter(user => {
-    if (selectedRoleFilter.value !== 'Todos' && user.role !== selectedRoleFilter.value) return false;
-    return !term || [user.name,user.email,user.phone,user.role,String(user.id)].some(value => String(value || '').toLocaleLowerCase().includes(term));
-  });
+const term = searchQuery.value.trim().toLocaleLowerCase();
+return users.value.filter(user => {
+if (selectedRoleFilter.value !== 'Todos' && user.role !== selectedRoleFilter.value) return false;
+return !term || [user.name,user.email,user.phone,user.role,String(user.id)].some(value => String(value || '').toLocaleLowerCase().includes(term));
+});
 });
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
 const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
@@ -318,61 +320,61 @@ const goPage = n => { page.value = Math.min(Math.max(1, n), totalPages.value); w
 watch([searchQuery, selectedRoleFilter], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
 const openEmail = user => {
-  if (!user.email) return toastRef.value?.notify('Este empleado no tiene correo.', 'error');
-  activeModal.value = 'enviocorreo';
+if (!user.email) return toastRef.value?.notify('Este empleado no tiene correo.', 'error');
+activeModal.value = 'enviocorreo';
 };
 const openWhatsApp = phone => {
-  const number = String(phone || '').replace(/\D/g, '');
-  if (!number) return toastRef.value?.notify('Este empleado no tiene teléfono.', 'error');
-  window.open(`https://wa.me/${number.length === 10 ? '52' + number : number}`, '_blank', 'noopener,noreferrer');
+const number = String(phone || '').replace(/\D/g, '');
+if (!number) return toastRef.value?.notify('Este empleado no tiene teléfono.', 'error');
+window.open(`https://wa.me/${number.length === 10 ? '52' + number : number}`, '_blank', 'noopener,noreferrer');
 };
 const goToEdit = id => router.push(`/GYM_ACCOUNT/editar-staff/${id}`);
 const confirmDelete = user => {
-  selectedUser.value = user;
-  showDelete.value = true;
+selectedUser.value = user;
+showDelete.value = true;
 };
 const closeDelete = () => {
-  if (deleting.value) return;
-  showDelete.value = false;
-  selectedUser.value = null;
+if (deleting.value) return;
+showDelete.value = false;
+selectedUser.value = null;
 };
 const executeDelete = async () => {
-  if (!selectedUser.value || deleting.value) return;
-  deleting.value = true;
-  try {
-    const token = getToken();
-    if (!token) throw new Error('No se encontró el token de sesión.');
-    const response = await fetch(`${API}/api/personal/${selectedUser.value.id}`, {
-      method: 'DELETE',
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
-    });
-    const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.message || `Error HTTP ${response.status}`);
-    showDelete.value = false;
-    selectedUser.value = null;
-    await cargarPersonal();
-    toastRef.value?.notify('Personal eliminado correctamente.', 'success');
-  } catch (error) {
-    toastRef.value?.notify(error.message || 'No se pudo eliminar el personal.', 'error');
-    console.error('Error al eliminar personal:', error);
-  } finally {
-    deleting.value = false;
-  }
+if (!selectedUser.value || deleting.value) return;
+deleting.value = true;
+try {
+const token = getToken();
+if (!token) throw new Error('No se encontró el token de sesión.');
+const response = await fetch(`${API}/api/personal/${selectedUser.value.id}`, {
+method: 'DELETE',
+headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
+});
+const body = await response.json().catch(() => null);
+if (!response.ok) throw new Error(body?.message || `Error HTTP ${response.status}`);
+showDelete.value = false;
+selectedUser.value = null;
+await cargarPersonal();
+toastRef.value?.notify('Personal eliminado correctamente.', 'success');
+} catch (error) {
+toastRef.value?.notify(error.message || 'No se pudo eliminar el personal.', 'error');
+console.error('Error al eliminar personal:', error);
+} finally {
+deleting.value = false;
+}
 };
 const handleResize = () => { isMobile.value = window.innerWidth <= 900; };
 const handleLangChange = event => { if (event.detail?.idioma) currentLang.value = event.detail.idioma; };
 const handleBranchChange = () => cargarPersonal();
 onMounted(() => {
-  window.addEventListener('resize', handleResize);
-  window.addEventListener('idioma-changed', handleLangChange);
-  window.addEventListener('factorfit:branch-changed', handleBranchChange);
-  cargarPersonal();
+window.addEventListener('resize', handleResize);
+window.addEventListener('idioma-changed', handleLangChange);
+window.addEventListener('factorfit:branch-changed', handleBranchChange);
+cargarPersonal();
 });
 onUnmounted(() => {
-  requestSequence++;
-  window.removeEventListener('resize', handleResize);
-  window.removeEventListener('idioma-changed', handleLangChange);
-  window.removeEventListener('factorfit:branch-changed', handleBranchChange);
+requestSequence++;
+window.removeEventListener('resize', handleResize);
+window.removeEventListener('idioma-changed', handleLangChange);
+window.removeEventListener('factorfit:branch-changed', handleBranchChange);
 });
 </script>
 <style scoped>

@@ -167,11 +167,11 @@
                 <line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
             </div>
-            <h2>Retirar cliente</h2>
-            <p>¿Retirar temporalmente a <span class="highlight-name">{{ selectedUser?.name }}</span> de esta sucursal? Sus datos se conservarán para una futura renovación.</p>
+            <h2>{{ deleteT('title') }}</h2>
+            <p>{{ deleteT('questionBefore') }} <span class="highlight-name">{{ selectedUser?.name }}</span>{{ deleteT('questionAfter') }}</p>
             <div class="modal-buttons">
               <button class="btn-modal secondary" @click="showDelete = false">{{ t('modalCancel') }}</button>
-              <button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? 'Procesando...' : 'Confirmar retiro' }}</button>
+              <button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? deleteT('processing') : deleteT('confirm') }}</button>
             </div>
           </div>
         </div>
@@ -207,6 +207,8 @@ const searchQuery = ref('');
 const selectedMembership = ref('');
 const selectedStatus = ref('');
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
+const deleteMessages={es:{title:'Retirar cliente',questionBefore:'¿Retirar temporalmente a',questionAfter:' de esta sucursal? Sus datos se conservarán para una futura renovación.',processing:'Procesando...',confirm:'Confirmar retiro'},en:{title:'Remove client',questionBefore:'Temporarily remove',questionAfter:' from this branch? Their data will be kept for a future renewal.',processing:'Processing...',confirm:'Confirm removal'}};
+const deleteT=(key)=>deleteMessages[currentLang.value==='en'?'en':'es'][key];
 const t = (key) => {
   const langTable = traducciones[currentLang.value] || traducciones.es;
   return langTable[key] || traducciones.es[key] || key;

@@ -2338,6 +2338,29 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ============================ ESTADO DEL EMPLEADO ============================ */
+.profile-status-info {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  border-radius: 12px;
+  background: rgba(52, 211, 153, 0.07);
+}
+.profile-status-info > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.profile-status-info strong { color: var(--title); font-size: 0.78rem; font-weight: 600; }
+.profile-status-info small { color: var(--muted); font-size: 0.68rem; line-height: 1.4; }
+.status-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18), 0 0 10px #34d399;
+}
 /* ============================ FORMULARIOS ============================ */
 .forms-wrapper {
   display: flex;
