@@ -6,7 +6,6 @@
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
       </svg>
     </button>
-
     <!-- Overlay transparente -->
     <div v-if="activeStep !== null" class="tutorial-overlay" @click="closeTutorial">
       <!-- Recuadro iluminado (Spotlight): Su sombra oscurece el exterior y deja el centro transparente -->
@@ -19,7 +18,6 @@
           transform: `translate3d(${targetRect.left}px, ${targetRect.top}px, 0)`
         }"
       ></div>
-
       <!-- Tarjeta de explicación: en escritorio flota junto al elemento, en móvil es una hoja inferior fija -->
       <div
         v-if="steps[activeStep] && (!isMobile || textRevealed)"
@@ -50,24 +48,19 @@
     </div>
   </div>
 </template>
-
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
-
 const route = useRoute();
 const activeStep = ref(null);
 const tutorialEnabled = ref(localStorage.getItem('tutorialActivo') === 'true');
 const targetRect = ref(null);
 const windowWidth = ref(window.innerWidth);
-
 // Idioma actual de la interfaz, sincronizado con localStorage
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
-
 // Control de revelación de texto en móvil tras 1.5 segundos
 const textRevealed = ref(false);
 let revealTimer = null;
-
 // Seguimiento continuo (requestAnimationFrame) de la posición del elemento resaltado
 let rafId = null;
 let lastFrameTime = 0;
@@ -77,19 +70,15 @@ let lastFrameTime = 0;
 let spotlightPageRect = null;
 let resizeTimer = null;
 let previousBodyOverflow = '';
-
 const rootRef = ref(null);
 const sheetRef = ref(null);
 // Altura real de la hoja inferior en móvil, medida cada vez que aparece el texto
 let lastSheetHeight = 0;
-
 const SPOTLIGHT_PADDING = 8;
 const SCROLL_GAP = 12;
 const SPOTLIGHT_SMOOTHING_MS = 70;
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
 const isMobile = computed(() => windowWidth.value <= 768);
-
 const handleResize = () => {
   windowWidth.value = window.innerWidth;
   if (activeStep.value === null) return;
@@ -99,7 +88,6 @@ const handleResize = () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(ensureTargetVisible, 200);
 };
-
 // Traducciones de los textos fijos de la interfaz del tutorial (botones, contador)
 const tutorialUiTranslations = {
   es: {
@@ -117,26 +105,42 @@ const tutorialUiTranslations = {
     finish: 'Finish'
   }
 };
-
 const t = (key) => {
   const table = tutorialUiTranslations[currentLang.value] || tutorialUiTranslations.es;
   return table[key] || tutorialUiTranslations.es[key] || key;
 };
-
 // Diccionario de tutoriales bilingües
 const tutoriales = {
   'GYM_ACCOUNT-dashboard': {
     es: [
-      { title: "Encabezado y Estatus", description: "Este es el nombre del gimnasio registrado y la sucursal. Cuenta con botones para definir si está abierto o cerrado, y muestra tu estatus de pago al corriente.", selector: '#tutorial-step-0' },
-      { title: "Métricas de Actividad", description: "Visualiza rápidamente las entradas del día, las personas que se encuentran actualmente en las instalaciones y las membresías por vencer.", selector: '#tutorial-step-1' },
-      { title: "Control de Acceso", description: "Gestiona el ingreso mediante asistencia facial con reconocimiento biométrico por IA o utilizando el escáner de códigos QR para validar pases digitales.", selector: '#tutorial-step-2' },
-      { title: "Administración y Turnos", description: "Configura turnos, clases y consulta el calendario activo que opera de lunes a domingo.", selector: '#tutorial-step-3' }
+      { title: "Identidad y sede del gimnasio", description: "Muestra la portada, el logotipo, el nombre, la descripción y la sucursal seleccionada.", selector: "#tutorial-step-0" },
+      { title: "Resumen de actividad", description: "Agrupa los indicadores principales para consultar rápidamente cómo va la operación del día.", selector: "#tutorial-step-1" },
+      { title: "Entradas de hoy", description: "Indica cuántas asistencias se han registrado durante el día en la sede consultada.", selector: "#tutorial-step-2" },
+      { title: "En las instalaciones", description: "Muestra la cantidad de personas que el sistema considera presentes en el gimnasio. Si no hay salidas registradas, el cálculo puede depender de los datos disponibles.", selector: "#tutorial-step-3" },
+      { title: "Ingresos de hoy", description: "Presenta el importe de ingresos registrados hoy, de acuerdo con los pagos guardados en el sistema.", selector: "#tutorial-step-4" },
+      { title: "Por vencer", description: "Muestra cuántas membresías están próximas a vencer según los parámetros configurados.", selector: "#tutorial-step-5" },
+      { title: "Alertas recientes", description: "Consulta avisos importantes de operación, accesos, pagos o eventos que requieren revisión.", selector: "#tutorial-step-6" },
+      { title: "Resumen financiero", description: "Muestra información general de ingresos y accesos rápidos a las funciones financieras.", selector: "#tutorial-step-7" },
+      { title: "Acciones rápidas", description: "Accede directamente a las operaciones frecuentes, como registrar miembros o gestionar el acceso.", selector: "#tutorial-step-8" },
+      { title: "Actividad reciente", description: "Consulta movimientos y registros recientes disponibles en la plataforma.", selector: "#tutorial-step-9" },
+      { title: "Gráfica de actividad", description: "Visualiza los datos resumidos del periodo que muestra la gráfica para revisar tendencias.", selector: "#tutorial-step-10" },
+      { title: "Herramientas y módulos", description: "Abre las funciones de administración, control de acceso, sedes y otras herramientas disponibles para tu cuenta.", selector: "#tutorial-step-11" },
+      { title: "Estado del gimnasio y cuenta", description: "Consulta el estado abierto o cerrado del gimnasio y la situación de su suscripción. El estado operativo puede cambiarse desde el control correspondiente.", selector: "#tutorial-step-12" }
     ],
     en: [
-      { title: "Header and Status", description: "This is the name of the registered gym and branch. It has buttons to set whether it's open or closed, and shows your current payment status.", selector: '#tutorial-step-0' },
-      { title: "Activity Metrics", description: "Quickly view today's check-ins, the people currently inside the facility, and memberships about to expire.", selector: '#tutorial-step-1' },
-      { title: "Access Control", description: "Manage entry using AI-powered facial recognition attendance or the QR code scanner to validate digital passes.", selector: '#tutorial-step-2' },
-      { title: "Management and Shifts", description: "Set up shifts and classes, and check the active calendar that runs Monday through Sunday.", selector: '#tutorial-step-3' }
+      { title: "Gym identity and branch", description: "Displays the cover, logo, name, description and currently selected branch.", selector: "#tutorial-step-0" },
+      { title: "Activity overview", description: "Groups the main indicators so you can quickly review today’s operations.", selector: "#tutorial-step-1" },
+      { title: "Today’s entries", description: "Shows how many attendance entries were recorded today for the selected branch.", selector: "#tutorial-step-2" },
+      { title: "People on site", description: "Shows the number of people the system currently counts as present. When exit records are unavailable, the count may depend on available data.", selector: "#tutorial-step-3" },
+      { title: "Today’s revenue", description: "Shows revenue recorded today based on payments stored in the system.", selector: "#tutorial-step-4" },
+      { title: "Expiring soon", description: "Shows the number of memberships approaching expiry based on your configured rules.", selector: "#tutorial-step-5" },
+      { title: "Recent alerts", description: "Review important notices about operations, access, payments or events that need attention.", selector: "#tutorial-step-6" },
+      { title: "Financial overview", description: "Shows a general income summary and shortcuts to financial functions.", selector: "#tutorial-step-7" },
+      { title: "Quick actions", description: "Access frequently used operations, such as registering members or managing access.", selector: "#tutorial-step-8" },
+      { title: "Recent activity", description: "Review recent changes and activity records available on the platform.", selector: "#tutorial-step-9" },
+      { title: "Activity chart", description: "View summarized period data and trends in the chart.", selector: "#tutorial-step-10" },
+      { title: "Tools and modules", description: "Open administration, access control, branches and other tools available to your account.", selector: "#tutorial-step-11" },
+      { title: "Gym and account status", description: "Review whether the gym is open or closed and the status of its subscription. You can change the operational state using its corresponding control.", selector: "#tutorial-step-12" }
     ]
   },
   'register-clients': {
@@ -221,7 +225,6 @@ const tutoriales = {
       selector: '#tutorial-step-2'
     }
   ],
-
   en: [
     {
       title: "Promotions and pricing",
@@ -253,12 +256,11 @@ const tutoriales = {
       selector: '#tutorial-step-1'
     },
     {
-      title: "Simulador de multas",
-      description: "Permite visualizar una proyección de los recargos según el monto adeudado y los días de atraso. Por el momento, el simulador se encuentra deshabilitado y estará disponible próximamente.",
+      title: "Avisos de vencimiento y recargos",
+      description: "Configura recordatorios previos al vencimiento y avisos sobre los recargos, de acuerdo con las opciones disponibles en el gimnasio.",
       selector: '#tutorial-step-2'
     }
   ],
-
   en: [
     {
       title: "Late-payment rules",
@@ -271,8 +273,8 @@ const tutoriales = {
       selector: '#tutorial-step-1'
     },
     {
-      title: "Late fee simulator",
-      description: "Preview projected late fees based on the outstanding balance and the number of overdue days. The simulator is currently disabled and will be available soon.",
+      title: "Expiry and late-fee notices",
+      description: "Configure reminders before membership expiry and notices about late fees, based on the gym settings.",
       selector: '#tutorial-step-2'
     }
   ]
@@ -359,47 +361,47 @@ const tutoriales = {
   },
   'GYM_ACCOUNT-settings': {
     es: [
-      { title: "Guardar Cambios", description: "Aplica y almacena de forma permanente todas las modificaciones realizadas en la configuración del sitio.", selector: '#btn-guardar-cambios' },
-      { title: "Temas y Combinaciones", description: "Selecciona rápidamente entre 24 estilos y combinaciones predefinidas para cambiar la apariencia visual de todo el sistema.", selector: '#panel-temas' },
-      { title: "Notificaciones", description: "Activa o desactiva la recepción y envío automático de alertas y preferencias de notificación.", selector: '#row-notificaciones' },
+      { title: "Guardar Cambios", description: "Guarda la apariencia en PostgreSQL para el gimnasio y sucursal, y mantiene idioma y tutorial como preferencias del usuario.", selector: '#btn-guardar-cambios' },
+      { title: "Temas y Combinaciones", description: "Selecciona entre 30 estilos y combinaciones predefinidas para cambiar la apariencia visual de todo el sistema.", selector: '#panel-temas' },
+      { title: "Notificaciones", description: "Activa las notificaciones push del dispositivo o desactiva su suscripción. El navegador puede solicitar permiso.", selector: '#row-notificaciones' },
       { title: "Tutorial", description: "Habilita o deshabilita la guía interactiva para aprender a utilizar todas las funcionalidades de la plataforma.", selector: '#row-tutorial' },
       { title: "Idioma de la Interfaz", description: "Selecciona el idioma principal en el que se mostrarán los textos y menús del sistema.", selector: '#row-idioma' },
       { title: "Paleta de Colores Detallada", description: "Personaliza de forma independiente el color de cada componente de la interfaz, tablas, botones y encabezados.", selector: '#row-paleta-colores' },
       { title: "Densidad de la Interfaz", description: "Elige el espaciado general entre los elementos para una vista espaciosa, normal o más compacta.", selector: '#row-densidad' },
       { title: "Estilo de Bordes", description: "Define el nivel de curvatura y redondeo visual para los paneles, botones y contenedores de la aplicación.", selector: '#row-border-radius' },
-      { title: "Exportación de Datos", description: "Descarga respaldos y bitácoras completas del sistema en formatos compatibles como Excel o YML.", selector: '#panel-exportacion' }
+      { title: "Exportación de Datos", description: "Descarga las bitácoras de la sucursal seleccionada en un archivo Excel organizado en hojas, columnas y filtros.", selector: '#panel-exportacion' }
     ],
     en: [
-      { title: "Save Changes", description: "Apply and permanently store all modifications made to the site configuration.", selector: '#btn-guardar-cambios' },
-      { title: "Themes and Combinations", description: "Quickly select from 24 predefined styles and combinations to change the visual appearance of the entire system.", selector: '#panel-temas' },
-      { title: "Notifications", description: "Enable or disable the automatic reception and sending of alerts and notification preferences.", selector: '#row-notificaciones' },
+      { title: "Save Changes", description: "Save the gym and branch appearance to PostgreSQL while keeping language and tutorial as user preferences.", selector: '#btn-guardar-cambios' },
+      { title: "Themes and Combinations", description: "Choose from 30 predefined styles and combinations to change the visual appearance of the entire system.", selector: '#panel-temas' },
+      { title: "Notifications", description: "Enable push notifications on this device or unsubscribe it. Your browser may ask for permission.", selector: '#row-notificaciones' },
       { title: "Tutorial", description: "Enable or disable the interactive guide to learn how to use all the platform's features.", selector: '#row-tutorial' },
       { title: "Interface Language", description: "Select the main language in which system texts and menus will be displayed.", selector: '#row-idioma' },
       { title: "Detailed Color Palette", description: "Independently customize the color of each interface component, tables, buttons, and headers.", selector: '#row-paleta-colores' },
       { title: "Interface Density", description: "Choose the general spacing between elements for a spacious, normal, or more compact view.", selector: '#row-densidad' },
       { title: "Border Style", description: "Define the level of curvature and visual rounding for application panels, buttons, and containers.", selector: '#row-border-radius' },
-      { title: "Data Export", description: "Download complete system backups and logs in compatible formats such as Excel or YML.", selector: '#panel-exportacion' }
+      { title: "Data Export", description: "Download the selected branch’s logs as an Excel workbook with organized worksheets, columns and filters.", selector: '#panel-exportacion' }
     ]
   },
   'profile': {
     es: [
       { title: "Logotipo del Gimnasio", description: "Sube o cambia la imagen del logotipo oficial del establecimiento que se muestra en el perfil y encabezados.", selector: '#tutor-5' },
-      { title: "Información del Establecimiento", description: "Modifica el nombre oficial del gimnasio y consulta información de registro intransferible como el CURP.", selector: '#tutor-13' },
-      { title: "Membresía del Sitio", description: "Consulta el plan activo actual, actualiza tu suscripción o realiza la cancelación del servicio si lo requieres.", selector: '#tutor-20' },
+      { title: "Información del Establecimiento", description: "Modifica el nombre oficial del gimnasio y consulta información de registro intransferible como el CURP.", selector: '#gym-info' },
+      { title: "Membresía del Sitio", description: "Consulta y edita la descripción general del gimnasio y sus servicios disponibles.", selector: '#gym-details' },
       { title: "Acciones Pro", description: "Agrega nuevas sedes de operación o interactúa con el asistente de inteligencia artificial exclusivo para cuentas Pro.", selector: '#tutor-23' },
-      { title: "Datos del Administrador", description: "Actualiza la información personal, datos de contacto, correo electrónico y credenciales de acceso del administrador.", selector: '#tutor-27' },
-      { title: "Ubicación del Gimnasio", description: "Configura la dirección física completa del establecimiento incluyendo entidad, municipio, colonia y código postal.", selector: '#tutor-40' },
-      { title: "Configuración de Operación", description: "Define los días de apertura de la semana y establece las tarifas predeterminadas para mensualidades y semanas.", selector: '#tutor-50' },
+      { title: "Datos del Administrador", description: "Consulta el resumen del perfil, datos de contacto y ubicación del gimnasio.", selector: '#tutor-27' },
+      { title: "Ubicación del Gimnasio", description: "Configura la dirección física completa del establecimiento incluyendo entidad, municipio, colonia y código postal.", selector: '#gym-location' },
+      { title: "Configuración de Operación", description: "Define los días de apertura de la semana y establece las tarifas predeterminadas para mensualidades y semanas.", selector: '#gym-operation' },
       { title: "Guardar Cambios", description: "Aplica y almacena de forma definitiva todas las modificaciones realizadas en el perfil del gimnasio y del administrador.", selector: '#tutor-64' }
     ],
     en: [
       { title: "Gym Logo", description: "Upload or change the official logo image for the establishment shown in the profile and headers.", selector: '#tutor-5' },
-      { title: "Establishment Information", description: "Modify the gym's official name and view non-transferable registration information such as the CURP.", selector: '#tutor-13' },
-      { title: "Site Membership", description: "View your current active plan, update your subscription, or cancel the service if needed.", selector: '#tutor-20' },
+      { title: "Establishment Information", description: "Modify the gym's official name and view non-transferable registration information such as the CURP.", selector: '#gym-info' },
+      { title: "Site Membership", description: "Review and edit the gym description and available amenities.", selector: '#gym-details' },
       { title: "Pro Actions", description: "Add new operating locations or interact with the AI assistant exclusive to Pro accounts.", selector: '#tutor-23' },
-      { title: "Administrator Data", description: "Update the administrator's personal information, contact details, email address, and access credentials.", selector: '#tutor-27' },
-      { title: "Gym Location", description: "Set up the establishment's complete physical address, including state, municipality, neighborhood, and postal code.", selector: '#tutor-40' },
-      { title: "Operation Settings", description: "Set the days of the week the gym is open and establish default rates for monthly and weekly memberships.", selector: '#tutor-50' },
+      { title: "Administrator Data", description: "Review the gym profile summary, contact details, and location.", selector: '#tutor-27' },
+      { title: "Gym Location", description: "Set up the establishment's complete physical address, including state, municipality, neighborhood, and postal code.", selector: '#gym-location' },
+      { title: "Operation Settings", description: "Set the days of the week the gym is open and establish default rates for monthly and weekly memberships.", selector: '#gym-operation' },
       { title: "Save Changes", description: "Permanently apply and store all modifications made to the gym's and administrator's profile.", selector: '#tutor-64' }
     ]
   },
@@ -468,7 +470,6 @@ const tutoriales = {
       selector: '#tutor-9'
     }
   ],
-
   en: [
     {
       title: "Search client",
@@ -580,7 +581,6 @@ const tutoriales = {
       selector: '#tutor-10'
     }
   ],
-
   en: [
     {
       title: "Search staff",
@@ -692,17 +692,14 @@ const tutoriales = {
     ]
   }
 };
-
 const steps = computed(() => {
   const routeTutorials = tutoriales[route.name];
   if (!routeTutorials) return [];
   return routeTutorials[currentLang.value] || routeTutorials.es;
 });
-
 const setupStepTimer = () => {
   textRevealed.value = false;
   if (revealTimer) clearTimeout(revealTimer);
-
   if (isMobile.value) {
     revealTimer = setTimeout(() => {
       textRevealed.value = true;
@@ -711,26 +708,21 @@ const setupStepTimer = () => {
     textRevealed.value = true;
   }
 };
-
 const revealTextNow = () => {
   if (revealTimer) clearTimeout(revealTimer);
   textRevealed.value = true;
 };
-
 const stopTracking = () => {
   if (rafId) {
     cancelAnimationFrame(rafId);
     rafId = null;
   }
 };
-
 const getCurrentTarget = () => {
   const stepConfig = steps.value[activeStep.value];
   return stepConfig ? document.querySelector(stepConfig.selector) : null;
 };
-
 const getViewportHeight = () => window.visualViewport?.height || window.innerHeight;
-
 // Parte superior de la pantalla tapada por barras fijas o sticky (p. ej. la
 // barra superior en móvil); el elemento resaltado no debe quedar debajo de ellas.
 const getTopObstruction = (target) => {
@@ -745,26 +737,22 @@ const getTopObstruction = (target) => {
   }
   return bottom;
 };
-
 // Espacio inferior que ocupa la hoja de texto en móvil. Antes de medirla por
 // primera vez se usa una estimación.
 const getBottomObstruction = () => {
   if (!isMobile.value) return 0;
   return lastSheetHeight || Math.min(getViewportHeight() * 0.45, 300);
 };
-
 // Zona de la pantalla en la que el elemento resaltado queda realmente visible
 const getVisibleArea = (target) => ({
   top: (isMobile.value ? getTopObstruction(target) : 0) + SCROLL_GAP + SPOTLIGHT_PADDING,
   bottom: getViewportHeight() - getBottomObstruction() - SCROLL_GAP - SPOTLIGHT_PADDING
 });
-
 const scrollToTarget = (el) => {
   if (!isMobile.value) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
-
   // En móvil se centra el elemento en el hueco libre entre la barra superior y
   // la hoja de texto. scroll-margin hace que el navegador calcule el destino
   // descontando ese espacio, incluso si el elemento está en un contenedor con scroll.
@@ -777,23 +765,19 @@ const scrollToTarget = (el) => {
   el.style.scrollMarginTop = scrollMarginTop;
   el.style.scrollMarginBottom = scrollMarginBottom;
 };
-
 // Vuelve a desplazar la página sólo si el elemento quedó tapado o fuera de vista
 const ensureTargetVisible = () => {
   if (activeStep.value === null) return;
   const el = getCurrentTarget();
   if (!el) return;
-
   const rect = el.getBoundingClientRect();
   const area = getVisibleArea(el);
   const fits = rect.height <= area.bottom - area.top;
   const outOfView = fits
     ? rect.top < area.top - 1 || rect.bottom > area.bottom + 1
     : rect.top < area.top - 1 || rect.top > (area.top + area.bottom) / 2;
-
   if (outOfView) scrollToTarget(el);
 };
-
 // Recalcula la posición del elemento resaltado en cada frame. La posición se
 // guarda en coordenadas de página, así que mientras la pantalla se desplaza el
 // recuadro sigue al elemento sin retraso; al cambiar de paso se interpola con
@@ -803,9 +787,7 @@ const trackPosition = (now) => {
     stopTracking();
     return;
   }
-
   const el = getCurrentTarget();
-
   if (el) {
     const rect = el.getBoundingClientRect();
     const scrollX = window.scrollX;
@@ -816,7 +798,6 @@ const trackPosition = (now) => {
       width: rect.width + SPOTLIGHT_PADDING * 2,
       height: rect.height + SPOTLIGHT_PADDING * 2
     };
-
     if (!spotlightPageRect || reducedMotionQuery.matches) {
       spotlightPageRect = target;
     } else {
@@ -827,7 +808,6 @@ const trackPosition = (now) => {
         spotlightPageRect[key] = Math.abs(diff) < 0.5 ? target[key] : spotlightPageRect[key] + diff * k;
       }
     }
-
     const next = {
       top: spotlightPageRect.top - scrollY,
       left: spotlightPageRect.left - scrollX,
@@ -844,25 +824,20 @@ const trackPosition = (now) => {
     spotlightPageRect = null;
     targetRect.value = null;
   }
-
   lastFrameTime = now;
   rafId = requestAnimationFrame(trackPosition);
 };
-
 const startTracking = () => {
   if (rafId) return;
   lastFrameTime = 0;
   rafId = requestAnimationFrame(trackPosition);
 };
-
 const updateTargetPosition = () => {
   if (activeStep.value === null) return;
-
   const el = getCurrentTarget();
   if (el) scrollToTarget(el);
   startTracking();
 };
-
 // En móvil, al aparecer la hoja de texto se mide su altura real y, si tapa al
 // elemento resaltado, se reacomoda la página para dejarlo a la vista.
 watch(textRevealed, async (revealed) => {
@@ -871,24 +846,19 @@ watch(textRevealed, async (revealed) => {
   if (sheetRef.value) lastSheetHeight = sheetRef.value.offsetHeight;
   ensureTargetVisible();
 });
-
 // Bloquea el scroll de la página mientras el tutorial está activo, así el
 // recuadro nunca se desalinea con el elemento que señala al desplazarse.
 const lockScroll = () => {
   previousBodyOverflow = document.body.style.overflow;
   document.body.style.overflow = 'hidden';
 };
-
 const unlockScroll = () => {
   document.body.style.overflow = previousBodyOverflow;
 };
-
 const popoverStyle = computed(() => {
   if (!targetRect.value) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-
   const rect = targetRect.value;
   const popoverHeight = 220;
-
   const spaceBelow = window.innerHeight - (rect.top + rect.height);
   if (spaceBelow > popoverHeight + 20) {
     return {
@@ -906,7 +876,6 @@ const popoverStyle = computed(() => {
     };
   }
 });
-
 const startTutorial = () => {
   if (steps.value.length > 0) {
     activeStep.value = 0;
@@ -915,7 +884,6 @@ const startTutorial = () => {
     updateTargetPosition();
   }
 };
-
 const nextStep = () => {
   if (activeStep.value < steps.value.length - 1) {
     activeStep.value++;
@@ -925,7 +893,6 @@ const nextStep = () => {
     closeTutorial();
   }
 };
-
 const prevStep = () => {
   if (activeStep.value > 0) {
     activeStep.value--;
@@ -933,7 +900,6 @@ const prevStep = () => {
     updateTargetPosition();
   }
 };
-
 const closeTutorial = () => {
   if (revealTimer) clearTimeout(revealTimer);
   clearTimeout(resizeTimer);
@@ -944,22 +910,19 @@ const closeTutorial = () => {
   targetRect.value = null;
   textRevealed.value = false;
 };
-
 const updateTutorialStatus = () => {
   tutorialEnabled.value = localStorage.getItem('tutorialActivo') === 'true';
 };
-
 // Listener para actualizar el idioma en tiempo real si se modifica en la app
 const handleLanguageUpdate = () => {
   currentLang.value = localStorage.getItem('GYM_ACCOUNT-idioma') || 'es';
 };
-
 onMounted(() => {
   window.addEventListener('tutorial-updated', updateTutorialStatus);
   window.addEventListener('language-updated', handleLanguageUpdate);
+  window.addEventListener('idioma-changed', handleLanguageUpdate);
   window.addEventListener('resize', handleResize);
 });
-
 onUnmounted(() => {
   if (revealTimer) clearTimeout(revealTimer);
   clearTimeout(resizeTimer);
@@ -967,10 +930,10 @@ onUnmounted(() => {
   unlockScroll();
   window.removeEventListener('tutorial-updated', updateTutorialStatus);
   window.removeEventListener('language-updated', handleLanguageUpdate);
+  window.removeEventListener('idioma-changed', handleLanguageUpdate);
   window.removeEventListener('resize', handleResize);
 });
 </script>
-
 <style scoped>
 .btn-help {
   position: fixed;
@@ -990,9 +953,7 @@ onUnmounted(() => {
   z-index: 1000;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .btn-help:hover { transform: scale(1.12); }
-
 .tutorial-overlay {
   position: fixed;
   inset: 0;
@@ -1002,7 +963,6 @@ onUnmounted(() => {
   /* Evita que en móvil el gesto de arrastre desplace la página bajo el overlay */
   touch-action: none;
 }
-
 /* Sin transition de CSS: la suavidad la da la interpolación por frame en JS,
    que no pelea con las actualizaciones continuas de posición. */
 .spotlight-box {
@@ -1015,7 +975,6 @@ onUnmounted(() => {
   will-change: transform, width, height;
   pointer-events: none;
 }
-
 .help-popover {
   position: absolute;
   background: linear-gradient(145deg, #161e29, #0f172a);
@@ -1028,7 +987,6 @@ onUnmounted(() => {
   transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-sizing: border-box;
 }
-
 /* En pantallas chicas la tarjeta se convierte en una hoja fija en la parte
    inferior, con altura máxima y scroll interno, en vez de intentar
    posicionarse junto al elemento (lo que en móvil se veía cortado o mal
@@ -1050,7 +1008,6 @@ onUnmounted(() => {
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   animation: slideUpSheet 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .help-popover.mobile-sheet::before {
   content: '';
   position: absolute;
@@ -1062,23 +1019,19 @@ onUnmounted(() => {
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.2);
 }
-
 .help-popover.mobile-sheet .popover-header {
   margin-top: 10px;
 }
-
 @keyframes slideUpSheet {
   from { transform: translateY(100%); opacity: 0.4; }
   to { transform: translateY(0); opacity: 1; }
 }
-
 .popover-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
-
 .help-popover h3 {
   margin: 0;
   font-size: 1.2rem;
@@ -1088,7 +1041,6 @@ onUnmounted(() => {
   -webkit-text-fill-color: transparent;
   letter-spacing: 0.5px;
 }
-
 .close-btn {
   background: rgba(255, 255, 255, 0.05);
   border: none;
@@ -1103,26 +1055,22 @@ onUnmounted(() => {
   justify-content: center;
   transition: all 0.2s;
 }
-
 .close-btn:hover {
   background: rgba(239, 68, 68, 0.2);
   color: #f87171;
 }
-
 .help-popover p {
   font-size: 0.95rem;
   line-height: 1.5;
   color: #cbd5e1;
   margin-bottom: 22px;
 }
-
 .modal-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: 'Oswald', sans-serif;
 }
-
 .step-badge {
   background: rgba(99, 102, 241, 0.15);
   color: #818cf8;
@@ -1132,12 +1080,10 @@ onUnmounted(() => {
   font-weight: 600;
   border: 1px solid rgba(99, 102, 241, 0.3);
 }
-
 .buttons-group {
   display: flex;
   gap: 8px;
 }
-
 .nav-btn {
   padding: 8px 16px;
   border: none;
@@ -1147,24 +1093,20 @@ onUnmounted(() => {
   font-size: 0.88rem;
   transition: all 0.2s ease;
 }
-
 .nav-btn.primary {
   background: linear-gradient(135deg, var(--color-botones, #1c4fd6), #4f46e5);
   color: white;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
 }
-
 .nav-btn.primary:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
 }
-
 .nav-btn.secondary {
   background: rgba(255, 255, 255, 0.08);
   color: #e2e8f0;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
-
 .nav-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;

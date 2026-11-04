@@ -10,7 +10,6 @@
           <span>{{ t('saveChangesBtn') }}</span>
         </button>
       </div>
-
       <section class="form-panel" id="panel-temas">
         <div class="panel-header">
           <h2>{{ t('themesTitle') }}</h2>
@@ -18,7 +17,6 @@
             {{ t('resetColorsBtn') }}
           </button>
         </div>
-
         <div class="presets-grid">
           <button
             v-for="(preset, key) in colorPresets"
@@ -34,30 +32,25 @@
             @click="aplicarPreset(key)"
           >
             <span v-if="presetActivo === key" class="preset-check">✓</span>
-
             <span class="preset-swatches">
               <span class="swatch" :style="{ background: preset.colors.botones }"></span>
               <span class="swatch" :style="{ background: preset.colors.highlight }"></span>
               <span class="swatch" :style="{ background: preset.colors.tarjetas }"></span>
               <span class="swatch" :style="{ background: preset.colors.titulos }"></span>
             </span>
-
             <span class="preset-label">{{ preset.label }}</span>
           </button>
         </div>
       </section>
-
       <section class="form-panel" id="panel-general">
         <div class="panel-header">
           <h2>{{ t('generalSectionTitle') }}</h2>
         </div>
-
         <div class="config-row" id="row-notificaciones">
           <div class="config-info">
             <label for="input-notificaciones">{{ t('notificationsLabel') }}</label>
             <p>{{ t('notificationsDesc') }} <span v-if="pushMessage" role="status">{{ pushMessage }}</span></p>
           </div>
-
           <label
             class="switch-container"
             :title="t('notificationsToggleTitle')"
@@ -74,13 +67,11 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-
         <div class="config-row" id="row-tutorial">
           <div class="config-info">
             <label for="input-tutorial">{{ t('tutorialLabel') }}</label>
             <p>{{ t('tutorialDesc') }}</p>
           </div>
-
           <label
             class="switch-container"
             :title="t('tutorialToggleTitle')"
@@ -95,13 +86,11 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-
         <div class="config-row" id="row-idioma">
           <div class="config-info">
             <label for="select-idioma">{{ t('interfaceLanguageLabel') }}</label>
             <p>{{ t('interfaceLanguageDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-idioma"
@@ -115,18 +104,15 @@
           </div>
         </div>
       </section>
-
       <section class="form-panel" id="panel-apariencia-avanzada">
         <div class="panel-header">
           <h2>{{ t('advancedAppearanceTitle') }}</h2>
         </div>
-
         <div class="config-row column-mobile" id="row-paleta-colores">
           <div class="config-info">
             <label>{{ t('detailedPaletteLabel') }}</label>
             <p>{{ t('detailedPaletteDesc') }}</p>
           </div>
-
           <div class="color-grid">
             <div class="color-card" id="container-color-headingBg">
               <span class="color-label">{{ t('colorHeadingSup') }}</span>
@@ -142,7 +128,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-tablas">
               <span class="color-label">{{ t('colorTablas') }}</span>
               <div class="color-picker-wrapper">
@@ -157,7 +142,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-interfaz">
               <span class="color-label">{{ t('colorInterfaz') }}</span>
               <div class="color-picker-wrapper">
@@ -172,7 +156,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-botones">
               <span class="color-label">{{ t('colorBotones') }}</span>
               <div class="color-picker-wrapper">
@@ -187,7 +170,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-tarjetas">
               <span class="color-label">{{ t('colorTarjetas') }}</span>
               <div class="color-picker-wrapper">
@@ -202,7 +184,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-titulos">
               <span class="color-label">{{ t('colorTitulares') }}</span>
               <div class="color-picker-wrapper">
@@ -217,7 +198,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-highlight">
               <span class="color-label">{{ t('colorHighlight') }}</span>
               <div class="color-picker-wrapper">
@@ -232,7 +212,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-etiquetas">
               <span class="color-label">{{ t('colorEtiquetas') }}</span>
               <div class="color-picker-wrapper">
@@ -247,7 +226,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-textoGeneral">
               <span class="color-label">{{ t('colorTextoGeneral') }}</span>
               <div class="color-picker-wrapper">
@@ -262,7 +240,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-textoBotones">
               <span class="color-label">{{ t('colorTextoBotones') }}</span>
               <div class="color-picker-wrapper">
@@ -277,7 +254,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-svgColor">
               <span class="color-label">{{ t('colorSvgIcons') }}</span>
               <div class="color-picker-wrapper">
@@ -294,13 +270,11 @@
             </div>
           </div>
         </div>
-
         <div class="config-row" id="row-densidad">
           <div class="config-info">
             <label for="select-densidad">{{ t('interfaceDensityLabel') }}</label>
             <p>{{ t('interfaceDensityDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-densidad"
@@ -313,13 +287,11 @@
             </select>
           </div>
         </div>
-
         <div class="config-row" id="row-border-radius">
           <div class="config-info">
             <label for="select-border-radius">{{ t('borderStyleLabel') }}</label>
             <p>{{ t('borderStyleDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-border-radius"
@@ -333,18 +305,15 @@
           </div>
         </div>
       </section>
-
       <section class="form-panel" id="panel-exportacion">
         <div class="panel-header">
           <h2>{{ t('exportSectionTitle') }}</h2>
         </div>
-
         <div class="config-row">
           <div class="config-info">
             <label>{{ t('exportFormatLabel') }}</label>
             <p>{{ t('exportFormatDesc') }}</p>
           </div>
-
           <div class="export-actions">
             <button
               id="btn-export-excel"
@@ -364,11 +333,9 @@
               </svg>
               {{ exportandoExcel ? 'Generando...' : 'Excel' }}
             </button>
-
           </div>
         </div>
       </section>
-
       <transition name="fade">
         <div
           v-if="toast.visible"
@@ -381,21 +348,17 @@
     </main>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
 import HeadingGYM_ACCOUNT from './HeadingGYM_ACCOUNT.vue';
-
 const { setLang } = useLang();
 const guardandoConfig = ref(false);
 const exportandoExcel = ref(false);
 const cargandoConfig = ref(false);
-
 const translations = {
   es: {
     configPageTitle: "Configuración",
-
     configPageHighlight: "de la Página",
     configPageSubtitle: "Personaliza tu sitio web a tu manera.",
     saveChangesBtn: "Guardar Cambios",
@@ -447,7 +410,6 @@ const translations = {
     toastSaveError: "Error al guardar la configuración.",
     toastDownloading: "Descargando archivo {tipo}..."
   },
-
   en: {
     configPageTitle: "Page",
     configPageHighlight: "Configuration",
@@ -502,14 +464,11 @@ const translations = {
     toastDownloading: "Downloading {tipo} file..."
   }
 };
-
 const t = (key) => {
   return translations[settings.idioma]?.[key] || translations['es'][key] || key;
 };
-
 function safeJsonParse(raw, fallback = null) {
   if (!raw) return fallback;
-
   try {
     return JSON.parse(raw);
   } catch (e) {
@@ -520,27 +479,19 @@ function safeJsonParse(raw, fallback = null) {
     return fallback;
   }
 }
-
 const ROLE_KEY = 'user_role';
-
 const claveColores = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-
   return `app-colors-${rol}`;
 };
-
 const claveRadius = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-
   return `app-radius-${rol}`;
 };
-
 const claveDensidad = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-
   return `app-densidad-${rol}`;
 };
-
 const defaultColors = {
   headingBg:    '#161726',  // --color-heading-bg
   tablas:       '#25283d',  // --color-tablas
@@ -554,7 +505,6 @@ const defaultColors = {
   textoBotones: '#ffffff',  // --color-texto-botones
   svgColor:     '#ffc7a1'   // --color-svg
 };
-
 const colorPresets = {
   gymFemenino: {
     label: '🌸 Fit Femme (Gym)',
@@ -572,7 +522,6 @@ const colorPresets = {
       svgColor: '#f472b6'
     }
   },
-
   barbieVibe: {
     label: '💖 Barbie Power',
     colors: {
@@ -589,7 +538,6 @@ const colorPresets = {
       svgColor: '#f472b6'
     }
   },
-
   gymMasculino: {
     label: '🏋️‍♂️ Iron Masculino',
     colors: {
@@ -606,7 +554,6 @@ const colorPresets = {
       svgColor: '#3b82f6'
     }
   },
-
   cyberpunk: {
     label: '⚡ Cyberpunk Blue',
     colors: {
@@ -623,7 +570,6 @@ const colorPresets = {
       svgColor: '#f43f5e'
     }
   },
-
   emeraldMatrix: {
     label: '🟢 Emerald Matrix',
     colors: {
@@ -640,7 +586,6 @@ const colorPresets = {
       svgColor: '#34d399'
     }
   },
-
   sunsetOrange: {
     label: '🌅 Sunset Orange',
     colors: {
@@ -657,7 +602,6 @@ const colorPresets = {
       svgColor: '#fb923c'
     }
   },
-
   royalPurple: {
     label: '👑 Royal Purple',
     colors: {
@@ -674,7 +618,6 @@ const colorPresets = {
       svgColor: '#a78bfa'
     }
   },
-
   neonGlow: {
     label: '🧪 Neon Lime',
     colors: {
@@ -691,7 +634,6 @@ const colorPresets = {
       svgColor: '#a3e635'
     }
   },
-
   crimsonDark: {
     label: '🩸 Crimson Blood',
     colors: {
@@ -708,7 +650,6 @@ const colorPresets = {
       svgColor: '#f87171'
     }
   },
-
   arcticFrost: {
     label: '❄️ Arctic Frost',
     colors: {
@@ -725,7 +666,6 @@ const colorPresets = {
       svgColor: '#38bdf8'
     }
   },
-
   goldenLuxury: {
     label: '✨ Golden Luxury',
     colors: {
@@ -742,7 +682,6 @@ const colorPresets = {
       svgColor: '#fbbf24'
     }
   },
-
   midnightTeal: {
     label: '🌊 Midnight Teal',
     colors: {
@@ -759,7 +698,6 @@ const colorPresets = {
       svgColor: '#2dd4bf'
     }
   },
-
   cherryBlossom: {
     label: '🌸 Cherry Blossom',
     colors: {
@@ -776,7 +714,6 @@ const colorPresets = {
       svgColor: '#fb7185'
     }
   },
-
   coffeeLatte: {
     label: '☕ Coffee Latte',
     colors: {
@@ -793,7 +730,6 @@ const colorPresets = {
       svgColor: '#d97706'
     }
   },
-
   matrixHacker: {
     label: '💻 Matrix Hacker',
     colors: {
@@ -810,7 +746,6 @@ const colorPresets = {
       svgColor: '#22c55e'
     }
   },
-
   deepSpace: {
     label: '🌌 Deep Space',
     colors: {
@@ -827,7 +762,6 @@ const colorPresets = {
       svgColor: '#818cf8'
     }
   },
-
   neonPink: {
     label: '💖 Neon Synthwave',
     colors: {
@@ -844,7 +778,6 @@ const colorPresets = {
       svgColor: '#e879f9'
     }
   },
-
   toxicGreen: {
     label: '☢️ Toxic Hazard',
     colors: {
@@ -861,7 +794,6 @@ const colorPresets = {
       svgColor: '#84cc16'
     }
   },
-
   lavenderDream: {
     label: '💜 Lavender Dream',
     colors: {
@@ -878,7 +810,6 @@ const colorPresets = {
       svgColor: '#a78bfa'
     }
   },
-
   copperRust: {
     label: '🧱 Copper Rust',
     colors: {
@@ -895,7 +826,6 @@ const colorPresets = {
       svgColor: '#ea580c'
     }
   },
-
   electricAmber: {
     label: '⚡ Electric Amber',
     colors: {
@@ -912,7 +842,6 @@ const colorPresets = {
       svgColor: '#fbbf24'
     }
   },
-
   steelBlue: {
     label: '🛡️ Steel Blue',
     colors: {
@@ -929,7 +858,6 @@ const colorPresets = {
       svgColor: '#94a3b8'
     }
   },
-
   velvetRuby: {
     label: '🍷 Velvet Ruby',
     colors: {
@@ -946,7 +874,6 @@ const colorPresets = {
       svgColor: '#c084fc'
     }
   },
-
   mintFresh: {
     label: '🍃 Mint Fresh',
     colors: {
@@ -963,7 +890,6 @@ const colorPresets = {
       svgColor: '#34d399'
     }
   },
-
   slateMinimal: {
     label: '✒️ Slate Minimal',
     colors: {
@@ -980,7 +906,6 @@ const colorPresets = {
       svgColor: '#a1a1aa'
     }
   },
-
   neonCyan: {
     label: '🌐 Neon Cyan',
     colors: {
@@ -997,7 +922,6 @@ const colorPresets = {
       svgColor: '#22d3ee'
     }
   },
-
   sunsetCoral: {
     label: '🍑 Sunset Coral',
     colors: {
@@ -1014,7 +938,6 @@ const colorPresets = {
       svgColor: '#fb7185'
     }
   },
-
   graphiteOrange: {
     label: '🏎️ Graphite Orange',
     colors: {
@@ -1031,7 +954,6 @@ const colorPresets = {
       svgColor: '#f97316'
     }
   },
-
   neonViolet: {
     label: '🔮 Neon Violet',
     colors: {
@@ -1048,7 +970,6 @@ const colorPresets = {
       svgColor: '#8b5cf6'
     }
   },
-
   solarFlare: {
     label: '☀️ Solar Flare',
     colors: {
@@ -1066,7 +987,6 @@ const colorPresets = {
     }
   }
 };
-
 const settings = reactive({
   notificaciones: false,
   tutorial:
@@ -1082,7 +1002,6 @@ const settings = reactive({
       localStorage.getItem(claveColores())
     ) || { ...defaultColors }
 });
-
 // =========================================================
 // WEB PUSH — configuración por dispositivo, API real Laravel
 // =========================================================
@@ -1192,40 +1111,31 @@ const cambiarNotificaciones = async () => {
     pushBusy.value = false;
   }
 };
-
 const presetActivo = computed(() => {
   const actual = JSON.stringify(settings.colors);
-
   const key = Object.keys(colorPresets).find(
     (k) =>
       JSON.stringify(colorPresets[k].colors) ===
       actual
   );
-
   return key || null;
 });
-
 const cambiarIdioma = (event) => {
   const nuevoIdioma = event.target.value;
-
   settings.idioma = nuevoIdioma;
   setLang(nuevoIdioma);
 };
-
 const toast = reactive({
   visible: false,
   message: ''
 });
-
 const showToast = (msg) => {
   toast.message = msg;
   toast.visible = true;
-
   setTimeout(() => {
     toast.visible = false;
   }, 3000);
 };
-
 // Apariencia compartida por gimnasio/sucursal, preferencias individuales permanecen locales.
 const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const apiApariencia = async (method = 'GET', datos = null) => {
@@ -1297,76 +1207,61 @@ const guardarCambios = async () => {
     showToast(error?.message || t('toastSaveError'));
   } finally { guardandoConfig.value = false; }
 };
-
 const aplicarEstilos = () => {
   const root =
     document.documentElement;
-
   root.style.setProperty(
     '--color-heading-bg',
     settings.colors.headingBg
   );
-
   root.style.setProperty(
     '--color-tablas',
     settings.colors.tablas
   );
-
   root.style.setProperty(
     '--color-interfaz',
     settings.colors.interfaz
   );
-
   root.style.setProperty(
     '--color-botones',
     settings.colors.botones
   );
-
   root.style.setProperty(
     '--bg-cards',
     settings.colors.tarjetas
   );
-
   root.style.setProperty(
     '--bg-custom',
     settings.colors.interfaz
   );
-
   root.style.setProperty(
     '--app-border-radius',
     settings.borderRadius
   );
-
   root.style.setProperty(
     '--color-titulos',
     settings.colors.titulos
   );
-
   root.style.setProperty(
     '--color-highlight',
     settings.colors.highlight
   );
-
   root.style.setProperty(
     '--color-etiquetas',
     settings.colors.etiquetas
   );
-
   root.style.setProperty(
     '--color-texto-general',
     settings.colors.textoGeneral
   );
-
   root.style.setProperty(
     '--color-texto-botones',
     settings.colors.textoBotones
   );
-
   root.style.setProperty(
     '--color-svg',
     settings.colors.svgColor
   );
-
   if (
     settings.densidad ===
     'compacto'
@@ -1375,7 +1270,6 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '16px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '10px 0'
@@ -1388,7 +1282,6 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '38px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '22px 0'
@@ -1398,14 +1291,12 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '30px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '16px 0'
     );
   }
 };
-
 onMounted(async () => {
   aplicarEstilos();
   void consultarNotificacionesDispositivo();
@@ -1413,7 +1304,6 @@ onMounted(async () => {
   // Idioma y tutorial son preferencias de este navegador, no cambian para todo el gimnasio.
   window.addEventListener('idioma-changed', (e) => {if(e.detail?.idioma) settings.idioma = e.detail.idioma;});
 });
-
 const exportarExcel = async () => {
   if (exportandoExcel.value) return;
   exportandoExcel.value = true;
@@ -1445,10 +1335,8 @@ const exportarExcel = async () => {
   } finally { exportandoExcel.value = false; }
 };
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
-
 /* ---------- Tokens locales (derivados de tus variables de tema) ---------- */
 .main-content {
   --line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);
@@ -1457,7 +1345,6 @@ const exportarExcel = async () => {
   --accent: var(--color-highlight, #3b82f6);
   --r: var(--app-border-radius, 16px);
   --r-sm: calc(var(--app-border-radius, 16px) * 0.55);
-
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
@@ -1467,7 +1354,6 @@ const exportarExcel = async () => {
   -webkit-font-smoothing: antialiased;
 }
 .main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
-
 /* ---------- Encabezado ---------- */
 .header-section {
   position: relative;
@@ -1503,7 +1389,6 @@ const exportarExcel = async () => {
   line-height: 1.55;
   opacity: 0.8;
 }
-
 /* ---------- Botón principal ---------- */
 .btn-primary {
   flex-shrink: 0;
@@ -1525,7 +1410,6 @@ const exportarExcel = async () => {
 }
 .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0) scale(.98); }
-
 /* ---------- Paneles ---------- */
 .form-panel {
   width: 100%;
@@ -1551,7 +1435,6 @@ const exportarExcel = async () => {
   font-weight: 500;
   letter-spacing: .02em;
 }
-
 /* ---------- Restaurar ---------- */
 .btn-reset-colors {
   flex-shrink: 0;
@@ -1570,7 +1453,6 @@ const exportarExcel = async () => {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--color-titulos, #fff);
 }
-
 /* ---------- Temas ---------- */
 .presets-grid {
   display: grid;
@@ -1650,7 +1532,6 @@ const exportarExcel = async () => {
   white-space: nowrap;
   text-shadow: 0 1px 3px rgba(0,0,0,.55);
 }
-
 /* ---------- Filas ---------- */
 .config-row {
   display: flex;
@@ -1679,7 +1560,6 @@ const exportarExcel = async () => {
   line-height: 1.5;
   opacity: .78;
 }
-
 /* ---------- Switch ---------- */
 .switch-container { position: relative; flex: 0 0 auto; width: 48px; height: 28px; display: inline-block; cursor: pointer; }
 .toggle-input { position: absolute; width: 0; height: 0; opacity: 0; }
@@ -1703,7 +1583,6 @@ const exportarExcel = async () => {
 .toggle-input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
 .toggle-input:checked + .toggle-slider::before { transform: translateX(20px); }
 .toggle-input:focus-visible + .toggle-slider { outline: 2px solid var(--accent); outline-offset: 3px; }
-
 /* ---------- Selects ---------- */
 .select-wrapper { position: relative; flex: 0 0 auto; width: min(250px, 100%); }
 .select-wrapper::after {
@@ -1734,7 +1613,6 @@ const exportarExcel = async () => {
 .font-select:hover { border-color: color-mix(in srgb, var(--color-texto-general, #94a3b8) 35%, transparent); }
 .font-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .font-select option { background: #151515; color: #fff; }
-
 /* ---------- Paleta detallada ---------- */
 .column-mobile { align-items: flex-start; flex-direction: column; gap: 20px; }
 .column-mobile .config-info { width: 100%; }
@@ -1782,7 +1660,6 @@ const exportarExcel = async () => {
   padding: 0; border: 0; opacity: 0; cursor: pointer;
 }
 .color-preview { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
-
 /* ---------- Exportación ---------- */
 .export-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .btn-export {
@@ -1805,7 +1682,6 @@ const exportarExcel = async () => {
 .btn-export:hover { transform: translateY(-1px); }
 .btn-export.excel:hover { border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.1); color: #86efac; }
 .btn-export.yml:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
-
 /* ---------- Toast ---------- */
 .toast-notification {
   position: fixed;
@@ -1836,13 +1712,11 @@ const exportarExcel = async () => {
 }
 .fade-enter-active, .fade-leave-active { transition: opacity .2s ease, transform .2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
-
 /* ---------- Foco ---------- */
 .preset-card:focus-visible,
 .btn-primary:focus-visible,
 .btn-reset-colors:focus-visible,
 .btn-export:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .presets-grid, .color-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }

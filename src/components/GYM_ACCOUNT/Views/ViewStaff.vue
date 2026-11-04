@@ -7,7 +7,7 @@
           <h1 class="main-title">{{ t('staffTitle') }}</h1>
           <p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
         </div>
-        <div class="actions-bar">
+        <div class="actions-bar" id="tutorial-step-0">
           <select v-model="selectedRoleFilter" class="status-select">
             <option value="Todos">Status (Todos)</option>
             <option value="Propietario">Propietario</option>
@@ -30,11 +30,9 @@
           </div>
         </div>
       </header>
-
       <p v-if="loadingUsers" class="data-message">Cargando personal registrado...</p>
       <p v-if="errorUsers" class="data-message" role="alert">{{ errorUsers }} <button type="button" @click="cargarPersonal">Reintentar</button></p>
-
-      <div class="table-container desktop-only">
+      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : null">
         <table v-if="filteredUsers.length" class="user-table">
           <thead>
             <tr>
@@ -47,13 +45,13 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in pagedUsers" :key="user.id" :class="getRoleClass(user.role)">
+            <tr v-for="(user,index) in pagedUsers" :key="user.id" :class="getRoleClass(user.role)">
               <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div></td>
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
               <td class="text-muted">{{ user.phone }}</td>
               <td><span :class="['status-badge', getRoleClass(user.role)]"><i class="status-dot"></i>{{ roleText(user.role) }}</span></td>
-              <td class="actions-cell">
+              <td class="actions-cell" :id="!isMobile && index===0 ? 'tutorial-step-2' : null">
                 <button class="icon-btn btn-email" :title="t('actionEmail')" @click="openEmail(user)">
                   <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                 </button>
@@ -75,13 +73,12 @@
           <p>No hay personal registrado para esta sucursal o filtro.</p>
         </div>
       </div>
-
-      <div class="mobile-only">
+      <div class="mobile-only" :id="isMobile ? 'tutorial-step-1' : null">
         <div v-if="!loadingUsers && !errorUsers && !filteredUsers.length" class="empty-state">
           <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <p>No hay personal registrado para esta sucursal o filtro.</p>
         </div>
-        <div v-for="user in pagedUsers" :key="user.id" class="user-card" :class="getRoleClass(user.role)">
+        <div v-for="(user,index) in pagedUsers" :key="user.id" class="user-card" :class="getRoleClass(user.role)">
           <div class="card-top-section">
             <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto = null" /><span v-else>{{ initials(user.name) }}</span></div>
             <div class="card-user-titles">
@@ -93,7 +90,7 @@
             <span class="email-text">{{ user.email }}</span>
             <span class="phone-text">{{ user.phone || 'Sin teléfono' }}</span>
           </div>
-          <div class="card-actions">
+          <div class="card-actions" :id="isMobile && index===0 ? 'tutorial-step-2' : null">
             <button class="action-chip btn-email-chip" @click="openEmail(user)">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               <span>Email</span>
@@ -113,7 +110,6 @@
           </div>
         </div>
       </div>
-
       <nav v-if="showPager" class="pager" aria-label="Paginación">
         <button class="pager-btn" type="button" :disabled="page <= 1" aria-label="Página anterior" @click="goPage(page - 1)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -124,7 +120,6 @@
         </button>
       </nav>
     </main>
-
     <transition name="pop">
       <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
         <CorreoMasivo @close="activeModal = null" />
@@ -159,7 +154,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -242,7 +236,6 @@ const obtenerSedeId = () => {
   }
   return null;
 };
-
 const resolverSedeId = async (token) => {
   let id = obtenerSedeId();
   if (id) return id;
@@ -382,7 +375,6 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', handleBranchChange);
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
 .data-message{padding:12px;color:var(--color-texto-general,#fff)}

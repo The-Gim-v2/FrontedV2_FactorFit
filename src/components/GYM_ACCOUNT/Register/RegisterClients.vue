@@ -1,31 +1,26 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-
     <!-- =====================================================
          MODAL: QR DE ACCESO (tras registrar)
     ====================================================== -->
     <div v-if="qrModal" class="overlay" @click.self="cerrarQR">
       <section class="dialog qr-dialog">
         <button type="button" class="dialog-close" @click="cerrarQR" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
-
         <span class="dialog-icon" :class="qrPagoConfirmado ? 'ok' : 'warn'">
           <i class="bi" :class="qrPagoConfirmado ? 'bi-check-circle-fill' : 'bi-hourglass-split'"></i>
         </span>
         <h2>{{ txt('Inscripción registrada', 'Enrollment registered') }}</h2>
         <p class="dialog-sub">{{ txt('Cliente', 'Client') }} #{{ qrModal.ID_Cliente }} · {{ txt('Inscripción', 'Enrollment') }} #{{ qrModal.ID_Inscripto }}</p>
         <p v-if="qrFolio" class="dialog-folio">{{ txt('Folio', 'Reference') }}: <strong>{{ qrFolio }}</strong></p>
-
         <p class="dialog-status" :class="{ ok: qrPagoConfirmado }">
           {{ qrPagoConfirmado
             ? txt('Pago confirmado · Membresía activa.', 'Payment confirmed · Membership active.')
             : txt('Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.', 'Payment pending · The QR will not grant access until the membership is active.') }}
         </p>
-
         <p v-if="qrCargando" class="dialog-muted">{{ txt('Cargando código QR...', 'Loading QR code...') }}</p>
         <p v-else-if="qrError" class="dialog-error">{{ qrError }}</p>
         <img v-else-if="qrUrl" :src="qrUrl" :alt="txt('Código QR de inscripción', 'Enrollment QR code')" class="qr-image" />
-
         <div class="dialog-actions">
           <button type="button" class="btn btn-primary" @click="descargarQR" :disabled="!qrModal || qrCargando">
             <i class="bi bi-download"></i> {{ txt('Descargar PNG', 'Download PNG') }}
@@ -37,30 +32,24 @@
         </div>
       </section>
     </div>
-
     <!-- =====================================================
          MODAL: COBRO CON STRIPE (QR de pago)
     ====================================================== -->
     <div v-if="stripeQR" class="overlay" @click.self="ocultarStripe">
       <section class="dialog stripe-dialog">
         <button type="button" class="dialog-close" @click="ocultarStripe" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
-
         <span class="dialog-icon stripe"><i class="bi bi-credit-card-2-front-fill"></i></span>
         <h2>{{ txt('Cobro con tarjeta', 'Card payment') }}</h2>
         <p class="dialog-sub">{{ stripeQR.cliente }} · {{ stripeQR.plan }}</p>
-
         <div class="stripe-qr-frame"><img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe', 'Stripe payment QR')" /></div>
         <p class="scan-hint"><i class="bi bi-qr-code-scan"></i> {{ txt('Pídele al cliente que escanee el código', 'Ask the client to scan the code') }}</p>
-
         <div class="stripe-amount">
           <span>{{ txt('MONTO A COBRAR', 'AMOUNT DUE') }}</span>
           <strong>${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
         </div>
-
         <span class="state-pill" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">
           <i></i>{{ txt('Estado del pago:', 'Payment status:') }} {{ stripeEstado }}
         </span>
-
         <div class="dialog-actions">
           <button type="button" class="btn btn-primary" @click="consultarEstadoStripe(false)">
             <i class="bi bi-arrow-repeat"></i> {{ txt('Comprobar pago', 'Check payment') }}
@@ -72,10 +61,8 @@
         <button type="button" class="link-btn" @click="ocultarStripe">{{ txt('Ocultar QR (no cancela el pago)', 'Hide QR (does not cancel payment)') }}</button>
       </section>
     </div>
-
     <main class="reg-page">
       <div class="reg-layout">
-
         <!-- =====================================================
              PERFIL
         ====================================================== -->
@@ -85,7 +72,6 @@
             {{ t('title1') }}<br />
             <span class="highlight">{{ t('title2') }}</span>
           </h1>
-
           <div class="avatar-wrap">
             <div class="avatar-ring">
               <div class="avatar-circle" role="button" tabindex="0"
@@ -103,9 +89,7 @@
             </button>
             <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden-input" @change="handleFileChange" />
           </div>
-
           <p class="profile-hint">{{ txt('Toma una foto o selecciona una desde tu dispositivo.', 'Take a photo or select one from your device.') }}</p>
-
           <ul class="profile-summary">
             <li class="summary-row">
               <span class="summary-ico"><i class="bi bi-person"></i></span>
@@ -140,12 +124,10 @@
             </li>
           </ul>
         </aside>
-
         <!-- =====================================================
              FORMULARIOS
         ====================================================== -->
         <div class="forms-col">
-
           <!-- DATOS PERSONALES -->
           <section class="card" id="tutorial-step-1">
             <header class="card-head">
@@ -155,7 +137,6 @@
                 <p class="card-desc">{{ txt('Información básica del cliente', 'Basic client information') }}</p>
               </div>
             </header>
-
             <div class="grid grid-3">
               <div class="field">
                 <label>{{ t('names') }} <span class="req">*</span></label>
@@ -190,7 +171,6 @@
               </div>
             </div>
           </section>
-
           <!-- REGISTRO FÍSICO -->
           <section class="card" id="tutorial-step-2">
             <header class="card-head">
@@ -200,7 +180,6 @@
                 <p class="card-desc">{{ txt('Medidas físicas iniciales', 'Initial physical measurements') }}</p>
               </div>
             </header>
-
             <div class="grid grid-2">
               <div class="field">
                 <label>{{ t('weight') }}</label>
@@ -220,7 +199,6 @@
               </div>
             </div>
           </section>
-
           <!-- =====================================================
                MEMBRESÍA + PAGO INICIAL
           ====================================================== -->
@@ -236,7 +214,6 @@
                 <button type="button" class="icon-btn" :title="t('titleHelp')" @click="activeModal = 'help'"><i class="bi bi-question-circle"></i></button>
               </div>
             </header>
-
             <!-- PERIODO -->
             <div class="field">
               <label>{{ txt('Periodo de membresía', 'Membership period') }}</label>
@@ -249,7 +226,6 @@
                 </button>
               </div>
             </div>
-
             <!-- TARIFA -->
             <div class="field">
               <label id="tarifa-label">{{ txt('Tarifa de inscripción', 'Enrollment rate') }} <span class="req">*</span></label>
@@ -266,7 +242,6 @@
                   </span>
                   <i class="bi bi-chevron-down ff-chevron"></i>
                 </button>
-
                 <transition name="dd">
                   <ul v-if="openSelect === 'tarifa'" class="ff-menu" role="listbox" aria-labelledby="tarifa-label">
                     <li v-if="!tarifasFiltradas.length" class="ff-empty">
@@ -284,7 +259,6 @@
                 </transition>
               </div>
             </div>
-
             <!-- FECHAS -->
             <div class="grid grid-2">
               <div class="field">
@@ -302,7 +276,6 @@
                 </div>
               </div>
             </div>
-
             <!-- DÍA DE CORTE FIJO -->
             <div v-if="diasCorteDisponibles.length > 1" class="field">
               <label id="corte-label">{{ txt('Día de corte fijo', 'Fixed billing day') }}</label>
@@ -328,12 +301,10 @@
                 </transition>
               </div>
             </div>
-
             <p v-if="!permitePendiente" class="note warn">
               <i class="bi bi-exclamation-triangle"></i>
               {{ txt('El corte de este mes ya pasó. Es obligatorio cobrar ahora.', 'This month\'s billing date has passed. Payment is required now.') }}
             </p>
-
             <!-- ---------------- PAGO INICIAL ---------------- -->
             <div class="payment-block">
               <div class="block-head">
@@ -343,12 +314,10 @@
                   <p>{{ txt('Cobra la primera membresía o déjala pendiente.', 'Charge the first membership or leave it pending.') }}</p>
                 </div>
               </div>
-
               <div class="total-box">
                 <span>{{ txt('Total de membresía', 'Membership total') }}</span>
                 <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
               </div>
-
               <div class="choice-grid" role="radiogroup">
                 <label class="choice" :class="{ selected: cobrarAhora }">
                   <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="true" />
@@ -369,7 +338,6 @@
                   <i class="bi bi-hourglass-split choice-icon"></i>
                 </label>
               </div>
-
               <!-- MÉTODO DE PAGO (igual que en Pagos) -->
               <template v-if="cobrarAhora">
                 <div class="field">
@@ -384,7 +352,6 @@
                     </button>
                   </div>
                 </div>
-
                 <div class="field">
                   <label for="folio-registro">
                     {{ txt('Folio / referencia', 'Reference / folio') }}
@@ -399,7 +366,6 @@
                   </div>
                   <p v-if="folioAyuda" class="note info"><i class="bi bi-info-circle"></i><span>{{ folioAyuda }}</span></p>
                 </div>
-
                 <!-- STRIPE -->
                 <div v-if="metodoPagoRegistro === 'Tarjeta'" class="stripe-box">
                   <div class="stripe-head">
@@ -414,7 +380,6 @@
                       <i class="bi bi-arrow-repeat"></i> {{ txt('Actualizar estado de cuenta', 'Refresh account status') }}
                     </button>
                   </div>
-
                   <template v-if="!stripeCuenta?.charges_enabled">
                     <p class="stripe-hint">{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.', 'Connect and enable the gym Stripe account before charging.') }}</p>
                     <button type="button" class="btn btn-primary sm" :disabled="stripeLoading" @click="conectarStripe">
@@ -427,7 +392,6 @@
                   </p>
                 </div>
               </template>
-
               <p class="note muted">
                 <i class="bi bi-shield-check"></i>
                 <span v-if="cobrarAhora">{{ txt('El acceso solo se habilitará cuando el servidor confirme el pago.', 'Access will only be enabled after the server confirms payment.') }}</span>
@@ -435,7 +399,6 @@
               </p>
             </div>
           </section>
-
           <!-- GUARDAR -->
           <div class="reg-footer">
             <div class="req-hint"><span class="req">*</span> {{ txt('Campos obligatorios', 'Required fields') }}</div>
@@ -454,7 +417,6 @@
         </div>
       </div>
     </main>
-
     <!-- =====================================================
          MODALES EXISTENTES
     ====================================================== -->
@@ -468,10 +430,8 @@
         <Help @close="activeModal = null" />
       </div>
     </transition>
-
     <!-- RECIBO -->
     <ReciboPago :visible="reciboVisible" :pago="ultimoPago" :locale="reciboLocale" @close="reciboVisible = false" @notify="handleReciboNotify" />
-
     <!-- =====================================================
          CÁMARA O GALERÍA
     ====================================================== -->
@@ -487,7 +447,6 @@
             </div>
             <button type="button" class="dialog-x" @click="closePhotoOptions" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
           </div>
-
           <div class="photo-options">
             <button type="button" class="photo-option" @click="takePhoto">
               <span class="photo-option-icon"><i class="bi bi-camera"></i></span>
@@ -506,12 +465,10 @@
               <i class="bi bi-chevron-right"></i>
             </button>
           </div>
-
           <button type="button" class="btn btn-ghost block" @click="closePhotoOptions">{{ txt('Cancelar', 'Cancel') }}</button>
         </div>
       </div>
     </transition>
-
     <transition name="photo-menu">
       <div v-if="showCamera" class="overlay sheet dark" @click.self="closeCamera">
         <div class="dialog camera-dialog">
@@ -523,7 +480,6 @@
             </div>
             <button type="button" class="dialog-x" @click="closeCamera" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
           </div>
-
           <div class="camera-preview">
             <video ref="videoRef" autoplay playsinline muted :class="{ mirrored: cameraFacingMode === 'user' }"></video>
             <button type="button" class="switch-camera" :disabled="switchingCamera" @click.stop="switchCamera">
@@ -534,7 +490,6 @@
             <div v-if="switchingCamera" class="camera-switching"><span class="loader"></span></div>
           </div>
           <canvas ref="canvasRef" class="hidden-canvas"></canvas>
-
           <div class="camera-actions">
             <button type="button" class="btn btn-ghost" @click="closeCamera">{{ txt('Cancelar', 'Cancel') }}</button>
             <button type="button" class="capture-btn" :disabled="switchingCamera" @click="capturePhoto">
@@ -547,7 +502,6 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
-
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
@@ -556,7 +510,6 @@ import Help from '../Componets/Help.vue';
 import ReciboPago from '../Payments/ReciboPago.vue'; // ⚠ Ajusta la ruta si ReciboPago.vue está en otra carpeta
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 /* =========================================================
    IDIOMA
 ========================================================= */
@@ -569,7 +522,6 @@ const txt = (es, en) => (currentLang.value === 'en' ? en : es);
 const handleLangChange = (event) => {
   if (event.detail?.idioma) currentLang.value = event.detail.idioma;
 };
-
 /* =========================================================
    ESTADO GENERAL
 ========================================================= */
@@ -579,7 +531,6 @@ const fechaLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const fechaSolo = (v) => String(v || '').slice(0, 10);
-
 const form = reactive({
   nombres: '',
   apellidoP: '',
@@ -593,7 +544,6 @@ const form = reactive({
   fechaInscripcion: fechaLocal(),
   fechaCorte: ''
 });
-
 const activeModal = ref(null);
 const guardando = ref(false);
 const cobrarAhora = ref(true);
@@ -606,11 +556,9 @@ const idPrecio = ref('');
 const diasCorteDisponibles = ref([]);
 const diaCorteElegido = ref(null);
 const permitePendiente = ref(true);
-
 const clientName = computed(() =>
   [form.nombres, form.apellidoP, form.apellidoM].filter(Boolean).join(' ')
 );
-
 /* =========================================================
    API
 ========================================================= */
@@ -641,7 +589,6 @@ const apiRequest = async (path, options = {}) => {
   }
   return body;
 };
-
 /* =========================================================
    CELULAR (10 dígitos, formato 000 000 0000, sin +52)
 ========================================================= */
@@ -677,7 +624,6 @@ const bloquearPrefijoCelular = (event) => {
 };
 const celularParaGuardar = () => soloDigitosCelular(form.celular);
 const celularValido = () => /^\d{10}$/.test(celularParaGuardar());
-
 /* =========================================================
    PERIODOS / MÉTODOS DE PAGO
 ========================================================= */
@@ -689,17 +635,14 @@ const periodos = computed(() => [
 ]);
 const periodoIndex = computed(() => Math.max(0, periodos.value.findIndex((p) => p.key === form.tipoMembresia)));
 const periodoLabel = computed(() => periodos.value[periodoIndex.value]?.label || '');
-
 const metodos = computed(() => [
   { value: 'Efectivo', label: txt('Efectivo', 'Cash'), hint: txt('Folio automático', 'Automatic reference'), icon: 'bi-cash-coin' },
   { value: 'Transferencia', label: txt('Transferencia', 'Bank transfer'), hint: txt('Requiere folio', 'Reference required'), icon: 'bi-bank' },
   { value: 'Tarjeta', label: txt('Tarjeta', 'Card'), hint: txt('QR de Stripe', 'Stripe QR'), icon: 'bi-credit-card-2-front' }
 ]);
-
 const esEfectivo = computed(() => metodoPagoRegistro.value === 'Efectivo');
 const folioAutomatico = computed(() => metodoPagoRegistro.value === 'Efectivo' || metodoPagoRegistro.value === 'Tarjeta');
 const usaStripe = computed(() => cobrarAhora.value && metodoPagoRegistro.value === 'Tarjeta');
-
 const folioPlaceholder = computed(() => {
   if (metodoPagoRegistro.value === 'Efectivo') return txt('Se asigna al confirmar el pago', 'Assigned when you confirm');
   if (metodoPagoRegistro.value === 'Tarjeta') return txt('Lo asigna Stripe al cobrar', 'Assigned by Stripe on charge');
@@ -711,13 +654,11 @@ const folioAyuda = computed(() => ({
   Tarjeta: txt('El folio se asigna cuando Stripe confirma el cobro y aparecerá en el recibo.', 'The reference is assigned once Stripe confirms the charge and will appear on the receipt.'),
   Transferencia: txt('Captura el folio o número de referencia que aparece en el comprobante de la transferencia.', 'Enter the reference number shown on the transfer receipt.')
 })[metodoPagoRegistro.value] || '');
-
 const textoGuardar = computed(() => {
   if (guardando.value || stripeLoading.value) return txt('Guardando...', 'Saving...');
   if (usaStripe.value) return txt('Registrar y generar QR', 'Register and generate QR');
   return cobrarAhora.value ? txt('Registrar y cobrar', 'Register and charge') : txt('Registrar pendiente', 'Register as pending');
 });
-
 watch(metodoPagoRegistro, (metodo) => {
   if (metodo === 'Efectivo' || referenciaPagoRegistro.value.startsWith('OP-')) referenciaPagoRegistro.value = '';
   if (metodo === 'Tarjeta') consultarStripeCuenta();
@@ -728,7 +669,6 @@ watch(cobrarAhora, (activo) => {
     referenciaPagoRegistro.value = '';
   }
 });
-
 /* =========================================================
    TARIFAS Y VENCIMIENTO
 ========================================================= */
@@ -736,7 +676,6 @@ const tarifasFiltradas = computed(() => {
   const periodosMap = { mes: 'mensual', semana: 'semanal', quincena: 'quincenal', visita: 'diario' };
   return tarifas.value.filter((p) => String(p.Periodo || '').trim().toLowerCase() === periodosMap[form.tipoMembresia]);
 });
-
 const cargarTarifas = async () => {
   idPrecio.value = '';
   tarifas.value = [];
@@ -752,7 +691,6 @@ const cargarTarifas = async () => {
     toastRef.value?.notify(e.message, 'error');
   }
 };
-
 let versionCalculo = 0;
 const calcularVencimiento = async () => {
   const version = ++versionCalculo;
@@ -782,7 +720,6 @@ const calcularVencimiento = async () => {
     if (version === versionCalculo) toastRef.value?.notify(e.message, 'error');
   }
 };
-
 watch([idPrecio, () => form.fechaInscripcion, diaCorteElegido], calcularVencimiento);
 watch(() => form.tipoMembresia, () => { diaCorteElegido.value = null; });
 watch(() => form.fechaInscripcion, () => { diaCorteElegido.value = null; });
@@ -790,7 +727,6 @@ watch(() => form.tipoMembresia, () => {
   openSelect.value = '';
   if (!tarifasFiltradas.value.some((p) => String(p.ID_Precio) === idPrecio.value)) idPrecio.value = '';
 });
-
 /* =========================================================
    SELECTS PERSONALIZADOS
 ========================================================= */
@@ -818,7 +754,6 @@ const formatoMoneda = (n) =>
 const cerrarSelectsAlClickFuera = (event) => {
   if (!event.target?.closest?.('.ff-select')) openSelect.value = '';
 };
-
 /* =========================================================
    QR DE ACCESO
 ========================================================= */
@@ -827,7 +762,6 @@ const qrUrl = ref('');
 const qrError = ref('');
 const qrCargando = ref(false);
 let qrVersion = 0;
-
 const cerrarQR = () => {
   qrPagoConfirmado.value = false;
   qrFolio.value = '';
@@ -878,7 +812,6 @@ const descargarQR = async () => {
     toastRef.value?.notify(e.message || 'No se pudo descargar el QR.', 'error');
   }
 };
-
 /* =========================================================
    STRIPE (mismo flujo que la pantalla de Pagos)
 ========================================================= */
@@ -889,7 +822,6 @@ const stripeLoading = ref(false);
 let stripeTimer = null;
 const nuevaOperacionId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ff${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
 const consultarStripeCuenta = async (silent = true) => {
   try {
     stripeCuenta.value = await apiRequest('/stripe/cuenta');
@@ -900,7 +832,6 @@ const consultarStripeCuenta = async (silent = true) => {
     return null;
   }
 };
-
 const conectarStripe = async () => {
   if (stripeLoading.value) return;
   // Abrir antes del await evita que el navegador bloquee la pestaña emergente.
@@ -918,11 +849,9 @@ const conectarStripe = async () => {
     stripeLoading.value = false;
   }
 };
-
 const detenerStripe = () => {
   if (stripeTimer) { clearInterval(stripeTimer); stripeTimer = null; }
 };
-
 // Crea el cobro Stripe para la inscripción recién registrada (queda pendiente hasta que Stripe confirme).
 const crearStripeQR = async (registro, tarifa, nombre) => {
   stripeLoading.value = true;
@@ -964,7 +893,6 @@ const crearStripeQR = async (registro, tarifa, nombre) => {
     stripeLoading.value = false;
   }
 };
-
 let consultandoEstado = false;
 const consultarEstadoStripe = async (silent = false) => {
   if (!stripeQR.value || consultandoEstado) return;
@@ -974,14 +902,12 @@ const consultarEstadoStripe = async (silent = false) => {
     const data = await apiRequest(`/stripe/checkout/${encodeURIComponent(qr.session_id)}/estado`);
     if (stripeQR.value?.session_id !== qr.session_id) return;
     stripeEstado.value = data.estado || 'Pendiente';
-
     if (data.estado === 'Pagado') {
       // El registro real debe existir antes de emitir un recibo.
       const pagoData = await apiRequest(`/clientes/${qr.inscripcionId}/pagos?sede_id=${encodeURIComponent(qr.sedeId)}`);
       const pago = (Array.isArray(pagoData.pagos) ? pagoData.pagos : []).find((p) => String(p.ID_Pago) === String(data.ID_Pago));
       const folio = pago?.Folio_Referencia || pago?.folio || data.folio || data.Folio_Referencia;
       if (!folio) { stripeEstado.value = 'Pagado · esperando folio'; return; }
-
       detenerStripe();
       ultimoPago.value = {
         folio,
@@ -1012,7 +938,6 @@ const consultarEstadoStripe = async (silent = false) => {
     consultandoEstado = false;
   }
 };
-
 // Cierra el QR de cobro sin cancelar el pago: la inscripción queda pendiente.
 const ocultarStripe = async () => {
   const registro = stripeQR.value?.registro;
@@ -1022,7 +947,6 @@ const ocultarStripe = async () => {
   toastRef.value?.notify(txt('Inscripción pendiente de pago. Puedes confirmarla desde Pagos.', 'Enrollment pending payment. You can confirm it from Payments.'), 'info');
   if (registro?.ID_Inscripto) await mostrarQR(registro);
 };
-
 /* =========================================================
    RECIBO
 ========================================================= */
@@ -1043,7 +967,6 @@ const verReciboDesdeQR = () => {
 const handleReciboNotify = (payload) => {
   if (payload) toastRef.value?.notify(payload.message, payload.type);
 };
-
 /* =========================================================
    FOTO / GALERÍA
 ========================================================= */
@@ -1053,12 +976,10 @@ const isValidImage = (file) => !!file && ALLOWED_IMAGE_TYPES.includes(file.type)
 const notifyInvalidImage = () => {
   toastRef.value?.notify(txt('Selecciona una imagen de máximo 4 MB.', 'Select an image of up to 4 MB.'), 'warning');
 };
-
 const fileInput = ref(null);
 const avatarPreview = ref(null);
 const avatarFile = ref(null);
 const showPhotoOptions = ref(false);
-
 const openPhotoOptions = () => { showPhotoOptions.value = true; };
 const closePhotoOptions = () => { showPhotoOptions.value = false; };
 const selectPhoto = () => {
@@ -1085,7 +1006,6 @@ const handleFileChange = (event) => {
   toastRef.value?.notify(txt('Foto agregada correctamente.', 'Photo added successfully.'), 'success');
   event.target.value = '';
 };
-
 /* =========================================================
    CÁMARA
 ========================================================= */
@@ -1095,7 +1015,6 @@ const canvasRef = ref(null);
 const cameraStream = ref(null);
 const cameraFacingMode = ref('user'); // user = frontal, environment = trasera
 const switchingCamera = ref(false);
-
 const stopCamera = () => {
   if (cameraStream.value) {
     cameraStream.value.getTracks().forEach((track) => track.stop());
@@ -1103,7 +1022,6 @@ const stopCamera = () => {
   }
   if (videoRef.value) videoRef.value.srcObject = null;
 };
-
 const startCamera = async () => {
   stopCamera();
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -1116,7 +1034,6 @@ const startCamera = async () => {
   videoRef.value.srcObject = stream;
   await videoRef.value.play();
 };
-
 const takePhoto = async () => {
   showPhotoOptions.value = false;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1139,7 +1056,6 @@ const takePhoto = async () => {
     toastRef.value?.notify(message, 'warning');
   }
 };
-
 const switchCamera = async () => {
   if (switchingCamera.value) return;
   switchingCamera.value = true;
@@ -1161,13 +1077,11 @@ const switchCamera = async () => {
     switchingCamera.value = false;
   }
 };
-
 const closeCamera = () => {
   stopCamera();
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
 const capturePhoto = () => {
   if (switchingCamera.value) return;
   const video = videoRef.value;
@@ -1207,14 +1121,12 @@ const capturePhoto = () => {
     toastRef.value?.notify(txt('Foto tomada correctamente.', 'Photo captured successfully.'), 'success');
   }, 'image/jpeg', 0.92);
 };
-
 /* =========================================================
    REGISTRO
 ========================================================= */
 const saveRegistration = async () => {
   if (guardando.value) return;
   const avisar = (mensaje, tipo = 'warning') => toastRef.value?.notify(mensaje, tipo);
-
   if (!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value) {
     avisar('Nombre, apellido paterno y tarifa son obligatorios.');
     return;
@@ -1225,7 +1137,6 @@ const saveRegistration = async () => {
   if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
   if (!form.fechaInscripcion || !form.fechaCorte) { avisar('Espera a que se calcule la fecha de vencimiento.'); return; }
   if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
-
   if (cobrarAhora.value) {
     if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
     if (!(Number(tarifaSeleccionada.value.Precio) > 0)) { avisar('La tarifa debe tener un precio válido.'); return; }
@@ -1241,7 +1152,6 @@ const saveRegistration = async () => {
       }
     }
   }
-
   guardando.value = true;
   try {
     // Se capturan antes de limpiar el formulario.
@@ -1251,7 +1161,6 @@ const saveRegistration = async () => {
     const viaStripe = usaStripe.value;
     // Con tarjeta, la inscripción se registra pendiente y el cobro lo confirma Stripe.
     const cobrar = cobrarAhora.value && !viaStripe;
-
     const data = new FormData();
     const values = {
       sede_id: sedeActual(),
@@ -1277,7 +1186,6 @@ const saveRegistration = async () => {
       // Se envía siempre el folio: vacío (efectivo, lo genera el servidor) o la referencia capturada.
       data.append('referencia_pago', referenciaPagoRegistro.value.trim());
     }
-
     const res = await fetch(clientesApi, { method: 'POST', headers: authHeaders(), body: data });
     const result = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1288,12 +1196,10 @@ const saveRegistration = async () => {
         `Error HTTP ${res.status}: revisa los logs de Laravel.`
       );
     }
-
     // Nunca inferir pago exitoso de HTTP 200/201: el servidor debe confirmarlo.
     const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
     qrPagoConfirmado.value = cobrar && pagoConfirmado;
     qrFolio.value = result.folio || '';
-
     if (cobrar && !pagoConfirmado) {
       avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
     } else if (viaStripe) {
@@ -1301,7 +1207,6 @@ const saveRegistration = async () => {
     } else {
       avisar(result.message || (pagoConfirmado ? 'Cliente registrado y pago confirmado.' : 'Cliente registrado pendiente de pago.'), 'success');
     }
-
     // Recibo del pago (efectivo / transferencia)
     if (cobrar && pagoConfirmado) {
       ultimoPago.value = {
@@ -1316,7 +1221,6 @@ const saveRegistration = async () => {
         gimnasio: result.gimnasio
       };
     }
-
     // Limpiar formulario
     Object.assign(form, {
       nombres: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '', email: '',
@@ -1331,7 +1235,6 @@ const saveRegistration = async () => {
     cobrarAhora.value = true;
     openSelect.value = '';
     window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', { detail: { sede_id: sedeActual() } }));
-
     if (result.ID_Inscripto) {
       if (viaStripe) {
         const ok = await crearStripeQR(result, tarifa, nombreCliente);
@@ -1346,7 +1249,6 @@ const saveRegistration = async () => {
     guardando.value = false;
   }
 };
-
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
@@ -1373,15 +1275,12 @@ const fechaVista = (v) => {
   return y && m && d ? `${d}/${m}/${y}` : String(v);
 };
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@400;500;600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
-
 * { box-sizing: border-box; }
 i.bi { display: inline-block; line-height: 1; }
 .hidden-input, .hidden-canvas { display: none; }
-
 /* =========================================================
    BASE
 ========================================================= */
@@ -1403,7 +1302,6 @@ i.bi { display: inline-block; line-height: 1; }
   --bad: #f87171;
   --warn: #fbbf24;
   --warn-text: #fcd34d;
-
   width: 100%;
   padding: 34px clamp(14px, 3vw, 40px) 60px;
   color: var(--text);
@@ -1413,7 +1311,6 @@ i.bi { display: inline-block; line-height: 1; }
 .reg-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; width: 100%; max-width: 1200px; margin: 0 auto; align-items: start; }
 .highlight { color: var(--accent); }
 .req { color: var(--accent); }
-
 /* =========================================================
    PERFIL
 ========================================================= */
@@ -1425,7 +1322,6 @@ i.bi { display: inline-block; line-height: 1; }
 .profile-card > * { position: relative; }
 .chip-label { display: inline-block; margin-bottom: 12px; padding: 4px 12px; color: var(--accent); font-size: 0.68rem; font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .main-title { margin: 0 0 24px; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.85rem; font-weight: 400; line-height: 1.08; letter-spacing: 0.4px; text-transform: uppercase; }
-
 .avatar-wrap { position: relative; width: 140px; margin: 0 auto 14px; }
 .avatar-ring { padding: 4px; border-radius: 50%; background: conic-gradient(from 210deg, var(--button), var(--accent), var(--button)); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
 .avatar-circle { position: relative; width: 132px; height: 132px; display: grid; place-items: center; overflow: hidden; cursor: pointer; outline: none; border: 4px solid var(--card); border-radius: 50%; background: var(--input-bg); }
@@ -1438,8 +1334,6 @@ i.bi { display: inline-block; line-height: 1; }
 .avatar-action { position: absolute; z-index: 3; right: 2px; bottom: 4px; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; cursor: pointer; color: #fff; font-size: 0.95rem; border: 3px solid var(--card); border-radius: 50%; background: var(--accent); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); transition: transform 0.2s ease, filter 0.2s ease; }
 .avatar-action:hover { transform: scale(1.08); filter: brightness(1.08); }
 .profile-hint { max-width: 230px; margin: 0 auto; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
-
-
 /* =========================================================
    TARJETAS
 ========================================================= */
@@ -1454,7 +1348,6 @@ i.bi { display: inline-block; line-height: 1; }
 .summary-value.empty { color: var(--muted-2); font-weight: 500; }
 .plan-chip { display: inline-block; padding: 3px 11px; color: var(--accent); font-size: 0.8rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .summary-price { color: var(--ok); font: 600 0.95rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
-
 .forms-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 .card { position: relative; min-width: 0; padding: 26px 28px 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
 .membership-card { z-index: 2; display: flex; flex-direction: column; gap: 22px; }
@@ -1467,17 +1360,14 @@ i.bi { display: inline-block; line-height: 1; }
 .head-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; color: var(--text); font-size: 1rem; border: 1px solid var(--line-strong); border-radius: 11px; background: color-mix(in srgb, var(--text) 4%, transparent); transition: all 0.16s ease; }
 .icon-btn:hover { color: var(--button-text); border-color: var(--accent); background: var(--accent); }
-
 .grid { display: grid; gap: 18px; }
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-
 /* =========================================================
    CAMPOS
 ========================================================= */
 .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .field > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; }
-
 input:not([type='radio']):not([type='file']) {
   width: 100%; height: 48px; min-width: 0; padding: 0 14px; outline: none;
   color: var(--color-texto-input, var(--text)); color-scheme: dark; font-family: 'Inter', sans-serif; font-size: 0.9rem;
@@ -1491,7 +1381,6 @@ input[readonly] { cursor: default; }
 input:disabled { cursor: not-allowed; }
 input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
-
 .control { position: relative; display: flex; align-items: center; min-width: 0; }
 .control-icon { position: absolute; left: 14px; z-index: 2; color: var(--muted-2); font-size: 0.95rem; pointer-events: none; }
 .control.has-icon input { padding-left: 42px; }
@@ -1501,12 +1390,9 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .control.ok .control-icon { color: var(--ok); }
 .control.locked.ok input { border-color: color-mix(in srgb, var(--ok) 38%, var(--line-strong)); }
 .control.locked input::placeholder { color: var(--muted); font-style: italic; }
-
-
 .badge { padding: 2px 8px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.6px; border-radius: 999px; }
 .badge.auto { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
 .badge.required { color: var(--warn-text); background: rgba(251, 191, 36, 0.12); }
-
 .note { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 0.78rem; line-height: 1.5; }
 .note i { flex-shrink: 0; margin-top: 2px; }
 .note.info { padding: 10px 12px; color: var(--muted); border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
@@ -1514,7 +1400,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .note.warn { padding: 10px 12px; color: var(--warn-text); border: 1px solid rgba(251, 191, 36, 0.28); border-radius: 10px; background: rgba(251, 191, 36, 0.07); }
 .note.muted { color: var(--muted); }
 .note.muted i { color: var(--ok); }
-
 /* =========================================================
    PERIODO (control segmentado de 4 opciones)
 ========================================================= */
@@ -1525,7 +1410,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .segment.active { color: var(--button-text, #fff); }
 .segment i { font-size: 1rem; }
 .segment:focus-visible { outline: 2px solid var(--title); outline-offset: -3px; }
-
 /* =========================================================
    SELECT PERSONALIZADO
 ========================================================= */
@@ -1542,7 +1426,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .ff-trigger-value em.plain { color: var(--muted); font: 500 0.8rem 'Inter', sans-serif; letter-spacing: 0; }
 .ff-chevron { flex-shrink: 0; color: var(--muted); font-size: 0.85rem; transition: transform 0.2s ease; }
 .ff-select.open .ff-chevron { transform: rotate(180deg); }
-
 .ff-menu { position: absolute; z-index: 70; top: calc(100% + 8px); left: 0; right: 0; max-height: 280px; margin: 0; padding: 6px; overflow-y: auto; list-style: none; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--card); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55); scrollbar-width: thin; }
 .ff-menu li { display: flex; align-items: center; gap: 10px; padding: 12px 12px; cursor: pointer; color: var(--text); font-size: 0.88rem; font-weight: 500; border-radius: 10px; transition: background 0.14s ease; }
 .ff-menu li + li { margin-top: 2px; }
@@ -1556,7 +1439,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .ff-menu li.ff-empty:hover { background: transparent; }
 .dd-enter-active, .dd-leave-active { transition: opacity 0.16s ease, transform 0.16s ease; }
 .dd-enter-from, .dd-leave-to { opacity: 0; transform: translateY(-6px); }
-
 /* =========================================================
    PAGO INICIAL
 ========================================================= */
@@ -1565,11 +1447,9 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .block-icon { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.05rem; border-radius: 11px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .block-head h4 { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.02rem; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
 .block-head p { margin: 2px 0 0; color: var(--muted); font-size: 0.76rem; }
-
 .total-box { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--input-bg)), var(--input-bg) 65%); }
 .total-box span { color: var(--muted); font-size: 0.86rem; font-weight: 500; }
 .total-box strong { color: var(--ok); font: 700 1.7rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
-
 .choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .choice { position: relative; min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 14px; padding: 12px 16px; cursor: pointer; border: 1.5px solid var(--line-strong); border-radius: 14px; background: color-mix(in srgb, var(--text) 2%, transparent); transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
 .choice:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
@@ -1586,7 +1466,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .choice-text small { color: var(--muted); font-size: 0.72rem; }
 .choice-icon { flex-shrink: 0; color: var(--muted-2); font-size: 1.15rem; }
 .choice.selected .choice-icon { color: var(--accent); }
-
 /* Método de pago (igual que en Pagos) */
 .method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .method-tile { position: relative; min-width: 0; min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer; text-align: left; color: var(--text); font-family: inherit; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
@@ -1600,7 +1479,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .method-text small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
 .method-check { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; display: grid; place-items: center; color: var(--card); font-size: 0.7rem; border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(0.6); transition: opacity 0.18s ease, transform 0.18s ease; }
 .method-tile.active .method-check { opacity: 1; transform: scale(1); }
-
 /* Stripe */
 .stripe-box { display: flex; flex-direction: column; gap: 14px; padding: 18px; border: 1px solid color-mix(in srgb, #635bff 38%, var(--line)); border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, #635bff 9%, var(--input-bg)), var(--input-bg)); }
 .stripe-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
@@ -1615,7 +1493,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .stripe-status.warn i { background: var(--warn); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18); }
 .stripe-hint { display: flex; align-items: flex-start; gap: 9px; margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
 .stripe-hint i { margin-top: 2px; color: var(--accent); }
-
 /* =========================================================
    BOTONES
 ========================================================= */
@@ -1633,7 +1510,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .link-btn { padding: 8px; cursor: pointer; color: var(--muted); font-family: inherit; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; border: 0; background: transparent; }
 .link-btn:hover { color: var(--text); }
 .btn:focus-visible, .icon-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 .reg-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 2px 0; }
 .req-hint { color: var(--muted); font-size: 0.78rem; font-weight: 500; }
 .footer-actions { display: flex; align-items: center; gap: 12px; }
@@ -1644,7 +1520,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .save-btn { min-width: 250px; min-height: 52px; font-family: 'Oswald', sans-serif; font-size: 0.98rem; letter-spacing: 0.3px; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 /* =========================================================
    DIÁLOGOS (QR, Stripe, foto, cámara)
 ========================================================= */
@@ -1668,7 +1543,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .dialog-error { margin: 16px 0 0; color: #fca5a5; font-size: 0.86rem; }
 .qr-image { width: min(270px, 100%); aspect-ratio: 1; margin: 16px auto 0; padding: 12px; object-fit: contain; border-radius: 16px; background: #fff; }
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
-
 .stripe-qr-frame { width: fit-content; margin: 18px auto 0; padding: 14px; border-radius: 18px; background: #fff; box-shadow: 0 16px 32px -10px rgba(0, 0, 0, 0.6); }
 .stripe-qr-frame img { width: 216px; max-width: 100%; display: block; }
 .scan-hint { display: inline-flex; align-items: center; gap: 7px; margin: 12px 0 0; color: var(--muted); font-size: 0.78rem; }
@@ -1682,13 +1556,11 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .state-pill.paid { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
 .state-pill.paid i { background: var(--ok); animation: none; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); } }
-
 .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; text-align: left; }
 .eyebrow { display: block; margin-bottom: 5px; color: var(--accent); font-size: 0.62rem; font-weight: 700; letter-spacing: 1px; }
 .dialog-head h3 { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.25rem; font-weight: 400; text-transform: uppercase; }
 .dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
 .dialog-x { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
-
 .photo-dialog { text-align: left; }
 .sheet-handle { display: none; }
 .photo-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
@@ -1698,7 +1570,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .photo-option-text { flex: 1; min-width: 0; }
 .photo-option-text strong { display: block; color: var(--title); font-size: 0.88rem; font-weight: 600; }
 .photo-option-text small { display: block; margin-top: 3px; color: var(--muted); font-size: 0.72rem; }
-
 .camera-dialog { width: min(620px, 100%); text-align: left; }
 .camera-preview { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #000; }
 .camera-preview video { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -1716,14 +1587,12 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 .capture-circle { width: 38px; height: 38px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; }
 .capture-circle span { width: 27px; height: 27px; display: block; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
 .capture-btn:hover:not(:disabled) .capture-circle span { transform: scale(0.85); }
-
 .photo-menu-enter-active, .photo-menu-leave-active { transition: opacity 0.2s ease; }
 .photo-menu-enter-active .dialog, .photo-menu-leave-active .dialog { transition: opacity 0.2s ease, transform 0.22s ease; }
 .photo-menu-enter-from, .photo-menu-leave-to { opacity: 0; }
 .photo-menu-enter-from .dialog, .photo-menu-leave-to .dialog { opacity: 0; transform: translateY(10px) scale(0.97); }
 .pop-enter-active, .pop-leave-active { transition: all 0.25s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.95); }
-
 /* =========================================================
    RESPONSIVE
 ========================================================= */
@@ -1731,12 +1600,10 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
   .reg-layout { grid-template-columns: 260px minmax(0, 1fr); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
 @media (max-width: 850px) {
   .reg-layout { grid-template-columns: minmax(0, 1fr); }
   .profile-card { position: relative; top: 0; max-width: 460px; width: 100%; margin: 0 auto; }
 }
-
 @media (max-width: 650px) {
   .reg-page { padding: 14px 12px calc(34px + env(safe-area-inset-bottom, 0px)); }
   .card { padding: 20px 16px 22px; }
@@ -1753,7 +1620,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
   .footer-actions { flex-direction: column-reverse; align-items: stretch; }
   .save-btn { min-width: 0; width: 100%; }
   .receipt-btn { width: 100%; }
-
   /* Hojas inferiores */
   .overlay.sheet { align-items: end; padding: 0; }
   .overlay.sheet .dialog { width: 100%; max-width: none; padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 22px 22px 0 0; }
@@ -1762,7 +1628,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
   .camera-actions { flex-direction: column-reverse; }
   .camera-actions .btn, .capture-btn { width: 100%; justify-content: center; }
 }
-
 @media (max-width: 420px) {
   .profile-card { padding: 28px 16px 20px; }
   .main-title { font-size: 1.6rem; }
@@ -1770,7 +1635,6 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
   .switch-camera { width: 40px; height: 40px; padding: 0; justify-content: center; }
   .dialog-actions .btn { width: 100%; }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

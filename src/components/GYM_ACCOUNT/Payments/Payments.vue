@@ -6,7 +6,6 @@ import Promo from './Promos.vue';
 import ReciboPago from './ReciboPago.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 const route = useRoute();
 const router = useRouter();
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
@@ -18,7 +17,6 @@ const localStrings = {
 };
 const lt = key => localStrings[currentLang.value]?.[key] || localStrings.es[key] || key;
 const handleLangChange = e => { if (e.detail?.idioma) currentLang.value = e.detail.idioma; };
-
 const activeModal = ref(null);
 const toastRef = ref(null);
 const reciboRef = ref(null);
@@ -34,16 +32,13 @@ const reciboVisible = ref(false);
 const loading = ref(true);
 const saving = ref(false);
 const errorCarga = ref('');
-
 const stripeCuenta = ref(null);
 const stripeQR = ref(null);
 const stripeEstado = ref('');
 const stripeLoading = ref(false);
 let stripeTimer = null;
-
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const fotoDefault = new URL('../../../assets/humano.jpg', import.meta.url).href;
-
 /* =========================================================
    SESIÓN / API
 ========================================================= */
@@ -63,7 +58,6 @@ const getToken = () => {
   }
   return '';
 };
-
 const obtenerSedeId = () => {
   const queryId = Number(route.query.sede_id);
   if (Number.isInteger(queryId) && queryId > 0) return queryId;
@@ -82,7 +76,6 @@ const obtenerSedeId = () => {
   }
   return null;
 };
-
 const apiRequest = async (path, options = {}) => {
   const token = getToken();
   if (!token) throw new Error('No se encontró el token de sesión.');
@@ -103,7 +96,6 @@ const apiRequest = async (path, options = {}) => {
   }
   return body;
 };
-
 /* =========================================================
    CLIENTE / INSCRIPCIÓN
 ========================================================= */
@@ -112,7 +104,6 @@ const clienteActual = computed(() => [cliente.value.nombre, cliente.value.apelli
 const inscripcion = ref(null);
 const fechaSolo = v => String(v || '').slice(0, 10);
 const fechaProximoCorte = computed(() => fechaSolo(inscripcion.value?.Fecha_Vencimiento) || '—');
-
 /* =========================================================
    PROMOCIÓN SELECCIONADA (normalizada)
 ========================================================= */
@@ -138,7 +129,6 @@ const unidadesPagadas = computed(() => {
 const mesesPagados = computed(() => ofertaSeleccionada.value
   ? Math.max(1, Math.floor(Number(ofertaSeleccionada.value.meses) || 1))
   : unidadesPagadas.value * Math.max(1, Math.floor(Number(inscripcion.value?.Cantidad_Meses) || 1)));
-
 // Mantiene el día de corte original incluso al pasar por febrero o meses de 30 días.
 const sumarMeses = (fecha, meses) => {
   const dia = fecha.getDate();
@@ -164,7 +154,6 @@ const fechaNuevoCorte = computed(() => {
   }
   return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
 });
-
 /* =========================================================
    FOLIO
    El folio de Efectivo y Tarjeta lo genera el servidor al registrar el pago.
@@ -188,27 +177,23 @@ const folioResumen = computed(() => {
   if (folioAutomatico.value) return txt('Al confirmar', 'On confirmation');
   return '—';
 });
-
 const metodosPago = computed(() => [
   { value: 'Efectivo', label: t('cashOption'), hint: txt('Folio automático', 'Automatic reference'), icon: 'cash' },
   { value: 'Transferencia', label: t('transferOption'), hint: txt('Requiere folio', 'Reference required'), icon: 'transfer' },
   { value: 'Tarjeta', label: txt('Tarjeta', 'Card'), hint: txt('QR de Stripe', 'Stripe QR'), icon: 'card' }
 ]);
-
 /* =========================================================
    MONTOS
 ========================================================= */
 const formatoMoneda = n => new Intl.NumberFormat(currentLang.value === 'en' ? 'en-US' : 'es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
 const reciboLocale = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
 const montoMostrado = computed(() => formatoMoneda(montoRecibir.value));
-
 // Al ingresar $1,500 para una mensualidad de $500, el resumen mostrará $1,500.
 // La promoción mantiene su precio fijo: su monto se valida antes de confirmar.
 const totalAPagar = computed(() => ofertaSeleccionada.value
   ? (Number(ofertaSeleccionada.value.precio) || 0)
   : (cantidadRecibida.value || precioUnidad.value));
 const totalMostrado = computed(() => formatoMoneda(totalAPagar.value));
-
 const planActual = computed(() => ofertaSeleccionada.value?.nombre || inscripcion.value?.Nombre_Paquete || t('monthlyOption'));
 const duracionPlan = computed(() => {
   const periodo = periodoOferta.value;
@@ -225,7 +210,6 @@ const metodoPagoLabel = computed(() => ({
   Transferencia: txt('Transferencia', 'Transfer'),
   Tarjeta: txt('Tarjeta (Stripe QR)', 'Card (Stripe QR)')
 })[tipoPago.value] || txt('Sin seleccionar', 'Not selected'));
-
 /* =========================================================
    PROMOCIÓN GRUPAL (amigos, parejas, familia…)
 ========================================================= */
@@ -238,7 +222,6 @@ const groupSectionRef = ref(null);
 const resultadosGrupo = ref([]);
 const buscandoGrupo = ref(false);
 let busquedaTimer = null;
-
 const participantes = computed(() => [
   { inscripcionId: inscripcion.value?.ID_Inscripto, nombre: clienteActual.value, foto: cliente.value.foto, titular: true },
   ...acompanantes.value
@@ -246,14 +229,12 @@ const participantes = computed(() => [
 const lugaresFaltan = computed(() => Math.max(0, personasPromo.value - participantes.value.length));
 const grupoCompleto = computed(() => !requiereGrupo.value || lugaresFaltan.value === 0);
 const precioPorPersonaPago = computed(() => totalAPagar.value / personasPromo.value);
-
 const normalizarCliente = c => ({
   inscripcionId: c.ID_Inscripto ?? c.ID_Inscripcion ?? c.id_inscripto,
   clienteId: c.ID_Cliente ?? c.id_cliente,
   nombre: [c.Nombre, c.Apellido_P, c.Apellido_M].filter(Boolean).join(' '),
   foto: c.foto_url || fotoDefault
 });
-
 /* =========================================================
    BUSCADOR DE CLIENTES (funciona igual que en Editar usuario)
 ========================================================= */
@@ -261,7 +242,6 @@ const searchQuery = ref('');
 const searchBoxRef = ref(null);
 const showSuggestions = ref(false);
 const clientesBusqueda = ref([]);
-
 const loadSearch = async () => {
   const sede = obtenerSedeId();
   if (!sede) { clientesBusqueda.value = []; return; }
@@ -271,7 +251,6 @@ const loadSearch = async () => {
     clientesBusqueda.value = lista.map(c => ({ ...normalizarCliente(c), correo: c.Correo_Electronico || '', celular: c.Celular || '' }));
   } catch (e) { console.error(e); }
 };
-
 const suggestions = computed(() => {
   const q = searchQuery.value.trim().toLocaleLowerCase();
   if (!q) return [];
@@ -280,12 +259,10 @@ const suggestions = computed(() => {
       .some(v => String(v ?? '').toLocaleLowerCase().includes(q)))
     .slice(0, 8);
 });
-
 // Misma pantalla, solo cambia el id de la inscripción en la ruta
 const irAInscripcion = id => router.push(route.name
   ? { name: route.name, params: { ...route.params, id: String(id) }, query: { ...route.query } }
   : { path: route.path.replace(/[^/]+\/?$/, String(id)), query: { ...route.query } });
-
 const chooseClient = async c => {
   showSuggestions.value = false;
   searchQuery.value = '';
@@ -300,7 +277,6 @@ const handleDocumentClick = e => {
   if (searchBoxRef.value && !searchBoxRef.value.contains(e.target)) showSuggestions.value = false;
 };
 const handleBranchChange = () => { clientesBusqueda.value = []; loadSearch(); };
-
 /* =========================================================
    BÚSQUEDA DE ACOMPAÑANTES (promoción grupal)
 ========================================================= */
@@ -326,7 +302,6 @@ const buscarAcompanantes = () => {
     }
   }, 300);
 };
-
 const agregarAcompanante = c => {
   if (lugaresFaltan.value <= 0) return;
   acompanantes.value.push(c);
@@ -340,14 +315,12 @@ const quitarPromocion = () => {
   ofertaSeleccionada.value = null;
   montoRecibir.value = Number(inscripcion.value?.Precio) || null;
 };
-
 watch(ofertaSeleccionada, () => {
   acompanantes.value = acompanantes.value.slice(0, Math.max(0, personasPromo.value - 1));
   busquedaGrupo.value = '';
   resultadosGrupo.value = [];
   operacionId.value = nuevaOperacionId();
 });
-
 /* =========================================================
    VALIDACIÓN DEL BOTÓN
 ========================================================= */
@@ -359,7 +332,6 @@ const isButtonDisabled = computed(() =>
   (ofertaSeleccionada.value && Math.round(Number(montoRecibir.value) * 100) !== Math.round(totalAPagar.value * 100)) ||
   !grupoCompleto.value
 );
-
 const motivoBloqueo = computed(() => {
   if (loading.value || !inscripcion.value) return '';
   if (!grupoCompleto.value) return txt(`Faltan ${lugaresFaltan.value} persona(s) por agregar a la promoción.`, `${lugaresFaltan.value} more person(s) to add to the promotion.`);
@@ -370,7 +342,6 @@ const motivoBloqueo = computed(() => {
   if (!(Number(montoRecibir.value) > 0)) return txt('Ingresa un monto mayor a $0.', 'Enter an amount greater than $0.');
   return '';
 });
-
 /* =========================================================
    CARGA DEL CLIENTE
 ========================================================= */
@@ -401,7 +372,6 @@ const cargarCliente = async () => {
     loading.value = false;
   }
 };
-
 /* =========================================================
    SELECCIÓN DE PROMOCIÓN / TARIFA
    Se normaliza lo que emite Promos.vue por si llega con nombres de la BD.
@@ -427,7 +397,6 @@ const handleSelectOferta = async oferta => {
   }
   toastRef.value?.notify(`${t('offerAppliedToast')} ${normalizada.nombre}`, 'success');
 };
-
 /* =========================================================
    CONFIRMAR PAGO
 ========================================================= */
@@ -474,7 +443,6 @@ const confirmPayment = async () => {
     saving.value = false;
   }
 };
-
 /* =========================================================
    STRIPE
 ========================================================= */
@@ -488,7 +456,6 @@ const consultarStripeCuenta = async (silent = true) => {
     return null;
   }
 };
-
 const conectarStripe = async () => {
   if (stripeLoading.value) return;
   // Abrir antes del await evita que los navegadores bloqueen la pestaña emergente.
@@ -506,9 +473,7 @@ const conectarStripe = async () => {
     stripeLoading.value = false;
   }
 };
-
 const detenerStripe = () => { if (stripeTimer) { clearInterval(stripeTimer); stripeTimer = null; } };
-
 const crearStripeQR = async () => {
   if (stripeQR.value || stripeLoading.value) return;
   if (!stripeCuenta.value?.charges_enabled) {
@@ -548,7 +513,6 @@ const crearStripeQR = async () => {
     stripeLoading.value = false;
   }
 };
-
 let consultandoEstado = false;
 const consultarEstadoStripe = async (silent = false) => {
   if (!stripeQR.value || consultandoEstado) return;
@@ -593,10 +557,8 @@ const consultarEstadoStripe = async (silent = false) => {
     consultandoEstado = false;
   }
 };
-
 const cancelarQR = () => { detenerStripe(); stripeQR.value = null; stripeEstado.value = ''; };
 watch(tipoPago, n => { if (n === 'Tarjeta') void consultarStripeCuenta(); });
-
 /* =========================================================
    RECIBO / CICLO DE VIDA
 ========================================================= */
@@ -605,7 +567,6 @@ const downloadReceipt = () => {
   reciboVisible.value = true;
 };
 const handleReciboNotify = payload => { if (payload) toastRef.value?.notify(payload.message, payload.type); };
-
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', handleBranchChange);
@@ -629,14 +590,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   cargarCliente();
 });
 </script>
-
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-
     <main class="payment-page">
       <div class="payment-container">
-
         <!-- ENCABEZADO -->
         <header class="page-header">
           <div>
@@ -644,7 +602,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
             <h1>{{ txt('REGISTRAR', 'REGISTER') }} <strong>{{ txt('PAGO', 'PAYMENT') }}</strong></h1>
             <p>{{ txt('Registra el pago del cliente, aplica promociones y genera su comprobante.', 'Register the client payment, apply promotions and generate the receipt.') }}</p>
           </div>
-
           <!-- BUSCADOR -->
           <div id="tutorial-step-0" ref="searchBoxRef" class="search-section">
             <label for="client-search">{{ t('searchClientLabel') }}</label>
@@ -662,7 +619,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                 @keyup.esc="showSuggestions = false"
               />
             </div>
-
             <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
               <button v-for="c in suggestions" :key="c.inscripcionId" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
                 <span class="suggestion-avatar">{{ String(c.nombre || '?').charAt(0).toUpperCase() }}</span>
@@ -676,31 +632,23 @@ watch(() => [route.params.id, route.query.sede_id], () => {
             </div>
           </div>
         </header>
-
         <!-- CARGA / ERROR -->
         <p v-if="loading" role="status">{{ txt('Cargando información del cliente...', 'Loading client information...') }}</p>
         <div v-if="errorCarga" role="alert">{{ errorCarga }}</div>
-
         <div class="payment-layout">
-
           <!-- CLIENTE -->
           <aside class="client-column">
             <article class="client-card">
               <div class="card-top-line"></div>
-
               <span class="client-label">{{ txt('CLIENTE SELECCIONADO', 'SELECTED CLIENT') }}</span>
-
               <div class="avatar-container">
                 <div class="avatar"><img :src="cliente.foto" :alt="t('userAvatarAlt')" /></div>
               </div>
-
               <div class="client-name">
                 <h2>{{ cliente.nombre || '—' }}</h2>
                 <h2 class="highlight">{{ cliente.apellido || '—' }}</h2>
               </div>
-
               <span class="active-pill"><i></i>{{ cliente.estado }}</span>
-
               <div class="client-mini-info">
                 <div><span>ID</span><strong class="mono">{{ cliente.id || '—' }}</strong></div>
                 <div><span>{{ txt('Plan actual', 'Current plan') }}</span><strong>{{ planActual }}</strong></div>
@@ -712,14 +660,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
               </div>
             </article>
           </aside>
-
           <!-- COBRO -->
           <section class="operations-column">
-
             <!-- PANEL -->
             <article id="tutorial-step-1" class="payment-card">
               <div class="card-top-line"></div>
-
               <div class="payment-card-header">
                 <div class="payment-title">
                   <span class="payment-icon">
@@ -730,7 +675,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <h3>{{ txt('Detalle del pago', 'Payment details') }}</h3>
                   </div>
                 </div>
-
                 <button class="promo-button" type="button" @click="activeModal = 'promo'">
                   <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
                     <path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" />
@@ -738,7 +682,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   {{ t('promosBtn') }}
                 </button>
               </div>
-
               <!-- FECHAS -->
               <div class="billing-dates">
                 <div class="billing-date">
@@ -747,11 +690,9 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </span>
                   <div><span>{{ t('nextCutLabel') }}</span><strong>{{ fechaProximoCorte }}</strong></div>
                 </div>
-
                 <span class="date-arrow">
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </span>
-
                 <div class="billing-date new-date">
                   <span class="date-icon">
                     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="m9 16 2 2 4-5" /></svg>
@@ -759,7 +700,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   <div><span>{{ t('newCutLabel') }}</span><strong>{{ fechaNuevoCorte }}</strong></div>
                 </div>
               </div>
-
               <!-- TOTAL PRINCIPAL -->
               <div class="payment-summary">
                 <div class="summary-main">
@@ -768,13 +708,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <span class="summary-state">{{ txt('POR COBRAR', 'DUE') }}</span>
                     <span v-if="esVisita" class="summary-state visit">{{ txt('VISITA', 'DAY VISIT') }}</span>
                   </div>
-
                   <div class="big-amount">
                     <span class="big-currency">$</span>
                     <strong>{{ totalMostrado }}</strong>
                     <span class="currency-code">MXN</span>
                   </div>
-
                   <div class="plan-line">
                     <span class="plan-icon">
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4" /><path d="M4 6v12a2 2 0 0 0 2 2h14v-8H6a2 2 0 0 1-2-2Z" /></svg>
@@ -788,13 +726,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     </template>
                   </div>
                 </div>
-
                 <div class="summary-side">
                   <div class="surcharge-box">
                     <span>{{ txt('RECARGO', 'SURCHARGE') }}</span>
                     <strong>+ $0.00</strong>
                   </div>
-
                   <div v-if="ofertaSeleccionada" class="promotion-applied">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 4 4L19 6" /></svg>
                     {{ txt('Promoción aplicada', 'Promotion applied') }}
@@ -802,7 +738,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </div>
                 </div>
               </div>
-
               <!-- PERSONAS DE LA PROMOCIÓN -->
               <section v-if="requiereGrupo" ref="groupSectionRef" class="form-section group-section">
                 <div class="form-section-title">
@@ -818,7 +753,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </div>
                   <span class="group-counter" :class="{ done: grupoCompleto }">{{ participantes.length }}/{{ personasPromo }}</span>
                 </div>
-
                 <div class="group-slots">
                   <article v-for="p in participantes" :key="p.inscripcionId" class="slot filled">
                     <img :src="p.foto" :alt="p.nombre" />
@@ -831,7 +765,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>
                     </span>
                   </article>
-
                   <div v-for="n in lugaresFaltan" :key="'empty' + n" class="slot empty">
                     <span class="slot-plus">+</span>
                     <div class="slot-text">
@@ -840,13 +773,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     </div>
                   </div>
                 </div>
-
                 <div v-if="lugaresFaltan > 0" class="group-search">
                   <div class="field-control">
                     <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
                     <input ref="groupSearchRef" v-model="busquedaGrupo" type="text" autocomplete="off" :placeholder="txt('Buscar cliente por nombre o ID…', 'Search client by name or ID…')" @input="buscarAcompanantes" />
                   </div>
-
                   <ul v-if="resultadosGrupo.length" class="group-results">
                     <li v-for="c in resultadosGrupo" :key="c.inscripcionId">
                       <button type="button" @click="agregarAcompanante(c)">
@@ -859,13 +790,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   <p v-else-if="buscandoGrupo" class="group-empty">{{ txt('Buscando…', 'Searching…') }}</p>
                   <p v-else-if="busquedaGrupo.trim().length >= 2" class="group-empty">{{ txt('Sin resultados.', 'No results.') }}</p>
                 </div>
-
                 <div class="group-price">
                   <div><span>{{ txt('Total del grupo', 'Group total') }}</span><strong>${{ totalMostrado }}</strong></div>
                   <div><span>{{ txt('Por persona', 'Per person') }}</span><strong>${{ formatoMoneda(precioPorPersonaPago) }}</strong></div>
                 </div>
               </section>
-
               <!-- MÉTODO DE PAGO -->
               <section class="form-section">
                 <div class="form-section-title">
@@ -875,7 +804,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <small>{{ txt('Selecciona cómo realizará el cliente el pago.', 'Select how the client will make the payment.') }}</small>
                   </div>
                 </div>
-
                 <div class="method-grid" role="radiogroup" :aria-label="t('paymentTypeLabel')">
                   <button
                     v-for="m in metodosPago"
@@ -904,7 +832,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     </span>
                   </button>
                 </div>
-
                 <div class="input-group folio-group">
                   <label for="folio-referencia">
                     {{ t('folioReferenceLabel') }}
@@ -912,7 +839,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                       {{ folioAutomatico ? txt('AUTOMÁTICO', 'AUTOMATIC') : txt('OBLIGATORIO', 'REQUIRED') }}
                     </span>
                   </label>
-
                   <div class="field-control" :class="{ 'is-disabled': folioAutomatico || !tipoPago }">
                     <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <template v-if="folioAutomatico || !tipoPago">
@@ -924,14 +850,12 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     </svg>
                     <input id="folio-referencia" v-model="folioReferencia" type="text" autocomplete="off" :placeholder="folioPlaceholder" :disabled="folioAutomatico || !tipoPago" />
                   </div>
-
                   <p v-if="folioAyuda" class="folio-note">
                     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
                     <span>{{ folioAyuda }}</span>
                   </p>
                 </div>
               </section>
-
               <!-- MONTO -->
               <section class="form-section amount-section">
                 <div class="form-section-title">
@@ -941,14 +865,12 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <small>{{ txt('Verifica el importe antes de confirmar.', 'Verify the amount before confirming.') }}</small>
                   </div>
                 </div>
-
                 <div class="amount-input-container">
                   <div class="amount-input-box">
                     <span class="amount-symbol">$</span>
                     <input v-model="montoRecibir" type="number" min="0" step="0.01" placeholder="0.00" />
                     <span class="amount-mxn">MXN</span>
                   </div>
-
                   <div class="amount-validation">
                     <span class="validation-dot" :class="{ valid: montoRecibir && Number(montoRecibir) > 0 }"></span>
                     {{ montoRecibir && Number(montoRecibir) > 0 ? txt('Monto válido para procesar', 'Valid amount to process') : txt('Ingresa un monto mayor a $0', 'Enter an amount greater than $0') }}
@@ -962,7 +884,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </p>
                 </div>
               </section>
-
               <!-- RESUMEN -->
               <div class="transaction-review">
                 <div class="review-heading">
@@ -974,7 +895,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                     <i></i>{{ isButtonDisabled ? txt('Incompleto', 'Incomplete') : txt('Listo', 'Ready') }}
                   </span>
                 </div>
-
                 <div class="review-grid">
                   <div class="review-item"><span>{{ txt('Cliente', 'Client') }}</span><strong>{{ clienteActual }}</strong></div>
                   <div class="review-item"><span>{{ txt('Plan', 'Plan') }}</span><strong>{{ planActual }} · {{ duracionPlan }}</strong></div>
@@ -987,13 +907,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </div>
                   <div class="review-item"><span>{{ txt('Total', 'Total') }}</span><strong class="review-total">${{ montoMostrado }}</strong></div>
                 </div>
-
                 <p v-if="motivoBloqueo" class="review-hint">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" /></svg>
                   {{ motivoBloqueo }}
                 </p>
               </div>
-
               <!-- ACCIONES -->
               <div id="tutorial-step-2" class="action-buttons">
                 <button type="button" class="confirm-button" :disabled="isButtonDisabled" @click="confirmPayment">
@@ -1006,21 +924,18 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                   </span>
                   <svg class="button-arrow" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
                 </button>
-
                 <button type="button" class="receipt-button" :class="{ ready: ultimoPago }" @click="downloadReceipt">
                   <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></svg>
                   <span>{{ t('downloadReceiptBtn') }}</span>
                   <span v-if="ultimoPago" class="receipt-ready"><i></i>{{ txt('Disponible', 'Ready') }}</span>
                 </button>
               </div>
-
               <!-- STRIPE -->
               <div v-if="tipoPago === 'Tarjeta' || stripeQR" class="stripe-box">
                 <div class="stripe-head">
                   <span class="stripe-icon">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M6 15h4" /></svg>
                   </span>
-
                   <div class="stripe-head-text">
                     <strong>{{ txt('Cobro con tarjeta mediante Stripe', 'Card payment via Stripe') }}</strong>
                     <span class="stripe-status" :class="stripeCuenta?.charges_enabled ? 'ok' : 'warn'">
@@ -1028,20 +943,17 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                       {{ stripeCuenta?.charges_enabled ? txt('Cuenta lista para cobrar.', 'Account ready for payments.') : txt('Cuenta no habilitada', 'Account not enabled') }}
                     </span>
                   </div>
-
                   <button type="button" class="stripe-link" @click="consultarStripeCuenta(false)">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
                     {{ txt('Actualizar estado de cuenta', 'Refresh account status') }}
                   </button>
                 </div>
-
                 <template v-if="!stripeCuenta?.charges_enabled">
                   <p class="stripe-hint">{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.', 'Connect and enable the gym Stripe account before charging.') }}</p>
                   <div class="stripe-actions">
                     <button type="button" class="stripe-action" :disabled="stripeLoading" @click="conectarStripe">{{ txt('Conectar cuenta Stripe', 'Connect Stripe account') }}</button>
                   </div>
                 </template>
-
                 <div v-if="stripeQR" class="stripe-qr">
                   <div class="qr-side">
                     <div class="qr-frame"><img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe', 'Stripe payment QR')" /></div>
@@ -1050,22 +962,18 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                       {{ txt('Pídele al cliente que escanee el código', 'Ask the client to scan the code') }}
                     </span>
                   </div>
-
                   <div class="qr-info">
                     <span class="qr-state" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">
                       <i></i>{{ txt('Estado del pago:', 'Payment status:') }} {{ stripeEstado }}
                     </span>
-
                     <div class="qr-amount-block">
                       <span class="qr-amount-label">{{ txt('MONTO A COBRAR', 'AMOUNT DUE') }}</span>
                       <strong class="qr-amount">${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
                     </div>
-
                     <p class="qr-note">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
                       <span>{{ txt('El recibo se habilita cuando el sistema registra el folio real.', 'The receipt becomes available once the system registers the actual reference.') }}</span>
                     </p>
-
                     <div class="qr-actions">
                       <button type="button" class="stripe-action qr-primary" @click="consultarEstadoStripe(false)">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
@@ -1076,12 +984,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4 10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>
                       </a>
                     </div>
-
                     <button type="button" class="qr-hide" @click="cancelarQR">{{ txt('Ocultar QR (no cancela el pago)', 'Hide QR (does not cancel payment)') }}</button>
                   </div>
                 </div>
               </div>
-
               <!-- PAGO CONFIRMADO -->
               <div v-if="ultimoPago" class="payment-success">
                 <span class="success-icon">
@@ -1099,14 +1005,12 @@ watch(() => [route.params.id, route.query.sede_id], () => {
         </div>
       </div>
     </main>
-
     <!-- PROMOCIONES -->
     <transition name="pop">
       <div v-if="activeModal === 'promo'" class="modal-wrapper" @click.self="activeModal = null">
         <Promo :sede-id="obtenerSedeId()" @select-oferta="handleSelectOferta" @close="activeModal = null" />
       </div>
     </transition>
-
     <!-- RECIBO -->
     <ReciboPago
       ref="reciboRef"
@@ -1118,12 +1022,9 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     />
   </HeadingGYM_ACCOUNT>
 </template>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
 * { box-sizing: border-box; }
-
 .payment-page {
   --accent: var(--color-highlight, #3b82f6);
   --card: var(--bg-cards, #111317);
@@ -1144,12 +1045,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   --warn-text: #fcd34d;
   --group: #8b5cf6;
   --group-text: #c4b5fd;
-
   --font-display: 'Anton', Impact, 'Arial Narrow', sans-serif;
   --font-heading: 'Oswald', 'Arial Narrow', sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-
   width: 100%;
   min-height: calc(100vh - 70px);
   padding: 32px 40px calc(56px + env(safe-area-inset-bottom, 0px));
@@ -1165,9 +1064,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     radial-gradient(900px 360px at 88% -120px, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
     radial-gradient(700px 320px at -5% 0, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%);
 }
-
 .payment-container { width: 100%; max-width: 1240px; margin: 0 auto; }
-
 .payment-container > p[role='status'] {
   margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--card); color: var(--muted); font-size: 0.92rem;
@@ -1176,7 +1073,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   margin-bottom: 16px; padding: 12px 16px; border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 10px;
   background: rgba(248, 113, 113, 0.08); color: var(--bad); font-size: 0.92rem; line-height: 1.45;
 }
-
 /* =========================================================
    HEADER
 ========================================================= */
@@ -1190,14 +1086,12 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .page-header h1 { margin: 0; color: var(--title); font-family: var(--font-display); font-size: clamp(2.1rem, 5vw, 3.2rem); font-weight: 400; line-height: 1.05; letter-spacing: 0.6px; text-transform: uppercase; }
 .page-header h1 strong { color: var(--accent); font-weight: 400; }
 .page-header p { max-width: 600px; margin: 10px 0 0; color: var(--muted); font-size: 0.97rem; line-height: 1.55; }
-
 /* =========================================================
    LAYOUT (escritorio: cliente a la izquierda, cobro a la derecha)
 ========================================================= */
 .payment-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
 .client-column, .operations-column { min-width: 0; }
 .client-column { position: sticky; top: 16px; }
-
 /* =========================================================
    CLIENTE (mismo estilo que el perfil de Editar usuario)
 ========================================================= */
@@ -1226,7 +1120,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .client-mini-info .mono { font-family: var(--font-mono); }
 .client-mini-info .mini-ok { color: var(--ok-text); font-family: var(--font-mono); }
 .client-mini-info .mini-warn { color: var(--warn-text); font-family: var(--font-mono); }
-
 /* =========================================================
    BUSCADOR (en el encabezado, igual que en Editar usuario)
 ========================================================= */
@@ -1247,7 +1140,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .suggestion-info small { overflow: hidden; color: var(--muted); font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
 .suggestion-id { flex-shrink: 0; color: var(--muted); font-family: var(--font-mono); font-size: 0.74rem; }
 .suggestion-empty { margin: 0; padding: 12px; color: var(--muted); font-size: 0.82rem; }
-
 /* =========================================================
    PAYMENT CARD
    Cuadrícula de 2 columnas: todo ocupa el ancho completo,
@@ -1267,7 +1159,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .payment-title h3 { margin: 0; color: var(--title); font-family: var(--font-heading); font-size: 1.35rem; font-weight: 600; line-height: 1.15; letter-spacing: 0.3px; text-transform: uppercase; }
 .promo-button { min-height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-family: inherit; font-size: 0.9rem; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background 0.18s ease, border-color 0.18s ease; }
 .promo-button:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
-
 /* =========================================================
    FECHAS
 ========================================================= */
@@ -1280,7 +1171,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .billing-date span:not(.date-icon) { display: block; margin-bottom: 2px; color: var(--muted); font-size: 0.82rem; }
 .billing-date strong { display: block; color: var(--text); font-family: var(--font-mono); font-size: 0.98rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .date-arrow { display: flex; color: var(--muted-2); }
-
 /* =========================================================
    TOTAL
 ========================================================= */
@@ -1310,7 +1200,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .promotion-applied { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 6px; color: var(--ok-text); font-size: 0.85rem; font-weight: 600; }
 .promo-remove { margin-left: 4px; padding: 2px 9px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 0.74rem; cursor: pointer; transition: color 0.16s ease, border-color 0.16s ease; }
 .promo-remove:hover { color: var(--bad-text); border-color: rgba(248, 113, 113, 0.4); }
-
 /* =========================================================
    FORM SECTIONS
 ========================================================= */
@@ -1329,7 +1218,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .field-control.is-disabled input { border-style: dashed; background: color-mix(in srgb, var(--text) 3%, var(--input-bg)); }
 .field-control input:disabled { cursor: not-allowed; }
 .field-control.is-disabled input::placeholder { color: var(--muted); font-style: italic; }
-
 /* =========================================================
    PROMOCIÓN GRUPAL
 ========================================================= */
@@ -1339,7 +1227,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .group-badge { color: var(--group-text) !important; border-color: rgba(139, 92, 246, 0.35) !important; background: rgba(139, 92, 246, 0.1) !important; }
 .group-counter { flex-shrink: 0; padding: 4px 12px; border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 999px; background: rgba(251, 191, 36, 0.1); color: var(--warn-text); font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; }
 .group-counter.done { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.1); color: var(--ok-text); }
-
 .group-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .slot { position: relative; min-width: 0; display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 12px; background: var(--input-bg); }
 .slot.filled { border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); }
@@ -1353,7 +1240,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .slot-lock { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: var(--ok); background: rgba(52, 211, 153, 0.12); }
 .slot-remove { width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; transition: all 0.16s ease; }
 .slot-remove:hover { border-color: rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); color: var(--bad); }
-
 .group-search { position: relative; margin-bottom: 14px; }
 .group-results { position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none; max-height: 260px; overflow-y: auto; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--card); box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.7); }
 .group-results button { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 0.9rem; text-align: left; cursor: pointer; }
@@ -1362,12 +1248,10 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .group-results span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .group-results em { color: var(--accent); font-size: 0.78rem; font-style: normal; font-weight: 700; }
 .group-empty { margin: 8px 2px 0; color: var(--muted); font-size: 0.84rem; }
-
 .group-price { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .group-price > div { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--input-bg); }
 .group-price span { display: block; color: var(--muted); font-size: 0.78rem; }
 .group-price strong { color: var(--ok-text); font-family: var(--font-mono); font-size: 1.05rem; }
-
 /* =========================================================
    MONTO
 ========================================================= */
@@ -1381,7 +1265,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .amount-validation { display: flex; align-items: center; gap: 8px; margin-top: 9px; color: var(--muted); font-size: 0.86rem; }
 .validation-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--bad); }
 .validation-dot.valid { background: var(--ok); }
-
 /* =========================================================
    REVIEW
 ========================================================= */
@@ -1405,7 +1288,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .review-folio, .review-date { font-family: var(--font-mono); font-size: 0.86rem !important; }
 .review-hint { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 9px 12px; border: 1px solid rgba(251, 191, 36, 0.28); border-radius: 9px; background: rgba(251, 191, 36, 0.07); color: var(--warn-text); font-size: 0.84rem; }
 .review-hint svg { flex-shrink: 0; }
-
 /* =========================================================
    BUTTONS
 ========================================================= */
@@ -1425,7 +1307,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .receipt-button.ready { border-color: rgba(52, 211, 153, 0.4); color: var(--ok-text); background: rgba(52, 211, 153, 0.07); }
 .receipt-ready { width: 100%; display: flex; align-items: center; justify-content: center; gap: 5px; color: var(--ok-text); font-size: 0.72rem; font-weight: 600; }
 .receipt-ready i { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
-
 /* =========================================================
    SUCCESS
 ========================================================= */
@@ -1436,7 +1317,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .payment-success > div span { display: block; color: var(--muted); font-family: var(--font-mono); font-size: 0.82rem; overflow-wrap: anywhere; }
 .payment-success > div .success-people { margin-top: 2px; font-family: var(--font-body); font-size: 0.8rem; }
 .success-amount { color: var(--ok-text); font-family: var(--font-mono); font-size: 1.1rem; font-variant-numeric: tabular-nums; }
-
 /* =========================================================
    MÉTODO DE PAGO
 ========================================================= */
@@ -1452,7 +1332,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .method-text small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.78rem; line-height: 1.3; }
 .method-check { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--accent); color: var(--card); opacity: 0; transform: scale(0.6); transition: opacity 0.18s ease, transform 0.18s ease; }
 .method-tile.active .method-check { opacity: 1; transform: scale(1); }
-
 /* =========================================================
    FOLIO
 ========================================================= */
@@ -1462,7 +1341,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .folio-badge.required { color: var(--warn-text); background: rgba(251, 191, 36, 0.12); }
 .folio-note { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, transparent); color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
 .folio-note svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
-
 /* =========================================================
    STRIPE
 ========================================================= */
@@ -1508,23 +1386,19 @@ watch(() => [route.params.id, route.query.sede_id], () => {
 .stripe-open:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .qr-hide { min-height: 36px; padding: 2px 0; border: 0; background: transparent; color: var(--muted); font-family: inherit; font-size: 0.82rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .qr-hide:hover { color: var(--text); }
-
 /* =========================================================
    MODAL
 ========================================================= */
 .modal-wrapper { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; background: rgba(0, 0, 0, 0.82); }
 .pop-enter-active, .pop-leave-active { transition: opacity 0.18s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; }
-
 /* =========================================================
    NOTIFICATIONS
 ========================================================= */
 :deep(.notification-container), :deep(.toast-container) { width: calc(100% - 32px) !important; max-width: 480px !important; left: 50% !important; right: auto !important; margin: 0 auto !important; box-sizing: border-box !important; transform: translateX(-50%) !important; }
-
 /* =========================================================
    RESPONSIVE
 ========================================================= */
-
 /* Pantalla ancha: izquierda = método de pago + folio; derecha = monto + resumen; botones abajo a todo el ancho */
 @media (min-width: 1180px) {
   .payment-card > .form-section:not(.group-section):not(.amount-section) { grid-column: 1; grid-row: span 3; }
@@ -1532,9 +1406,7 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .payment-card > .transaction-review { grid-column: 2; margin-top: 0; align-self: start; }
   .method-grid { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 1100px) { .payment-page { padding: 28px 28px 48px; } }
-
 /* Tableta y móvil: el cliente pasa arriba como tarjeta horizontal compacta y el cobro usa todo el ancho */
 @media (max-width: 1000px) {
   .payment-page { padding: 24px 20px 40px; }
@@ -1557,7 +1429,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .client-mini-info > div { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 8px 2px; border-bottom: 0; }
   .client-mini-info strong { text-align: left; }
 }
-
 /* Celular: todo centrado en una sola columna */
 @media (max-width: 560px) {
   /* Tarjeta compacta: foto cuadrada a la izquierda, nombre y estado a la derecha */
@@ -1571,13 +1442,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     font-size: 0.76rem; font-weight: 600;
   }
   .active-pill i { width: 7px; height: 7px; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18); }
-
   .client-mini-info { display: block; margin-top: 16px; }
   .client-mini-info > div { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); }
   .client-mini-info > div:last-child { padding-bottom: 2px; border-bottom: 0; }
   .client-mini-info strong { text-align: right; }
 }
-
 @media (max-width: 780px) {
   .page-header { align-items: flex-start; flex-direction: column; gap: 16px; }
   .search-section { width: 100%; }
@@ -1595,7 +1464,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .qr-info { width: 100%; align-items: center; text-align: center; }
   .qr-amount-block { align-items: center; }
 }
-
 @media (max-width: 600px) {
   .payment-page { padding: 18px 12px calc(32px + env(safe-area-inset-bottom, 0px)); }
   .page-header { margin-bottom: 20px; padding-bottom: 18px; }
@@ -1607,7 +1475,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .billing-dates { grid-template-columns: 1fr; gap: 8px; }
   .date-arrow { justify-content: center; transform: rotate(90deg); }
   .billing-date strong { white-space: normal; }
-
   /* Total a pagar con más aire */
   .payment-summary { align-items: stretch; flex-direction: column; gap: 18px; padding: 20px 18px; margin-bottom: 18px; }
   .summary-heading { gap: 8px; margin-bottom: 12px; }
@@ -1618,7 +1485,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .plan-line > strong { font-size: 1rem; }
   .plan-duration { padding: 2px 10px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
   .group-tag { white-space: normal; line-height: 1.35; }
-
   /* Recargo y promoción: filas completas apiladas */
   .summary-side { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; }
   .surcharge-box { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; text-align: left; }
@@ -1630,13 +1496,11 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   }
   .promotion-applied svg { flex-shrink: 0; }
   .promo-remove { flex-shrink: 0; margin-left: auto; padding: 5px 12px; }
-
   .form-section { padding: 18px 0; }
   /* 16px evita el zoom automático de iOS al enfocar un campo */
   .field-control input, .search-control input { font-size: 1rem; }
   .amount-input-box { min-height: 62px; padding: 0 14px; }
   .amount-input-box input { font-size: 1.6rem; }
-
   /* Resumen: encabezado y estado "Incompleto" */
   .transaction-review { padding: 16px; }
   /* Encabezado: "RESUMEN" a la izquierda y el estado a la derecha; el título debajo */
@@ -1652,7 +1516,6 @@ watch(() => [route.params.id, route.query.sede_id], () => {
     grid-column: 2; grid-row: 1; gap: 6px; padding: 3px 10px 3px 8px;
     font-size: 0.72rem; font-weight: 600; white-space: nowrap;
   }
-
   .method-grid { grid-template-columns: 1fr; gap: 10px; }
   .stripe-box { padding: 14px; }
   .stripe-link { width: 100%; justify-content: center; }
@@ -1666,17 +1529,14 @@ watch(() => [route.params.id, route.query.sede_id], () => {
   .group-price { grid-template-columns: 1fr; }
   .action-buttons { margin-left: -6px; margin-right: -6px; }
 }
-
 @media (max-width: 400px) {
   .avatar-container { width: 84px; height: 84px; }
   .client-name h2 { font-size: 1.1rem; }
   .success-amount { display: none; }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
-
 /* Vista previa de cobertura calculada desde el monto ingresado. */
 .amount-coverage{margin:8px 0 0;color:#34d399;font-size:.76rem;line-height:1.5}
 .amount-coverage strong{font-weight:700}

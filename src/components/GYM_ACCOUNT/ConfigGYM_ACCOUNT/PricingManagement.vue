@@ -3,9 +3,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
-
 const localTranslations = {
   es: {
     commercialTitle: 'PROMOCIONES Y', commercialHighlight: 'TARIFAS',
@@ -36,14 +34,12 @@ const localTranslations = {
     notSet: 'Not set'
   }
 };
-
 const t = (key) =>
   localTranslations[currentLang.value]?.[key] ||
   traducciones[currentLang.value]?.[key] ||
   localTranslations.es[key] ||
   traducciones.es?.[key] ||
   key;
-
 const toastRef = ref(null);
 const registros = ref([]);
 const loading = ref(false);
@@ -51,11 +47,9 @@ const saving = ref(false);
 const aplicarTodas = ref(false);
 const copiando = ref(false);
 const selectedSede = ref(sessionStorage.getItem('selected_sede_id') || '');
-
 const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const api = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/precios`;
 const notify = (message, type = 'info') => toastRef.value?.notify?.(message, type);
-
 const request = async (path = '', options = {}) => {
   const token = sessionStorage.getItem('auth_token');
   if (!token) throw new Error('Inicia sesión nuevamente.');
@@ -74,7 +68,6 @@ const request = async (path = '', options = {}) => {
   }
   return data;
 };
-
 /* ---------- Periodos de tarifa ---------- */
 const PERIODOS = ['Diario', 'Semanal', 'Quincenal', 'Mensual'];
 const periodoLabel = (p) => ({
@@ -83,7 +76,6 @@ const periodoLabel = (p) => ({
   Quincenal: currentLang.value === 'en' ? 'Biweekly' : 'Quincenal',
   Mensual: currentLang.value === 'en' ? 'Monthly' : 'Mensual'
 })[p] || p;
-
 const duracionTexto = (x) => {
   if (x.Periodo === 'Diario') return currentLang.value === 'en' ? '1 day' : '1 día';
   if (x.Periodo === 'Semanal') return currentLang.value === 'en' ? '1 week' : '1 semana';
@@ -91,7 +83,6 @@ const duracionTexto = (x) => {
   if (x.Cantidad_Meses) return `${x.Cantidad_Meses} ${Number(x.Cantidad_Meses) === 1 ? t('month') : t('months')}`;
   return '';
 };
-
 const preciosSistema = computed(() =>
   registros.value
     .filter((x) => x.Periodo !== 'Promocion')
@@ -107,7 +98,6 @@ const preciosSistema = computed(() =>
     // Orden lógico: visita, semana, quincena, mes
     .sort((a, b) => PERIODOS.indexOf(a.periodo) - PERIODOS.indexOf(b.periodo))
 );
-
 const promociones = computed(() =>
   registros.value
     .filter((x) => x.Periodo === 'Promocion')
@@ -119,7 +109,6 @@ const promociones = computed(() =>
       precio: Number(x.Precio)
     }))
 );
-
 const precioMensual = computed(() => preciosSistema.value.find((x) => x.periodo === 'Mensual')?.monto || 0);
 const precioSemanal = computed(() => preciosSistema.value.find((x) => x.periodo === 'Semanal')?.monto || 0);
 const precioDiario = computed(() => preciosSistema.value.find((x) => x.periodo === 'Diario')?.monto || 0);
@@ -128,23 +117,18 @@ const promedioPromociones = computed(() =>
     ? Math.round(promociones.value.reduce((a, p) => a + p.precio, 0) / promociones.value.length)
     : 0
 );
-
 const formatCurrency = (value) =>
   new Intl.NumberFormat(currentLang.value === 'en' ? 'en-US' : 'es-MX', {
     style: 'currency', currency: 'MXN', maximumFractionDigits: 2
   }).format(Number(value || 0));
-
 const precioPorMes = (p) => Number(p.precio || 0) / Math.max(1, Number(p.meses || 1)) / Math.max(1, Number(p.personas || 1));
 const precioPorPersona = (p) => Number(p.precio || 0) / Math.max(1, Number(p.personas || 1));
-
 /* ---------- Modales ---------- */
 const formVacio = (periodo = 'Mensual') => ({
   id: null, nombre: '', meses: 1, personas: 1, precio: '', concepto: '', monto: '', duracion: '', periodo
 });
-
 const modalConfig = reactive({ isOpen: false, type: 'precio', title: '', isNew: true, form: formVacio() });
 const deleteModalConfig = reactive({ isOpen: false, idItemToDelete: null });
-
 const obtenerPrecios = async () => {
   if (!selectedSede.value) { registros.value = []; return; }
   loading.value = true;
@@ -157,7 +141,6 @@ const obtenerPrecios = async () => {
     loading.value = false;
   }
 };
-
 const abrirModalAgregarPromo = () => {
   Object.assign(modalConfig, { isOpen: true, type: 'promo', title: 'Nueva promoción', isNew: true, form: formVacio('Promocion') });
 };
@@ -179,12 +162,10 @@ const abrirModalEditarPrecio = (p) => {
     form: { ...formVacio(p.periodo), id: p.id, meses: p.meses || 1, concepto: p.concepto, monto: p.monto, duracion: p.duracion }
   });
 };
-
 const ajustar = (campo, delta, min = 1, max = 120) => {
   const f = modalConfig.form;
   f[campo] = Math.min(max, Math.max(min, (Number(f[campo]) || min) + delta));
 };
-
 const previewPromo = computed(() => {
   const f = modalConfig.form;
   const meses = Math.max(1, Number(f.meses) || 1);
@@ -192,19 +173,16 @@ const previewPromo = computed(() => {
   const precio = Number(f.precio) || 0;
   return { meses, personas, precio, porPersona: precio / personas, porMes: precio / personas / meses };
 });
-
 const cerrarModal = () => {
   if (!saving.value) modalConfig.isOpen = false;
   aplicarTodas.value = false;
 };
-
 const guardarDatos = async () => {
   if (!selectedSede.value) { notify('Selecciona una sucursal.', 'error'); return; }
   const f = modalConfig.form;
   const promo = modalConfig.type === 'promo';
   const periodo = promo ? 'Promocion' : f.periodo;
   const sinMeses = ['Semanal', 'Diario', 'Quincenal'].includes(periodo);
-
   const payload = {
     sede_id: Number(selectedSede.value),
     Nombre_Paquete: String(promo ? f.nombre : f.concepto).trim(),
@@ -218,12 +196,10 @@ const guardarDatos = async () => {
     aplicar_todas: aplicarTodas.value
   };
   void sinMeses;
-
   if (!payload.Nombre_Paquete || !Number.isFinite(payload.Precio) || payload.Precio < 0) {
     notify('Ingresa un nombre y precio válido.', 'error');
     return;
   }
-
   saving.value = true;
   try {
     await request(modalConfig.isNew ? '' : `/${f.id}`, {
@@ -241,7 +217,6 @@ const guardarDatos = async () => {
     saving.value = false;
   }
 };
-
 /* ---------- Copiar a todas las sedes ---------- */
 const copyModalOpen = ref(false);
 const abrirModalCopiar = () => {
@@ -262,7 +237,6 @@ const copiarConfiguracion = async () => {
     copiando.value = false;
   }
 };
-
 /* ---------- Eliminar ---------- */
 const confirmarEliminarPromocion = (p) => { deleteModalConfig.idItemToDelete = p.id; deleteModalConfig.isOpen = true; };
 const ejecutarEliminacion = async () => {
@@ -275,14 +249,12 @@ const ejecutarEliminacion = async () => {
     notify(e.message, 'error');
   }
 };
-
 /* ---------- Eventos globales ---------- */
 const handleLangChange = (e) => { if (e.detail?.idioma) currentLang.value = e.detail.idioma; };
 const handleBranchChange = () => {
   selectedSede.value = sessionStorage.getItem('selected_sede_id') || '';
   obtenerPrecios();
 };
-
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('factorfit:branch-changed', handleBranchChange);
@@ -300,12 +272,10 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', handleBranchChange);
 });
 </script>
-
 <template>
 <HeadingGYM_ACCOUNT>
 <NotificationSystem ref="toastRef" />
 <main class="commercial-page">
-
   <!-- ENCABEZADO -->
   <header class="page-header" id="tutorial-step-0">
     <div class="page-heading">
@@ -328,7 +298,6 @@ onUnmounted(() => {
       <span>{{ t('newPromotion') }}</span>
     </button>
   </header>
-
   <!-- BARRA DE SUCURSAL -->
   <div class="global-prices-action">
     <div class="branch-note">
@@ -340,7 +309,6 @@ onUnmounted(() => {
       Copiar configuración a todas las sedes
     </button>
   </div>
-
   <!-- MÉTRICAS -->
   <section class="metrics-grid">
     <article class="metric-card tone-blue">
@@ -351,7 +319,6 @@ onUnmounted(() => {
       <strong>{{ promociones.length }}</strong>
       <div class="metric-bottom"><span class="status-dot"></span>{{ t('active') }}</div>
     </article>
-
     <article class="metric-card tone-cyan">
       <div class="metric-head">
         <div class="metric-icon cyan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
@@ -363,7 +330,6 @@ onUnmounted(() => {
         <button v-else type="button" class="metric-link" @click="abrirModalAgregarPrecio('Diario')">+ {{ t('notSet') }}</button>
       </div>
     </article>
-
     <article class="metric-card tone-violet">
       <div class="metric-head">
         <div class="metric-icon violet"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
@@ -372,7 +338,6 @@ onUnmounted(() => {
       <strong>{{ formatCurrency(precioSemanal) }}</strong>
       <div class="metric-bottom">{{ t('configured') }}</div>
     </article>
-
     <article class="metric-card tone-green">
       <div class="metric-head">
         <div class="metric-icon green"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
@@ -381,7 +346,6 @@ onUnmounted(() => {
       <strong>{{ formatCurrency(precioMensual) }}</strong>
       <div class="metric-bottom">{{ t('price') }} / {{ t('month') }}</div>
     </article>
-
     <article class="metric-card tone-orange">
       <div class="metric-head">
         <div class="metric-icon orange"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 16 4-5 4 3 5-7"/></svg></div>
@@ -391,9 +355,7 @@ onUnmounted(() => {
       <div class="metric-bottom">{{ promociones.length }} {{ t('promotionsSection').toLowerCase() }}</div>
     </article>
   </section>
-
   <section class="management-grid">
-
     <!-- PROMOCIONES -->
     <article class="management-panel tone-blue" id="tutorial-step-1">
       <header class="section-header">
@@ -406,7 +368,6 @@ onUnmounted(() => {
         </div>
         <span class="counter">{{ promociones.length }}</span>
       </header>
-
       <div v-if="promociones.length" class="promotion-list">
         <article v-for="promo in promociones" :key="promo.id" class="promotion-card">
           <div class="promo-main">
@@ -446,7 +407,6 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
-
           <div class="card-actions">
             <button type="button" class="action-btn edit" :title="t('edit')" @click="abrirModalEditarPromocion(promo)">
               <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
@@ -458,7 +418,6 @@ onUnmounted(() => {
           </div>
         </article>
       </div>
-
       <div v-else class="empty-state">
         <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M20.59 13.41 12 22l-9-9V3h10l7.59 7.59a2 2 0 0 1 0 2.82Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></div>
         <h3>{{ t('noPromotions') }}</h3>
@@ -469,7 +428,6 @@ onUnmounted(() => {
         </button>
       </div>
     </article>
-
     <!-- TARIFAS DEL SISTEMA -->
     <article class="management-panel tone-violet" id="tutorial-step-2">
       <header class="section-header">
@@ -485,15 +443,12 @@ onUnmounted(() => {
           <span class="counter violet-counter">{{ preciosSistema.length }}</span>
         </div>
       </header>
-
       <div v-if="loading" class="empty-state"><p>Cargando tarifas...</p></div>
-
       <div v-else-if="!preciosSistema.length" class="empty-state">
         <h3>No hay tarifas registradas en esta sucursal.</h3>
         <p>Agrega una tarifa de visita, semanal o mensual para comenzar.</p>
         <button type="button" @click="abrirModalAgregarPrecio()">+ Agregar tarifa</button>
       </div>
-
       <div v-else class="prices-list">
         <article v-for="precio in preciosSistema" :key="precio.id" class="price-card" :class="'period-' + String(precio.periodo).toLowerCase()">
           <div class="price-content">
@@ -518,7 +473,6 @@ onUnmounted(() => {
     </article>
   </section>
 </main>
-
 <!-- MODAL PROMOCIÓN / TARIFA -->
 <transition name="pop">
   <div v-if="modalConfig.isOpen" class="modal-wrapper" @click.self="cerrarModal">
@@ -528,7 +482,6 @@ onUnmounted(() => {
         <svg v-else viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>
       </div>
       <h3>{{ modalConfig.title }}</h3>
-
       <form @submit.prevent="guardarDatos">
         <!-- PROMO -->
         <template v-if="modalConfig.type === 'promo'">
@@ -536,7 +489,6 @@ onUnmounted(() => {
             <label>{{ t('promoNameLabel') }}</label>
             <input type="text" v-model="modalConfig.form.nombre" :placeholder="t('promoNamePlaceholder')" required />
           </div>
-
           <div class="field-block">
             <label>{{ t('monthsFieldLabel') }}</label>
             <div class="stepper">
@@ -550,7 +502,6 @@ onUnmounted(() => {
               </button>
             </div>
           </div>
-
           <div class="field-block">
             <label>{{ t('personsLabel') }}</label>
             <div class="stepper">
@@ -565,7 +516,6 @@ onUnmounted(() => {
             </div>
             <small class="field-hint">{{ currentLang === 'en' ? 'E.g. a buddy promo: 2 people share the promotion.' : 'Ej. promoción amigo: 2 personas comparten la promoción.' }}</small>
           </div>
-
           <div class="input-group">
             <label>{{ t('priceFieldLabel') }} <small class="label-note">({{ currentLang === 'en' ? 'total for everyone' : 'total para todos' }})</small></label>
             <div class="money-input">
@@ -574,7 +524,6 @@ onUnmounted(() => {
               <em>MXN</em>
             </div>
           </div>
-
           <div class="promo-preview">
             <div class="preview-title">{{ t('summary') }}</div>
             <p>
@@ -588,7 +537,6 @@ onUnmounted(() => {
             </div>
           </div>
         </template>
-
         <!-- TARIFA -->
         <template v-if="modalConfig.type === 'precio'">
           <div class="input-group">
@@ -600,12 +548,10 @@ onUnmounted(() => {
             </div>
             <small v-if="modalConfig.form.periodo === 'Diario'" class="field-hint">Cobro único por entrar un día, sin membresía. Ideal para visitantes.</small>
           </div>
-
           <div class="input-group">
             <label>{{ t('conceptFieldLabel') }}</label>
             <input type="text" v-model="modalConfig.form.concepto" :placeholder="modalConfig.form.periodo === 'Diario' ? 'Ej. Visita de un día' : t('conceptPlaceholder')" required />
           </div>
-
           <div class="input-group">
             <label>{{ t('newPriceFieldLabel') }}</label>
             <div class="money-input">
@@ -614,13 +560,11 @@ onUnmounted(() => {
               <em>MXN</em>
             </div>
           </div>
-
           <div v-if="modalConfig.form.periodo === 'Mensual'" class="input-group">
             <label>Cantidad de meses</label>
             <input type="number" min="1" max="120" v-model.number="modalConfig.form.meses" required />
           </div>
         </template>
-
         <div class="modal-actions">
           <button type="button" class="btn-secondary" :disabled="saving" @click="cerrarModal">{{ t('btnCancel') }}</button>
           <button type="submit" class="btn-primary" :disabled="saving">
@@ -632,7 +576,6 @@ onUnmounted(() => {
     </div>
   </div>
 </transition>
-
 <!-- MODAL COPIAR -->
 <transition name="pop">
   <div v-if="copyModalOpen" class="modal-wrapper" @click.self="cerrarModalCopiar">
@@ -657,7 +600,6 @@ onUnmounted(() => {
     </div>
   </div>
 </transition>
-
 <!-- MODAL ELIMINAR -->
 <transition name="pop">
   <div v-if="deleteModalConfig.isOpen" class="modal-wrapper" @click.self="deleteModalConfig.isOpen = false">
@@ -676,10 +618,8 @@ onUnmounted(() => {
 </transition>
 </HeadingGYM_ACCOUNT>
 </template>
-
 <style scoped>
 @import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
 .commercial-page, .modal-wrapper{--accent: var(--color-highlight, #3b82f6);--panel: var(--bg-cards, #121416);--input: var(--bg-input, #0c0e10);--text: var(--color-texto-general, #e5e7eb);--title: var(--color-titulos, #ffffff);--muted: color-mix(in srgb, var(--text) 62%, transparent);--line: color-mix(in srgb, var(--text) 15%, transparent);--line-soft: color-mix(in srgb, var(--text) 9%, transparent);--green: #34d399;--violet: #8b5cf6;--orange: #f59e0b;--cyan: #22d3ee;--red: #f87171;}
 .commercial-page{width: 100%;max-width: 1450px;margin: 0 auto;padding: 30px 32px 56px;box-sizing: border-box;color: var(--text);font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;-webkit-font-smoothing: antialiased;}
 .commercial-page *, .modal-wrapper *{box-sizing: border-box;}
@@ -688,7 +628,6 @@ onUnmounted(() => {
 .tone-violet{--tone: var(--violet);}
 .tone-orange{--tone: var(--orange);}
 .tone-cyan{--tone: var(--cyan);}
-
 /* Encabezado */
 .page-header{position: relative;display: flex;align-items: center;justify-content: space-between;gap: 24px;margin-bottom: 24px;padding-bottom: 22px;border-bottom: 1px solid var(--line-soft);}
 .page-header::after{content: '';position: absolute;bottom: -1px;left: 0;width: 72px;height: 2px;border-radius: 999px;background: var(--accent);}
@@ -701,7 +640,6 @@ onUnmounted(() => {
 .page-heading p{max-width: 650px;margin: 6px 0 0;color: var(--muted);font-size: .8rem;line-height: 1.5;}
 .live-badge{min-height: 23px;display: inline-flex;align-items: center;gap: 6px;padding: 3px 10px;border: 1px solid rgba(52, 211, 153, .24);border-radius: 999px;background: rgba(52, 211, 153, .07);color: var(--green);font-size: .62rem;font-weight: 700;}
 .live-badge span, .status-dot, .active-chip span{width: 6px;height: 6px;border-radius: 50%;background: currentColor;box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);}
-
 /* Botones principales */
 .new-promo-btn{min-height: 46px;display: inline-flex;align-items: center;justify-content: center;gap: 9px;flex-shrink: 0;padding: 0 20px;border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);border-radius: 11px;background: var(--color-botones, var(--accent));color: var(--color-texto-botones, #fff);font-family: 'Inter', sans-serif;font-size: .8rem;font-weight: 700;cursor: pointer;box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 22%, transparent);transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;}
 .new-promo-btn:hover{filter: brightness(1.08);box-shadow: 0 11px 26px color-mix(in srgb, var(--accent) 30%, transparent);transform: translateY(-1px);}
@@ -709,13 +647,11 @@ onUnmounted(() => {
 .new-promo-btn.ghost{background:color-mix(in srgb, var(--accent) 8%, transparent);color:var(--accent);box-shadow:none;border-color:color-mix(in srgb, var(--accent) 34%, transparent)}
 .new-promo-btn.ghost:hover{background:color-mix(in srgb, var(--accent) 14%, transparent);box-shadow:none}
 .new-promo-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
-
 /* Barra de sucursal */
 .global-prices-action{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px;padding:12px 16px;border:1px solid var(--line-soft);border-radius:12px;background:color-mix(in srgb, var(--text) 2.5%, transparent);font-size:.8rem;color:var(--muted)}
 .global-prices-action .new-promo-btn{min-height:38px}
 .branch-note{display:flex;align-items:center;gap:9px;min-width:0}
 .branch-note svg{flex-shrink:0;color:var(--accent)}
-
 /* Métricas: se acomodan solas según el ancho */
 .metrics-grid{display: grid;grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));gap: 14px;margin-bottom: 18px;}
 .metric-card{position: relative;min-width: 0;padding: 17px 18px;overflow: hidden;border: 1px solid var(--line);border-radius: var(--app-border-radius, 14px);background: var(--panel);box-shadow: 0 10px 28px rgba(0, 0, 0, .14);transition: border-color .18s ease, transform .18s ease;}
@@ -735,7 +671,6 @@ onUnmounted(() => {
 .metric-bottom .status-dot{color: var(--green);}
 .metric-link{padding:0;border:0;background:transparent;color:var(--cyan);font:inherit;font-weight:600;cursor:pointer}
 .metric-link:hover{text-decoration:underline}
-
 /* Paneles */
 .management-grid{display: grid;grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);gap: 18px;align-items: start;}
 .management-panel{position: relative;min-width: 0;overflow: hidden;border: 1px solid var(--line);border-radius: var(--app-border-radius, 16px);background: var(--panel);box-shadow: 0 16px 40px rgba(0, 0, 0, .18);}
@@ -750,7 +685,6 @@ onUnmounted(() => {
 .section-header p{margin: 0;color: var(--muted);font-size: .68rem;line-height: 1.45;}
 .counter{min-width: 30px;height: 30px;display: flex;align-items: center;justify-content: center;flex-shrink: 0;padding: 0 8px;border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);border-radius: 999px;background: color-mix(in srgb, var(--accent) 8%, transparent);color: var(--accent);font-family: 'Oswald', sans-serif;font-size: .8rem;font-weight: 600;}
 .violet-counter{border-color: rgba(139, 92, 246, .28);background: rgba(139, 92, 246, .09);color: var(--violet);}
-
 /* Promociones */
 .promotion-list{display: flex;flex-direction: column;gap: 10px;padding: 16px;}
 .promotion-card{position: relative;display: flex;align-items: center;justify-content: space-between;gap: 18px;padding: 16px 17px;border: 1px solid var(--line-soft);border-radius: 13px;background: color-mix(in srgb, var(--text) 1.5%, transparent);transition: background .17s ease, border-color .17s ease;}
@@ -780,7 +714,6 @@ onUnmounted(() => {
 .action-btn.delete{width: 38px;padding: 0;}
 .action-btn.delete:hover{border-color: rgba(248, 113, 113, .34);background: rgba(248, 113, 113, .09);color: var(--red);}
 .action-btn:active, .price-edit:active{transform: scale(.95);}
-
 /* Tarifas */
 .prices-list{display: flex;flex-direction: column;gap: 10px;padding: 16px;}
 .price-card{position: relative;display: flex;align-items: center;justify-content: space-between;gap: 12px;padding: 14px 15px;border: 1px solid var(--line-soft);border-radius: 13px;background: color-mix(in srgb, var(--text) 1.5%, transparent);transition: border-color .17s ease, background .17s ease;}
@@ -798,7 +731,6 @@ onUnmounted(() => {
 .price-amount span{color: var(--muted);font-family: 'Inter', sans-serif;font-size: .6rem;font-weight: 500;}
 .price-edit{width: 38px;flex-shrink: 0;padding: 0;}
 .price-edit:hover{border-color: rgba(139, 92, 246, .4);background: rgba(139, 92, 246, .1);color: var(--violet);}
-
 /* Estados vacíos */
 .empty-state{min-height: 280px;display: flex;flex-direction: column;align-items: center;justify-content: center;margin: 16px;padding: 30px;border: 1px dashed var(--line);border-radius: 13px;text-align: center;}
 .empty-icon{width: 52px;height: 52px;display: flex;align-items: center;justify-content: center;margin-bottom: 14px;border: 1px solid var(--line);border-radius: 14px;background: color-mix(in srgb, var(--text) 3%, transparent);color: var(--muted);}
@@ -808,7 +740,6 @@ onUnmounted(() => {
 .empty-state button{min-height: 40px;display: flex;align-items: center;gap: 8px;padding: 0 15px;border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);border-radius: 9px;background: color-mix(in srgb, var(--accent) 8%, transparent);color: var(--accent);font-family: 'Inter', sans-serif;font-size: .7rem;font-weight: 650;cursor: pointer;transition: background .16s ease, transform .16s ease;}
 .empty-state button:hover{background: color-mix(in srgb, var(--accent) 14%, transparent);transform: translateY(-1px);}
 .empty-state button svg{width: 14px;height: 14px;fill: none;stroke: currentColor;stroke-width: 2;stroke-linecap: round;}
-
 /* Modales */
 .modal-wrapper{position: fixed;z-index: 9999;inset: 0;display: flex;align-items: center;justify-content: center;padding: 16px;background: rgba(0, 0, 0, .72);backdrop-filter: blur(4px);font-family: 'Inter', system-ui, sans-serif;}
 .custom-modal-card{position: relative;width: 100%;max-width: 430px;max-height: calc(100dvh - 32px);overflow-y: auto;padding: 28px 26px 24px;border: 1px solid var(--line);border-radius: 16px;background: var(--panel);color: var(--text);box-shadow: 0 28px 70px rgba(0, 0, 0, .55);}
@@ -820,7 +751,6 @@ onUnmounted(() => {
 .modal-icon-badge.badge-violet{border-color: rgba(139, 92, 246, .28);background: rgba(139, 92, 246, .1);color: var(--violet);}
 .modal-icon-badge svg, .warning-icon svg{width: 22px;height: 22px;fill: none;stroke: currentColor;stroke-width: 1.8;stroke-linecap: round;stroke-linejoin: round;}
 .custom-modal-card > h3{margin: 0 0 22px;color: var(--title);font-family: 'Oswald', sans-serif;font-size: 1.1rem;font-weight: 600;letter-spacing: .02em;text-align: center;}
-
 /* Formularios */
 .input-group{display: flex;flex-direction: column;gap: 7px;margin-bottom: 14px;}
 .input-group label, .field-block > label{color: var(--color-etiquetas, var(--text));font-size: .7rem;font-weight: 600;letter-spacing: .015em;}
@@ -851,13 +781,11 @@ onUnmounted(() => {
 .money-input span,.money-input em{color:var(--muted);font-style:normal;font-size:.78rem;font-weight:600}
 .money-input input{flex:1;min-width:0;min-height:44px;padding:0;border:0;outline:none;box-shadow:none;background:transparent;color:var(--color-texto-input, var(--text));font-family:'Oswald',sans-serif;font-size:1.15rem;font-weight:600;-moz-appearance:textfield;appearance:textfield}
 .money-input input::-webkit-inner-spin-button,.money-input input::-webkit-outer-spin-button{margin:0;-webkit-appearance:none}
-
 /* Selector de tipo de tarifa (reemplaza el select) */
 .period-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .period-tab{min-height:42px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:.72rem;font-weight:600;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
 .period-tab:hover{border-color:color-mix(in srgb, var(--violet) 50%, transparent);color:var(--text)}
 .period-tab.active{border-color:var(--violet);background:rgba(139,92,246,.14);color:#c4b5fd}
-
 /* Resumen de promo */
 .promo-preview{margin-top:4px;padding:14px;border:1px solid color-mix(in srgb, var(--accent) 24%, transparent);border-radius:12px;background:color-mix(in srgb, var(--accent) 6%, transparent)}
 .preview-title{color:var(--accent);font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -866,7 +794,6 @@ onUnmounted(() => {
 .preview-grid > div{padding:9px 11px;border:1px solid var(--line-soft);border-radius:9px;background:color-mix(in srgb, var(--panel) 70%, transparent)}
 .preview-grid span{display:block;margin-bottom:2px;color:var(--muted);font-size:.58rem;font-weight:600}
 .preview-grid strong{color:var(--green);font-family:'Oswald',sans-serif;font-size:.98rem;font-variant-numeric:tabular-nums}
-
 /* Acciones del modal */
 .modal-actions{display: flex;gap: 10px;margin-top: 22px;}
 .btn-primary, .btn-secondary, .btn-danger{flex: 1;min-height: 46px;border-radius: 10px;font-family: 'Inter', sans-serif;font-size: .76rem;font-weight: 700;cursor: pointer;transition: background .16s ease, border-color .16s ease, filter .16s ease, transform .16s ease;}
@@ -879,13 +806,11 @@ onUnmounted(() => {
 .btn-primary:disabled,.btn-secondary:disabled{opacity:.6;cursor:not-allowed;transform:none;filter:none}
 .btn-spinner{display:inline-block;vertical-align:-3px;margin-right:8px;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
 /* Eliminar */
 .delete-modal{max-width: 380px;text-align: center;}
 .delete-modal::before{background: linear-gradient(90deg, transparent, var(--red), transparent);}
 .warning-icon{border-color: rgba(248, 113, 113, .26);background: rgba(248, 113, 113, .09);color: var(--red);}
 .delete-msg{max-width: 310px;margin: -8px auto 4px;color: var(--muted);font-size: .74rem;line-height: 1.6;}
-
 /* Copiar */
 .copy-modal{max-width:440px}
 .copy-lead{margin:-8px auto 18px;max-width:340px;color:var(--muted);font-size:.76rem;line-height:1.55;text-align:center}
@@ -895,26 +820,21 @@ onUnmounted(() => {
 .copy-steps strong{display:block;margin-bottom:2px;color:var(--title);font-size:.76rem;font-weight:650}
 .copy-steps small{display:block;color:var(--muted);font-size:.68rem;line-height:1.45}
 .copy-confirm{display:inline-flex;align-items:center;justify-content:center;gap:8px}
-
 /* Encabezado de "Tarifas del sistema" */
 .management-panel.tone-violet .section-header{flex-wrap: wrap;align-items: center;row-gap: 12px;}
 .management-panel.tone-violet .section-title{flex: 1 1 200px;min-width: 0;}
 .tariff-header-actions{display: flex;align-items: center;gap: 10px;flex: 0 0 auto;margin-left: auto;}
 .tariff-header-actions .new-promo-btn{min-height: 34px;padding: 0 12px;font-size: .7rem;white-space: nowrap;}
 .tariff-header-actions .counter{flex-shrink: 0;}
-
 /* Toasts */
 :deep(.notification-container), :deep(.toast-container){width: calc(100% - 32px) !important;max-width: 480px !important;left: 50% !important;right: auto !important;transform: translateX(-50%) !important;}
-
 /* Foco visible */
 .new-promo-btn:focus-visible, .action-btn:focus-visible, .price-edit:focus-visible, .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-danger:focus-visible, .empty-state button:focus-visible, .period-tab:focus-visible, .chip:focus-visible, .step-btn:focus-visible{outline: 2px solid var(--accent);outline-offset: 2px;}
-
 /* Transiciones de modal */
 .pop-enter-active, .pop-leave-active{transition: opacity .2s ease;}
 .pop-enter-active .custom-modal-card, .pop-leave-active .custom-modal-card{transition: transform .2s ease, opacity .2s ease;}
 .pop-enter-from, .pop-leave-to{opacity: 0;}
 .pop-enter-from .custom-modal-card, .pop-leave-to .custom-modal-card{opacity: 0;transform: translateY(10px) scale(.985);}
-
 /* Responsive */
 @media (max-width: 1100px){
   .management-grid{grid-template-columns: 1fr;}

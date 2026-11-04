@@ -1,10 +1,8 @@
 <template>
   <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
-
     <main class="reg-page">
       <div class="reg-layout">
-
         <!-- =====================================================
              PERFIL / FOTO
         ====================================================== -->
@@ -16,7 +14,6 @@
             <template v-else-if="currentLang === 'pt'">Registre sua <br><span class="highlight">Equipe</span></template>
             <template v-else>Registra a tu <br><span class="highlight">Personal</span></template>
           </h1>
-
           <div class="avatar-wrap">
             <div class="avatar-ring">
               <div class="avatar-circle" role="button" tabindex="0" :title="t('titleAvatarClick')"
@@ -34,9 +31,7 @@
             </button>
             <input type="file" ref="fileInput" accept="image/jpeg,image/png,image/webp" class="hidden-input" @change="handleFileChange" />
           </div>
-
           <p class="profile-hint">{{ t('hintEmployeePhoto') }}</p>
-
           <ul class="profile-summary">
             <li class="summary-row">
               <span class="summary-ico"><i class="bi bi-person"></i></span>
@@ -71,12 +66,10 @@
             </li>
           </ul>
         </aside>
-
         <!-- =====================================================
              FORMULARIOS
         ====================================================== -->
         <div class="forms-col">
-
           <!-- CREDENCIALES Y ROL -->
           <section class="card credentials-card" id="tutorial-step-1">
             <header class="card-head">
@@ -86,7 +79,6 @@
                 <p class="card-desc">{{ L('Elige el rol y los datos de acceso al sistema.', 'Choose the role and the system access details.', 'Choisissez le rôle et les accès au système.', 'Escolha a função e os dados de acesso ao sistema.') }}</p>
               </div>
             </header>
-
             <div class="stack">
               <!-- ROL -->
               <div class="field">
@@ -100,7 +92,6 @@
                   </button>
                 </div>
               </div>
-
               <div class="grid grid-2">
                 <!-- CORREO -->
                 <div class="field">
@@ -110,7 +101,6 @@
                     <input id="staff-email" type="email" v-model="form.email" placeholder="correo@ejemplo.com" autocomplete="email" />
                   </div>
                 </div>
-
                 <!-- ESPECIALIDAD -->
                 <div v-if="isTrainer" class="field">
                   <label for="staff-specialty">{{ t('specialty') }} <span class="req">*</span></label>
@@ -120,7 +110,6 @@
                   </div>
                 </div>
               </div>
-
               <!-- CONTRASEÑAS -->
               <div v-if="needsPassword" class="grid grid-2">
                 <div class="field">
@@ -144,14 +133,12 @@
                   </div>
                 </div>
               </div>
-
               <!-- SEDES -->
               <div class="field">
                 <label id="sedes-label">
                   {{ t('allowedLocations') }}
                   <span v-if="form.rol && !isOwner" class="req">*</span>
                 </label>
-
                 <!-- PROPIETARIO: todas las sucursales -->
                 <div v-if="isOwner" class="sedes-static">
                   <span class="sedes-static-icon"><i class="bi bi-buildings"></i></span>
@@ -161,7 +148,6 @@
                   </span>
                   <i class="bi bi-lock sedes-static-lock"></i>
                 </div>
-
                 <!-- OTROS ROLES -->
                 <div v-else class="ff-select" :class="{ open: isDropdownOpen }" ref="dropdownRef">
                   <button type="button" class="ff-trigger" :disabled="!form.rol" aria-haspopup="listbox" aria-labelledby="sedes-label"
@@ -173,7 +159,6 @@
                     </span>
                     <i class="bi bi-chevron-down ff-chevron"></i>
                   </button>
-
                   <transition name="dd">
                     <ul v-if="isDropdownOpen" class="ff-menu" role="listbox" aria-labelledby="sedes-label" :aria-multiselectable="!isReception">
                       <li v-if="multiSedes" role="option" class="select-all" :class="{ selected: allSedesSelected }" :aria-selected="allSedesSelected" @click="toggleAllSedes">
@@ -193,12 +178,10 @@
                     </ul>
                   </transition>
                 </div>
-
                 <p v-if="sedesHint" class="field-hint"><i class="bi bi-info-circle"></i>{{ sedesHint }}</p>
               </div>
             </div>
           </section>
-
           <!-- DATOS PERSONALES -->
           <section class="card" id="tutorial-step-2">
             <header class="card-head">
@@ -208,7 +191,6 @@
                 <p class="card-desc">{{ L('Información básica del integrante.', 'Basic information about the team member.', 'Informations de base du membre.', 'Informações básicas do integrante.') }}</p>
               </div>
             </header>
-
             <div class="stack">
               <div class="grid grid-3">
                 <div class="field">
@@ -224,7 +206,6 @@
                   <input id="staff-am" type="text" v-model="form.apellidoM" :placeholder="t('placeholderLastNameM')" />
                 </div>
               </div>
-
               <div class="grid grid-2">
                 <div class="field">
                   <label for="staff-nac">{{ t('birthDate') }}</label>
@@ -243,7 +224,6 @@
                   <small id="staff-cell-hint" class="field-hint">10 dígitos, sin +52. Ejemplo: 481 111 1231.</small>
                 </div>
               </div>
-
               <div class="field">
                 <label for="staff-curp">
                   {{ t('curp') }}
@@ -262,7 +242,6 @@
               </div>
             </div>
           </section>
-
           <!-- REDES SOCIALES (solo entrenador) -->
           <section v-if="isTrainer" class="card">
             <header class="card-head">
@@ -273,7 +252,6 @@
               </div>
               <span class="badge opt">{{ L('OPCIONAL', 'OPTIONAL', 'FACULTATIF', 'OPCIONAL') }}</span>
             </header>
-
             <div class="grid grid-2">
               <div class="field">
                 <label for="staff-fb">{{ t('facebook') }}</label>
@@ -293,7 +271,6 @@
               </div>
             </div>
           </section>
-
           <!-- HORARIO DE TRABAJO
                Recepción: obligatorio · Entrenador: opcional · Propietario / Gerente: no aplica -->
           <section class="card" id="tutorial-step-3">
@@ -306,11 +283,9 @@
               <span v-if="scheduleMode === 'required'" class="badge required">{{ L('OBLIGATORIO', 'REQUIRED', 'OBLIGATOIRE', 'OBRIGATÓRIO') }}</span>
               <span v-else-if="scheduleMode === 'optional'" class="badge opt">{{ L('OPCIONAL', 'OPTIONAL', 'FACULTATIF', 'OPCIONAL') }}</span>
             </header>
-
             <p v-if="scheduleMode === 'idle' || scheduleMode === 'none'" class="note info">
               <i class="bi bi-info-circle"></i><span>{{ scheduleNote }}</span>
             </p>
-
             <div v-else class="stack">
               <label v-if="scheduleMode === 'optional'" class="switch-row">
                 <span class="switch">
@@ -322,7 +297,6 @@
                   <small>{{ L('Actívalo solo si este entrenador tiene un horario fijo.', 'Turn it on only if this trainer has a fixed schedule.', 'Activez-le uniquement si cet entraîneur a un horaire fixe.', 'Ative apenas se este treinador tiver horário fixo.') }}</small>
                 </span>
               </label>
-
               <div v-if="showTimes" class="grid grid-2">
                 <div class="field">
                   <label for="staff-entrada">{{ t('entryTime') }} <span v-if="scheduleMode === 'required'" class="req">*</span></label>
@@ -341,7 +315,6 @@
               </div>
             </div>
           </section>
-
           <!-- REGISTRAR -->
           <div class="reg-footer">
             <div class="req-hint"><span class="req">*</span> {{ L('Campos obligatorios', 'Required fields', 'Champs obligatoires', 'Campos obrigatórios') }}</div>
@@ -355,7 +328,6 @@
         </div>
       </div>
     </main>
-
     <!-- =====================================================
          CÁMARA O GALERÍA
     ====================================================== -->
@@ -371,7 +343,6 @@
             </div>
             <button type="button" class="dialog-x" @click="closePhotoOptions" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
           </div>
-
           <div class="photo-options">
             <button type="button" class="photo-option" @click="takePhoto">
               <span class="photo-option-icon"><i class="bi bi-camera"></i></span>
@@ -390,12 +361,10 @@
               <i class="bi bi-chevron-right"></i>
             </button>
           </div>
-
           <button type="button" class="btn btn-ghost block" @click="closePhotoOptions">{{ L('Cancelar', 'Cancel', 'Annuler', 'Cancelar') }}</button>
         </div>
       </div>
     </transition>
-
     <transition name="photo-menu">
       <div v-if="showCamera" class="overlay sheet dark" @click.self="closeCamera">
         <div class="dialog camera-dialog">
@@ -407,7 +376,6 @@
             </div>
             <button type="button" class="dialog-x" @click="closeCamera" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
           </div>
-
           <div class="camera-preview">
             <video ref="videoRef" autoplay playsinline muted :class="{ mirrored: cameraFacingMode === 'user' }"></video>
             <button type="button" class="switch-camera" :disabled="switchingCamera" @click.stop="switchCamera">
@@ -418,7 +386,6 @@
             <div v-if="switchingCamera" class="camera-switching"><span class="loader"></span></div>
           </div>
           <canvas ref="canvasRef" class="hidden-canvas"></canvas>
-
           <div class="camera-actions">
             <button type="button" class="btn btn-ghost" @click="closeCamera">{{ L('Cancelar', 'Cancel', 'Annuler', 'Cancelar') }}</button>
             <button type="button" class="capture-btn" :disabled="switchingCamera" @click="capturePhoto">
@@ -1383,11 +1350,9 @@ const saveRegistration = async () => {
       if (response.status === 422 && result.errors?.curp?.length) {
         throw new Error('Esta CURP ya está registrada.');
       }
-
       const validationMessages = Object.values(result.errors || {})
         .flat()
         .filter(Boolean);
-
       throw new Error(
         validationMessages.join(' ') ||
         result.message ||
@@ -1462,11 +1427,9 @@ onUnmounted(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
-
 * { box-sizing: border-box; }
 i.bi { display: inline-block; line-height: 1; }
 .hidden-input, .hidden-canvas { display: none; }
-
 /* =========================================================
    BASE
 ========================================================= */
@@ -1500,7 +1463,6 @@ i.bi { display: inline-block; line-height: 1; }
 .reg-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; width: 100%; max-width: 1200px; margin: 0 auto; align-items: start; }
 .highlight { color: var(--accent); }
 .req { color: var(--accent); }
-
 /* =========================================================
    PERFIL
 ========================================================= */
@@ -1512,7 +1474,6 @@ i.bi { display: inline-block; line-height: 1; }
 .profile-card > * { position: relative; }
 .chip-label { display: inline-block; margin-bottom: 12px; padding: 4px 12px; color: var(--accent); font-size: 0.68rem; font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .main-title { margin: 0 0 24px; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.85rem; font-weight: 400; line-height: 1.08; letter-spacing: 0.4px; text-transform: uppercase; }
-
 .avatar-wrap { position: relative; width: 140px; margin: 0 auto 14px; }
 .avatar-ring { padding: 4px; border-radius: 50%; background: conic-gradient(from 210deg, var(--button), var(--accent), var(--button)); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
 .avatar-circle { position: relative; width: 132px; height: 132px; display: grid; place-items: center; overflow: hidden; cursor: pointer; outline: none; border: 4px solid var(--card); border-radius: 50%; background: var(--input-bg); }
@@ -1525,7 +1486,6 @@ i.bi { display: inline-block; line-height: 1; }
 .avatar-action { position: absolute; z-index: 3; right: 2px; bottom: 4px; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; cursor: pointer; color: #fff; font-size: 0.95rem; border: 3px solid var(--card); border-radius: 50%; background: var(--accent); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); transition: transform 0.2s ease, filter 0.2s ease; }
 .avatar-action:hover { transform: scale(1.08); filter: brightness(1.08); }
 .profile-hint { max-width: 230px; margin: 0 auto; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
-
 .profile-summary { display: grid; gap: 0; margin: 24px 0 0; padding: 6px; list-style: none; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
 .summary-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 11px 10px; }
 .summary-row + .summary-row { border-top: 1px solid var(--line); }
@@ -1536,7 +1496,6 @@ i.bi { display: inline-block; line-height: 1; }
 .summary-value { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; overflow: hidden; color: var(--title); font-size: 0.92rem; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; overflow-wrap: anywhere; }
 .summary-value.empty { color: var(--muted-2); font-weight: 500; }
 .plan-chip { display: inline-block; padding: 3px 11px; color: var(--accent); font-size: 0.8rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
-
 /* =========================================================
    TARJETAS
 ========================================================= */
@@ -1548,18 +1507,15 @@ i.bi { display: inline-block; line-height: 1; }
 .card-icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.2rem; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .card-title { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.15rem; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
 .card-desc { margin: 3px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
-
 .stack { display: flex; flex-direction: column; gap: 20px; }
 .grid { display: grid; gap: 18px; }
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-
 /* =========================================================
    CAMPOS
 ========================================================= */
 .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .field > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; }
-
 input:where(:not([type='radio']):not([type='file']):not([type='checkbox'])) {
   width: 100%; height: 48px; min-width: 0; padding: 0 14px; outline: none;
   color: var(--color-texto-input, var(--text)); color-scheme: dark; font-family: 'Inter', sans-serif; font-size: 0.9rem;
@@ -1570,7 +1526,6 @@ input::placeholder { color: var(--muted-2); }
 input:not([type='radio']):not([type='checkbox']):hover { border-color: color-mix(in srgb, var(--text) 32%, transparent); }
 input:not([type='radio']):not([type='checkbox']):focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
-
 .control { position: relative; display: flex; align-items: center; min-width: 0; }
 .control-icon { position: absolute; left: 14px; z-index: 2; color: var(--muted-2); font-size: 0.95rem; pointer-events: none; transition: color 0.18s ease; }
 .control.has-icon input { padding-left: 42px; }
@@ -1582,12 +1537,10 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .control.ok input:not(:focus) { border-color: color-mix(in srgb, var(--ok) 45%, var(--line-strong)); }
 .control.bad .control-icon { color: var(--bad); }
 .control.bad input:not(:focus) { border-color: color-mix(in srgb, var(--bad) 55%, var(--line-strong)); }
-
 .badge { padding: 2px 8px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.6px; border-radius: 999px; }
 .badge.opt { color: var(--muted); background: color-mix(in srgb, var(--text) 9%, transparent); }
 .badge.required { color: var(--warn-text); background: rgba(251, 191, 36, 0.12); }
 .card-head > .badge { flex-shrink: 0; }
-
 .field-hint { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--muted-2); font-size: 0.74rem; line-height: 1.45; }
 .field-hint i { flex-shrink: 0; margin-top: 1px; }
 .note { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 0.78rem; line-height: 1.5; }
@@ -1596,7 +1549,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .note.info i { color: var(--accent); }
 .note.ok { color: var(--ok-text); }
 .note.bad { color: #fca5a5; }
-
 /* =========================================================
    ROL (tarjetas seleccionables)
 ========================================================= */
@@ -1612,7 +1564,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .role-text small { color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
 .role-check { position: absolute; top: 9px; right: 9px; width: 18px; height: 18px; display: grid; place-items: center; color: var(--card); font-size: 0.7rem; border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(0.6); transition: opacity 0.18s ease, transform 0.18s ease; }
 .role-tile.active .role-check { opacity: 1; transform: scale(1); }
-
 /* =========================================================
    SEDES
 ========================================================= */
@@ -1622,7 +1573,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .sedes-static-text strong { color: var(--title); font-size: 0.9rem; font-weight: 700; }
 .sedes-static-text small { color: var(--muted); font-size: 0.76rem; }
 .sedes-static-lock { color: var(--muted-2); font-size: 1rem; }
-
 .ff-select { position: relative; }
 .ff-select.open { z-index: 60; }
 .ff-trigger { width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 10px; cursor: pointer; text-align: left; color: var(--text); font-family: inherit; font-size: 0.9rem; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
@@ -1635,7 +1585,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .ff-trigger-value strong { min-width: 0; overflow: hidden; color: var(--title); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .ff-chevron { flex-shrink: 0; color: var(--muted); font-size: 0.85rem; transition: transform 0.2s ease; }
 .ff-select.open .ff-chevron { transform: rotate(180deg); }
-
 .ff-menu { position: absolute; z-index: 70; top: calc(100% + 8px); left: 0; right: 0; max-height: 280px; margin: 0; padding: 6px; overflow-y: auto; list-style: none; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--card); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55); scrollbar-width: thin; }
 .ff-menu li { display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; color: var(--text); font-size: 0.88rem; font-weight: 500; border-radius: 10px; transition: background 0.14s ease; }
 .ff-menu li + li { margin-top: 2px; }
@@ -1652,7 +1601,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .radio-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
 .dd-enter-active, .dd-leave-active { transition: opacity 0.16s ease, transform 0.16s ease; }
 .dd-enter-from, .dd-leave-to { opacity: 0; transform: translateY(-6px); }
-
 /* =========================================================
    INTERRUPTOR (horario opcional)
 ========================================================= */
@@ -1669,7 +1617,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .switch-copy { min-width: 0; display: grid; gap: 3px; }
 .switch-copy strong { color: var(--title); font-size: 0.9rem; font-weight: 700; }
 .switch-copy small { color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
-
 /* =========================================================
    BOTONES
 ========================================================= */
@@ -1682,14 +1629,12 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .btn-ghost { color: var(--muted); border-color: var(--line-strong); background: transparent; }
 .btn-ghost:hover { color: var(--text); border-color: var(--text); }
 .btn:focus-visible, .control-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 .reg-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 2px 0; }
 .req-hint { color: var(--muted); font-size: 0.78rem; font-weight: 500; }
 .footer-actions { display: flex; align-items: center; gap: 12px; }
 .save-btn { min-width: 250px; min-height: 52px; font-family: 'Oswald', sans-serif; font-size: 0.98rem; letter-spacing: 0.3px; }
 .spin { animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 /* =========================================================
    DIÁLOGOS (foto y cámara)
 ========================================================= */
@@ -1702,7 +1647,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
 .dialog-x { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
 .dialog-x:hover { border-color: var(--line-strong); }
-
 .sheet-handle { display: none; }
 .photo-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .photo-option { width: 100%; min-height: 72px; display: flex; align-items: center; gap: 14px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--muted); font-family: inherit; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 2.5%, transparent); transition: border-color 0.16s ease, background 0.16s ease; }
@@ -1711,7 +1655,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .photo-option-text { flex: 1; min-width: 0; }
 .photo-option-text strong { display: block; color: var(--title); font-size: 0.88rem; font-weight: 600; }
 .photo-option-text small { display: block; margin-top: 3px; color: var(--muted); font-size: 0.72rem; }
-
 .camera-dialog { width: min(620px, 100%); }
 .camera-preview { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #000; }
 .camera-preview video { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -1729,12 +1672,10 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 .capture-circle { width: 38px; height: 38px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; }
 .capture-circle span { width: 27px; height: 27px; display: block; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
 .capture-btn:hover:not(:disabled) .capture-circle span { transform: scale(0.85); }
-
 .photo-menu-enter-active, .photo-menu-leave-active { transition: opacity 0.2s ease; }
 .photo-menu-enter-active .dialog, .photo-menu-leave-active .dialog { transition: opacity 0.2s ease, transform 0.22s ease; }
 .photo-menu-enter-from, .photo-menu-leave-to { opacity: 0; }
 .photo-menu-enter-from .dialog, .photo-menu-leave-to .dialog { opacity: 0; transform: translateY(10px) scale(0.97); }
-
 /* =========================================================
    RESPONSIVE
 ========================================================= */
@@ -1758,7 +1699,6 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
   .footer-actions { flex-direction: column-reverse; align-items: stretch; }
   .save-btn { min-width: 0; width: 100%; }
   .switch-row { align-items: flex-start; }
-
   .overlay.sheet { align-items: end; padding: 0; }
   .overlay.sheet .dialog { width: 100%; max-width: none; padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 22px 22px 0 0; }
   .sheet-handle { display: block; width: 38px; height: 4px; margin: 0 auto 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }

@@ -978,7 +978,6 @@ onUnmounted(() => {
 .suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
 .suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
 @media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
-
 .avatar-fallback{display:grid;place-items:center;width:100%;height:100%;font-size:3rem;font-weight:700;color:var(--color-texto-general,#fff)}
 .search-small{position:relative}
 .main-content {
