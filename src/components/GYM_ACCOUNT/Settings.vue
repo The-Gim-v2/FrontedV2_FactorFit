@@ -524,25 +524,19 @@ function safeJsonParse(raw, fallback = null) {
 const ROLE_KEY = 'user_role';
 
 const claveColores = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
 
   return `app-colors-${rol}`;
 };
 
 const claveRadius = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
 
   return `app-radius-${rol}`;
 };
 
 const claveDensidad = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
 
   return `app-densidad-${rol}`;
 };
@@ -1432,6 +1426,7 @@ const exportarExcel = async () => {
     });
     if (!respuesta.ok) {
       const error = await respuesta.json().catch(() => ({}));
+      if (respuesta.status === 429) throw new Error('Límite temporal de descargas del servidor. Intenta de nuevo dentro de un minuto.');
       throw new Error(error.message || `No se pudo descargar el Excel (HTTP ${respuesta.status}).`);
     }
     const archivo = await respuesta.blob();

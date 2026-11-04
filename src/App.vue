@@ -161,24 +161,57 @@ function cargarEstiloDelRol() {
   if (!link) { link = document.createElement('link'); link.id = 'role-stylesheet'; link.rel = 'stylesheet'; document.head.appendChild(link); }
   if (link.href !== new URL(ruta, location.href).href) link.href = ruta;
 }
+// Variables CSS compartidas por gimnasio: cache local + Railway por sucursal.
+const coloresDefault: Record<string,string> = { headingBg:'#161726', tablas:'#25283d', interfaz:'#12121c', botones:'#e04a6d', tarjetas:'#1a1b2b', titulos:'#fff7f1', highlight:'#ffb27a', etiquetas:'#f6e8df', textoGeneral:'#c9c5d3', textoBotones:'#ffffff', svgColor:'#ffc7a1' };
+const mapaCss: Record<string,string> = { headingBg:'--color-heading-bg',tablas:'--color-tablas',interfaz:'--color-interfaz',botones:'--color-botones',tarjetas:'--bg-cards',titulos:'--color-titulos',highlight:'--color-highlight',etiquetas:'--color-etiquetas',textoGeneral:'--color-texto-general',textoBotones:'--color-texto-botones',svgColor:'--color-svg' };
+const rolActivo = () => (sessionStorage.getItem('user_role') || localStorage.getItem('user_role') || '').toLowerCase();
+const sedeActiva = () => { for(const storage of [sessionStorage,localStorage]) for(const key of ['selected_sede_id','sede_id','ID_Sede','selectedSedeId']){const value=Number(storage.getItem(key));if(Number.isInteger(value)&&value>0)return value;}return 1; };
+const tokenActivo = () => { for(const storage of [sessionStorage,localStorage]) for(const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const value=storage.getItem(key);if(value)return value.replace(/^Bearer\s+/i,'');}return ''; };
+const claveTema=(rol:string)=>`app-colors-${rol}`;
+let appearanceRequest=0;
+let lastAppearanceKey='';
+let lastAppearanceCheck=0;
+let themeChangedLocally=false;
 function aplicarEstilosGlobales() {
-  const rol = (sessionStorage.getItem('user_role') || '').toLowerCase();
-  const savedColors = safeJsonParse(localStorage.getItem(`app-colors-${rol}`));
-  const savedRadius = localStorage.getItem(`app-radius-${rol}`);
-  const savedDensidad = localStorage.getItem(`app-densidad-${rol}`);
-  const root = document.documentElement;
-  const aplicar = (prop: string, valor?: string | null) => valor ? root.style.setProperty(prop, valor) : root.style.removeProperty(prop);
-  aplicar('--color-heading-bg', savedColors.headingBg); aplicar('--color-tablas', savedColors.tablas);
-  aplicar('--color-interfaz', savedColors.interfaz); aplicar('--bg-custom', savedColors.interfaz);
-  aplicar('--color-botones', savedColors.botones); aplicar('--bg-cards', savedColors.tarjetas);
-  aplicar('--color-titulos', savedColors.titulos); aplicar('--color-highlight', savedColors.highlight);
-  aplicar('--color-etiquetas', savedColors.etiquetas); aplicar('--color-texto-general', savedColors.textoGeneral);
-  aplicar('--color-texto-botones', savedColors.textoBotones); aplicar('--color-svg', savedColors.svgColor);
-  aplicar('--app-border-radius', savedRadius);
-  root.style.setProperty('--panel-padding', savedDensidad === 'compacto' ? '16px' : savedDensidad === 'espacioso' ? '38px' : '30px');
-  root.style.setProperty('--row-padding', savedDensidad === 'compacto' ? '10px 0' : savedDensidad === 'espacioso' ? '22px 0' : '16px 0');
+  const rol=rolActivo();
+  if(!rol)return;
+  const savedColors=safeJsonParse(localStorage.getItem(claveTema(rol)));
+  const savedRadius=localStorage.getItem(`app-radius-${rol}`) || '16px';
+  const savedDensidad=localStorage.getItem(`app-densidad-${rol}`) || 'normal';
+  const root=document.documentElement;
+  for(const [key,property] of Object.entries(mapaCss)) root.style.setProperty(property, String(savedColors[key] ?? coloresDefault[key] ?? '#12121c'));
+  root.style.setProperty('--color-interfaz', String(savedColors.interfaz ?? coloresDefault.interfaz ?? '#12121c'));
+  root.style.setProperty('--bg-custom', String(savedColors.interfaz ?? coloresDefault.interfaz ?? '#12121c'));
+  root.style.setProperty('--app-border-radius',savedRadius);
+  root.style.setProperty('--panel-padding',savedDensidad==='compacto'?'16px':savedDensidad==='espacioso'?'38px':'30px');
+  root.style.setProperty('--row-padding',savedDensidad==='compacto'?'10px 0':savedDensidad==='espacioso'?'22px 0':'16px 0');
 }
-function actualizarApariencia() { cargarEstiloDelRol(); aplicarEstilosGlobales(); }
+async function cargarAparienciaGimnasio(force=false) {
+  const rol=rolActivo();
+  if(!['gym_account','gym_admin','gym_manager','gym_recepcionist'].includes(rol)||!tieneSesion())return;
+  const token=tokenActivo();if(!token)return;
+  const sede=sedeActiva(),key=`${rol}:${sede}:${token.slice(-8)}`;
+  if(!force&&key===lastAppearanceKey&&Date.now()-lastAppearanceCheck<60000)return;
+  const request=++appearanceRequest;
+  lastAppearanceKey=key;lastAppearanceCheck=Date.now();
+  try {
+    const api=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+    const res=await fetch(`${api}/api/gym/configuracion-apariencia?sede_id=${sede}`,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json'},cache:'no-store'});
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const json=await res.json(),a=json?.apariencia;
+    // A newer request or a local edit supersedes this response.
+    if(request!==appearanceRequest||themeChangedLocally||sede!==sedeActiva()||rol!==rolActivo())return;
+    if(!a||typeof a!=='object'||!a.colors||typeof a.colors!=='object')return;
+    const colors={...coloresDefault};
+    for(const name of Object.keys(coloresDefault))if(typeof a.colors[name]==='string'&&/^#[0-9a-f]{6}$/i.test(a.colors[name]))colors[name]=a.colors[name];
+    localStorage.setItem(claveTema(rol),JSON.stringify(colors));
+    if(['normal','compacto','espacioso'].includes(a.densidad))localStorage.setItem(`app-densidad-${rol}`,a.densidad);
+    if(['8px','16px','24px'].includes(a.borderRadius))localStorage.setItem(`app-radius-${rol}`,a.borderRadius);
+    aplicarEstilosGlobales();
+  } catch(e){console.warn('Apariencia remota no disponible; se conserva cache local.',e);}
+}
+function actualizarApariencia() { cargarEstiloDelRol(); aplicarEstilosGlobales(); void cargarAparienciaGimnasio(); }
+function alActualizarTema() { themeChangedLocally=true; ++appearanceRequest; aplicarEstilosGlobales(); window.setTimeout(()=>{themeChangedLocally=false;lastAppearanceCheck=0;},1500); }
 async function verificarVersion() {
   if (checkingVersion || document.visibilityState === 'hidden') return;
   checkingVersion = true;
@@ -199,11 +232,11 @@ async function verificarVersion() {
 }
 function verificarAlRegresar() {
   sincronizarSesion();
-  if (document.visibilityState === 'visible') void verificarVersion();
+  if (document.visibilityState === 'visible') { void verificarVersion(); void cargarAparienciaGimnasio(); }
 }
 onMounted(() => {
   actualizarApariencia();
-  window.addEventListener('app-settings-updated', actualizarApariencia);
+  window.addEventListener('app-settings-updated', alActualizarTema);
   window.addEventListener('storage', manejarCambioStorage);
   window.addEventListener('focus', verificarAlRegresar);
   window.addEventListener('pageshow', verificarAlRegresar);
@@ -214,7 +247,7 @@ onMounted(() => {
   versionTimer = window.setInterval(() => { if (tieneSesion()) revisarInactividad(); void verificarVersion(); }, 60000);
 });
 onUnmounted(() => {
-  window.removeEventListener('app-settings-updated', actualizarApariencia);
+  window.removeEventListener('app-settings-updated', alActualizarTema);
   window.removeEventListener('storage', manejarCambioStorage);
   window.removeEventListener('focus', verificarAlRegresar);
   window.removeEventListener('pageshow', verificarAlRegresar);
