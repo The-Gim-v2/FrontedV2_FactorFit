@@ -40,7 +40,7 @@ if (loading.value) return
 clearMessages()
 loading.value = true
 try {
-const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/**\\/**+$/, '')
+const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 if (!apiUrl) throw new Error('No está configurada la URL del servidor.')
 const response = await fetch(`${apiUrl}/api/auth/login`, {
 method: 'POST',
