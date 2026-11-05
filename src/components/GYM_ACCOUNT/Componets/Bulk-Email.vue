@@ -271,9 +271,10 @@ class="img-delete-btn"
 </div>
 </template>
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 defineEmits<{ (e: 'close'): void }>();
+const props=withDefaults(defineProps<{destinatariosIniciales?: string[]}>(),{destinatariosIniciales:()=>[]});
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const editor = ref<HTMLElement | null>(null);
 const editorContainer = ref<HTMLElement | null>(null);
@@ -335,6 +336,7 @@ invalidRecipients: 'Check the recipient email addresses', emailSent: 'Mass email
 const t = (key: string): string => translations[settings.idioma]?.[key] ?? translations['es']?.[key] ?? key;
 /* ---------- FORMULARIO ---------- */
 const emailForm = reactive({ asunto: '', destinatarios: '', mensaje: '' });
+watch(()=>props.destinatariosIniciales,(items)=>{emailForm.destinatarios=Array.from(new Set((items||[]).map(e=>String(e).trim()).filter(Boolean))).join(', ');},{immediate:true});
 const activeMailView = ref<'editor' | 'preview'>('editor');
 /* ---------- PLANTILLAS ---------- */
 interface MailTemplate { id: string; label: string; subject: string; body: string }
@@ -500,9 +502,31 @@ toastRef.value?.notify(t('imgRemoved'), 'success');
 };
 /* ---------- ENVIAR ---------- */
 const sending=ref(false);
-const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const getAuthToken=():string=>{for(const s of [sessionStorage,localStorage]){for(const k of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const v=s.getItem(k);if(v)return v.replace(/^Bearer\s+/i,'');}for(const k of ['auth','user','session','gymAccount','gym_account']){try{const d=JSON.parse(s.getItem(k)||'null');const v=d?.token||d?.access_token||d?.accessToken;if(v)return String(v).replace(/^Bearer\s+/i,'');}catch{}}}return '';};
-const sendEmail=async()=>{if(sending.value)return;if(recipientCount.value===0||!emailForm.asunto.trim()||!hasMessage.value){toastRef.value?.notify(t('completeFields'),'error');return;}if(!allRecipientsAreValid.value){toastRef.value?.notify(t('invalidRecipients'),'error');return;}if(recipientCount.value>20){toastRef.value?.notify(settings.idioma==='en'?'Maximum 20 recipients per send.':'Máximo 20 destinatarios por envío.','error');return;}const auth=getAuthToken();if(!auth){toastRef.value?.notify(settings.idioma==='en'?'Sign in again.':'Inicia sesión nuevamente.','error');return;}sending.value=true;try{const response=await fetch(`${API}/api/gym/correos/enviar`,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Bearer ${auth}`},body:JSON.stringify({destinatarios:recipientList.value,asunto:emailForm.asunto.trim(),mensaje:emailForm.mensaje})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.message||Object.values(data.errors||{}).flat().join(' ')||`HTTP ${response.status}`);if(Number(data.enviados||0)!==recipientCount.value)throw new Error(settings.idioma==='en'?`Sent ${data.enviados||0} of ${recipientCount.value}. ${data.message||''}`:`Enviados ${data.enviados||0} de ${recipientCount.value}. ${data.message||''}`);toastRef.value?.notify(t('emailSent'),'success');emailForm.destinatarios='';emailForm.asunto='';emailForm.mensaje='';if(editor.value)editor.value.innerHTML='';hideImageButton();}catch(e){toastRef.value?.notify(e instanceof Error?e.message:(settings.idioma==='en'?'Could not send email.':'No se pudo enviar el correo.'),'error');}finally{sending.value=false;}};
+const sendEmail=async()=>{
+if(sending.value)return;
+if(recipientCount.value===0||!emailForm.asunto.trim()||!hasMessage.value){toastRef.value?.notify(t('completeFields'),'error');return;}
+if(!allRecipientsAreValid.value){toastRef.value?.notify(t('invalidRecipients'),'error');return;}
+if(!API){toastRef.value?.notify(settings.idioma==='en'?'Backend URL is not configured.':'No está configurada la URL del backend.','error');return;}
+const auth=getAuthToken();if(!auth){toastRef.value?.notify(settings.idioma==='en'?'Sign in again.':'Inicia sesión nuevamente.','error');return;}
+const all=[...recipientList.value];
+if(!window.confirm(settings.idioma==='en'?`Send this email to all ${all.length} recipients?`:`¿Enviar este correo a los ${all.length} destinatarios?`))return;
+sending.value=true;let success=0;const BATCH_SIZE=20;
+try{
+for(let i=0;i<all.length;i+=BATCH_SIZE){
+const lote=all.slice(i,i+BATCH_SIZE);
+const response=await fetch(`${API}/api/gym/correos/enviar`,{method:'POST',headers:{Accept:'application/json','Content-Type':'application/json',Authorization:`Bearer ${auth}`},body:JSON.stringify({destinatarios:lote,asunto:emailForm.asunto.trim(),mensaje:emailForm.mensaje})});
+const data=await response.json().catch(()=>({}));
+const sent=Math.max(0,Number(data.enviados||0));success+=sent;
+if(!response.ok||sent!==lote.length){throw new Error(`${data.message||`HTTP ${response.status}`} (${success}/${all.length})`);}
+if(i+BATCH_SIZE<all.length){await new Promise(resolve=>setTimeout(resolve,22000));}
+}
+toastRef.value?.notify(settings.idioma==='en'?`${success} emails submitted to the mail server.`:`${success} correos enviados al servidor de correo.`,'success');
+emailForm.asunto='';emailForm.mensaje='';if(editor.value)editor.value.innerHTML='';hideImageButton();
+}catch(e){toastRef.value?.notify(e instanceof Error?e.message:(settings.idioma==='en'?'Could not send email.':'No se pudo enviar el correo.'),'error');}
+finally{sending.value=false;}
+};
 /* ---------- CAMBIO DE IDIOMA ---------- */
 const handleLanguageChange = (event: Event) => {
 const detail = (event as CustomEvent<{ idioma?: string }>).detail;
@@ -524,14 +548,14 @@ window.visualViewport?.removeEventListener('resize', positionImageButton);
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
 .mail-panel {
---accent: var(--color-highlight, #3b82f6);
---panel: var(--bg-cards, #121416);
---input: var(--bg-input, #0c0e10);
---text: var(--color-texto-general, #e5e7eb);
---title: var(--color-titulos, #ffffff);
---muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 62%, transparent);
---border: color-mix(in srgb, var(--color-texto-general, #94a3b8) 15%, transparent);
---border-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);
+\--accent: var(--color-highlight, #3b82f6);
+\--panel: var(--bg-cards, #121416);
+\--input: var(--bg-input, #0c0e10);
+\--text: var(--color-texto-general, #e5e7eb);
+\--title: var(--color-titulos, #ffffff);
+\--muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 62%, transparent);
+\--border: color-mix(in srgb, var(--color-texto-general, #94a3b8) 15%, transparent);
+\--border-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);
 width: min(96vw, 1200px);
 height: min(92vh, 860px);
 display: flex;

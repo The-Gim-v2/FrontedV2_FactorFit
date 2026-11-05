@@ -1,193 +1,193 @@
 <template>
-  <HeadingGYM_ACCOUNT>
-    <NotificationSystem ref="toastRef" />
-    <main class="main-content">
-      <header class="header-section">
-        <div class="title-wrapper">
-          <h1 class="main-title">{{ t('usersTitle') }}</h1>
-          <p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
-        </div>
-        <div class="actions-bar" id="tutorial-step-0">
-          <select class="status-select" v-model="selectedMembership">
-            <option value="">{{ t('membershipAll') }}</option>
-            <option value="Mensual">{{ t('membershipMonthly') }}</option>
-            <option value="Quincenal">{{ t('membershipBiweekly') }}</option>
-          </select>
-          <select class="status-select" v-model="selectedStatus">
-            <option value="">{{ t('statusAll') }}</option>
-            <option value="Activo">{{ t('statusActive') }}</option>
-            <option value="Inactivo">{{ t('statusInactive') }}</option>
-            <option value="Próximo a vencer">{{ currentLang === 'en' ? 'Expiring soon' : 'Próximo a vencer' }}</option>
-            <option value="Pendiente">{{ currentLang === 'en' ? 'Pending' : 'Pendiente' }}</option>
-            <option value="En tolerancia">{{ currentLang === 'en' ? 'Grace period' : 'En tolerancia' }}</option>
-          </select>
-          <button class="btn-bulk" @click="activeModal = 'enviomasivo'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            {{ t('bulkEmailBtn') }}
-          </button>
-          <div class="search-wrapper">
-            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" class="search-input" :placeholder="t('searchPlaceholder')" v-model="searchQuery" />
-          </div>
-        </div>
-      </header>
-      <p v-if="loadingUsers" class="data-message">Cargando clientes registrados...</p>
-      <p v-if="errorUsers" class="data-message">{{ errorUsers }} <button @click="cargarClientes">Reintentar</button></p>
-      <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : null">
-        <table class="user-table" v-if="filteredUsers.length">
-          <thead>
-            <tr>
-              <th>{{ t('tablePhoto') }}</th>
-              <th>{{ t('tableName') }}</th>
-              <th>{{ t('tableEmail') }}</th>
-              <th>{{ t('tablePhone') }}</th>
-              <th>{{ t('tableStatus') }}</th>
-              <th class="th-actions">{{ t('tableActions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(user, index) in pagedUsers" :key="user.id" :class="getStatusClass(user.status)">
-              <td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div></td>
-              <td class="text-bold">{{ user.name }}</td>
-              <td class="text-muted">{{ user.email }}</td>
-              <td class="text-muted">{{ user.phone }}</td>
-              <td><span :class="['status-badge', getStatusClass(user.status)]"><i class="status-dot"></i>{{ user.status }}</span></td>
-              <td class="actions-cell" :id="(!isMobile && index === 0) ? 'tutorial-step-2' : null">
-                <button class="icon-btn btn-email" :title="t('actionEmail')" @click="activeModal = 'enviocorreo'">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                </button>
-                <button class="icon-btn btn-wa" :title="t('actionWhatsApp')" @click="openWhatsApp(user.phone)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-                </button>
-                <button class="icon-btn btn-qr" :title="t('actionQR')" @click="openQR(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
-                </button>
-                <button class="icon-btn btn-edit" :title="t('actionEdit')" @click="goToEdit(user.id)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button class="icon-btn btn-delete" :title="t('actionDelete')" @click="confirmDelete(user)">
-                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else class="empty-state">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
-        </div>
-      </div>
-      <div class="mobile-only">
-        <div v-if="!filteredUsers.length" class="empty-state">
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
-        </div>
-        <div v-for="(user, index) in pagedUsers" :key="user.id" class="user-card" :class="getStatusClass(user.status)" :id="index === 0 ? 'tutorial-step-1' : null">
-          <div class="card-top-section">
-            <div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div>
-            <div class="card-user-titles">
-              <div class="text-bold name-text">{{ user.name }}</div>
-              <span class="status-badge" :class="getStatusClass(user.status)"><i class="status-dot"></i>{{ user.status }}</span>
-            </div>
-          </div>
-          <div class="card-meta">
-            <span class="email-text">{{ user.email }}</span>
-            <span class="phone-text">{{ user.phone || "Sin teléfono" }}</span>
-          </div>
-          <div class="card-actions" :id="(isMobile && index === 0) ? 'tutorial-step-2' : null">
-            <button class="action-chip btn-email-chip" @click="activeModal = 'enviocorreo'">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <span>Email</span>
-            </button>
-            <button class="action-chip btn-wa-chip" @click="openWhatsApp(user.phone)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
-              <span>WApp</span>
-            </button>
-            <button class="action-chip btn-qr-chip" @click="openQR(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
-              <span>QR</span>
-            </button>
-            <button class="action-chip btn-edit-chip" @click="goToEdit(user.id)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              <span>{{ t('actionEdit') }}</span>
-            </button>
-            <button class="action-chip btn-delete-chip" @click="confirmDelete(user)">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              <span>{{ t('actionDelete') }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      <nav v-if="showPager" class="pager" :aria-label="pagerLabel(0)">
-        <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="pagerLabel(1)" @click="goPage(page - 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
-        <button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="pagerLabel(2)" @click="goPage(page + 1)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-      </nav>
-    </main>
-    <transition name="pop">
-      <div v-if="showQR" class="modal-wrapper" @click.self="closeQR">
-        <div class="custom-modal-card" role="dialog" aria-modal="true">
-          <button type="button" class="modal-x" @click="closeQR" aria-label="Cerrar">×</button>
-          <div class="modal-body-custom">
-            <h2 class="modal-heading-accent">{{ t('modalQrTitle') }}</h2>
-            <p v-if="selectedUser" class="qr-user">{{ selectedUser.name }}</p>
-            <div class="qr-wrapper">
-              <span v-if="qrLoading">Cargando QR...</span><img v-else-if="qrUrl" :src="qrUrl" alt="QR" class="qr-image" /><span v-else>QR no disponible</span>
-            </div>
-            <p class="modal-subtext">{{ t('modalQrText') }}</p>
-            <button type="button" class="btn-bulk btn-block" @click="downloadQR">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              {{ t('modalQrDownload') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="showDelete" class="modal-wrapper" @click.self="showDelete = false">
-        <div class="custom-modal-card" role="dialog" aria-modal="true">
-          <div class="modal-body-custom">
-            <div class="modal-icon-container danger-bg">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-            <h2>{{ deleteT('title') }}</h2>
-            <p>{{ deleteT('questionBefore') }} <span class="highlight-name">{{ selectedUser?.name }}</span>{{ deleteT('questionAfter') }}</p>
-            <div class="modal-buttons">
-              <button class="btn-modal secondary" @click="showDelete = false">{{ t('modalCancel') }}</button>
-              <button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? deleteT('processing') : deleteT('confirm') }}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
-        <CorreoMasivo @close="activeModal = null" />
-      </div>
-    </transition>
-    <transition name="pop">
-      <div v-if="activeModal === 'enviocorreo'" class="modal-wrapper" @click.self="activeModal = null">
-        <EnvioCorreo @close="activeModal = null" />
-      </div>
-    </transition>
-  </HeadingGYM_ACCOUNT>
+<HeadingGYM_ACCOUNT>
+<NotificationSystem ref="toastRef" />
+<main class="main-content">
+<header class="header-section">
+<div class="title-wrapper">
+<h1 class="main-title">{{ t('usersTitle') }}</h1>
+<p class="result-count">{{ filteredUsers.length }} {{ filteredUsers.length === 1 ? t('resultSingular') : t('resultPlural') }}</p>
+</div>
+<div class="actions-bar" id="tutorial-step-0">
+<select class="status-select" v-model="selectedMembership">
+<option value="">{{ t('membershipAll') }}</option>
+<option value="Mensual">{{ t('membershipMonthly') }}</option>
+<option value="Quincenal">{{ t('membershipBiweekly') }}</option>
+</select>
+<select class="status-select" v-model="selectedStatus">
+<option value="">{{ t('statusAll') }}</option>
+<option value="Activo">{{ t('statusActive') }}</option>
+<option value="Inactivo">{{ t('statusInactive') }}</option>
+<option value="Próximo a vencer">{{ currentLang === 'en' ? 'Expiring soon' : 'Próximo a vencer' }}</option>
+<option value="Pendiente">{{ currentLang === 'en' ? 'Pending' : 'Pendiente' }}</option>
+<option value="En tolerancia">{{ currentLang === 'en' ? 'Grace period' : 'En tolerancia' }}</option>
+</select>
+<button class="btn-bulk" @click="openBulkEmail">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+<polyline points="22,6 12,13 2,6"/>
+</svg>
+{{ t('bulkEmailBtn') }}
+</button>
+<div class="search-wrapper">
+<svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+</svg>
+<input type="text" class="search-input" :placeholder="t('searchPlaceholder')" v-model="searchQuery" />
+</div>
+</div>
+</header>
+<p v-if="loadingUsers" class="data-message">Cargando clientes registrados...</p>
+<p v-if="errorUsers" class="data-message">{{ errorUsers }} <button @click="cargarClientes">Reintentar</button></p>
+<div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : null">
+<table class="user-table" v-if="filteredUsers.length">
+<thead>
+<tr>
+<th>{{ t('tablePhoto') }}</th>
+<th>{{ t('tableName') }}</th>
+<th>{{ t('tableEmail') }}</th>
+<th>{{ t('tablePhone') }}</th>
+<th>{{ t('tableStatus') }}</th>
+<th class="th-actions">{{ t('tableActions') }}</th>
+</tr>
+</thead>
+<tbody>
+<tr v-for="(user, index) in pagedUsers" :key="user.id" :class="getStatusClass(user.status)">
+<td><div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div></td>
+<td class="text-bold">{{ user.name }}</td>
+<td class="text-muted">{{ user.email }}</td>
+<td class="text-muted">{{ user.phone }}</td>
+<td><span :class="['status-badge', getStatusClass(user.status)]"><i class="status-dot"></i>{{ user.status }}</span></td>
+<td class="actions-cell" :id="(!isMobile && index === 0) ? 'tutorial-step-2' : null">
+<button class="icon-btn btn-email" :title="t('actionEmail')" @click="openClientEmail(user)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+</button>
+<button class="icon-btn btn-wa" :title="t('actionWhatsApp')" @click="openWhatsApp(user.phone)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
+</button>
+<button class="icon-btn btn-qr" :title="t('actionQR')" @click="openQR(user)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
+</button>
+<button class="icon-btn btn-edit" :title="t('actionEdit')" @click="goToEdit(user.id)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+</button>
+<button class="icon-btn btn-delete" :title="t('actionDelete')" @click="confirmDelete(user)">
+<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+<div v-else class="empty-state">
+<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
+</div>
+</div>
+<div class="mobile-only">
+<div v-if="!filteredUsers.length" class="empty-state">
+<svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+<p>{{ t('emptyStateText') || 'Sin resultados para tu búsqueda' }}</p>
+</div>
+<div v-for="(user, index) in pagedUsers" :key="user.id" class="user-card" :class="getStatusClass(user.status)" :id="index === 0 ? 'tutorial-step-1' : null">
+<div class="card-top-section">
+<div class="avatar-small" :style="{ background: avatarColor(user.name) }"><img v-if="user.foto" :src="user.foto" :alt="`Foto de ${user.name}`" loading="lazy" @error="user.foto=null" /><span v-else>{{ initials(user.name) }}</span></div>
+<div class="card-user-titles">
+<div class="text-bold name-text">{{ user.name }}</div>
+<span class="status-badge" :class="getStatusClass(user.status)"><i class="status-dot"></i>{{ user.status }}</span>
+</div>
+</div>
+<div class="card-meta">
+<span class="email-text">{{ user.email }}</span>
+<span class="phone-text">{{ user.phone || "Sin teléfono" }}</span>
+</div>
+<div class="card-actions" :id="(isMobile && index === 0) ? 'tutorial-step-2' : null">
+<button class="action-chip btn-email-chip" @click="openClientEmail(user)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+<span>Email</span>
+</button>
+<button class="action-chip btn-wa-chip" @click="openWhatsApp(user.phone)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 5.6 8.5 8.5 0 0 1-7.6-5.6 8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 9 8.5z"/><path d="M9 12l2 2 4-4"/></svg>
+<span>WApp</span>
+</button>
+<button class="action-chip btn-qr-chip" @click="openQR(user)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h6v6H3V3zm0 12h6v6H3v-6zM15 3h6v6h-6V3z"/><path d="M15 15h2v2h-2zm2 2h2v2h-2zm-2 2h2v2h-2zm4 0h2v2h-2zm0-4h2v2h-2zm-2-2h2v2h-2zm0 4h2v2h-2zm-4-4h2v2h-2z"/></svg>
+<span>QR</span>
+</button>
+<button class="action-chip btn-edit-chip" @click="goToEdit(user.id)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+<span>{{ t('actionEdit') }}</span>
+</button>
+<button class="action-chip btn-delete-chip" @click="confirmDelete(user)">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+<span>{{ t('actionDelete') }}</span>
+</button>
+</div>
+</div>
+</div>
+<nav v-if="showPager" class="pager" :aria-label="pagerLabel(0)">
+<button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="pagerLabel(1)" @click="goPage(page - 1)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<span class="pager-info"><b>{{ page }}</b> / {{ totalPages }}</span>
+<button class="pager-btn" type="button" :disabled="page >= totalPages" :aria-label="pagerLabel(2)" @click="goPage(page + 1)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+</nav>
+</main>
+<transition name="pop">
+<div v-if="showQR" class="modal-wrapper" @click.self="closeQR">
+<div class="custom-modal-card" role="dialog" aria-modal="true">
+<button type="button" class="modal-x" @click="closeQR" aria-label="Cerrar">×</button>
+<div class="modal-body-custom">
+<h2 class="modal-heading-accent">{{ t('modalQrTitle') }}</h2>
+<p v-if="selectedUser" class="qr-user">{{ selectedUser.name }}</p>
+<div class="qr-wrapper">
+<span v-if="qrLoading">Cargando QR...</span><img v-else-if="qrUrl" :src="qrUrl" alt="QR" class="qr-image" /><span v-else>QR no disponible</span>
+</div>
+<p class="modal-subtext">{{ t('modalQrText') }}</p>
+<button type="button" class="btn-bulk btn-block" @click="downloadQR">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+<polyline points="7 10 12 15 17 10"/>
+<line x1="12" y1="15" x2="12" y2="3"/>
+</svg>
+{{ t('modalQrDownload') }}
+</button>
+</div>
+</div>
+</div>
+</transition>
+<transition name="pop">
+<div v-if="showDelete" class="modal-wrapper" @click.self="showDelete = false">
+<div class="custom-modal-card" role="dialog" aria-modal="true">
+<div class="modal-body-custom">
+<div class="modal-icon-container danger-bg">
+<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+<line x1="12" y1="9" x2="12" y2="13"/>
+<line x1="12" y1="17" x2="12.01" y2="17"/>
+</svg>
+</div>
+<h2>{{ deleteT('title') }}</h2>
+<p>{{ deleteT('questionBefore') }} <span class="highlight-name">{{ selectedUser?.name }}</span>{{ deleteT('questionAfter') }}</p>
+<div class="modal-buttons">
+<button class="btn-modal secondary" @click="showDelete = false">{{ t('modalCancel') }}</button>
+<button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ deleting ? deleteT('processing') : deleteT('confirm') }}</button>
+</div>
+</div>
+</div>
+</div>
+</transition>
+<transition name="pop">
+<div v-if="activeModal === 'enviomasivo'" class="modal-wrapper" @click.self="activeModal = null">
+<CorreoMasivo :key="bulkEmailKey" :destinatarios-iniciales="bulkRecipients" @close="activeModal = null" />
+</div>
+</transition>
+<transition name="pop">
+<div v-if="activeModal === 'enviocorreo'" class="modal-wrapper" @click.self="activeModal = null">
+<EnvioCorreo :key="singleEmailKey" :destinatario-inicial="selectedEmail" @close="activeModal = null" />
+</div>
+</transition>
+</HeadingGYM_ACCOUNT>
 </template>
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
@@ -198,6 +198,24 @@ import EnvioCorreo from '../Componets/Mail.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
 const activeModal = ref(null);
+const selectedEmail = ref('');
+const bulkRecipients = ref([]);
+const singleEmailKey = ref(0);
+const bulkEmailKey = ref(0);
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const openClientEmail = (user) => {
+const address=String(user?.email || '').trim();
+if(!emailPattern.test(address)){toastRef.value?.notify(currentLang.value === 'en' ? 'This client has no valid email address.' : 'Este cliente no tiene un correo electrónico válido.','error');return;}
+selectedEmail.value=address;
+singleEmailKey.value++;
+activeModal.value='enviocorreo';
+};
+const openBulkEmail = () => {
+bulkRecipients.value=Array.from(new Set(users.value.map(u=>String(u.email || '').trim().toLowerCase()).filter(e=>emailPattern.test(e))));
+if(!bulkRecipients.value.length){toastRef.value?.notify(currentLang.value === 'en' ? 'No clients with valid emails were found.' : 'No hay clientes con correos electrónicos válidos.','error');return;}
+bulkEmailKey.value++;
+activeModal.value='enviomasivo';
+};
 const toastRef = ref(null);
 const router = useRouter();
 const showQR = ref(false);
@@ -210,211 +228,211 @@ const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const deleteMessages={es:{title:'Retirar cliente',questionBefore:'¿Retirar temporalmente a',questionAfter:' de esta sucursal? Sus datos se conservarán para una futura renovación.',processing:'Procesando...',confirm:'Confirmar retiro'},en:{title:'Remove client',questionBefore:'Temporarily remove',questionAfter:' from this branch? Their data will be kept for a future renewal.',processing:'Processing...',confirm:'Confirm removal'}};
 const deleteT=(key)=>deleteMessages[currentLang.value==='en'?'en':'es'][key];
 const t = (key) => {
-  const langTable = traducciones[currentLang.value] || traducciones.es;
-  return langTable[key] || traducciones.es[key] || key;
+const langTable = traducciones[currentLang.value] || traducciones.es;
+return langTable[key] || traducciones.es[key] || key;
 };
 const handleLangChange = (e) => {
-  if (e.detail && e.detail.idioma) {
-    currentLang.value = e.detail.idioma;
-  }
+if (e.detail && e.detail.idioma) {
+currentLang.value = e.detail.idioma;
+}
 };
 const isMobile = ref(window.innerWidth <= 900);
 const handleResize = () => { isMobile.value = window.innerWidth <= 900; };
 const handleEscape = (e) => {
-  if (e.key !== 'Escape') return;
-  if (showQR.value) { closeQR(); return; }
-  if (showDelete.value) { showDelete.value = false; return; }
-  if (activeModal.value) activeModal.value = null;
+if (e.key !== 'Escape') return;
+if (showQR.value) { closeQR(); return; }
+if (showDelete.value) { showDelete.value = false; return; }
+if (activeModal.value) activeModal.value = null;
 };
 onMounted(() => {
-  window.addEventListener('resize', handleResize);
-  window.addEventListener('idioma-changed', handleLangChange);
-  window.addEventListener('keydown', handleEscape);
+window.addEventListener('resize', handleResize);
+window.addEventListener('idioma-changed', handleLangChange);
+window.addEventListener('keydown', handleEscape);
 });
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-  window.removeEventListener('idioma-changed', handleLangChange);
-  window.removeEventListener('keydown', handleEscape);
+window.removeEventListener('resize', handleResize);
+window.removeEventListener('idioma-changed', handleLangChange);
+window.removeEventListener('keydown', handleEscape);
 });
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const users=ref([]);
 const loadingUsers=ref(false);
 const errorUsers=ref('');
 const getToken=()=>{
-  for(const storage of [sessionStorage,localStorage]){
-    for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){
-      const value=storage.getItem(key);
-      if(value) return value.replace(/^Bearer\s+/i,'');
-    }
-    for(const key of ['auth','user','session','gymAccount','gym_account']){
-      try{const obj=JSON.parse(storage.getItem(key)||'null');const token=obj?.token||obj?.access_token||obj?.accessToken;if(token)return token;}catch{}
-    }
-  }
-  return '';
+for(const storage of [sessionStorage,localStorage]){
+for(const key of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){
+const value=storage.getItem(key);
+if(value) return value.replace(/^Bearer\s+/i,'');
+}
+for(const key of ['auth','user','session','gymAccount','gym_account']){
+try{const obj=JSON.parse(storage.getItem(key)||'null');const token=obj?.token||obj?.access_token||obj?.accessToken;if(token)return token;}catch{}
+}
+}
+return '';
 };
 const authHeaders=()=>({Accept:'application/json',Authorization:`Bearer ${getToken()}`});
 const apiRequest=async(path,options={})=>{
-  const response=await fetch(`${API}${path}`,{...options,headers:{...authHeaders(),...(options.headers||{})}});
-  const body=await response.json().catch(()=>null);
-  if(!response.ok)throw new Error(body?.message||`Error HTTP ${response.status}`);
-  return body;
+const response=await fetch(`${API}${path}`,{...options,headers:{...authHeaders(),...(options.headers||{})}});
+const body=await response.json().catch(()=>null);
+if(!response.ok)throw new Error(body?.message||`Error HTTP ${response.status}`);
+return body;
 };
 const formatDate=(date)=>{
-  if(!date)return '—';
-  const match=String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
+if(!date)return '—';
+const match=String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+return match?`${match[3]}/${match[2]}/${match[1]}`:String(date);
 };
 const obtenerSedeId=()=>{
-  const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
-  for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
-  return null;
+const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+for(const storage of [sessionStorage,localStorage]){for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}}
+return null;
 };
 const resolverSedeId = async () => {
-  let id = obtenerSedeId();
-  if (id) return id;
-  // Da tiempo a que el encabezado guarde la sede por defecto
-  await new Promise(r => setTimeout(r, 700));
-  id = obtenerSedeId();
-  if (id) return id;
-  // Si sigue sin haber sede, usa la primera sede disponible
-  try {
-    const data = await apiRequest('/api/personal/sedes');
-    const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
-    const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
-    if (Number.isInteger(first) && first > 0) {
-      sessionStorage.setItem('selected_sede_id', String(first));
-      return first;
-    }
-  } catch {}
-  return null;
+let id = obtenerSedeId();
+if (id) return id;
+// Da tiempo a que el encabezado guarde la sede por defecto
+await new Promise(r => setTimeout(r, 700));
+id = obtenerSedeId();
+if (id) return id;
+// Si sigue sin haber sede, usa la primera sede disponible
+try {
+const data = await apiRequest('/api/personal/sedes');
+const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
+const first = Number(rows[0]?.ID_Sede ?? rows[0]?.id);
+if (Number.isInteger(first) && first > 0) {
+sessionStorage.setItem('selected_sede_id', String(first));
+return first;
+}
+} catch {}
+return null;
 };
 let requestSequence = 0;
 const cargarClientes=async()=>{
-  const current = ++requestSequence;
-  loadingUsers.value=true;errorUsers.value='';
-  try{
-    if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
-    const sedeId = await resolverSedeId();
-    if (!sedeId) throw new Error('No se encontró una sucursal disponible para tu cuenta.');
-    const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
-    const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
-    if (current !== requestSequence) return;
-    users.value=rows.map(row=>({
-      id:Number(row.ID_Inscripto),clienteId:Number(row.ID_Cliente),sedeId:Number(row.ID_Sede),
-      name:[row.Nombre,row.Apellido_P,row.Apellido_M].filter(Boolean).join(' '),
-      email:row.Correo_Electronico||'',phone:row.Celular||'',status:row.Estatus||'Pendiente',
-      mensualidad:row.Nombre_Paquete||'',precio:row.Precio,periodo:row.Periodo||'',
-      fechaInscripcion:formatDate(row.Fecha_Inscripcion),expirationDate:formatDate(row.Fecha_Vencimiento),
-      fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.foto_url||null,
-      nombreSede:row.Nombre_Sede||'',peso:row.Peso,altura:row.Altura
-    }));
-  }catch(e){if(current !== requestSequence)return;errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
-  finally{if(current === requestSequence)loadingUsers.value=false;}
+const current = ++requestSequence;
+loadingUsers.value=true;errorUsers.value='';
+try{
+if(!getToken())throw new Error('No se encontró el token de sesión. Revisa la clave utilizada en tu AuthController/frontend.');
+const sedeId = await resolverSedeId();
+if (!sedeId) throw new Error('No se encontró una sucursal disponible para tu cuenta.');
+const response=await apiRequest(`/api/gym/clientes?sede_id=${sedeId}`);
+const rows=Array.isArray(response)?response:(Array.isArray(response?.data)?response.data:[]);
+if (current !== requestSequence) return;
+users.value=rows.map(row=>({
+id:Number(row.ID_Inscripto),clienteId:Number(row.ID_Cliente),sedeId:Number(row.ID_Sede),
+name:[row.Nombre,row.Apellido_P,row.Apellido_M].filter(Boolean).join(' '),
+email:row.Correo_Electronico||'',phone:row.Celular||'',status:row.Estatus||'Pendiente',
+mensualidad:row.Nombre_Paquete||'',precio:row.Precio,periodo:row.Periodo||'',
+fechaInscripcion:formatDate(row.Fecha_Inscripcion),expirationDate:formatDate(row.Fecha_Vencimiento),
+fechaNacimiento:formatDate(row.Fecha_Nacimiento),foto:row.foto_url||null,
+nombreSede:row.Nombre_Sede||'',peso:row.Peso,altura:row.Altura
+}));
+}catch(e){if(current !== requestSequence)return;errorUsers.value=e.message||'No se pudieron cargar los clientes.';toastRef.value?.notify(errorUsers.value,'error');}
+finally{if(current === requestSequence)loadingUsers.value=false;}
 };
 const recargarAlVolver = () => { if (document.visibilityState === 'visible') void cargarClientes(); };
 onMounted(()=>{cargarClientes();window.addEventListener('factorfit:branch-changed',cargarClientes);;document.addEventListener('visibilitychange',recargarAlVolver);});
 onUnmounted(()=>{window.removeEventListener('factorfit:branch-changed',cargarClientes);document.removeEventListener('visibilitychange',recargarAlVolver);requestSequence++;});
 const filteredUsers = computed(() => {
-  return users.value.filter((user) => {
-    if(user.status === 'Eliminado temporal') return false;
-    const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
-    const matchStatus = selectedStatus.value ? user.status === selectedStatus.value : true;
-    const term = searchQuery.value.toLowerCase();
-    const matchSearch =
-      user.name.toLowerCase().includes(term) ||
-      (user.email||'').toLowerCase().includes(term) ||
-      (user.phone||'').toLowerCase().includes(term) ||
-      (user.mensualidad||'').toLowerCase().includes(term) ||
-      user.status.toLowerCase().includes(term) ||
-      user.id.toString().includes(term);
-    return matchMembership && matchStatus && matchSearch;
-  });
+return users.value.filter((user) => {
+if(user.status === 'Eliminado temporal') return false;
+const matchMembership = selectedMembership.value ? user.mensualidad === selectedMembership.value : true;
+const matchStatus = selectedStatus.value ? user.status === selectedStatus.value : true;
+const term = searchQuery.value.toLowerCase();
+const matchSearch =
+user.name.toLowerCase().includes(term) ||
+(user.email||'').toLowerCase().includes(term) ||
+(user.phone||'').toLowerCase().includes(term) ||
+(user.mensualidad||'').toLowerCase().includes(term) ||
+user.status.toLowerCase().includes(term) ||
+user.id.toString().includes(term);
+return matchMembership && matchStatus && matchSearch;
+});
 });
 const PAGE_SIZE = 40;
 const page = ref(1);
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
 const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
 const pagedUsers = computed(() => {
-  const start = (page.value - 1) * PAGE_SIZE;
-  return filteredUsers.value.slice(start, start + PAGE_SIZE);
+const start = (page.value - 1) * PAGE_SIZE;
+return filteredUsers.value.slice(start, start + PAGE_SIZE);
 });
 const goPage = (n) => {
-  page.value = Math.min(Math.max(1, n), totalPages.value);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+page.value = Math.min(Math.max(1, n), totalPages.value);
+window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 watch([searchQuery, selectedMembership, selectedStatus], () => { page.value = 1; });
 watch(totalPages, (n) => { if (page.value > n) page.value = n; });
 const pagerLabels = {
-  es: ['Paginación', 'Página anterior', 'Página siguiente'],
-  en: ['Pagination', 'Previous page', 'Next page'],
-  fr: ['Pagination', 'Page précédente', 'Page suivante'],
-  pt: ['Paginação', 'Página anterior', 'Próxima página']
+es: ['Paginación', 'Página anterior', 'Página siguiente'],
+en: ['Pagination', 'Previous page', 'Next page'],
+fr: ['Pagination', 'Page précédente', 'Page suivante'],
+pt: ['Paginação', 'Página anterior', 'Próxima página']
 };
 const pagerLabel = (i) => (pagerLabels[currentLang.value] || pagerLabels.es)[i];
 const getStatusClass = (status) => {
-  const classes = {
-    Activo: 'status-green',
-    Inactivo: 'status-red',
-    Pendiente: 'status-orange',
-    'Próximo a vencer': 'status-yellow',
-    'En tolerancia': 'status-tolerance'
-  };
-  return classes[status] || 'status-default';
+const classes = {
+Activo: 'status-green',
+Inactivo: 'status-red',
+Pendiente: 'status-orange',
+'Próximo a vencer': 'status-yellow',
+'En tolerancia': 'status-tolerance'
+};
+return classes[status] || 'status-default';
 };
 const AVATAR_PALETTE = ['#3b82f6', '#a855f7', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#6366f1', '#ef4444'];
 const initials = (name = '') => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '?';
-  const first = parts[0][0] || '';
-  const second = parts.length > 1 ? parts[1][0] : '';
-  return (first + second).toUpperCase();
+const parts = name.trim().split(/\s+/).filter(Boolean);
+if (!parts.length) return '?';
+const first = parts[0][0] || '';
+const second = parts.length > 1 ? parts[1][0] : '';
+return (first + second).toUpperCase();
 };
 const avatarColor = (name = '') => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const color = AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
-  return `linear-gradient(135deg, ${color}, ${color}99)`;
+let hash = 0;
+for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+const color = AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+return `linear-gradient(135deg, ${color}, ${color}99)`;
 };
 const qrUrl=ref('');
 const qrLoading=ref(false);
 const openQR=async(user)=>{
-  selectedUser.value=user;showQR.value=true;qrUrl.value='';qrLoading.value=true;
-  try{const result=await apiRequest(`/api/gym/clientes/${user.id}/qr`);qrUrl.value=result.qr_url;}
-  catch(e){toastRef.value?.notify(e.message||'No se pudo cargar el QR','error');}
-  finally{qrLoading.value=false;}
+selectedUser.value=user;showQR.value=true;qrUrl.value='';qrLoading.value=true;
+try{const result=await apiRequest(`/api/gym/clientes/${user.id}/qr`);qrUrl.value=result.qr_url;}
+catch(e){toastRef.value?.notify(e.message||'No se pudo cargar el QR','error');}
+finally{qrLoading.value=false;}
 };
 const closeQR = () => {
-  showQR.value = false;
+showQR.value = false;
 };
 const downloadQR=async()=>{
-  if(!selectedUser.value)return;
-  try{
-    const response=await fetch(`${API}/api/gym/clientes/${selectedUser.value.id}/qr/descargar`,{headers:authHeaders()});
-    if(!response.ok)throw new Error(`Error HTTP ${response.status}`);
-    const blob=await response.blob();const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${selectedUser.value.id}.png`;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR','error');}
+if(!selectedUser.value)return;
+try{
+const response=await fetch(`${API}/api/gym/clientes/${selectedUser.value.id}/qr/descargar`,{headers:authHeaders()});
+if(!response.ok)throw new Error(`Error HTTP ${response.status}`);
+const blob=await response.blob();const url=URL.createObjectURL(blob);
+const a=document.createElement('a');a.href=url;a.download=`factorfit-qr-${selectedUser.value.id}.png`;a.click();
+setTimeout(()=>URL.revokeObjectURL(url),1000);
+}catch(e){toastRef.value?.notify(e.message||'No se pudo descargar el QR','error');}
 };
 const confirmDelete = (user) => {
-  selectedUser.value = user;
-  showDelete.value = true;
+selectedUser.value = user;
+showDelete.value = true;
 };
 const deleting=ref(false);
 const executeDelete=async()=>{
-  if(!selectedUser.value||deleting.value)return;
-  deleting.value=true;
-  try{
-    const user=selectedUser.value;
-    await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${user.sedeId||obtenerSedeId()}`,{method:'DELETE'});
-    users.value=users.value.filter(u=>u.id!==user.id);
-    showDelete.value=false;selectedUser.value=null;
-    toastRef.value?.notify('Cliente retirado temporalmente. Sus datos se conservan para una futura renovación.','success');
-  }catch(e){toastRef.value?.notify(e.message||'No se pudo retirar al cliente.','error');}
-  finally{deleting.value=false;}
+if(!selectedUser.value||deleting.value)return;
+deleting.value=true;
+try{
+const user=selectedUser.value;
+await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${user.sedeId||obtenerSedeId()}`,{method:'DELETE'});
+users.value=users.value.filter(u=>u.id!==user.id);
+showDelete.value=false;selectedUser.value=null;
+toastRef.value?.notify('Cliente retirado temporalmente. Sus datos se conservan para una futura renovación.','success');
+}catch(e){toastRef.value?.notify(e.message||'No se pudo retirar al cliente.','error');}
+finally{deleting.value=false;}
 };
 const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-usuario/${users.value.find(u=>u.id===id)?.clienteId||id}`);
-const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(numero)window.open(`https://wa.me/${numero}`,'_blank','noopener,noreferrer');else toastRef.value?.notify('Este cliente no tiene teléfono','warning'); };
+const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(numero)window.open(`https://wa.me/${numero}`,'\_blank','noopener,noreferrer');else toastRef.value?.notify('Este cliente no tiene teléfono','warning'); };
 </script>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');.data-message{padding:12px;color:var(--color-texto-general,#fff)}
@@ -435,7 +453,7 @@ const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(
 .result-count{align-self: flex-start;margin: 0;padding: 4px 12px;border: 1px solid var(--line);border-radius: 999px;background: var(--surface-2);color: var(--muted);font-size: .8rem;font-weight: 600}
 .actions-bar{display: flex;align-items: center;justify-content: flex-end;gap: 10px;flex-wrap: wrap}
 .status-select, .search-input, .btn-bulk{min-height: 44px;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--bg-cards, #15171c);color: var(--color-texto-general, #e5e7eb);font: 500 .86rem 'Inter', sans-serif;outline: none;transition: border-color .15s, background .15s, box-shadow .15s, transform .15s, filter .15s}
-.status-select{min-width: 150px;padding: 0 38px 0 14px;appearance: none;-webkit-appearance: none;cursor: pointer;color-scheme: dark;background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat: no-repeat;background-position: right 13px center;background-size: 16px}
+.status-select{min-width: 150px;padding: 0 38px 0 14px;appearance: none;-webkit-appearance: none;cursor: pointer;color-scheme: dark;background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http\://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa3' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat: no-repeat;background-position: right 13px center;background-size: 16px}
 .status-select:hover, .search-input:hover{border-color: rgba(255,255,255,.2)}
 .status-select:focus, .search-input:focus{border-color: var(--accent);box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent)}
 .status-select option{background: var(--bg-cards, #15171c);color: var(--color-texto-general, #fff)}
@@ -535,8 +553,8 @@ const openWhatsApp = (phone) => { const numero=(phone||'').replace(/\D/g,'');if(
 .email-text{color: var(--color-texto-general, #cbd5e1)}
 .phone-text{color: var(--muted)}
 .email-text::before, .phone-text::before{content: '';display: inline-block;width: 16px;height: 16px;margin-right: 10px;vertical-align: -3px;background: currentColor;opacity: .6;-webkit-mask-repeat: no-repeat;mask-repeat: no-repeat;-webkit-mask-position: center;mask-position: center;-webkit-mask-size: contain;mask-size: contain}
-.email-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e")}
-.phone-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e")}
+.email-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http\://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http\://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z'/%3e%3cpolyline points='22,6 12,13 2,6'/%3e%3c/svg%3e")}
+.phone-text::before{-webkit-mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http\://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e");mask-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http\://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z'/%3e%3c/svg%3e")}
 .card-actions{display: grid;grid-template-columns: repeat(5, minmax(0, 1fr));gap: 7px;padding-top: 14px;border-top: 1px solid var(--line-soft)}
 .action-chip{min-width: 0;min-height: 60px;display: flex;flex-direction: column;align-items: center;justify-content: center;gap: 6px;padding: 8px 2px;cursor: pointer;border: 1px solid var(--line);border-radius: var(--r-sm);background: var(--surface-2);font: 600 .7rem 'Inter', sans-serif;-webkit-tap-highlight-color: transparent;transition: background .15s, border-color .15s, transform .15s}
 .action-chip span{max-width: 100%;overflow: hidden;text-overflow: ellipsis;white-space: nowrap}
