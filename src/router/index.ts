@@ -32,6 +32,7 @@ const router = createRouter({
     { path: '/loginclient', name: 'loginclient', component: LoginClient },
     { path: '/recover-password-client', name: 'recover-password-client', component: RecoverPasswordClient },
     { path: '/record-client', name: 'record-client', component: RecordClient },
+    { path: '/copiar-clave', name: 'copiar-clave', component: () => import('@/views/CopiarClave.vue') },
     ...GYM_ACCOUNTRoutes,
     ...GYM_RECEPCIONISTRoutes,
     ...AdminRoutes,
