@@ -1,12 +1,10 @@
 <template>
   <div class="app-wrapper">
-
     <!-- =====================================================
          NAVEGACIÓN ESCRITORIO
     ====================================================== -->
     <header class="desktop-navbar">
       <div class="desktop-navbar-inner">
-
         <!-- SUCURSAL ACTUAL (esquina izquierda) -->
         <div class="desktop-brand nav-dropdown-root">
           <button
@@ -20,17 +18,14 @@
             <div class="brand-mark">
               <svg class="ico" viewBox="0 0 24 24" v-html="ICON.pin"></svg>
             </div>
-
             <div class="brand-copy">
               <strong>{{ selectedGym }}</strong>
               <span>{{ nt('currentBranch') }}</span>
             </div>
-
             <svg class="brand-chevron" :class="{ rotated: desktopDropdown === 'branch' }" viewBox="0 0 24 24">
               <path d="M7 10l5 5 5-5z" />
             </svg>
           </button>
-
           <transition name="desktop-dropdown">
             <div
               v-if="desktopDropdown === 'branch'"
@@ -38,7 +33,6 @@
               @click.stop
             >
               <div class="dropdown-title">{{ nt('myGyms') }}</div>
-
               <button
                 v-for="gym in gyms"
                 :key="gym"
@@ -58,9 +52,7 @@
                   <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
-
               <div class="dropdown-divider"></div>
-
               <router-link :to="`${BASE}/gyms`" class="dropdown-link compact" @click="closeDesktopDropdown">
                 <span class="dropdown-icon neutral">
                   <svg class="ico" viewBox="0 0 24 24" v-html="ICON.gyms"></svg>
@@ -70,11 +62,9 @@
             </div>
           </transition>
         </div>
-
         <!-- MENÚ CENTRAL -->
         <nav class="desktop-menu">
           <template v-for="m in desktopMenu" :key="m.key">
-
             <!-- ENLACE SIMPLE -->
             <router-link
               v-if="m.type === 'link'"
@@ -85,7 +75,6 @@
               <svg class="nav-ico" viewBox="0 0 24 24"><path :d="m.navIcon" /></svg>
               <span>{{ nt(m.key) }}</span>
             </router-link>
-
             <!-- GRUPO CON SUBMENÚ -->
             <div v-else class="desktop-nav-group nav-dropdown-root">
               <button
@@ -100,7 +89,6 @@
                   <path d="M7 10l5 5 5-5z" />
                 </svg>
               </button>
-
               <transition name="desktop-dropdown">
                 <div
                   v-if="desktopDropdown === m.id"
@@ -109,7 +97,6 @@
                   @click.stop
                 >
                   <div class="dropdown-title">{{ nt(m.key) }}</div>
-
                   <router-link
                     v-for="l in m.items"
                     :key="l.to"
@@ -129,10 +116,8 @@
             </div>
           </template>
         </nav>
-
         <!-- ACCIONES DERECHA -->
         <div class="desktop-actions">
-
           <!-- QR -->
           <button
             type="button"
@@ -148,7 +133,6 @@
               <path d="M18 14h2v6h-6v-2"></path>
             </svg>
           </button>
-
           <!-- NOTIFICACIONES -->
           <button
             type="button"
@@ -164,9 +148,7 @@
               <path d="M10 21h4"></path>
             </svg>
           </button>
-
           <div class="desktop-separator"></div>
-
           <!-- PERFIL -->
           <div class="profile-menu-root nav-dropdown-root">
             <button
@@ -178,12 +160,10 @@
             >
               <span class="profile-avatar">{{ memberInitials }}</span>
               <span class="profile-user-name">{{ memberName }}</span>
-
               <svg class="profile-chevron" :class="{ rotated: desktopDropdown === 'profile' }" viewBox="0 0 24 24">
                 <path d="M7 10l5 5 5-5z"></path>
               </svg>
             </button>
-
             <transition name="desktop-dropdown">
               <div
                 v-if="desktopDropdown === 'profile'"
@@ -191,7 +171,6 @@
                 @click.stop
               >
                 <div class="dropdown-title">{{ nt('more') }}</div>
-
                 <router-link
                   v-for="l in profileLinks"
                   :key="l.to"
@@ -204,32 +183,26 @@
                   </span>
                   <span class="dropdown-copy"><strong>{{ nt(l.key) }}</strong></span>
                 </router-link>
-
                 <div v-if="profileLinks.length" class="dropdown-divider"></div>
-
                 <router-link :to="`${BASE}/profile`" class="dropdown-link compact" @click="closeDesktopDropdown">
                   <span class="dropdown-icon neutral">
                     <svg class="ico" viewBox="0 0 24 24" v-html="ICON.profile"></svg>
                   </span>
                   <span class="dropdown-copy"><strong>{{ nt('profile') }}</strong></span>
                 </router-link>
-
                 <router-link :to="`${BASE}/settings`" class="dropdown-link compact" @click="closeDesktopDropdown">
                   <span class="dropdown-icon neutral">
                     <svg class="ico" viewBox="0 0 24 24" v-html="ICON.settings"></svg>
                   </span>
                   <span class="dropdown-copy"><strong>{{ nt('settings') }}</strong></span>
                 </router-link>
-
                 <router-link :to="`${BASE}/help`" class="dropdown-link compact" @click="closeDesktopDropdown">
                   <span class="dropdown-icon neutral">
                     <svg class="ico" viewBox="0 0 24 24" v-html="ICON.help"></svg>
                   </span>
                   <span class="dropdown-copy"><strong>{{ nt('help') }}</strong></span>
                 </router-link>
-
                 <div class="dropdown-divider"></div>
-
                 <button type="button" class="dropdown-link compact logout-link" @click="handleLogout">
                   <span class="dropdown-icon red">
                     <svg class="ico" viewBox="0 0 24 24" v-html="ICON.logout"></svg>
@@ -242,12 +215,10 @@
         </div>
       </div>
     </header>
-
     <!-- =====================================================
          CONTENIDO GENERAL
     ====================================================== -->
     <div class="main-layout-container">
-
       <!-- TOP NAV MÓVIL: sucursal + QR + notificaciones -->
       <nav class="mobile-top-nav">
         <button type="button" class="mobile-branch" @click="toggleSheet('branch')">
@@ -260,7 +231,6 @@
           </span>
           <svg class="mobile-branch-chevron" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" /></svg>
         </button>
-
         <div class="nav-right">
           <button
             type="button"
@@ -274,7 +244,6 @@
               <path d="M14 14h2v2h-2zM18 14h2v6h-6v-2"></path>
             </svg>
           </button>
-
           <button
             type="button"
             class="nav-action-btn notification"
@@ -290,12 +259,10 @@
           </button>
         </div>
       </nav>
-
       <main class="main-content-wrapper" :class="{ 'nav-collapsed': navHidden }">
         <slot />
       </main>
     </div>
-
     <!-- =====================================================
          BARRA INFERIOR MÓVIL
          Se puede ocultar hacia abajo (botón flecha o deslizando)
@@ -307,7 +274,6 @@
       @touchstart.passive="onNavTouchStart"
       @touchend.passive="onNavTouchEnd"
     >
-
       <router-link
         :to="`${BASE}/dashboard`"
         class="tab"
@@ -317,7 +283,6 @@
         <svg class="ico" viewBox="0 0 24 24" v-html="ICON.home"></svg>
         <span>{{ nt('home') }}</span>
       </router-link>
-
       <button
         type="button"
         class="tab"
@@ -327,7 +292,6 @@
         <svg class="ico" viewBox="0 0 24 24" v-html="ICON.health"></svg>
         <span>{{ nt('tabHealth') }}</span>
       </button>
-
       <!-- BOTÓN CENTRAL: RUTINAS -->
       <button
         type="button"
@@ -340,7 +304,6 @@
         </span>
         <span>{{ nt('routines') }}</span>
       </button>
-
       <button
         type="button"
         class="tab"
@@ -350,7 +313,6 @@
         <svg class="ico" viewBox="0 0 24 24" v-html="ICON.payments"></svg>
         <span>{{ nt('tabPayments') }}</span>
       </button>
-
       <button
         type="button"
         class="tab"
@@ -361,7 +323,6 @@
         <span>{{ nt('more') }}</span>
       </button>
     </nav>
-
     <!-- BOTÓN PARA OCULTAR / MOSTRAR LA BARRA INFERIOR (solo móvil) -->
     <button
       type="button"
@@ -373,7 +334,6 @@
     >
       <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" /></svg>
     </button>
-
     <!-- =====================================================
          HOJAS INFERIORES (móvil)
     ====================================================== -->
@@ -381,11 +341,9 @@
       <div v-if="mobileSheet" class="sheet-overlay" @click.self="closeSheet">
         <div class="sheet" role="dialog" aria-modal="true">
           <div class="sheet-handle"></div>
-
           <!-- GRUPOS: Rutinas, Salud y Nutrición, Membresía y Pagos -->
           <template v-if="groupsById[mobileSheet]">
             <h3 class="sheet-title">{{ nt(groupsById[mobileSheet].key) }}</h3>
-
             <router-link
               v-for="l in groupsById[mobileSheet].items"
               :key="l.to"
@@ -401,11 +359,9 @@
               </span>
             </router-link>
           </template>
-
           <!-- GIMNASIO ACTUAL -->
           <template v-else-if="mobileSheet === 'branch'">
             <h3 class="sheet-title">{{ nt('myGyms') }}</h3>
-
             <button
               v-for="gym in gyms"
               :key="gym"
@@ -425,9 +381,7 @@
                 <path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
-
             <div class="sheet-divider"></div>
-
             <router-link :to="`${BASE}/gyms`" class="sheet-link" @click="closeSheet">
               <span class="dropdown-icon neutral">
                 <svg class="ico" viewBox="0 0 24 24" v-html="ICON.gyms"></svg>
@@ -437,11 +391,9 @@
               </span>
             </router-link>
           </template>
-
           <!-- MÁS -->
           <template v-else-if="mobileSheet === 'more'">
             <h3 class="sheet-title">{{ nt('more') }}</h3>
-
             <router-link
               v-for="l in moreLinks"
               :key="l.to"
@@ -456,9 +408,7 @@
                 <strong>{{ nt(l.key) }}</strong>
               </span>
             </router-link>
-
             <div class="sheet-divider"></div>
-
             <div class="sheet-grid">
               <router-link :to="`${BASE}/profile`" class="sheet-tile" @click="closeSheet">
                 <span class="dropdown-icon neutral">
@@ -466,21 +416,18 @@
                 </span>
                 <strong>{{ nt('profile') }}</strong>
               </router-link>
-
               <router-link :to="`${BASE}/settings`" class="sheet-tile" @click="closeSheet">
                 <span class="dropdown-icon neutral">
                   <svg class="ico" viewBox="0 0 24 24" v-html="ICON.settings"></svg>
                 </span>
                 <strong>{{ nt('settings') }}</strong>
               </router-link>
-
               <router-link :to="`${BASE}/help`" class="sheet-tile" @click="closeSheet">
                 <span class="dropdown-icon neutral">
                   <svg class="ico" viewBox="0 0 24 24" v-html="ICON.help"></svg>
                 </span>
                 <strong>{{ nt('help') }}</strong>
               </router-link>
-
               <button type="button" class="sheet-tile danger" @click="handleLogout">
                 <span class="dropdown-icon red">
                   <svg class="ico" viewBox="0 0 24 24" v-html="ICON.logout"></svg>
@@ -492,7 +439,6 @@
         </div>
       </div>
     </transition>
-
     <!-- =====================================================
          MODAL QR
     ====================================================== -->
@@ -508,12 +454,10 @@
               <span class="modal-kicker">GYMPRO</span>
               <h3>{{ t.codigoQrAcceso }}</h3>
             </div>
-
             <button type="button" class="close-panel" @click="activeModal = null">
               &times;
             </button>
           </div>
-
           <div class="panel-body">
             <div class="qr-container">
               <img
@@ -521,9 +465,7 @@
                 alt="QR Code"
               />
             </div>
-
             <p>{{ t.muestraCodigoAsistencia }}</p>
-
             <button type="button" class="action-btn-full">
               {{ t.descargarImprimir }}
             </button>
@@ -531,7 +473,6 @@
         </div>
       </div>
     </transition>
-
     <!-- NOTIFICACIONES -->
     <NotificationsPanel
       :is-open="isNotificationsOpen"
@@ -540,25 +481,20 @@
     />
   </div>
 </template>
-
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import NotificationsPanel from './Notifications/NotificationsPanel.vue';
 import { traducciones } from './i18n.js';
 import { useLang } from './useLang.js';
-
 const router = useRouter();
 const route = useRoute();
 const { lang } = useLang();
-
 /* Prefijo de las rutas del miembro (igual que en Sidebar.vue) */
 const BASE = '/Member';
-
 /* =========================================================
    ICONOS (los mismos del Sidebar, estilo trazo)
 ========================================================= */
-
 const ICON = {
   pin: '<path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/>',
   profile: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
@@ -572,7 +508,6 @@ const ICON = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
   help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
-
   explore: '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
   myRoutines: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>',
   calculator: '<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/>',
@@ -580,11 +515,9 @@ const ICON = {
   star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
   receipt: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'
 };
-
 /* =========================================================
    ICONOS DE LA BARRA SUPERIOR (rellenos, como en el menú del propietario)
 ========================================================= */
-
 const NAV_ICON = {
   /* casa */
   home: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
@@ -603,11 +536,9 @@ const NAV_ICON = {
   /* barras: estadísticas */
   statistics: 'M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z'
 };
-
 /* =========================================================
    SECCIONES DEL MIEMBRO (idénticas a Sidebar.vue)
 ========================================================= */
-
 const menu = [
   { type: 'link', key: 'home', to: `${BASE}/dashboard`, svg: ICON.home, navIcon: NAV_ICON.home },
   { type: 'link', key: 'gymsAndVenues', to: `${BASE}/gyms`, svg: ICON.gyms, navIcon: NAV_ICON.gyms, color: 'blue' },
@@ -637,16 +568,12 @@ const menu = [
     ]
   }
 ];
-
 const groupsById = Object.fromEntries(
   menu.filter((m) => m.type === 'group').map((g) => [g.id, g])
 );
-
 const menuByKey = Object.fromEntries(menu.map((m) => [m.key, m]));
-
 /* Enlaces que en móvil van dentro de "Más" */
 const moreLinks = menu.filter((m) => m.type === 'link' && m.key !== 'home');
-
 /*
   Escritorio (barra superior): Inicio, Clases y Reservas,
   Entrenadores, Estadísticas y Membresía y Pagos.
@@ -658,17 +585,14 @@ const desktopMenu = [
   menuByKey.statistics,
   menuByKey.membershipAndPayments
 ];
-
 /*
   Panel del perfil: sin enlaces extra. Rutinas y Salud y Nutrición ya no
   se muestran en escritorio. Gimnasios y Sedes sigue en el menú de sucursal.
 */
 const profileLinks = [];
-
 /* =========================================================
    TEXTOS DEL MENÚ (los mismos del Sidebar + algunos de apoyo)
 ========================================================= */
-
 const navLang = {
   es: {
     currentBranch: 'Sucursal Actual',
@@ -734,44 +658,32 @@ const navLang = {
     hideMenu: 'Hide menu'
   }
 };
-
 /* =========================================================
    ESTADOS GENERALES
 ========================================================= */
-
 const isNotificationsOpen = ref(false);
-
 const activeModal = ref(null);
 const desktopDropdown = ref(null);
-
 /* Hoja inferior móvil: null | 'routines' | 'health' | 'payments' | 'more' */
 const mobileSheet = ref(null);
-
 /*
   Gimnasios en los que el miembro está inscrito.
   Reemplaza esta lista por la real (por ejemplo, la que regrese tu API).
 */
 const GYM_KEY = 'member-selected-gym';
-
 const gyms = ref(['Gimnasio Principal', 'Sucursal Secundaria']);
-
 const savedGym = localStorage.getItem(GYM_KEY);
-
 const selectedGym = ref(
   gyms.value.includes(savedGym) ? savedGym : gyms.value[0]
 );
-
 const selectGym = (gym) => {
   selectedGym.value = gym;
   localStorage.setItem(GYM_KEY, gym);
-
   /* Para que las páginas puedan recargar sus datos al cambiar de gimnasio */
   window.dispatchEvent(new CustomEvent('gym-changed', { detail: { gym } }));
-
   closeDesktopDropdown();
   closeSheet();
 };
-
 const notifications = ref([
   {
     id: 1,
@@ -781,13 +693,10 @@ const notifications = ref([
     read: false
   }
 ]);
-
 /* =========================================================
    PERFIL (datos de prueba: reemplázalos por los reales)
 ========================================================= */
-
 const memberName = 'Carlos Martínez';
-
 const memberInitials = computed(() =>
   memberName
     .split(' ')
@@ -796,54 +705,42 @@ const memberInitials = computed(() =>
     .join('')
     .toUpperCase()
 );
-
 /* =========================================================
    IDIOMA
 ========================================================= */
-
 const idiomaActual = ref(
   localStorage.getItem('member-idioma') || lang.value || 'es'
 );
-
 /* Traducciones generales (QR, notificaciones, etc.) */
 const t = computed(() => {
   return traducciones[idiomaActual.value] || traducciones.es || {};
 });
-
 /* Traducciones del menú */
 const nt = (key) => {
   const table = navLang[idiomaActual.value] || navLang.es;
   return table[key] || navLang.es[key] || key;
 };
-
 /* Escucha tanto 'idioma-changed' como 'language-changed' */
 const handleIdiomaChanged = (event) => {
   const nuevo = event?.detail?.idioma || localStorage.getItem('member-idioma');
-
   if (nuevo) {
     idiomaActual.value = nuevo;
   }
 };
-
 /* =========================================================
    NOTIFICACIONES
 ========================================================= */
-
 const unreadNotifications = computed(() => {
   return notifications.value.filter((n) => !n.read).length;
 });
-
 /* =========================================================
    GRUPO ACTIVO (resalta el menú cuando estás en una de sus páginas)
 ========================================================= */
-
 const isGroupActive = (id) =>
   (groupsById[id]?.items || []).some((item) => route.path.startsWith(item.to));
-
 /* Resalta el avatar cuando estás en una página que vive en su panel */
 const isProfileMenuActive = computed(() => {
   const path = route.path;
-
   return (
     profileLinks.some((l) => path.startsWith(l.to)) ||
     path.startsWith(`${BASE}/profile`) ||
@@ -851,21 +748,16 @@ const isProfileMenuActive = computed(() => {
     path.startsWith(`${BASE}/help`)
   );
 });
-
 /* =========================================================
    BARRA INFERIOR MÓVIL
 ========================================================= */
-
 /* Pestaña que corresponde a la página actual */
 const activeTab = computed(() => {
   const path = route.path;
-
   if (path.startsWith(`${BASE}/dashboard`)) return 'home';
-
   for (const id of Object.keys(groupsById)) {
     if (isGroupActive(id)) return id;
   }
-
   if (
     moreLinks.some((l) => path.startsWith(l.to)) ||
     path.startsWith(`${BASE}/profile`) ||
@@ -874,107 +766,80 @@ const activeTab = computed(() => {
   ) {
     return 'more';
   }
-
   return '';
 });
-
 /* Si hay una hoja abierta, se resalta esa pestaña; si no, la de la página */
 const isTabOn = (name) =>
   mobileSheet.value ? mobileSheet.value === name : activeTab.value === name;
-
 const toggleSheet = (name) => {
   desktopDropdown.value = null;
   mobileSheet.value = mobileSheet.value === name ? null : name;
 };
-
 const closeSheet = () => {
   mobileSheet.value = null;
 };
-
 /* Bloquea el scroll del fondo mientras la hoja está abierta */
 watch(mobileSheet, (value) => {
   document.body.style.overflow = value ? 'hidden' : '';
 });
-
 /* ---------- Ocultar / mostrar la barra inferior ---------- */
-
 const NAV_HIDDEN_KEY = 'member-nav-hidden';
-
 const navHidden = ref(localStorage.getItem(NAV_HIDDEN_KEY) === '1');
-
 const setNavHidden = (value) => {
   navHidden.value = value;
   localStorage.setItem(NAV_HIDDEN_KEY, value ? '1' : '0');
-
   /* Al ocultar la barra se cierra cualquier hoja abierta */
   if (value) {
     closeSheet();
   }
 };
-
 const toggleBottomNav = () => setNavHidden(!navHidden.value);
-
 /* Deslizar hacia abajo sobre la barra para ocultarla */
 let touchStartY = 0;
-
 const onNavTouchStart = (event) => {
   touchStartY = event.touches[0].clientY;
 };
-
 const onNavTouchEnd = (event) => {
   const deltaY = event.changedTouches[0].clientY - touchStartY;
-
   if (deltaY > 40) {
     setNavHidden(true);
   }
 };
-
 /* =========================================================
    DROPDOWNS DESKTOP
 ========================================================= */
-
 const toggleDesktopDropdown = (name) => {
   desktopDropdown.value = desktopDropdown.value === name ? null : name;
 };
-
 const closeDesktopDropdown = () => {
   desktopDropdown.value = null;
 };
-
 /* =========================================================
    CERRAR MENÚ AL HACER CLICK AFUERA
 ========================================================= */
-
 const handleDocumentClick = (event) => {
   const target = event.target;
-
   if (!(target instanceof Element)) {
     return;
   }
-
   if (!target.closest('.nav-dropdown-root')) {
     closeDesktopDropdown();
   }
 };
-
 /* =========================================================
    ESC
 ========================================================= */
-
 const handleKeydown = (event) => {
   if (event.key !== 'Escape') {
     return;
   }
-
   closeDesktopDropdown();
   closeSheet();
   activeModal.value = null;
 };
-
 /* =========================================================
    RESIZE
 ========================================================= */
-
 const handleResize = () => {
   if (window.innerWidth >= 900) {
     closeSheet();
@@ -982,91 +847,77 @@ const handleResize = () => {
     closeDesktopDropdown();
   }
 };
-
 /* =========================================================
    LOGOUT
 ========================================================= */
-
-const handleLogout = () => {
-  localStorage.removeItem('user_role');
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-
-  closeDesktopDropdown();
-  closeSheet();
-
-  router.replace({ name: 'login' });
+const handleLogout = async () => {
+  const token = sessionStorage.getItem('auth_token');
+  const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+  try {
+    if (token && base) {
+      const response = await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+      if (!response.ok) console.error('No se pudo revocar el token:', response.status);
+    }
+  } catch (error) { console.error('Error al cerrar sesión:', error); }
+  finally {
+    ['auth_token','token','access_token','user_role','gym_account','user','selected_sede_id'].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); });
+    localStorage.removeItem('GYM_ACCOUNT-selected-gym');
+    closeDesktopDropdown(); closeSheet();
+    await router.replace({ name: 'login' });
+  }
 };
-
 /* =========================================================
    ESTILOS GLOBALES
 ========================================================= */
-
 const aplicarEstilosGlobales = () => {
   let savedColors = null;
-
   try {
     savedColors = JSON.parse(localStorage.getItem('app-colors') || 'null');
   } catch {
     savedColors = null;
   }
-
   const savedRadius = localStorage.getItem('app-radius');
   const savedDensidad = localStorage.getItem('app-densidad');
-
   const root = document.documentElement;
-
   if (savedColors) {
     if (savedColors.headingBg) {
       root.style.setProperty('--color-heading-bg', savedColors.headingBg);
     }
-
     if (savedColors.tablas) {
       root.style.setProperty('--color-tablas', savedColors.tablas);
     }
-
     if (savedColors.interfaz) {
       root.style.setProperty('--color-interfaz', savedColors.interfaz);
       root.style.setProperty('--bg-custom', savedColors.interfaz);
     }
-
     if (savedColors.botones) {
       root.style.setProperty('--color-botones', savedColors.botones);
     }
-
     if (savedColors.tarjetas) {
       root.style.setProperty('--bg-cards', savedColors.tarjetas);
     }
-
     if (savedColors.titulos) {
       root.style.setProperty('--color-titulos', savedColors.titulos);
     }
-
     if (savedColors.highlight) {
       root.style.setProperty('--color-highlight', savedColors.highlight);
     }
-
     if (savedColors.etiquetas) {
       root.style.setProperty('--color-etiquetas', savedColors.etiquetas);
     }
-
     if (savedColors.textoGeneral) {
       root.style.setProperty('--color-texto-general', savedColors.textoGeneral);
     }
-
     if (savedColors.textoBotones) {
       root.style.setProperty('--color-texto-botones', savedColors.textoBotones);
     }
-
     if (savedColors.svgColor) {
       root.style.setProperty('--color-svg', savedColors.svgColor);
     }
   }
-
   if (savedRadius) {
     root.style.setProperty('--app-border-radius', savedRadius);
   }
-
   if (savedDensidad === 'compacto') {
     root.style.setProperty('--panel-padding', '16px');
     root.style.setProperty('--row-padding', '10px 0');
@@ -1078,14 +929,11 @@ const aplicarEstilosGlobales = () => {
     root.style.setProperty('--row-padding', '16px 0');
   }
 };
-
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
-
 onMounted(() => {
   aplicarEstilosGlobales();
-
   document.addEventListener('click', handleDocumentClick);
   document.addEventListener('keydown', handleKeydown);
   window.addEventListener('resize', handleResize);
@@ -1093,7 +941,6 @@ onMounted(() => {
   window.addEventListener('idioma-changed', handleIdiomaChanged);
   window.addEventListener('language-changed', handleIdiomaChanged);
 });
-
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleKeydown);
@@ -1101,22 +948,17 @@ onUnmounted(() => {
   window.removeEventListener('app-settings-updated', aplicarEstilosGlobales);
   window.removeEventListener('idioma-changed', handleIdiomaChanged);
   window.removeEventListener('language-changed', handleIdiomaChanged);
-
   document.body.style.overflow = '';
 });
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap');
-
 /* =========================================================
    BASE
 ========================================================= */
-
 * {
   box-sizing: border-box;
 }
-
 .app-wrapper {
   --nav-height: 72px;
   --bottom-nav-h: 70px;
@@ -1129,7 +971,6 @@ onUnmounted(() => {
   --title: var(--color-titulos, #ffffff);
   --muted: var(--color-etiquetas, #8b98aa);
   --line: rgba(255, 255, 255, 0.08);
-
   min-height: 100vh;
   width: 100%;
   position: relative;
@@ -1139,14 +980,12 @@ onUnmounted(() => {
   font-family: 'Inter', sans-serif;
   transition: background-color .25s ease;
 }
-
 /* Ocultos por defecto; cada breakpoint activa los suyos */
 .desktop-navbar,
 .bottom-nav,
 .nav-toggle {
   display: none;
 }
-
 /* Iconos de trazo (los mismos del sidebar) */
 .ico {
   fill: none;
@@ -1155,29 +994,24 @@ onUnmounted(() => {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 /* =========================================================
    LAYOUT
 ========================================================= */
-
 .main-layout-container {
   width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
-
 .main-content-wrapper {
   width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
-
 /* =========================================================
    ICONOS Y TEXTOS COMPARTIDOS (dropdowns de escritorio y hojas móviles)
 ========================================================= */
-
 .dropdown-icon {
   width: 38px;
   height: 38px;
@@ -1187,19 +1021,16 @@ onUnmounted(() => {
   justify-content: center;
   border-radius: 10px;
 }
-
 .dropdown-icon .ico {
   width: 18px;
   height: 18px;
 }
-
 .dropdown-icon.blue { color: #60a5fa; background: rgba(59, 130, 246, 0.14); }
 .dropdown-icon.purple { color: #c084fc; background: rgba(168, 85, 247, 0.14); }
 .dropdown-icon.green { color: #34d399; background: rgba(16, 185, 129, 0.14); }
 .dropdown-icon.orange { color: #fb923c; background: rgba(249, 115, 22, 0.14); }
 .dropdown-icon.red { color: #f87171; background: rgba(239, 68, 68, 0.14); }
 .dropdown-icon.neutral { color: var(--muted); background: rgba(255, 255, 255, 0.06); }
-
 .dropdown-copy {
   min-width: 0;
   flex: 1;
@@ -1207,7 +1038,6 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-start;
 }
-
 .dropdown-copy strong {
   max-width: 100%;
   overflow: hidden;
@@ -1217,19 +1047,15 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .dropdown-divider {
   height: 1px;
   margin: 6px 8px;
   background: var(--nav-line);
 }
-
 .logout-link { color: #f87171; }
-
 /* =========================================================
    TOP NAV MÓVIL
 ========================================================= */
-
 .mobile-top-nav {
   min-height: 64px;
   position: sticky;
@@ -1243,13 +1069,11 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--line);
   background: var(--color-heading-bg, #0c1118);
 }
-
 .nav-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
 .mobile-branch {
   min-width: 0;
   max-width: calc(100% - 100px);
@@ -1265,14 +1089,12 @@ onUnmounted(() => {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-
 .mobile-branch-chevron {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   fill: var(--muted);
 }
-
 .dropdown-copy small {
   max-width: 100%;
   margin-top: 2px;
@@ -1283,14 +1105,12 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .sheet-check {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
   color: var(--accent);
 }
-
 .mobile-branch-icon {
   width: 30px;
   height: 30px;
@@ -1302,12 +1122,10 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
 }
-
 .mobile-branch-icon .ico {
   width: 16px;
   height: 16px;
 }
-
 .mobile-branch-copy {
   min-width: 0;
   display: flex;
@@ -1315,7 +1133,6 @@ onUnmounted(() => {
   align-items: flex-start;
   line-height: 1.2;
 }
-
 .mobile-branch-copy strong {
   max-width: 100%;
   overflow: hidden;
@@ -1324,13 +1141,11 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .mobile-branch-copy small {
   color: var(--muted);
   font-size: .68rem;
   font-weight: 500;
 }
-
 .nav-action-btn {
   width: 42px;
   height: 42px;
@@ -1347,13 +1162,11 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background .18s ease, border-color .18s ease, color .18s ease;
 }
-
 .nav-action-btn:hover {
   background: rgba(255, 255, 255, .075);
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   color: var(--accent);
 }
-
 .mobile-svg-icon {
   width: 20px;
   height: 20px;
@@ -1363,7 +1176,6 @@ onUnmounted(() => {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
 .mobile-notification-dot {
   width: 7px;
   height: 7px;
@@ -1374,11 +1186,9 @@ onUnmounted(() => {
   border-radius: 50%;
   background: var(--accent);
 }
-
 /* =========================================================
    BARRA INFERIOR MÓVIL
 ========================================================= */
-
 .bottom-nav {
   height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
   position: fixed;
@@ -1396,14 +1206,12 @@ onUnmounted(() => {
   box-shadow: 0 -12px 34px rgba(0, 0, 0, .4);
   transition: transform .3s cubic-bezier(.32, .72, 0, 1);
 }
-
 /* Barra oculta: baja fuera de pantalla.
    +40px para que también se esconda el botón central flotante */
 .bottom-nav.is-hidden {
   transform: translateY(calc(100% + 40px));
   pointer-events: none;
 }
-
 .tab {
   height: var(--bottom-nav-h);
   min-width: 0;
@@ -1426,25 +1234,21 @@ onUnmounted(() => {
   -webkit-tap-highlight-color: transparent;
   transition: color .18s ease;
 }
-
 .tab > span {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .tab > .ico {
   width: 25px;
   height: 25px;
   stroke-width: 1.9;
   transition: transform .18s ease, filter .18s ease;
 }
-
 .tab:active > .ico {
   transform: scale(.88);
 }
-
 /* Barrita superior de la pestaña activa */
 .tab::before {
   content: '';
@@ -1459,30 +1263,24 @@ onUnmounted(() => {
   transform: translateX(-50%) scaleX(0);
   transition: transform .22s ease;
 }
-
 .tab.on {
   color: var(--accent);
 }
-
 .tab.on::before {
   transform: translateX(-50%) scaleX(1);
 }
-
 .tab.on > .ico {
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 60%, transparent));
 }
-
 /* Botón central flotante */
 .tab-center {
   justify-content: flex-end;
   padding-bottom: 15px;
   color: var(--text);
 }
-
 .tab-center.on {
   color: var(--accent);
 }
-
 .fab {
   width: 64px;
   height: 64px;
@@ -1505,26 +1303,21 @@ onUnmounted(() => {
   transform: translateX(-50%);
   transition: transform .18s ease, box-shadow .18s ease;
 }
-
 .fab .ico {
   width: 28px;
   height: 28px;
   stroke-width: 1.9;
 }
-
 .tab-center:active .fab {
   transform: translateX(-50%) scale(.93);
 }
-
 .tab-center.on .fab {
   box-shadow:
     0 12px 30px color-mix(in srgb, var(--button) 75%, transparent),
     0 0 0 6px var(--card),
     0 0 0 8px color-mix(in srgb, var(--button) 45%, transparent);
 }
-
 /* ---------- Botón para ocultar / mostrar la barra ---------- */
-
 .nav-toggle {
   width: 38px;
   height: 20px;
@@ -1546,31 +1339,25 @@ onUnmounted(() => {
   -webkit-tap-highlight-color: transparent;
   transition: bottom .3s cubic-bezier(.32, .72, 0, 1), color .18s ease;
 }
-
 .nav-toggle svg {
   width: 18px;
   height: 18px;
   fill: currentColor;
   transition: transform .25s ease;
 }
-
 .nav-toggle:active {
   color: var(--accent);
 }
-
 /* Barra oculta: el botón baja al borde y la flecha apunta hacia arriba */
 .nav-toggle.collapsed {
   bottom: calc(env(safe-area-inset-bottom) + 8px);
 }
-
 .nav-toggle.collapsed svg {
   transform: rotate(180deg);
 }
-
 /* =========================================================
    HOJAS INFERIORES (móvil)
 ========================================================= */
-
 .sheet-overlay {
   position: fixed;
   inset: 0;
@@ -1579,7 +1366,6 @@ onUnmounted(() => {
   align-items: flex-end;
   background: rgba(0, 0, 0, .62);
 }
-
 .sheet {
   width: 100%;
   max-height: 82dvh;
@@ -1591,7 +1377,6 @@ onUnmounted(() => {
   box-shadow: 0 -20px 50px rgba(0, 0, 0, .45);
   overscroll-behavior: contain;
 }
-
 .sheet-handle {
   width: 38px;
   height: 4px;
@@ -1599,7 +1384,6 @@ onUnmounted(() => {
   border-radius: 999px;
   background: rgba(255, 255, 255, .16);
 }
-
 .sheet-title {
   margin: 0 0 8px;
   padding: 0 6px 10px;
@@ -1608,7 +1392,6 @@ onUnmounted(() => {
   font-size: .82rem;
   font-weight: 600;
 }
-
 .sheet-link {
   width: 100%;
   min-height: 58px;
@@ -1627,18 +1410,15 @@ onUnmounted(() => {
   -webkit-tap-highlight-color: transparent;
   transition: background .14s ease;
 }
-
 .sheet-link:active,
 .sheet-link:hover {
   background: var(--hover-bg);
 }
-
 .sheet-link.router-link-active,
 .sheet-link.selected {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: color-mix(in srgb, var(--accent) 70%, white);
 }
-
 /* Flecha que indica que la fila abre una página */
 .sheet-link:not(.branch)::after {
   content: '›';
@@ -1647,13 +1427,11 @@ onUnmounted(() => {
   font-size: 1.5rem;
   line-height: 1;
 }
-
 .sheet-link .dropdown-icon {
   width: 42px;
   height: 42px;
   border-radius: 12px;
 }
-
 /* Cuadrícula de accesos rápidos en "Más" */
 .sheet-grid {
   display: grid;
@@ -1661,7 +1439,6 @@ onUnmounted(() => {
   gap: 10px;
   padding: 4px 2px 0;
 }
-
 .sheet-tile {
   min-height: 92px;
   display: flex;
@@ -1681,58 +1458,47 @@ onUnmounted(() => {
   -webkit-tap-highlight-color: transparent;
   transition: background .14s ease, border-color .14s ease;
 }
-
 .sheet-tile strong {
   font-size: .84rem;
   font-weight: 650;
 }
-
 .sheet-tile:active,
 .sheet-tile:hover {
   background: var(--hover-bg);
 }
-
 .sheet-tile.router-link-active {
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-
 .sheet-tile.danger {
   border-color: rgba(239, 68, 68, .22);
   background: rgba(239, 68, 68, .07);
   color: #f87171;
 }
-
 .sheet-divider {
   height: 1px;
   margin: 6px 8px;
   background: var(--nav-line);
 }
-
 .sheet-enter-active,
 .sheet-leave-active {
   transition: opacity .22s ease;
 }
-
 .sheet-enter-active .sheet,
 .sheet-leave-active .sheet {
   transition: transform .26s cubic-bezier(.32, .72, 0, 1);
 }
-
 .sheet-enter-from,
 .sheet-leave-to {
   opacity: 0;
 }
-
 .sheet-enter-from .sheet,
 .sheet-leave-to .sheet {
   transform: translateY(100%);
 }
-
 /* =========================================================
    MODAL QR
 ========================================================= */
-
 .modal-wrapper {
   position: fixed;
   inset: 0;
@@ -1743,7 +1509,6 @@ onUnmounted(() => {
   padding: 20px;
   background: rgba(0, 0, 0, .82);
 }
-
 .custom-panel {
   width: min(440px, 100%);
   padding: 25px;
@@ -1753,7 +1518,6 @@ onUnmounted(() => {
   color: var(--text);
   box-shadow: 0 30px 70px rgba(0, 0, 0, .55);
 }
-
 .panel-header {
   display: flex;
   align-items: flex-start;
@@ -1761,7 +1525,6 @@ onUnmounted(() => {
   gap: 20px;
   margin-bottom: 24px;
 }
-
 .modal-kicker {
   display: block;
   margin-bottom: 4px;
@@ -1770,7 +1533,6 @@ onUnmounted(() => {
   font-weight: 800;
   letter-spacing: 1.5px;
 }
-
 .panel-header h3 {
   margin: 0;
   color: var(--title);
@@ -1778,7 +1540,6 @@ onUnmounted(() => {
   font-size: 1.25rem;
   font-weight: 600;
 }
-
 .close-panel {
   width: 34px;
   height: 34px;
@@ -1795,12 +1556,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background .17s ease, color .17s ease;
 }
-
 .close-panel:hover {
   background: rgba(239, 68, 68, .12);
   color: #f87171;
 }
-
 .panel-body {
   display: flex;
   flex-direction: column;
@@ -1808,27 +1567,23 @@ onUnmounted(() => {
   gap: 18px;
   text-align: center;
 }
-
 .panel-body p {
   margin: 0;
   color: var(--muted);
   font-size: .83rem;
   line-height: 1.6;
 }
-
 .qr-container {
   padding: 13px;
   border-radius: 13px;
   background: #fff;
   box-shadow: 0 14px 30px rgba(0, 0, 0, .3);
 }
-
 .qr-container img {
   width: 180px;
   height: 180px;
   display: block;
 }
-
 .action-btn-full {
   width: 100%;
   min-height: 43px;
@@ -1846,29 +1601,23 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform .17s ease, filter .17s ease;
 }
-
 .action-btn-full:hover {
   transform: translateY(-1px);
   filter: brightness(1.08);
 }
-
 /* =========================================================
    DESKTOP >= 900
    (900 y no 1024, porque el "modo escritorio" de los
    navegadores móviles simula una pantalla de ~980px)
 ========================================================= */
-
 @media (min-width: 900px) {
-
   .mobile-top-nav,
   .bottom-nav,
   .nav-toggle,
   .sheet-overlay {
     display: none !important;
   }
-
   /* ---------- NAVBAR (grid: sucursal | menú | acciones) ---------- */
-
   .desktop-navbar {
     width: 100%;
     height: var(--nav-height);
@@ -1880,7 +1629,6 @@ onUnmounted(() => {
     border-bottom: 1px solid var(--nav-line);
     background: var(--color-heading-bg, #08192e);
   }
-
   .desktop-navbar-inner {
     width: 100%;
     height: 100%;
@@ -1890,16 +1638,13 @@ onUnmounted(() => {
     gap: 10px;
     padding: 0 clamp(18px, 2.3vw, 40px);
   }
-
   /* ---------- SUCURSAL (izquierda; solo icono en pantallas medianas) ---------- */
-
   .desktop-brand {
     min-width: 0;
     max-width: 60px;
     position: relative;
     justify-self: start;
   }
-
   .brand-button {
     width: 100%;
     height: 52px;
@@ -1914,18 +1659,15 @@ onUnmounted(() => {
     cursor: pointer;
     transition: background 0.16s ease, border-color 0.16s ease;
   }
-
   .brand-button:hover,
   .brand-button.active {
     border-color: var(--nav-line);
     background: var(--hover-bg);
   }
-
   .brand-button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-
   .brand-chevron {
     width: 16px;
     height: 16px;
@@ -1934,23 +1676,18 @@ onUnmounted(() => {
     fill: var(--muted);
     transition: transform 0.17s ease;
   }
-
   .brand-chevron.rotated { transform: rotate(180deg); }
-
   .branch-menu { width: 290px; }
-
   .dropdown-link.selected {
     background: color-mix(in srgb, var(--accent) 12%, transparent);
     color: color-mix(in srgb, var(--accent) 70%, white);
   }
-
   .option-check {
     width: 18px;
     height: 18px;
     flex-shrink: 0;
     color: var(--accent);
   }
-
   .brand-mark {
     width: 36px;
     height: 36px;
@@ -1962,12 +1699,10 @@ onUnmounted(() => {
     background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--accent);
   }
-
   .brand-mark .ico {
     width: 18px;
     height: 18px;
   }
-
   .brand-copy {
     min-width: 0;
     flex: 1;
@@ -1975,7 +1710,6 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: flex-start;
   }
-
   .brand-copy strong {
     width: 100%;
     overflow: hidden;
@@ -1986,7 +1720,6 @@ onUnmounted(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
   .brand-copy span {
     margin-top: 2px;
     display: none;
@@ -1994,9 +1727,7 @@ onUnmounted(() => {
     font-size: 0.74rem;
     font-weight: 500;
   }
-
   /* ---------- MENÚ CENTRAL ---------- */
-
   .desktop-menu {
     min-width: 0;
     display: flex;
@@ -2004,7 +1735,6 @@ onUnmounted(() => {
     justify-content: flex-end;
     gap: 2px;
   }
-
   /* Divisor fino entre el menú y los botones de la derecha */
   .desktop-menu::after {
     content: '';
@@ -2014,12 +1744,10 @@ onUnmounted(() => {
     margin: 0 4px 0 8px;
     background: var(--nav-line);
   }
-
   .desktop-nav-group {
     position: relative;
     flex-shrink: 0;
   }
-
   .desktop-nav-item {
     min-width: 0;
     flex-shrink: 0;
@@ -2042,7 +1770,6 @@ onUnmounted(() => {
     cursor: pointer;
     transition: color 0.15s ease, background 0.15s ease;
   }
-
   /* Iconos de las secciones (rellenos). Se muestran desde 1280 px */
   .desktop-nav-item > .nav-ico {
     width: 18px;
@@ -2051,20 +1778,17 @@ onUnmounted(() => {
     display: none;
     fill: currentColor;
   }
-
   .desktop-nav-item:hover,
   .desktop-nav-item.active {
     color: #fff;
     background: var(--hover-bg);
   }
-
   .desktop-nav-item.router-link-active,
   .desktop-nav-item.current {
     border-color: color-mix(in srgb, var(--accent) 35%, transparent);
     background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: color-mix(in srgb, var(--accent) 65%, white);
   }
-
   .nav-chevron {
     width: 14px;
     height: 14px;
@@ -2073,9 +1797,7 @@ onUnmounted(() => {
     opacity: 0.6;
     transition: transform 0.17s ease;
   }
-
   .nav-chevron.rotated { transform: rotate(180deg); }
-
   .desktop-nav-item:focus-visible,
   .desktop-action:focus-visible,
   .desktop-profile:focus-visible,
@@ -2083,11 +1805,8 @@ onUnmounted(() => {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
-
   /* ---------- DROPDOWNS ---------- */
-
   .nav-dropdown-root { position: relative; }
-
   .desktop-dropdown {
     width: 280px;
     position: absolute;
@@ -2100,15 +1819,12 @@ onUnmounted(() => {
     background: var(--bg-cards, #101419);
     box-shadow: 0 22px 55px rgba(0, 0, 0, 0.5);
   }
-
   /* Los menús de la derecha se abren hacia la izquierda */
   .desktop-dropdown.dropdown-end {
     right: 0;
     left: auto;
   }
-
   .profile-dropdown { width: 270px; }
-
   .dropdown-title {
     padding: 8px 10px 11px;
     margin-bottom: 6px;
@@ -2117,7 +1833,6 @@ onUnmounted(() => {
     font-size: 0.8rem;
     font-weight: 600;
   }
-
   .dropdown-link {
     width: 100%;
     min-height: 54px;
@@ -2135,20 +1850,14 @@ onUnmounted(() => {
     cursor: pointer;
     transition: background 0.14s ease, color 0.14s ease;
   }
-
   .dropdown-link:hover { background: var(--hover-bg); }
-
   .dropdown-link.router-link-active {
     background: color-mix(in srgb, var(--accent) 14%, transparent);
     color: color-mix(in srgb, var(--accent) 70%, white);
   }
-
   .dropdown-link.compact { min-height: 46px; }
-
   .logout-link:hover { background: rgba(239, 68, 68, 0.1); }
-
   /* ---------- ACCIONES DERECHA ---------- */
-
   .desktop-actions {
     min-width: 0;
     display: flex;
@@ -2158,7 +1867,6 @@ onUnmounted(() => {
     justify-self: end;
     gap: 4px;
   }
-
   .desktop-action {
     width: 40px;
     height: 40px;
@@ -2175,12 +1883,10 @@ onUnmounted(() => {
     cursor: pointer;
     transition: color 0.15s ease, background 0.15s ease;
   }
-
   .desktop-action:hover {
     color: #fff;
     background: var(--hover-bg);
   }
-
   .desktop-action svg {
     width: 20px;
     height: 20px;
@@ -2190,7 +1896,6 @@ onUnmounted(() => {
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-
   .notification-count {
     min-width: 18px;
     height: 18px;
@@ -2209,18 +1914,14 @@ onUnmounted(() => {
     font-weight: 800;
     line-height: 1;
   }
-
   .desktop-separator {
     width: 1px;
     height: 28px;
     margin: 0 6px;
     background: var(--nav-line);
   }
-
   /* ---------- PERFIL: iniciales + nombre + flecha ---------- */
-
   .profile-menu-root { position: relative; }
-
   .desktop-profile {
     min-width: 0;
     height: 52px;
@@ -2235,18 +1936,15 @@ onUnmounted(() => {
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
   }
-
   .desktop-profile:hover,
   .desktop-profile.active {
     border-color: var(--nav-line);
     background: var(--hover-bg);
   }
-
   .desktop-profile.current .profile-avatar {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
-
   .profile-avatar {
     width: 38px;
     height: 38px;
@@ -2264,7 +1962,6 @@ onUnmounted(() => {
     letter-spacing: 0.02em;
     text-transform: uppercase;
   }
-
   /* El nombre aparece solo en pantallas anchas */
   .profile-user-name {
     min-width: 0;
@@ -2279,7 +1976,6 @@ onUnmounted(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
   .profile-chevron {
     width: 15px;
     height: 15px;
@@ -2288,208 +1984,151 @@ onUnmounted(() => {
     fill: var(--muted);
     transition: transform 0.17s ease;
   }
-
   .profile-chevron.rotated { transform: rotate(180deg); }
-
   /* ---------- MAIN ---------- */
-
   .main-layout-container {
     width: 100%;
     min-height: calc(100vh - var(--nav-height));
     margin-left: 0 !important;
   }
-
   /* ---------- TRANSICIONES ---------- */
-
   .desktop-dropdown-enter-active,
   .desktop-dropdown-leave-active {
     transition: opacity 0.14s ease, transform 0.14s ease;
   }
-
   .desktop-dropdown-enter-from,
   .desktop-dropdown-leave-to {
     opacity: 0;
     transform: translateY(-5px);
   }
 }
-
 /* =========================================================
    1100+: aparece el nombre del gimnasio
 ========================================================= */
-
 @media (min-width: 1100px) {
-
   .desktop-navbar-inner { gap: 14px; }
-
   .desktop-brand { max-width: 220px; }
-
   .brand-copy { display: flex; }
-
   .brand-chevron { display: block; }
-
   .desktop-menu { gap: 4px; }
-
   .desktop-nav-item { padding: 0 10px; }
 }
-
 /* =========================================================
    1280+: aparecen los iconos de cada sección
 ========================================================= */
-
 @media (min-width: 1280px) {
-
   .desktop-menu { gap: 6px; }
-
   .desktop-nav-item {
     padding: 0 12px;
     font-size: 0.8rem;
   }
-
   .desktop-nav-item > .nav-ico { display: block; }
 }
-
 /* =========================================================
    1440+: aparece el nombre del perfil y "Sucursal Actual"
 ========================================================= */
-
 @media (min-width: 1440px) {
-
   .desktop-brand { max-width: 240px; }
-
   .brand-copy span { display: block; }
-
   .profile-user-name { display: block; }
-
   .desktop-profile { gap: 9px; padding: 0 10px 0 6px; }
-
   .desktop-menu { gap: 8px; }
-
   .desktop-nav-item { font-size: 0.82rem; }
 }
-
 /* =========================================================
    1600+: más aire entre las secciones
 ========================================================= */
-
 @media (min-width: 1600px) {
-
   .desktop-brand { max-width: 260px; }
-
   .desktop-menu { gap: 10px; }
-
   .desktop-nav-item {
     padding: 0 14px;
     font-size: 0.86rem;
   }
 }
-
 /* =========================================================
    MÓVIL / TABLET (< 900)
 ========================================================= */
-
 @media (max-width: 899px) {
-
   .desktop-navbar {
     display: none;
   }
-
   .mobile-top-nav {
     display: flex;
   }
-
   .bottom-nav {
     display: grid;
   }
-
   .nav-toggle {
     display: flex;
   }
-
   /* Deja espacio para que la barra inferior no tape el contenido */
   .main-content-wrapper {
     padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 14px);
     transition: padding-bottom .3s ease;
   }
-
   /* Barra oculta: solo queda espacio para el botón de mostrar */
   .main-content-wrapper.nav-collapsed {
     padding-bottom: calc(env(safe-area-inset-bottom) + 48px);
   }
 }
-
 /* =========================================================
    TELÉFONO
 ========================================================= */
-
 @media (max-width: 560px) {
-
   .mobile-top-nav {
     min-height: 60px;
     padding: 9px 10px;
   }
-
   .nav-right {
     gap: 5px;
   }
-
   .nav-action-btn {
     width: 39px;
     height: 39px;
     border-radius: 10px;
   }
-
   .mobile-branch {
     height: 44px;
     max-width: calc(100% - 92px);
   }
-
   .custom-panel {
     padding: 20px;
     border-radius: 15px;
   }
-
   .qr-container img {
     width: 160px;
     height: 160px;
   }
 }
-
 /* =========================================================
    TELÉFONO PEQUEÑO
 ========================================================= */
-
 @media (max-width: 380px) {
-
   .tab {
     font-size: .62rem;
   }
-
   .fab {
     width: 58px;
     height: 58px;
     top: -27px;
   }
 }
-
 /* =========================================================
    TRANSICIONES GENERALES
 ========================================================= */
-
 .pop-enter-active,
 .pop-leave-active {
   transition: opacity .2s ease, transform .2s ease;
 }
-
 .pop-enter-from,
 .pop-leave-to {
   opacity: 0;
 }
-
 .pop-enter-from .custom-panel,
 .pop-leave-to .custom-panel {
   transform: scale(.97);
 }
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition: none !important;
