@@ -33,6 +33,7 @@
           </svg>
         </button>
       </header>
+
       <form class="activity-form" @submit.prevent="guardarActividad">
         <!-- ================= DÍA ================= -->
         <section class="form-section">
@@ -43,14 +44,37 @@
               <p>{{ t('daySectionDescription') }}</p>
             </div>
           </div>
-          <div class="field" style="margin-bottom:16px"><label for="act-date">{{ t('eventDateLabel') }}</label><input id="act-date" v-model="form.fecha" type="date" :min="todayLocal" :disabled="isEdit && isPastEvent" required class="event-date-input"><small v-if="isPastEvent" style="color:#f87171">{{ t('pastEventLocked') }}</small></div><div class="days-grid">
+
+          <div class="field date-field">
+            <label for="act-date">{{ t('eventDateLabel') }}</label>
+            <div class="input-control">
+              <div class="field-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
+                </svg>
+              </div>
+              <input
+                id="act-date"
+                v-model="form.fecha"
+                type="date"
+                :min="todayLocal"
+                :disabled="isEdit && isPastEvent"
+                required
+                class="date-input"
+              >
+            </div>
+            <small v-if="isPastEvent" class="field-error">{{ t('pastEventLocked') }}</small>
+          </div>
+
+          <div class="days-grid">
             <button
               v-for="(day, index) in currentDays"
               :key="day"
               type="button"
               class="day-card"
               :class="{ active: form.dia === daysEs[index] }"
-              @click="selectDay(index)" :disabled="isPastEvent"
+              @click="selectDay(index)"
+              :disabled="isPastEvent"
             >
               <span>{{ shortDay(day) }}</span>
               <strong>{{ day }}</strong>
@@ -62,6 +86,7 @@
             </button>
           </div>
         </section>
+
         <!-- ================= INFORMACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -71,6 +96,7 @@
               <p>{{ t('infoSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="fields-grid">
             <div class="field field-large">
               <label for="act-name">
@@ -91,6 +117,7 @@
                 >
               </div>
             </div>
+
             <div class="field">
               <label for="act-cat">
                 {{ t('categoryLabel') }}
@@ -128,10 +155,29 @@
                 <svg class="select-arrow" viewBox="0 0 24 24">
                   <path d="m7 10 5 5 5-5"/>
                 </svg>
-                </div><div class="custom-category"><label for="custom-cat">{{ t('customCategoryLabel') }}</label><input id="custom-cat" v-model.trim="customCategory" maxlength="60" :placeholder="t('customCategoryPlaceholder')" @input="onCustomCategory" :disabled="isPastEvent" /></div>
               </div>
-              <div class="field">
-                <label for="act-level">
+              <div class="custom-category">
+                <label for="custom-cat">{{ t('customCategoryLabel') }}</label>
+                <div class="input-control">
+                  <div class="field-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                  </div>
+                  <input
+                    id="custom-cat"
+                    v-model.trim="customCategory"
+                    maxlength="60"
+                    :placeholder="t('customCategoryPlaceholder')"
+                    @input="onCustomCategory"
+                    :disabled="isPastEvent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="act-level">
                 {{ t('levelLabel') }}
               </label>
               <div class="select-control">
@@ -160,6 +206,7 @@
             </div>
           </div>
         </section>
+
         <!-- ================= HORARIO ================= -->
         <section class="form-section schedule-section">
           <div class="section-title">
@@ -169,6 +216,7 @@
               <p>{{ t('scheduleSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="schedule-card">
             <div class="schedule-time">
               <div class="time-icon">
@@ -189,6 +237,7 @@
                 >
               </div>
             </div>
+
             <div class="time-connector">
               <span></span>
               <strong
@@ -198,6 +247,7 @@
               </strong>
               <span></span>
             </div>
+
             <div class="schedule-time">
               <div class="time-icon end">
                 <svg viewBox="0 0 24 24">
@@ -219,6 +269,7 @@
             </div>
           </div>
         </section>
+
         <!-- ================= RESPONSABLE ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -228,6 +279,7 @@
               <p>{{ t('instructorSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="fields-grid two-columns">
             <div class="field">
               <label for="act-instructor">
@@ -249,6 +301,7 @@
                 >
               </div>
             </div>
+
             <div class="field">
               <label for="act-capacity">
                 {{ t('capacityLabel') }}
@@ -274,6 +327,7 @@
             </div>
           </div>
         </section>
+
         <!-- ================= UBICACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -283,6 +337,7 @@
               <p>{{ t('locationSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="fields-grid">
             <div class="field field-large">
               <label for="act-location">
@@ -303,6 +358,7 @@
                 >
               </div>
             </div>
+
             <div class="field field-large">
               <label for="act-notes">
                 {{ t('descriptionLabel') }}
@@ -316,8 +372,159 @@
             </div>
           </div>
         </section>
-        <section class="form-section"><div class="section-title"><div class="section-number">06</div><div><h3>{{ t('mediaTitle') }}</h3><p>{{ t('mediaHint') }}</p></div></div><div class="fields-grid"><div class="field"><label for="act-images">{{ t('imagesLabel') }}</label><input id="act-images" type="file" accept="image/jpeg,image/png,image/webp" multiple :disabled="isPastEvent" @change="selectImages" /><small>{{ t('imagesLimit') }}</small></div><div class="field"><label for="act-video">{{ t('videoLabel') }}</label><input id="act-video" type="file" accept="video/mp4,video/webm" :disabled="isPastEvent" @change="selectVideo" /><small>{{ t('videoLimit') }}</small></div></div><div v-if="form.imagenes.length" class="media-previews"><a v-for="(url,i) in form.imagenes" :key="url" :href="url" target="_blank" rel="noopener">{{ t('imageLabel') }} {{ i+1 }}</a></div><p v-if="form.video_url"><a :href="form.video_url" target="_blank" rel="noopener">{{ t('viewVideo') }}</a></p></section>
-                <!-- ================= RESUMEN ================= -->
+
+        <!-- ================= MULTIMEDIA ================= -->
+        <section class="form-section">
+          <div class="section-title">
+            <div class="section-number">06</div>
+            <div>
+              <h3>{{ t('mediaTitle') }}</h3>
+              <p>{{ t('mediaHint') }}</p>
+            </div>
+          </div>
+
+          <div class="fields-grid">
+            <!-- Fotografías -->
+            <div class="field">
+              <span class="field-title">{{ t('imagesLabel') }}</span>
+              <div class="upload">
+                <label
+                  class="dropzone"
+                  :class="{ disabled: isPastEvent, filled: pendingImages.length }"
+                  for="act-images"
+                >
+                  <span class="drop-icon">
+                    <svg viewBox="0 0 24 24">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="m21 15-5-5L5 21"/>
+                    </svg>
+                  </span>
+                  <span class="drop-text">
+                    <strong>{{ pendingImages.length ? t('changeFiles') : t('imagesChoose') }}</strong>
+                    <small>{{ t('imagesLimit') }}</small>
+                  </span>
+                </label>
+                <input
+                  id="act-images"
+                  ref="imagesInput"
+                  class="sr-only"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  :disabled="isPastEvent"
+                  @change="selectImages"
+                />
+
+                <ul v-if="pendingImages.length" class="file-list">
+                  <li v-for="(file, i) in pendingImages" :key="file.name + i" class="file-chip">
+                    <img class="file-thumb" :src="pendingPreviews[i]" :alt="file.name">
+                    <span class="file-info">
+                      <strong>{{ file.name }}</strong>
+                      <small>{{ formatSize(file.size) }}</small>
+                    </span>
+                    <button
+                      type="button"
+                      class="file-remove"
+                      :title="t('removeFile')"
+                      :aria-label="t('removeFile')"
+                      @click="removeImage(i)"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                      </svg>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Video -->
+            <div class="field">
+              <span class="field-title">{{ t('videoLabel') }}</span>
+              <div class="upload">
+                <label
+                  class="dropzone"
+                  :class="{ disabled: isPastEvent, filled: pendingVideo }"
+                  for="act-video"
+                >
+                  <span class="drop-icon">
+                    <svg viewBox="0 0 24 24">
+                      <rect x="2" y="6" width="14" height="12" rx="2"/>
+                      <path d="m22 8-6 4 6 4V8Z"/>
+                    </svg>
+                  </span>
+                  <span class="drop-text">
+                    <strong>{{ pendingVideo ? t('changeFiles') : t('videoChoose') }}</strong>
+                    <small>{{ t('videoLimit') }}</small>
+                  </span>
+                </label>
+                <input
+                  id="act-video"
+                  ref="videoInput"
+                  class="sr-only"
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  :disabled="isPastEvent"
+                  @change="selectVideo"
+                />
+
+                <ul v-if="pendingVideo" class="file-list">
+                  <li class="file-chip">
+                    <span class="file-thumb file-thumb-icon">
+                      <svg viewBox="0 0 24 24">
+                        <rect x="2" y="6" width="14" height="12" rx="2"/>
+                        <path d="m22 8-6 4 6 4V8Z"/>
+                      </svg>
+                    </span>
+                    <span class="file-info">
+                      <strong>{{ pendingVideo.name }}</strong>
+                      <small>{{ formatSize(pendingVideo.size) }}</small>
+                    </span>
+                    <button
+                      type="button"
+                      class="file-remove"
+                      :title="t('removeFile')"
+                      :aria-label="t('removeFile')"
+                      @click="removeVideo"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <path d="M6 6l12 12M18 6 6 18"/>
+                      </svg>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Archivos ya guardados -->
+          <div v-if="form.imagenes.length" class="saved-media">
+            <span class="field-title">{{ t('currentImages') }}</span>
+            <div class="media-previews">
+              <a
+                v-for="(url, i) in form.imagenes"
+                :key="url"
+                :href="url"
+                target="_blank"
+                rel="noopener"
+                class="media-thumb"
+                :title="t('imageLabel') + ' ' + (i + 1)"
+              >
+                <img :src="url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy">
+              </a>
+            </div>
+          </div>
+          <a v-if="form.video_url" :href="form.video_url" target="_blank" rel="noopener" class="video-link">
+            <svg viewBox="0 0 24 24">
+              <rect x="2" y="6" width="14" height="12" rx="2"/>
+              <path d="m22 8-6 4 6 4V8Z"/>
+            </svg>
+            {{ t('viewVideo') }}
+          </a>
+        </section>
+
+        <!-- ================= RESUMEN ================= -->
         <div class="event-summary">
           <div
             class="summary-color"
@@ -354,6 +561,7 @@
             {{ catLabel(form.categoria) }}
           </div>
         </div>
+
         <!-- ================= FOOTER ================= -->
         <footer class="form-footer">
           <button
@@ -366,7 +574,7 @@
           <button
             type="submit"
             class="save-btn"
-              :disabled="enviando || isPastEvent"
+            :disabled="enviando || isPastEvent"
           >
             <svg
               v-if="isEdit"
@@ -385,6 +593,7 @@
         </footer>
       </form>
     </div>
+
     <!-- ================= TOAST ================= -->
     <transition name="toast">
       <div
@@ -421,24 +630,31 @@
     </transition>
   </div>
 </template>
+
 <script setup>
 import { reactive, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { categoryGroups, categoryColor, categoryLabel } from './scheduleCategories.ts';
+
 const props = defineProps({
   initialData: { type: Object, default: null },
   validator: { type: Function, default: null },
   customCategories: { type: Array, default: () => [] }
 });
+
 const emit = defineEmits(['close', 'save']);
 const enviando = ref(false);
+
 /* ==================== IDIOMA ==================== */
 const settings = reactive({
   idioma: (localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es'
 });
+
 const normalizeLanguage = (value) => String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
+
 const syncLanguage = () => {
   settings.idioma = normalizeLanguage((localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es');
 };
+
 const handleLanguageChange = (event) => {
   const nextLanguage = normalizeLanguage(
     event.detail?.idioma ||
@@ -448,12 +664,32 @@ const handleLanguageChange = (event) => {
   settings.idioma = nextLanguage;
   localStorage.setItem('GYM_ACCOUNT-idioma', nextLanguage);
 };
+
 const catLabel = (key) => categoryLabel(key, settings.idioma);
 const groupLabel = (group) => settings.idioma === 'en' ? group.en : group.es;
+
 /* ==================== TRADUCCIONES ==================== */
 const translations = {
   es: {
-    eventDateLabel:'Fecha exacta del evento',pastEventLocked:'Este evento ya pasó y no puede modificarse.',customCategoryLabel:'O escribe una nueva categoría',customCategoryPlaceholder:'Ej. Torneo de fuerza',mediaTitle:'Imágenes y videos',mediaHint:'Archivos opcionales del evento, alojados en R2.',imagesLabel:'Fotografías',imagesLimit:'Hasta 3 fotos, máximo 3 MB por foto.',videoLabel:'Video',videoLimit:'MP4 o WEBM, máximo 15 MB.',imageLabel:'Imagen',viewVideo:'Ver video',pastDateError:'No puedes agendar ni modificar eventos pasados.',    agendaKicker: 'AGENDA DE EVENTOS',
+    eventDateLabel: 'Fecha exacta del evento',
+    pastEventLocked: 'Este evento ya pasó y no puede modificarse.',
+    customCategoryLabel: 'O escribe una nueva categoría',
+    customCategoryPlaceholder: 'Ej. Torneo de fuerza',
+    mediaTitle: 'Imágenes y videos',
+    mediaHint: 'Archivos opcionales del evento, alojados en R2.',
+    imagesLabel: 'Fotografías',
+    imagesLimit: 'Hasta 3 fotos, máximo 3 MB por foto.',
+    imagesChoose: 'Elegir fotografías',
+    videoLabel: 'Video',
+    videoLimit: 'MP4 o WEBM, máximo 15 MB.',
+    videoChoose: 'Elegir video',
+    changeFiles: 'Cambiar selección',
+    removeFile: 'Quitar archivo',
+    currentImages: 'Imágenes actuales',
+    imageLabel: 'Imagen',
+    viewVideo: 'Ver video',
+    pastDateError: 'No puedes agendar ni modificar eventos pasados.',
+    agendaKicker: 'AGENDA DE EVENTOS',
     newTitle: 'Nueva',
     newHighlight: 'Evento',
     newSubtitle: 'Programa un evento dentro del calendario del gimnasio.',
@@ -512,7 +748,25 @@ const translations = {
     toastUpdated: 'Los cambios del evento se guardaron correctamente.'
   },
   en: {
-    eventDateLabel:'Event date',pastEventLocked:'This event is in the past and cannot be edited.',customCategoryLabel:'Or write a new category',customCategoryPlaceholder:'E.g. Strength competition',mediaTitle:'Images and videos',mediaHint:'Optional media hosted in R2.',imagesLabel:'Photos',imagesLimit:'Up to 3 photos, max 3 MB each.',videoLabel:'Video',videoLimit:'MP4 or WEBM, max 15 MB.',imageLabel:'Image',viewVideo:'View video',pastDateError:'You cannot schedule or edit past events.',    agendaKicker: 'EVENT SCHEDULE',
+    eventDateLabel: 'Event date',
+    pastEventLocked: 'This event is in the past and cannot be edited.',
+    customCategoryLabel: 'Or write a new category',
+    customCategoryPlaceholder: 'E.g. Strength competition',
+    mediaTitle: 'Images and videos',
+    mediaHint: 'Optional media hosted in R2.',
+    imagesLabel: 'Photos',
+    imagesLimit: 'Up to 3 photos, max 3 MB each.',
+    imagesChoose: 'Choose photos',
+    videoLabel: 'Video',
+    videoLimit: 'MP4 or WEBM, max 15 MB.',
+    videoChoose: 'Choose video',
+    changeFiles: 'Change selection',
+    removeFile: 'Remove file',
+    currentImages: 'Current images',
+    imageLabel: 'Image',
+    viewVideo: 'View video',
+    pastDateError: 'You cannot schedule or edit past events.',
+    agendaKicker: 'EVENT SCHEDULE',
     newTitle: 'New',
     newHighlight: 'Event',
     newSubtitle: 'Schedule an event in the gym calendar.',
@@ -571,14 +825,17 @@ const translations = {
     toastUpdated: 'The event changes were saved successfully.'
   }
 };
+
 const t = (key) => translations[settings.idioma]?.[key] || translations.es[key] || key;
+
 /* ==================== DÍAS ==================== */
 const daysEs = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const currentDays = computed(() => settings.idioma === 'en' ? daysEn : daysEs);
+
 const form = reactive({
   id: null,
-  dia: '', fecha:'', imagenes:[], video_url:'',
+  dia: '', fecha: '', imagenes: [], video_url: '',
   nombre: '',
   categoria: '',
   nivel: '',
@@ -589,16 +846,95 @@ const form = reactive({
   ubicacion: '',
   descripcion: ''
 });
-const todayLocal=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
-const customCategory=ref('');const pendingImages=ref([]);const pendingVideo=ref(null);
-const isPastEvent=computed(()=>Boolean(form.fecha&&form.fecha<todayLocal));
-const selectDay=(index)=>{if(isPastEvent.value)return;form.dia=daysEs[index];const d=new Date();const todayIndex=(d.getDay()+6)%7;const diff=(index-todayIndex+7)%7;d.setDate(d.getDate()+diff);form.fecha=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-const onCustomCategory=()=>{if(customCategory.value)form.categoria=customCategory.value;};
-const autoEndTime=()=>{const [h,m]=form.inicio.split(':').map(Number);form.fin= h<23?`${String(h+1).padStart(2,'0')}:${String(m||0).padStart(2,'0')}`:'23:59';};
-const selectImages=(event)=>{const files=Array.from(event.target.files||[]);if(files.length>3||files.some(f=>!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>3*1024*1024)){mostrarToast(settings.idioma==='en'?'Max 3 photos of 3 MB each.':'Máximo 3 imágenes de 3 MB cada una.','error');event.target.value='';return;}pendingImages.value=files;};
-const selectVideo=(event)=>{const file=event.target.files?.[0]||null;if(file&&(!['video/mp4','video/webm'].includes(file.type)||file.size>15*1024*1024)){mostrarToast(settings.idioma==='en'?'MP4/WEBM up to 15 MB.':'MP4/WEBM máximo 15 MB.','error');event.target.value='';return;}pendingVideo.value=file;};
-const toLocalDate=(date)=>{const d=new Date(date+'T12:00:00');return Number.isNaN(d.getTime())?'':daysEs[(d.getDay()+6)%7];};
-watch(()=>form.fecha,(date)=>{if(date&&/^\d{4}-\d{2}-\d{2}$/.test(date))form.dia=toLocalDate(date);});
+
+const todayLocal = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
+
+const customCategory = ref('');
+const pendingImages = ref([]);
+const pendingPreviews = ref([]);
+const pendingVideo = ref(null);
+const imagesInput = ref(null);
+const videoInput = ref(null);
+
+const isPastEvent = computed(() => Boolean(form.fecha && form.fecha < todayLocal));
+
+const selectDay = (index) => {
+  if (isPastEvent.value) return;
+  form.dia = daysEs[index];
+  const d = new Date();
+  const todayIndex = (d.getDay() + 6) % 7;
+  const diff = (index - todayIndex + 7) % 7;
+  d.setDate(d.getDate() + diff);
+  form.fecha = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const onCustomCategory = () => {
+  if (customCategory.value) form.categoria = customCategory.value;
+};
+
+/* ==================== ARCHIVOS ==================== */
+const formatSize = (bytes) => {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const revokePreviews = () => {
+  pendingPreviews.value.forEach((url) => URL.revokeObjectURL(url));
+  pendingPreviews.value = [];
+};
+
+const refreshPreviews = () => {
+  revokePreviews();
+  pendingPreviews.value = pendingImages.value.map((file) => URL.createObjectURL(file));
+};
+
+const selectImages = (event) => {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+  if (files.length > 3 || files.some((f) => !['image/png', 'image/jpeg', 'image/webp'].includes(f.type) || f.size > 3 * 1024 * 1024)) {
+    mostrarToast(settings.idioma === 'en' ? 'Max 3 photos of 3 MB each.' : 'Máximo 3 imágenes de 3 MB cada una.', 'error');
+    event.target.value = '';
+    return;
+  }
+  pendingImages.value = files;
+  refreshPreviews();
+};
+
+const removeImage = (index) => {
+  pendingImages.value = pendingImages.value.filter((_, i) => i !== index);
+  refreshPreviews();
+  if (imagesInput.value) imagesInput.value.value = '';
+};
+
+const selectVideo = (event) => {
+  const file = event.target.files?.[0] || null;
+  if (!file) return;
+  if (!['video/mp4', 'video/webm'].includes(file.type) || file.size > 15 * 1024 * 1024) {
+    mostrarToast(settings.idioma === 'en' ? 'MP4/WEBM up to 15 MB.' : 'MP4/WEBM máximo 15 MB.', 'error');
+    event.target.value = '';
+    return;
+  }
+  pendingVideo.value = file;
+};
+
+const removeVideo = () => {
+  pendingVideo.value = null;
+  if (videoInput.value) videoInput.value.value = '';
+};
+
+const toLocalDate = (date) => {
+  const d = new Date(date + 'T12:00:00');
+  return Number.isNaN(d.getTime()) ? '' : daysEs[(d.getDay() + 6) % 7];
+};
+
+watch(() => form.fecha, (date) => {
+  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) form.dia = toLocalDate(date);
+});
+
 const selectedDayDisplay = computed(() => {
   if (!form.dia) return '';
   const spanishIndex = daysEs.indexOf(form.dia);
@@ -607,10 +943,13 @@ const selectedDayDisplay = computed(() => {
   if (englishIndex !== -1) return currentDays.value[englishIndex];
   return form.dia;
 });
+
 const isEdit = computed(() => form.id !== null && form.id !== undefined);
+
 const selectedCategoryColor = computed(() => {
   return categoryColor(form.categoria) || 'var(--color-highlight, #3b82f6)';
 });
+
 const durationText = computed(() => {
   if (!form.inicio || !form.fin) return '';
   const [startHour = 0, startMinute = 0] = form.inicio.split(':').map(Number);
@@ -623,11 +962,13 @@ const durationText = computed(() => {
   if (hours) return `${hours} h`;
   return `${remainingMinutes} min`;
 });
+
 const toast = reactive({
   show: false,
   message: '',
   type: 'success'
 });
+
 const mostrarToast = (message, type = 'success') => {
   toast.message = message;
   toast.type = type;
@@ -636,7 +977,9 @@ const mostrarToast = (message, type = 'success') => {
     toast.show = false;
   }, 2500);
 };
+
 const shortDay = (day) => day.substring(0, 3).toUpperCase();
+
 const formatTime = (time) => {
   if (!time) return '';
   const [hours = '0', minutes = '0'] = time.split(':');
@@ -651,17 +994,28 @@ const formatTime = (time) => {
     }
   );
 };
+
 watch(() => props.initialData, (d) => {
-  Object.assign(form, { id: null, dia: '', fecha:'',imagenes:[],video_url:'', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
-  pendingImages.value=[];pendingVideo.value=null;customCategory.value='';
-  if (!d){form.fecha=todayLocal;form.dia=toLocalDate(todayLocal);return;}
+  Object.assign(form, { id: null, dia: '', fecha: '', imagenes: [], video_url: '', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
+  pendingImages.value = [];
+  revokePreviews();
+  pendingVideo.value = null;
+  customCategory.value = '';
+  if (!d) {
+    form.fecha = todayLocal;
+    form.dia = toLocalDate(todayLocal);
+    return;
+  }
   const dia = String(d.dia ?? d.day ?? '').trim();
   const ix = daysEn.findIndex(x => x.toLowerCase() === dia.toLowerCase());
-  form.id = d.id ?? null;form.fecha=String(d.fecha||d.fecha_evento||'');form.imagenes=Array.isArray(d.imagenes)?d.imagenes:[];form.video_url=String(d.video_url||'');
+  form.id = d.id ?? null;
+  form.fecha = String(d.fecha || d.fecha_evento || '');
+  form.imagenes = Array.isArray(d.imagenes) ? d.imagenes : [];
+  form.video_url = String(d.video_url || '');
   form.dia = ix >= 0 ? daysEs[ix] : dia;
   form.nombre = String(d.nombre ?? '');
   form.categoria = String(d.categoria ?? '');
-  if(form.categoria&&!categoryGroups.some(g=>g.items.some(c=>c.key===form.categoria)))customCategory.value=form.categoria;
+  if (form.categoria && !categoryGroups.some(g => g.items.some(c => c.key === form.categoria))) customCategory.value = form.categoria;
   form.nivel = String(d.nivel ?? '');
   form.instructor = String(d.instructor ?? '');
   form.capacidad = d.capacidad ?? null;
@@ -670,34 +1024,63 @@ watch(() => props.initialData, (d) => {
   form.ubicacion = String(d.ubicacion ?? '');
   form.descripcion = String(d.descripcion ?? '');
 }, { immediate: true });
+
 const guardarActividad = () => {
   if (enviando.value) return;
-  if(isPastEvent.value || (form.fecha&&form.fecha<todayLocal))return mostrarToast(t('pastDateError'),'error');
-  if(!form.fecha)return mostrarToast(settings.idioma==='en'?'Select an event date.':'Selecciona la fecha del evento.','error');
-  const data = { ...form, dia: String(form.dia).trim(), nombre: String(form.nombre).trim(), categoria: String(form.categoria).trim(), nivel: String(form.nivel).trim(), instructor: String(form.instructor).trim(), capacidad: Number(form.capacidad), inicio: String(form.inicio).slice(0, 5), fin: String(form.fin).slice(0, 5), ubicacion: String(form.ubicacion ?? '').trim(), descripcion: String(form.descripcion ?? '').trim(), color: selectedCategoryColor.value,fecha:form.fecha,imagenes:form.imagenes,video_url:form.video_url,imagesFiles:pendingImages.value,videoFile:pendingVideo.value };
-  if(customCategory.value)data.categoria=customCategory.value.trim();
+  if (isPastEvent.value || (form.fecha && form.fecha < todayLocal)) return mostrarToast(t('pastDateError'), 'error');
+  if (!form.fecha) return mostrarToast(settings.idioma === 'en' ? 'Select an event date.' : 'Selecciona la fecha del evento.', 'error');
+
+  const data = {
+    ...form,
+    dia: String(form.dia).trim(),
+    nombre: String(form.nombre).trim(),
+    categoria: String(form.categoria).trim(),
+    nivel: String(form.nivel).trim(),
+    instructor: String(form.instructor).trim(),
+    capacidad: Number(form.capacidad),
+    inicio: String(form.inicio).slice(0, 5),
+    fin: String(form.fin).slice(0, 5),
+    ubicacion: String(form.ubicacion ?? '').trim(),
+    descripcion: String(form.descripcion ?? '').trim(),
+    color: selectedCategoryColor.value,
+    fecha: form.fecha,
+    imagenes: form.imagenes,
+    video_url: form.video_url,
+    imagesFiles: pendingImages.value,
+    videoFile: pendingVideo.value
+  };
+  if (customCategory.value) data.categoria = customCategory.value.trim();
+
   if (!daysEs.includes(data.dia)) return mostrarToast(t('selectDayError'), 'error');
-  if (!data.nombre || !data.categoria || !['Principiante','Intermedio','Avanzado','Todos'].includes(data.nivel) || !data.instructor || !Number.isInteger(data.capacidad) || data.capacidad < 1 || data.capacidad > 10000) return mostrarToast(settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.', 'error');
+  if (!data.nombre || !data.categoria || !['Principiante', 'Intermedio', 'Avanzado', 'Todos'].includes(data.nivel) || !data.instructor || !Number.isInteger(data.capacidad) || data.capacidad < 1 || data.capacidad > 10000) return mostrarToast(settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.', 'error');
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.inicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(data.fin) || data.inicio >= data.fin) return mostrarToast(t('endTimeError'), 'error');
   if (data.nombre.length > 150 || data.categoria.length > 60 || data.instructor.length > 150 || data.ubicacion.length > 180 || data.descripcion.length > 2000) return mostrarToast(settings.idioma === 'en' ? 'A field exceeds the allowed length.' : 'Uno de los campos excede la longitud permitida.', 'error');
+
   const error = typeof props.validator === 'function' ? props.validator(data) : null;
   if (error) return mostrarToast(String(error), 'error');
+
   // Solo emitir; el padre espera POST/PUT de Laravel y cierra el modal cuando confirma.
   enviando.value = true;
   try { emit('save', data); } finally { enviando.value = false; }
 };
+
 onMounted(() => {
   syncLanguage();
   window.addEventListener('idioma-changed', handleLanguageChange);
 });
+
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
+  revokePreviews();
 });
 </script>
+
 <style scoped>
 @import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
+
 * { box-sizing: border-box; }
 button, input, select, textarea { font: inherit; }
+
 .activity-wrapper {
   --hl: var(--color-highlight, #3b82f6);
   --hl-soft: rgba(59,130,246,.1);
@@ -734,6 +1117,7 @@ button, input, select, textarea { font: inherit; }
   color: var(--color-texto-general, #f5f5f4);
   -webkit-font-smoothing: antialiased;
 }
+
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
   .activity-wrapper {
     --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
@@ -758,6 +1142,7 @@ button, input, select, textarea { font: inherit; }
     --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
 }
+
 .activity-panel {
   width: min(840px, 95vw);
   max-height: 92vh;
@@ -773,6 +1158,7 @@ button, input, select, textarea { font: inherit; }
 .activity-panel::-webkit-scrollbar { width: 6px; }
 .activity-panel::-webkit-scrollbar-track { background: transparent; }
 .activity-panel::-webkit-scrollbar-thumb { background: var(--w14); border-radius: 10px; }
+
 /* ============ HEADER ============ */
 .panel-header {
   position: sticky;
@@ -821,6 +1207,7 @@ button, input, select, textarea { font: inherit; }
 }
 .close-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .close-btn:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+
 /* ============ FORMULARIO ============ */
 .activity-form { padding: 0 26px 26px; }
 .form-section { padding: 26px 0; border-bottom: 1px solid var(--line); }
@@ -842,7 +1229,10 @@ button, input, select, textarea { font: inherit; }
 }
 .section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
 .section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
+
 /* ============ DÍAS ============ */
+.date-field { margin-bottom: 16px; }
+.field-error { color: #f87171; font-size: 12.5px; }
 .days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 .day-card {
   position: relative;
@@ -863,8 +1253,9 @@ button, input, select, textarea { font: inherit; }
 }
 .day-card > span { font-size: 11px; font-weight: 800; letter-spacing: .6px; }
 .day-card > strong { max-width: 100%; overflow: hidden; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 500; text-overflow: ellipsis; }
-.day-card:hover { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
+.day-card:hover:not(:disabled) { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
 .day-card.active { color: var(--hl); background: var(--hl-soft); border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
+.day-card:disabled { opacity: .45; cursor: not-allowed; }
 .day-check {
   position: absolute;
   top: 6px;
@@ -883,11 +1274,12 @@ button, input, select, textarea { font: inherit; }
 }
 .day-check svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .day-card.active .day-check { opacity: 1; transform: scale(1); }
+
 /* ============ CAMPOS ============ */
 .fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .field-large { grid-column: 1 / -1; }
 .field { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.field label, .time-field label {
+.field > label, .field-title, .time-field label, .custom-category > label {
   color: var(--text-2);
   font-family: 'Oswald', sans-serif;
   font-size: 12px;
@@ -913,6 +1305,7 @@ button, input, select, textarea { font: inherit; }
 .field textarea { min-height: 92px; padding: 13px 14px; resize: vertical; font-size: 14px; line-height: 1.55; }
 .input-control input:hover, .select-control select:hover, .field textarea:hover { border-color: var(--w25); }
 .input-control input::placeholder, .field textarea::placeholder { color: rgba(245,245,244,.28); }
+.input-control input:disabled { opacity: .55; cursor: not-allowed; }
 .field-icon { position: absolute; z-index: 2; top: 50%; left: 15px; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-3); pointer-events: none; transition: color .2s; }
 .field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .select-arrow { position: absolute; top: 50%; right: 14px; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
@@ -923,6 +1316,22 @@ button, input, select, textarea { font: inherit; }
   box-shadow: 0 0 0 4px var(--hl-soft);
 }
 .input-control:focus-within .field-icon { color: var(--hl); }
+
+/* Campo de fecha: mismo aspecto que el resto, el calendario nativo abre al hacer clic */
+.date-input { color-scheme: dark; cursor: pointer; font-family: 'Inter', sans-serif; }
+.date-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.date-input::-webkit-datetime-edit { padding: 0; }
+
+/* Categoría personalizada */
+.custom-category { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
+
 /* ============ HORARIO ============ */
 .schedule-card {
   padding: 20px 22px;
@@ -958,6 +1367,107 @@ button, input, select, textarea { font: inherit; }
 .time-connector span { flex: 1; height: 1px; background: var(--line-strong); }
 .time-connector strong { padding: 6px 10px; white-space: nowrap; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-weight: 700; }
 .time-connector strong.invalid { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+
+/* ============ MULTIMEDIA ============ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.upload { position: relative; display: flex; flex-direction: column; gap: 10px; }
+.dropzone {
+  min-height: 78px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  background: var(--field);
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 14px;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.dropzone:hover { border-color: var(--hl); background: var(--hl-soft); }
+.upload:focus-within .dropzone { border-color: var(--hl); box-shadow: 0 0 0 4px var(--hl-soft); }
+.dropzone.filled { border-style: solid; border-color: var(--hl-line); background: var(--hl-soft); }
+.dropzone.disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+.drop-icon {
+  width: 46px;
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 13px;
+}
+.drop-icon svg, .file-thumb-icon svg, .video-link svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.drop-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.drop-text strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .3px; }
+.drop-text small { color: var(--text-3); font-size: 12px; line-height: 1.4; }
+
+.file-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.file-chip {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--w3);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.file-thumb { width: 42px; height: 42px; flex: none; object-fit: cover; border-radius: 9px; border: 1px solid var(--line); }
+.file-thumb-icon { display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border-color: var(--hl-line); }
+.file-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.file-info strong { overflow: hidden; color: var(--title); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.file-info small { color: var(--text-3); font-size: 11.5px; }
+.file-remove {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: .2s ease;
+}
+.file-remove svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.file-remove:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+
+.saved-media { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.media-previews { display: flex; flex-wrap: wrap; gap: 10px; }
+.media-thumb { width: 84px; height: 84px; display: block; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; transition: border-color .2s, transform .2s; }
+.media-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.media-thumb:hover { border-color: var(--hl); transform: translateY(-2px); }
+.video-link {
+  margin-top: 14px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--hl);
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.video-link svg { width: 18px; height: 18px; }
+.video-link:hover { filter: brightness(1.15); }
+
 /* ============ RESUMEN ============ */
 .event-summary {
   position: relative;
@@ -980,6 +1490,7 @@ button, input, select, textarea { font: inherit; }
 .summary-content p { margin: 4px 0 0; overflow: hidden; color: var(--text-2); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .summary-category { padding: 7px 11px; display: flex; align-items: center; gap: 8px; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 9px; font-size: 12px; font-weight: 700; }
 .summary-category i { width: 8px; height: 8px; border-radius: 50%; }
+
 /* ============ FOOTER ============ */
 .form-footer { padding-top: 22px; display: flex; align-items: center; justify-content: flex-end; gap: 11px; }
 .cancel-btn, .save-btn {
@@ -1006,8 +1517,10 @@ button, input, select, textarea { font: inherit; }
   box-shadow: 0 8px 22px rgba(28,79,214,.28);
 }
 .save-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
-.save-btn:hover { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
-.close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+.save-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
+.save-btn:disabled { opacity: .55; cursor: not-allowed; }
+.close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible, .file-remove:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+
 /* ============ TOAST ============ */
 .toast-message {
   position: fixed;
@@ -1037,9 +1550,11 @@ button, input, select, textarea { font: inherit; }
 .toast-message span { color: var(--w65); font-size: 12.5px; line-height: 1.4; }
 .toast-enter-active, .toast-leave-active { transition: opacity .25s ease, transform .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 10px); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 760px) {
   .schedule-card { grid-template-columns: 1fr; gap: 14px; }
@@ -1071,5 +1586,4 @@ button, input, select, textarea { font: inherit; }
   .day-card > span { min-width: 30px; text-align: left; }
   .section-number { width: 30px; height: 30px; }
 }
-.event-date-input,.custom-category input,.form-section input[type=file]{width:100%;min-height:46px;padding:10px 12px;background:var(--field);color:var(--title);border:1px solid var(--line-strong);border-radius:10px}.custom-category{margin-top:10px;display:flex;flex-direction:column;gap:6px}.media-previews{display:flex;flex-wrap:wrap;gap:12px;padding:12px 0}.media-previews a,.form-section a{color:var(--hl)}
 </style>
