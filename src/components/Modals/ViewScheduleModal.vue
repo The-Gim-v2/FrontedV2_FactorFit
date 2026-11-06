@@ -34,6 +34,7 @@
       <div v-if="showForm" class="form-overlay" @click.self="closeForm">
         <AddScheduleModal
           :initial-data="formData"
+          :custom-categories="customCategories"
           :validator="validateActivity"
           @save="saveActivity"
           @close="closeForm"
@@ -198,7 +199,8 @@
                     </div>
                     <div class="event-progress"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
                     <!-- ACCIONES -->
-                    <div class="event-actions">
+                    <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">{{ idioma === 'en' ? 'Video' : 'Video' }}</a></div>
+                    <div v-if="!locked(ev)" class="event-actions">
                       <button type="button" class="icon-btn" :title="t('edit')" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
                         <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
                       </button>
@@ -265,7 +267,7 @@
                     <span>{{ catLabel(ev.categoria) }}</span>
                     <strong>{{ ev.nombre }}</strong>
                   </div>
-                  <div class="mobile-actions">
+                  <div v-if="!locked(ev)" class="mobile-actions">
                     <button type="button" class="icon-btn" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
                       <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
                     </button>
@@ -288,6 +290,7 @@
                     {{ ev.ubicacion }}
                   </span>
                 </div>
+                <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">Video</a></div>
                 <div class="mobile-event-footer">
                   <span>{{ levelLabel(ev.nivel) }}</span>
                   <span>{{ ev.inscritos || 0 }}/{{ ev.capacidad }} {{ t('people') }}</span>
@@ -325,6 +328,7 @@ import { categoryColor, categoryLabel } from './scheduleCategories.ts';
 interface Activity {
   id: number;
   dia: string;
+  fecha?: string;imagenes?:string[];video_url?:string;
   nombre: string;
   categoria: string;
   nivel: string;
@@ -429,6 +433,8 @@ const dayData = [
   { key: 'sunday', es: 'Domingo', en: 'Sunday', shortEs: 'DOM', shortEn: 'SUN' }
 ];
 const catLabel = (key: string) => categoryLabel(key, idioma.value);
+const predefinedCategories=new Set(['yoga','spinning','crossfit','boxing','pilates','zumba']);
+const customCategories=computed(()=>Array.from(new Set(activities.value.map(a=>a.categoria).filter(k=>k&&!predefinedCategories.has(k)))));
 const levelLabel = (level: string) => {
   const map: Record<string, string> = {
     Principiante: t('levelBeginner'),
@@ -497,11 +503,15 @@ const totalHours = computed(() => {
   }, 0);
   return Math.round(value * 10) / 10;
 });
+const isoDate=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const dateForDay=(day:string)=>weekDays.value.find(d=>d.key===day)?.date;
+const showsOnDay=(a:Activity,day:string)=>a.dia===day&&(!a.fecha||a.fecha===isoDate(dateForDay(day)!));
+const locked=(a:Activity)=>Boolean(a.fecha&&a.fecha<isoDate(new Date()));
 const activitiesForDay = (day: string) =>
-  activities.value.filter(activity => activity.dia === day);
+  activities.value.filter(activity => showsOnDay(activity,day));
 const sameHour = (a: string, b: string) => a.slice(0, 2) === b.slice(0, 2);
 const getActivity = (day: string, hour: string) =>
-  activities.value.find(activity => activity.dia === day && sameHour(activity.inicio, hour));
+  activities.value.find(activity => showsOnDay(activity,day) && sameHour(activity.inicio, hour));
 /* Devuelve un arreglo (0 o 1 elemento) para poder usar la actividad con v-for en la plantilla */
 const eventsAt = (day: string, hour: string) => {
   const found = getActivity(day, hour);
@@ -550,7 +560,7 @@ const closeForm = () => {
 };
 /* Clic en un espacio libre del calendario */
 const selectSlot = (day: string, hour: string) => {
-  openForm({ day: dayData.find(item => item.key === day)?.es || day, hour, fin: addOneHour(hour) });
+  const date=dateForDay(day);if(!date||isoDate(date)<isoDate(new Date())){showToast(idioma.value==='en'?'You cannot schedule in the past.':'No se permiten eventos en fechas pasadas.','error');return;}openForm({ day: dayData.find(item => item.key === day)?.es || day, fecha:isoDate(date), hour, fin: addOneHour(hour) });
 };
 /* Botón "Nueva actividad" */
 const createActivity = () => {
@@ -561,8 +571,9 @@ const openActivity = (activity: Activity) => {
 };
 /* EDITAR: abre el formulario con los datos de la actividad */
 const editActivity = (activity: Activity) => {
+  if(locked(activity)){showToast(idioma.value==='en'?'Past events cannot be edited.':'No se pueden editar eventos pasados.','error');return;}
   openForm({
-    id: activity.id,
+    id: activity.id,fecha:activity.fecha,imagenes:activity.imagenes||[],video_url:activity.video_url||'',
     day: dayData.find(item => item.key === activity.dia)?.es || activity.dia,
     hour: activity.inicio,
     fin: activity.fin,
@@ -580,19 +591,20 @@ const dayKeyFromLabel = (label: string) => dayData.find(item => item.es === labe
 const validateActivity = (data: Record<string, any>) => {
   const dayKey = dayKeyFromLabel(data.dia);
   const conflict = activities.value.find(
-    item => item.id !== data.id && item.dia === dayKey && sameHour(item.inicio, data.inicio)
+    item => item.id !== data.id && item.dia === dayKey && (!item.fecha||item.fecha===data.fecha) && sameHour(item.inicio, data.inicio)
   );
   return conflict
     ? `${t('conflictPrefix')} "${conflict.nombre}" ${t('conflictOn')} ${dayLabel(dayKey).toLowerCase()} ${t('conflictAt')} ${formatHour(conflict.inicio)}. ${t('conflictChoose')}`
     : null;
 };
 /* GUARDAR (nueva o editada) */
-const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||''})});closeForm();await cargarActividades();showToast(data.id?'Evento actualizado.':'Evento registrado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
+const uploadMedia=async(file:File,kind:'image'|'video')=>{const fd=new FormData();fd.append('archivo',file);fd.append('tipo',kind);fd.append('sede_id',String(sedeActual()));const token=tokenActual();const response=await fetch(`${API}/api/gym/agenda/media`,{method:'POST',headers:{Accept:'application/json',Authorization:`Bearer ${token}`},body:fd});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.message||`Error HTTP ${response.status}`);return String(result.url);};
+const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';const imagenes=Array.isArray(data.imagenes)?[...data.imagenes]:[];if(imagenes.length+(data.imagesFiles||[]).length>3)throw new Error(idioma.value==='en'?'Maximum 3 images per event.':'Máximo 3 imágenes por evento.');for(const file of (data.imagesFiles||[]))imagenes.push(await uploadMedia(file,'image'));let video_url=data.video_url||'';if(data.videoFile)video_url=await uploadMedia(data.videoFile,'video');await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),fecha:data.fecha,nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||'',imagenes,video_url})});closeForm();await cargarActividades();showToast(data.id?'Evento actualizado.':'Evento registrado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 /* ELIMINAR */
 const askDelete = (activity: Activity) => {
-  pendingDelete.value = activity;
+  if(locked(activity)){showToast(idioma.value==='en'?'Past events cannot be deleted.':'No se pueden eliminar eventos pasados.','error');return;}pendingDelete.value = activity;
 };
-const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Evento eliminado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
+const confirmDelete=async()=>{const a=pendingDelete.value;if(!a||guardando.value)return;if(locked(a)){pendingDelete.value=null;return;}guardando.value=true;try{await consultar(`/${a.id}?sede_id=${sedeActual()}`,{method:'DELETE'});pendingDelete.value=null;await cargarActividades();showToast('Evento eliminado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 const previousWeek = () => {
   const date = new Date(currentDate.value);
   date.setDate(date.getDate() - 7);
@@ -1086,4 +1098,5 @@ button { font: inherit; }
   .mobile-time-row { grid-template-columns: 56px 12px minmax(0, 1fr); }
   .summary-icon { width: 34px; height: 34px; }
 }
+.event-media{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:6px 0}.event-media img{width:35px;height:35px;object-fit:cover;border-radius:6px}.event-media a{font-size:11px;color:var(--color-highlight,#ffac70)}
 </style>

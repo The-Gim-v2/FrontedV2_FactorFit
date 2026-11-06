@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, onUnmounted, computed, watch, nextTick } from
 import { useRouter, useRoute } from 'vue-router';
 import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import RegisterGymModal from '../../Record/Record-Gym.vue';
+import RegistrarNuevaCuentaGym from './RegistrarNuevaCuentaGym.vue';
 import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 // --- MAPA REAL (Leaflet + OpenStreetMap) ---
@@ -247,6 +248,7 @@ const coverFileInput = ref<HTMLInputElement | null>(null);
 const previewCoverImage = ref<string | null>(null);
 const showPassword = ref(false);
 const showAddSedeModal = ref(false);
+const showAddGymModal = ref(false);
 const showEmailModal = ref(false);
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -1193,6 +1195,7 @@ class="primary-action-btn"
 </svg>
 {{ t('btnAddBranch') }}
 </button>
+<button type="button" class="primary-action-btn" @click="showAddGymModal = true">{{ txt('Agregar gimnasio','Add gym') }}</button>
 </div>
 </section>
 <!-- ACERCA DEL GIMNASIO -->
@@ -1842,6 +1845,13 @@ required
 </button>
 </div>
 </div>
+</div>
+</div>
+<!-- MODAL NUEVA CUENTA DE GIMNASIO -->
+<div v-if="showAddGymModal" class="modal-overlay" @click.self="showAddGymModal = false">
+<div class="modal-container animate-modal modal-large">
+<div class="modal-header"><h3>{{ txt('Registrar nuevo gimnasio','Register new gym') }}</h3><button type="button" class="close-btn" @click="showAddGymModal = false">Cerrar</button></div>
+<div class="modal-body"><RegistrarNuevaCuentaGym @close="showAddGymModal = false" @created="showNotification(txt('Cuenta de gimnasio creada correctamente.','Gym account created successfully.'),'success')" /></div>
 </div>
 </div>
 <!-- MODAL AGREGAR SEDE -->
