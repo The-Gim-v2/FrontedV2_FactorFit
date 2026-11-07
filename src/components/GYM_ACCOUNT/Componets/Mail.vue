@@ -438,23 +438,56 @@ interface MailImage { id: number; src: string; name: string }
 const images = ref<MailImage[]>([]);
 let imageSeq = 0;
 
-const readImage = (file: File) =>
-  new Promise<MailImage | null>((resolve) => {
-    if (!file.type.startsWith('image/')) return resolve(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      resolve(typeof result === 'string' ? { id: ++imageSeq, src: result, name: file.name } : null);
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
+/* Las imágenes se convierten a JPEG para que Brevo y Gmail las acepten.
+   Admite formatos que el navegador pueda abrir; HEIC/SVG no se garantizan. */
+const readImage = async (file: File): Promise<MailImage | null> => {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return null;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('No se puede leer esta imagen'));
+      element.src = url;
+    });
+    let width = img.naturalWidth;
+    let height = img.naturalHeight;
+    if (!width || !height || width > 12000 || height > 12000) return null;
+    const ratio = Math.min(1, 1600 / Math.max(width, height));
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.fillStyle = '#ffffff'; // Fondo blanco para imágenes transparentes
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const src = canvas.toDataURL('image/jpeg', attempt < 3 ? .84 - attempt * .12 : .65);
+      const bytes = Math.round((src.length - src.indexOf(',') - 1) * .75);
+      if (bytes <= 1024 * 1024) return { id: ++imageSeq, src, name: file.name.replace(/\.[^.]+$/, '') + '.jpg' };
+      width = Math.max(1, Math.round(width * .75));
+      height = Math.max(1, Math.round(height * .75));
+    }
+    return null;
+  } catch { return null; }
+  finally { URL.revokeObjectURL(url); }
+};
 
 const addImageFiles = async (files: File[]) => {
-  const loaded = (await Promise.all(files.map(readImage))).filter((i): i is MailImage => i !== null);
-  if (!loaded.length) return;
-  images.value = [...images.value, ...loaded];
-  toastRef.value?.notify(t('imgAdded'), 'success');
+  const remaining = 3 - images.value.length;
+  if (remaining <= 0) {
+    toastRef.value?.notify('Máximo 3 imágenes por correo.', 'error'); return;
+  }
+  const loaded = (await Promise.all(files.slice(0, remaining).map(readImage))).filter((i): i is MailImage => i !== null);
+  if (loaded.length) {
+    images.value = [...images.value, ...loaded];
+    toastRef.value?.notify(t('imgAdded'), 'success');
+  }
+  if (loaded.length !== files.length) {
+    toastRef.value?.notify('Máximo 3 imágenes. Algunos archivos no se pudieron convertir; usa JPG, PNG, WebP, GIF o BMP.', 'error');
+  }
 };
 
 const handleImage = (event: Event) => {
