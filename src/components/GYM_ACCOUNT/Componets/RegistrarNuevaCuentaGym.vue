@@ -10,7 +10,18 @@ const idioma = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const en = computed(() => idioma.value === 'en');
 const tx = (es: string, english: string) => (en.value ? english : es);
 
-const form = reactive({
+const form = reactive<{
+  nombre: string;
+  propietario: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+  sede: string;
+  entidad: string;
+  municipio: string;
+  precio_semanal: number | '';
+  precio_mensual: number | '';
+}>({
   nombre: '',
   propietario: '',
   email: '',
@@ -18,7 +29,9 @@ const form = reactive({
   password_confirmation: '',
   sede: '',
   entidad: '',
-  municipio: ''
+  municipio: '',
+  precio_semanal: '',
+  precio_mensual: ''
 });
 
 const saving = ref(false);
@@ -26,7 +39,10 @@ const error = ref('');
 const success = ref('');
 const showPassword = ref(false);
 
-const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const API = String(import.meta.env.VITE_API_URL || '')
+  .trim()
+  .replace(/\/+$/, '')
+  .replace(/\/api$/i, '');
 
 /* ---------- Fortaleza de la contraseña (solo visual) ---------- */
 const checks = computed(() => ({
@@ -35,11 +51,13 @@ const checks = computed(() => ({
   number: /\d/.test(form.password),
   symbol: /[^A-Za-z0-9]/.test(form.password)
 }));
+
 const strength = computed(() => {
   if (!form.password) return 0;
   const c = checks.value;
   return [c.length, c.mixed, c.number, c.symbol].filter(Boolean).length;
 });
+
 const strengthLabel = computed(() => {
   const labels = [
     '',
@@ -50,12 +68,21 @@ const strengthLabel = computed(() => {
   ];
   return labels[strength.value] || '';
 });
+
 const passwordsMatch = computed(
   () => form.password_confirmation.length > 0 && form.password === form.password_confirmation
 );
 const passwordsMismatch = computed(
   () => form.password_confirmation.length > 0 && form.password !== form.password_confirmation
 );
+
+/* ---------- Precios ---------- */
+const toPrice = (value: number | ''): number => (value === '' ? NaN : Number(value));
+
+const validPrice = (value: number | '') => {
+  const n = toPrice(value);
+  return Number.isFinite(n) && n > 0;
+};
 
 /* ---------- Guardar ---------- */
 const save = async () => {
@@ -71,6 +98,15 @@ const save = async () => {
     error.value = tx('Las contraseñas no coinciden.', 'Passwords do not match.');
     return;
   }
+  if (!validPrice(form.precio_semanal)) {
+    error.value = tx('Captura un precio semanal mayor a 0.', 'Enter a weekly price greater than 0.');
+    return;
+  }
+  if (!validPrice(form.precio_mensual)) {
+    error.value = tx('Captura un precio mensual mayor a 0.', 'Enter a monthly price greater than 0.');
+    return;
+  }
+
   const token = sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token') || '';
   if (!token) {
     error.value = tx('No hay una sesión activa.', 'No active session.');
@@ -86,13 +122,20 @@ const save = async () => {
         Accept: 'application/json',
         Authorization: `Bearer ${token.replace(/^Bearer\s+/i, '')}`
       },
-      body: JSON.stringify({ ...form, email: form.email.trim().toLowerCase() })
+      body: JSON.stringify({
+        ...form,
+        email: form.email.trim().toLowerCase(),
+        precio_semanal: Number(form.precio_semanal),
+        precio_mensual: Number(form.precio_mensual)
+      })
     });
+
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       const errors = Object.values(body.errors || {}).flat();
       throw new Error(String(errors[0] || body.message || `HTTP ${response.status}`));
     }
+
     success.value = tx('Gimnasio registrado.', 'Gym registered.');
     window.dispatchEvent(new CustomEvent('factorfit:gyms-updated', { detail: body }));
     emit('created', { ID_Gym: Number(body.ID_Gym), ID_Sede: Number(body.ID_Sede) });
@@ -204,6 +247,7 @@ const save = async () => {
                     />
                   </div>
                 </div>
+
                 <div class="ng-group">
                   <label for="gym-city">{{ tx('Municipio', 'City / Municipality') }}</label>
                   <div class="ng-input plain">
@@ -215,6 +259,53 @@ const save = async () => {
                       :placeholder="tx('Ej. Tampico', 'E.g. Austin')"
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- PRECIOS INICIALES -->
+          <section class="ng-card">
+            <h3 class="ng-card-title">{{ tx('Precios iniciales', 'Starting membership prices') }}</h3>
+            <p class="ng-card-sub">
+              {{ tx(
+                'Se crearán automáticamente dos tarifas activas para la primera sede.',
+                'Two active rates will be created automatically for the first branch.'
+              ) }}
+            </p>
+
+            <div class="ng-two">
+              <div class="ng-group">
+                <label for="gym-weekly-price">{{ tx('Precio semanal (MXN)', 'Weekly price (MXN)') }}</label>
+                <div class="ng-input plain">
+                  <span class="ng-prefix">$</span>
+                  <input
+                    id="gym-weekly-price"
+                    v-model.number="form.precio_semanal"
+                    type="number"
+                    inputmode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    :placeholder="tx('Ej. 150.00', 'E.g. 150.00')"
+                  />
+                </div>
+              </div>
+
+              <div class="ng-group">
+                <label for="gym-monthly-price">{{ tx('Precio mensual (MXN)', 'Monthly price (MXN)') }}</label>
+                <div class="ng-input plain">
+                  <span class="ng-prefix">$</span>
+                  <input
+                    id="gym-monthly-price"
+                    v-model.number="form.precio_mensual"
+                    type="number"
+                    inputmode="decimal"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    :placeholder="tx('Ej. 500.00', 'E.g. 500.00')"
+                  />
                 </div>
               </div>
             </div>
@@ -306,8 +397,12 @@ const save = async () => {
                     :placeholder="tx('Repite la contraseña', 'Repeat the password')"
                   />
                 </div>
-                <small v-if="passwordsMismatch" class="ng-feedback bad">{{ tx('Las contraseñas no coinciden.', 'Passwords do not match.') }}</small>
-                <small v-else-if="passwordsMatch" class="ng-feedback ok">{{ tx('Las contraseñas coinciden.', 'Passwords match.') }}</small>
+                <small v-if="passwordsMismatch" class="ng-feedback bad">
+                  {{ tx('Las contraseñas no coinciden.', 'Passwords do not match.') }}
+                </small>
+                <small v-else-if="passwordsMatch" class="ng-feedback ok">
+                  {{ tx('Las contraseñas coinciden.', 'Passwords match.') }}
+                </small>
               </div>
 
               <!-- Recomendaciones -->
@@ -331,6 +426,7 @@ const save = async () => {
         </svg>
         <span>{{ error }}</span>
       </p>
+
       <p v-if="success" class="ng-alert success" role="status">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -343,10 +439,11 @@ const save = async () => {
       <div class="ng-actions">
         <p class="ng-note">
           {{ tx(
-            'Completa dirección, horarios y precios desde la nueva cuenta. Se enviará un aviso de registro por correo, pero nunca la contraseña.',
-            'Finish address, hours and prices from the new account. A registration notice will be emailed, but never the password.'
+            'Los precios semanal y mensual quedarán activos. Completa dirección y horarios desde la nueva cuenta. Nunca enviamos la contraseña por correo.',
+            'Weekly and monthly prices will be active. Finish address and hours from the new account. We never email passwords.'
           ) }}
         </p>
+
         <div class="ng-buttons">
           <button type="button" class="ng-btn secondary" :disabled="saving" @click="emit('close')">
             {{ tx('Cancelar', 'Cancel') }}
@@ -500,6 +597,20 @@ const save = async () => {
 }
 .ng-input.plain input { padding-left: 14px; }
 .ng-input input::placeholder { color: var(--color-texto-general, #94a3b8); opacity: 0.4; }
+
+/* Prefijo de moneda ($) */
+.ng-prefix {
+  flex: none;
+  margin-left: 14px;
+  color: var(--accent);
+  font: 700 0.9rem 'Oswald', sans-serif;
+}
+.ng-input.plain .ng-prefix + input { padding-left: 8px; }
+
+/* Quita las flechas del input numérico */
+.ng-input input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+.ng-input input[type='number']::-webkit-outer-spin-button,
+.ng-input input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .ng-input.ok { border-color: rgba(52, 211, 153, 0.55); }
 .ng-input.ok > svg { color: #34d399; opacity: 1; }

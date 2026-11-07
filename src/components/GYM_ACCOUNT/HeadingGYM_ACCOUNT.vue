@@ -809,7 +809,7 @@ const mobileSheet = ref(null);
 const readAccount = () => { try { const x = JSON.parse(sessionStorage.getItem('gym_account') || '{}'); return x.usuario || x; } catch { return {}; } };
 const gyms = ref(Array.isArray(readAccount().sedes) ? readAccount().sedes : []);
 const selectedGym = ref(gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null);
-const syncBranch = () => { const account = readAccount(); gyms.value = Array.isArray(account.sedes) ? account.sedes : []; selectedGym.value = gyms.value.find(g => String(g.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || gyms.value[0] || null; };
+const syncBranch = () => { const account = readAccount(); gyms.value = Array.isArray(account.sedes) ? account.sedes : []; const stored = sessionStorage.getItem('selected_sede_id'); selectedGym.value = gyms.value.find(g => String(g.ID_Sede) === stored) || gyms.value[0] || null; const validId = selectedGym.value ? String(selectedGym.value.ID_Sede) : ''; if (validId && validId !== stored) { sessionStorage.setItem('selected_sede_id', validId); localStorage.setItem('selected_sede_id', validId); return true; } if (!validId) { sessionStorage.removeItem('selected_sede_id'); localStorage.removeItem('selected_sede_id'); } return false; };
 const onBranchChanged = () => { syncBranch(); refreshNotificationsOnBranch(); };
 
 const notifications = ref([]); // Notificaciones reales de Laravel, sin datos de prueba
@@ -1020,6 +1020,7 @@ const closeDesktopDropdown = () => {
 const selectGym = (gym) => {
   selectedGym.value = gym;
   sessionStorage.setItem('selected_sede_id', String(gym.ID_Sede));
+  localStorage.setItem('selected_sede_id', String(gym.ID_Sede));
   window.dispatchEvent(new Event('factorfit:branch-changed'));
   closeDesktopDropdown();
   closeSheet();
@@ -1175,7 +1176,8 @@ const aplicarEstilosGlobales = () => {
 ========================================================= */
 
 onMounted(() => {
-  syncBranch();
+  const correctedBranch = syncBranch();
+  if (correctedBranch) window.dispatchEvent(new Event('factorfit:branch-changed'));
   void fetchNotifications(true);
   notificationsTimer = window.setInterval(() => { void fetchNotifications(true); }, 60000);
   document.addEventListener('visibilitychange', refreshNotificationsOnFocus);
