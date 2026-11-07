@@ -22,196 +22,99 @@ success.value=tx('Gimnasio registrado.','Gym registered.');window.dispatchEvent(
 </script>
 
 <template>
-  <div class="new-gym-form">
-    <form @submit.prevent="save">
+  <div class="ng">
+    <form class="ng-form" @submit.prevent="save">
+
       <!-- Aviso inicial -->
-      <div class="info-box">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 11v5M12 8h.01"/>
-        </svg>
+      <div class="ng-notice">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
         <p>{{ tx('Crearás una cuenta independiente de gimnasio y su primera sede. El nuevo propietario podrá iniciar sesión con el correo y la contraseña que captures.','You will create an independent gym account and its first branch. The new owner can log in with these credentials.') }}</p>
       </div>
 
-      <!-- ================= GIMNASIO ================= -->
-      <section class="form-section">
-        <div class="section-title">
-          <div class="section-number">01</div>
-          <div>
-            <h3>{{ tx('Gimnasio y propietario','Gym and owner') }}</h3>
-            <p>{{ tx('Nombre del gimnasio y de quien lo administrará.','Gym name and who will manage it.') }}</p>
-          </div>
-        </div>
+      <div class="ng-layout">
 
-        <div class="fields-grid">
-          <div class="field">
+        <!-- ============ COLUMNA 1 ============ -->
+        <div class="ng-col">
+          <h3 class="ng-title first">{{ tx('Tu gimnasio','Your gym') }}</h3>
+
+          <div class="ng-field">
             <label for="gym-name">{{ tx('Nombre del gimnasio','Gym name') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/>
-                </svg>
-              </div>
-              <input id="gym-name" v-model.trim="form.nombre" required minlength="2" maxlength="180" :placeholder="tx('Ej. Iron Fitness','E.g. Iron Fitness')">
-            </div>
+            <input id="gym-name" v-model.trim="form.nombre" required minlength="2" maxlength="180" :placeholder="tx('Ej. Iron Fitness','E.g. Iron Fitness')">
           </div>
 
-          <div class="field">
-            <label for="gym-owner">{{ tx('Nombre del propietario','Owner name') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="8" r="4"/>
-                  <path d="M4 21a8 8 0 0 1 16 0"/>
-                </svg>
-              </div>
-              <input id="gym-owner" v-model.trim="form.propietario" required minlength="2" maxlength="180">
-            </div>
-          </div>
-        </div>
-      </section>
+          <h3 class="ng-title">{{ tx('Primera sede','First branch') }}</h3>
 
-      <!-- ================= CUENTA ================= -->
-      <section class="form-section">
-        <div class="section-title">
-          <div class="section-number">02</div>
-          <div>
-            <h3>{{ tx('Cuenta de acceso','Access account') }}</h3>
-            <p>{{ tx('Con estos datos el propietario iniciará sesión.','The owner will log in with these credentials.') }}</p>
-          </div>
-        </div>
-
-        <div class="fields-grid">
-          <div class="field field-large">
-            <label for="gym-email">{{ tx('Correo de la nueva cuenta','New account email') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <rect x="2" y="4" width="20" height="16" rx="2"/>
-                  <path d="m22 7-10 6L2 7"/>
-                </svg>
-              </div>
-              <input id="gym-email" v-model.trim="form.email" required type="email" autocomplete="off">
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="gym-pass">{{ tx('Contraseña de la nueva cuenta','New account password') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
-              <input id="gym-pass" v-model="form.password" required minlength="10" :type="showPassword?'text':'password'" autocomplete="new-password">
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="gym-pass2">{{ tx('Confirmar contraseña','Confirm password') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
-              <input id="gym-pass2" v-model="form.password_confirmation" required minlength="10" :type="showPassword?'text':'password'" autocomplete="new-password">
-            </div>
-          </div>
-
-          <label class="check field-large">
-            <input v-model="showPassword" type="checkbox">
-            <span class="check-box"></span>
-            <span>{{ tx('Mostrar contraseñas','Show passwords') }}</span>
-          </label>
-        </div>
-      </section>
-
-      <!-- ================= SEDE ================= -->
-      <section class="form-section">
-        <div class="section-title">
-          <div class="section-number">03</div>
-          <div>
-            <h3>{{ tx('Primera sede','First branch') }}</h3>
-            <p>{{ tx('Nombre y ubicación general de la sede.','Branch name and general location.') }}</p>
-          </div>
-        </div>
-
-        <div class="fields-grid">
-          <div class="field field-large">
+          <div class="ng-field">
             <label for="gym-branch">{{ tx('Nombre de la primera sede','First branch name') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M3 9l1-5h16l1 5M3 9v11h18V9M3 9h18M9 20v-6h6v6"/>
-                </svg>
-              </div>
-              <input id="gym-branch" v-model.trim="form.sede" required minlength="2" maxlength="180" :placeholder="tx('Ej. Sede Centro','E.g. Downtown branch')">
-            </div>
+            <input id="gym-branch" v-model.trim="form.sede" required minlength="2" maxlength="180" :placeholder="tx('Ej. Sede Centro','E.g. Downtown branch')">
           </div>
 
-          <div class="field">
-            <label for="gym-state">{{ tx('Estado','State') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/>
-                  <path d="M9 3v15M15 6v15"/>
-                </svg>
-              </div>
+          <div class="ng-row">
+            <div class="ng-field">
+              <label for="gym-state">{{ tx('Estado','State') }}</label>
               <input id="gym-state" v-model.trim="form.entidad" required maxlength="150">
             </div>
-          </div>
-
-          <div class="field">
-            <label for="gym-city">{{ tx('Municipio','City / Municipality') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
-                  <circle cx="12" cy="10" r="2.5"/>
-                </svg>
-              </div>
+            <div class="ng-field">
+              <label for="gym-city">{{ tx('Municipio','City / Municipality') }}</label>
               <input id="gym-city" v-model.trim="form.municipio" required maxlength="150">
             </div>
           </div>
         </div>
-      </section>
 
-      <!-- Nota final -->
-      <div class="info-box note">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 11v5M12 8h.01"/>
-        </svg>
-        <p>{{ tx('La dirección completa, horarios y precios se terminan de configurar desde la nueva cuenta. Se enviará un aviso de registro por Brevo, pero nunca la contraseña.','Finish address, hours and prices in the new account. A registration notice will be sent via Brevo, but never the password.') }}</p>
+        <!-- ============ COLUMNA 2 ============ -->
+        <div class="ng-col">
+          <h3 class="ng-title first">{{ tx('Propietario','Owner') }}</h3>
+
+          <div class="ng-field">
+            <label for="gym-owner">{{ tx('Nombre del propietario','Owner name') }}</label>
+            <input id="gym-owner" v-model.trim="form.propietario" required minlength="2" maxlength="180">
+          </div>
+
+          <h3 class="ng-title">{{ tx('Cuenta de acceso','Access account') }}</h3>
+
+          <div class="ng-field">
+            <label for="gym-email">{{ tx('Correo de la nueva cuenta','New account email') }}</label>
+            <input id="gym-email" v-model.trim="form.email" required type="email" autocomplete="off">
+          </div>
+
+          <div class="ng-row">
+            <div class="ng-field">
+              <label for="gym-pass">{{ tx('Contraseña de la nueva cuenta','New account password') }}</label>
+              <input id="gym-pass" v-model="form.password" required minlength="10" :type="showPassword?'text':'password'" autocomplete="new-password">
+            </div>
+            <div class="ng-field">
+              <label for="gym-pass2">{{ tx('Confirmar contraseña','Confirm password') }}</label>
+              <input id="gym-pass2" v-model="form.password_confirmation" required minlength="10" :type="showPassword?'text':'password'" autocomplete="new-password">
+            </div>
+          </div>
+
+          <label class="ng-check">
+            <input v-model="showPassword" type="checkbox">
+            <span class="ng-box"></span>
+            <span>{{ tx('Mostrar contraseñas','Show passwords') }}</span>
+          </label>
+        </div>
       </div>
 
+      <!-- Nota final -->
+      <p class="ng-hint">{{ tx('La dirección completa, horarios y precios se terminan de configurar desde la nueva cuenta. Se enviará un aviso de registro por Brevo, pero nunca la contraseña.','Finish address, hours and prices in the new account. A registration notice will be sent via Brevo, but never the password.') }}</p>
+
       <!-- Mensajes -->
-      <p v-if="error" class="alert error" role="alert">
-        <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 8v5M12 17h.01"/>
-        </svg>
+      <p v-if="error" class="ng-alert error" role="alert">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 17h.01"/></svg>
         <span>{{ error }}</span>
       </p>
-      <p v-if="success" class="alert success" role="status">
-        <svg viewBox="0 0 24 24">
-          <path d="m5 12 4 4L19 6"/>
-        </svg>
+      <p v-if="success" class="ng-alert success" role="status">
+        <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
         <span>{{ success }}</span>
       </p>
 
-      <!-- ================= FOOTER ================= -->
-      <div class="actions">
-        <button type="button" class="secondary" :disabled="saving" @click="emit('close')">{{ tx('Cancelar','Cancel') }}</button>
-        <button type="submit" class="primary" :disabled="saving">
-          <svg v-if="!saving" viewBox="0 0 24 24">
-            <path d="M12 5v14M5 12h14"/>
-          </svg>
-          <span v-else class="spinner"></span>
+      <!-- Botones -->
+      <div class="ng-actions">
+        <button type="button" class="ng-btn secondary" :disabled="saving" @click="emit('close')">{{ tx('Cancelar','Cancel') }}</button>
+        <button type="submit" class="ng-btn primary" :disabled="saving">
+          <svg v-if="!saving" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span v-else class="ng-spinner"></span>
           {{ saving ? tx('Registrando...','Saving...') : tx('Crear gimnasio','Create gym') }}
         </button>
       </div>
@@ -220,183 +123,218 @@ success.value=tx('Gimnasio registrado.','Gym registered.');window.dispatchEvent(
 </template>
 
 <style scoped>
-@import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
+@import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-* { box-sizing: border-box; }
-button, input { font: inherit; }
+.ng, .ng *, .ng *::before, .ng *::after { box-sizing: border-box; }
 
-.new-gym-form {
-  --hl: var(--color-highlight, #3b82f6);
-  --hl-soft: rgba(59,130,246,.1);
-  --hl-line: rgba(59,130,246,.45);
+.ng {
+  --accent: var(--color-highlight, #3b82f6);
+  --accent-soft: rgba(59,130,246,.1);
+  --accent-line: rgba(59,130,246,.4);
   --text: var(--color-texto-general, #f5f5f4);
-  --card: var(--bg-cards, #111);
   --title: var(--color-titulos, #fff);
-  --field: rgba(0,0,0,.28);
-  --field-focus: rgba(0,0,0,.36);
-  --w3: rgba(255,255,255,.03);
-  --w5: rgba(255,255,255,.05);
-  --w8: rgba(255,255,255,.08);
-  --w14: rgba(255,255,255,.14);
-  --w25: rgba(255,255,255,.25);
-  --line: var(--w8);
-  --line-strong: var(--w14);
-  --text-2: rgba(245,245,244,.66);
-  --text-3: rgba(245,245,244,.42);
+  --muted: rgba(245,245,244,.62);
+  --muted2: rgba(245,245,244,.4);
+  --line: rgba(255,255,255,.08);
+  --field: rgba(255,255,255,.03);
+  --field-line: rgba(255,255,255,.12);
   width: 100%;
-  font-family: 'Inter', sans-serif;
   color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
-  .new-gym-form {
-    --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
-    --hl-line: color-mix(in srgb, var(--hl) 50%, transparent);
-    --field: color-mix(in srgb, var(--card) 72%, #000);
-    --field-focus: color-mix(in srgb, var(--card) 62%, #000);
-    --text-2: color-mix(in srgb, var(--text) 68%, transparent);
-    --text-3: color-mix(in srgb, var(--text) 45%, transparent);
-    --w3: color-mix(in srgb, var(--text) 3%, transparent);
-    --w5: color-mix(in srgb, var(--text) 5%, transparent);
-    --w8: color-mix(in srgb, var(--text) 8%, transparent);
-    --w14: color-mix(in srgb, var(--text) 14%, transparent);
-    --w25: color-mix(in srgb, var(--text) 25%, transparent);
+  .ng {
+    --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent) 40%, transparent);
+    --muted: color-mix(in srgb, var(--text) 62%, transparent);
+    --muted2: color-mix(in srgb, var(--text) 40%, transparent);
+    --line: color-mix(in srgb, var(--text) 8%, transparent);
+    --field: color-mix(in srgb, var(--text) 3%, transparent);
+    --field-line: color-mix(in srgb, var(--text) 12%, transparent);
   }
 }
 
-/* ============ AVISOS ============ */
-.info-box {
-  margin: 0;
-  padding: 14px 16px;
+.ng-form { display: flex; flex-direction: column; gap: 24px; }
+
+/* ============ AVISO ============ */
+.ng-notice {
+  padding: 13px 15px;
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 14px;
+  gap: 11px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
 }
-.info-box svg { width: 20px; height: 20px; flex: none; margin-top: 1px; fill: none; stroke: var(--hl); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.info-box p { margin: 0; color: var(--text-2); font-size: 13px; line-height: 1.6; }
-.info-box.note { margin-top: 24px; background: var(--w3); border-color: var(--line); }
-.info-box.note svg { stroke: var(--text-3); }
-.info-box.note p { color: var(--text-3); font-size: 12.5px; }
+.ng-notice svg { width: 19px; height: 19px; flex: none; margin-top: 1px; fill: none; stroke: var(--accent); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ng-notice p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
 
-/* ============ SECCIONES ============ */
-.form-section { padding: 26px 0; border-bottom: 1px solid var(--line); }
-.form-section:first-of-type { padding-top: 24px; }
-.section-title { margin-bottom: 18px; display: flex; align-items: center; gap: 13px; }
-.section-number {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--hl);
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 10px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
+/* ============ LAYOUT EN COLUMNAS ============ */
+.ng-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 34px;
+  align-items: start;
 }
-.section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
-.section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
+.ng-col { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 
-/* ============ CAMPOS ============ */
-.fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.field-large { grid-column: 1 / -1; }
-.field { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.field > label {
-  color: var(--text-2);
-  font-family: 'Oswald', sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: .6px;
+.ng-title {
+  margin: 14px 0 0;
+  padding-bottom: 9px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
   text-transform: uppercase;
 }
-.input-control { position: relative; width: 100%; }
-.input-control input {
+.ng-title.first { margin-top: 0; }
+
+.ng-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* ============ CAMPOS ============ */
+.ng-field { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.ng-field label { color: var(--muted); font-size: 12px; font-weight: 600; line-height: 1.35; }
+.ng-field input {
   width: 100%;
-  height: 50px;
-  padding: 0 14px 0 46px;
-  outline: none;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
   color: var(--color-texto-input, var(--text));
   background: var(--field);
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
-  font-size: 14px;
+  border: 1px solid var(--field-line);
+  border-radius: 10px;
+  outline: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
   transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
 }
-.input-control input:hover { border-color: var(--w25); }
-.input-control input::placeholder { color: rgba(245,245,244,.28); }
-.input-control input:focus { border-color: var(--hl); background: var(--field-focus); box-shadow: 0 0 0 4px var(--hl-soft); }
-.field-icon { position: absolute; z-index: 2; top: 50%; left: 15px; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-3); pointer-events: none; transition: color .2s; }
-.field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.input-control:focus-within .field-icon { color: var(--hl); }
+.ng-field input::placeholder { color: var(--muted2); font-weight: 400; }
+.ng-field input:hover { border-color: rgba(255,255,255,.2); }
+.ng-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-/* Casilla "Mostrar contraseñas" */
-.check { display: inline-flex; align-items: center; gap: 10px; width: fit-content; cursor: pointer; color: var(--text-2); font-size: 13px; font-weight: 600; user-select: none; }
-.check input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.check-box { position: relative; width: 20px; height: 20px; flex: none; background: var(--field); border: 1px solid var(--line-strong); border-radius: 6px; transition: .2s ease; }
-.check-box::after { content: ''; position: absolute; top: 3px; left: 6.5px; width: 5px; height: 10px; border: solid var(--title); border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0); transition: transform .15s ease; }
-.check:hover .check-box { border-color: var(--hl); }
-.check input:checked + .check-box { background: var(--hl); border-color: var(--hl); }
-.check input:checked + .check-box::after { transform: rotate(45deg) scale(1); }
-.check input:focus-visible + .check-box { box-shadow: 0 0 0 4px var(--hl-soft); border-color: var(--hl); }
-
-/* ============ ALERTAS ============ */
-.alert { margin: 18px 0 0; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
-.alert svg { width: 18px; height: 18px; flex: none; margin-top: 1px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.alert.error { color: #f87171; background: rgba(239,68,68,.09); border: 1px solid rgba(239,68,68,.3); }
-.alert.success { color: #34d399; background: rgba(16,185,129,.09); border: 1px solid rgba(16,185,129,.28); }
-
-/* ============ FOOTER ============ */
-.actions { padding-top: 22px; display: flex; align-items: center; justify-content: flex-end; gap: 11px; }
-.actions button {
-  height: 48px;
-  padding: 0 22px;
-  display: flex;
+/* ============ CASILLA ============ */
+.ng-check {
+  width: fit-content;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
+  gap: 10px;
   cursor: pointer;
-  border-radius: 12px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 15px;
+  color: var(--muted);
+  font-size: 12.5px;
   font-weight: 600;
+  user-select: none;
+}
+.ng-check input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ng-box {
+  position: relative;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  background: var(--field);
+  border: 1px solid var(--field-line);
+  border-radius: 6px;
   transition: .2s ease;
 }
-.secondary { color: var(--text-2); background: transparent; border: 1px solid var(--line-strong); }
-.secondary:hover:not(:disabled) { color: var(--title); background: var(--w5); }
-.primary {
+.ng-box::after {
+  content: '';
+  position: absolute;
+  top: 2.5px;
+  left: 6px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform .15s ease;
+}
+.ng-check:hover .ng-box { border-color: var(--accent); }
+.ng-check input:checked + .ng-box { background: var(--accent); border-color: var(--accent); }
+.ng-check input:checked + .ng-box::after { transform: rotate(45deg) scale(1); }
+.ng-check input:focus-visible + .ng-box { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+
+/* ============ NOTA / ALERTAS ============ */
+.ng-hint {
+  margin: 0;
+  padding-top: 18px;
+  color: var(--muted2);
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ng-alert {
+  margin: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ng-alert svg { width: 18px; height: 18px; flex: none; margin-top: 1px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ng-alert.error { color: #f87171; background: rgba(239,68,68,.09); border: 1px solid rgba(239,68,68,.3); }
+.ng-alert.success { color: #34d399; background: rgba(16,185,129,.09); border: 1px solid rgba(16,185,129,.28); }
+
+/* ============ BOTONES ============ */
+.ng-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.ng-btn {
+  height: 46px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background .2s ease, filter .2s ease, transform .2s ease, border-color .2s ease;
+}
+.ng-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.ng-btn.secondary { color: var(--muted); background: transparent; border: 1px solid var(--field-line); }
+.ng-btn.secondary:hover:not(:disabled) { color: var(--title); background: var(--field); }
+.ng-btn.primary {
   min-width: 190px;
   color: var(--color-texto-botones, #fff);
   background: var(--color-botones, #1c4fd6);
-  border: 0;
-  box-shadow: 0 8px 22px rgba(28,79,214,.28);
+  border: 1px solid transparent;
+  box-shadow: 0 8px 22px rgba(28,79,214,.22);
 }
-.primary svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
-.primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
-.actions button:disabled { opacity: .6; cursor: not-allowed; }
-.actions button:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+.ng-btn.primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.ng-btn:disabled { opacity: .6; cursor: not-allowed; }
+.ng-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: currentColor; border-radius: 50%; animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.ng-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: ng-spin .8s linear infinite;
+}
+@keyframes ng-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
+  .ng *, .ng *::before, .ng *::after { transition: none !important; animation-duration: .01ms !important; }
 }
 
-/* ============ RESPONSIVE ============ */
-@media (max-width: 650px) {
-  .fields-grid { grid-template-columns: 1fr; gap: 18px; }
-  .field-large { grid-column: auto; }
+/* ============ TABLET: una columna, filas en pares ============ */
+@media (max-width: 900px) {
+  .ng-layout { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+}
+
+/* ============ MÓVIL ============ */
+@media (max-width: 560px) {
+  .ng-form { gap: 20px; }
+  .ng-row { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   /* 16px evita el zoom automático de iOS */
-  .input-control input { height: 52px; font-size: 16px; }
-  .actions { flex-direction: column-reverse; gap: 10px; }
-  .actions button { width: 100%; height: 52px; }
-  .section-number { width: 30px; height: 30px; }
+  .ng-field input { height: 50px; font-size: 16px; }
+  .ng-actions { flex-direction: column-reverse; align-items: stretch; }
+  .ng-btn { width: 100%; height: 50px; }
+  .ng-btn.primary { min-width: 0; }
 }
 </style>
