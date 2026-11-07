@@ -24,7 +24,7 @@
         <button
           type="button"
           class="close-btn"
-          @click="$emit('close')"
+          @click="!props.saving && $emit('close')"
           :title="t('closeTooltip')"
           :aria-label="t('closeTooltip')"
         >
@@ -33,7 +33,7 @@
           </svg>
         </button>
       </header>
-      <form class="activity-form" @submit.prevent="guardarActividad">
+      <form class="activity-form" :class="{ 'is-saving': props.saving }" @submit.prevent="guardarActividad">
         <!-- ================= DÍA ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -487,17 +487,17 @@
               <a
                 v-for="(url, i) in form.imagenes"
                 :key="url"
-                :href="url"
+                :href="form.imagenes_vista[i] || url"
                 target="_blank"
                 rel="noopener"
                 class="media-thumb"
                 :title="t('imageLabel') + ' ' + (i + 1)"
               >
-                <img :src="url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy" @error="onSavedImageError">
+                <img :src="form.imagenes_vista[i] || url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy" @error="onSavedImageError">
               </a>
             </div>
           </div>
-          <a v-if="form.video_url" :href="form.video_url" target="_blank" rel="noopener" class="video-link">
+          <a v-if="form.video_url" :href="form.video_vista || form.video_url" target="_blank" rel="noopener" class="video-link">
             <svg viewBox="0 0 24 24">
               <rect x="2" y="6" width="14" height="12" rx="2"/>
               <path d="m22 8-6 4 6 4V8Z"/>
@@ -547,28 +547,30 @@
           <button
             type="button"
             class="cancel-btn"
-            @click="$emit('close')"
+            @click="!props.saving && $emit('close')"
           >
             {{ t('cancelBtn') }}
           </button>
           <button
             type="submit"
             class="save-btn"
-            :disabled="enviando || isPastEvent"
+            :aria-busy="props.saving"
+            :disabled="props.saving || enviando || isPastEvent"
           >
+            <span v-if="props.saving" class="save-spinner" aria-hidden="true"></span>
             <svg
-              v-if="isEdit"
+              v-if="isEdit && !props.saving"
               viewBox="0 0 24 24"
             >
               <path d="m5 12 4 4L19 6"/>
             </svg>
             <svg
-              v-else
+              v-else-if="!props.saving"
               viewBox="0 0 24 24"
             >
               <path d="M12 5v14M5 12h14"/>
             </svg>
-            {{ isEdit ? t('saveChangesBtn') : t('saveActivityBtn') }}
+            {{ props.saving ? (settings.idioma === 'en' ? 'Saving…' : 'Guardando…') : (isEdit ? t('saveChangesBtn') : t('saveActivityBtn')) }}
           </button>
         </footer>
       </form>
@@ -613,6 +615,7 @@
 import { reactive, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { categoryGroups, categoryColor, categoryLabel } from './scheduleCategories.ts';
 const props = defineProps({
+  saving: { type: Boolean, default: false },
   initialData: { type: Object, default: null },
   validator: { type: Function, default: null },
   customCategories: { type: Array, default: () => [] }
@@ -804,7 +807,7 @@ const daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturda
 const currentDays = computed(() => settings.idioma === 'en' ? daysEn : daysEs);
 const form = reactive({
   id: null,
-  dia: '', fecha: '', imagenes: [], video_url: '',
+  dia: '', fecha: '', imagenes: [], imagenes_vista: [], video_url: '', video_vista: '',
   nombre: '',
   categoria: '',
   nivel: '',
@@ -944,7 +947,7 @@ const formatTime = (time) => {
   );
 };
 watch(() => props.initialData, (d) => {
-  Object.assign(form, { id: null, dia: '', fecha: '', imagenes: [], video_url: '', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
+  Object.assign(form, { id: null, dia: '', fecha: '', imagenes: [], imagenes_vista: [], video_url: '', video_vista: '', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
   pendingImages.value = [];
   revokePreviews();
   pendingVideo.value = null;
@@ -958,8 +961,10 @@ watch(() => props.initialData, (d) => {
   const ix = daysEn.findIndex(x => x.toLowerCase() === dia.toLowerCase());
   form.id = d.id ?? null;
   form.fecha = String(d.fecha || d.fecha_evento || '');
-  form.imagenes = Array.isArray(d.imagenes) ? d.imagenes : [];
+  form.imagenes = Array.isArray(d.imagenes) ? [...d.imagenes] : [];
+  form.imagenes_vista = Array.isArray(d.imagenes_vista) ? [...d.imagenes_vista] : [];
   form.video_url = String(d.video_url || '');
+  form.video_vista = String(d.video_vista || '');
   form.dia = ix >= 0 ? daysEs[ix] : dia;
   form.nombre = String(d.nombre ?? '');
   form.categoria = String(d.categoria ?? '');
@@ -973,7 +978,7 @@ watch(() => props.initialData, (d) => {
   form.descripcion = String(d.descripcion ?? '');
 }, { immediate: true });
 const guardarActividad = () => {
-  if (enviando.value) return;
+  if (enviando.value || props.saving) return;
   if (isPastEvent.value || (form.fecha && form.fecha < todayLocal)) return mostrarToast(t('pastDateError'), 'error');
   if (!form.fecha) return mostrarToast(settings.idioma === 'en' ? 'Select an event date.' : 'Selecciona la fecha del evento.', 'error');
   const data = {
@@ -1002,8 +1007,7 @@ const guardarActividad = () => {
   const error = typeof props.validator === 'function' ? props.validator(data) : null;
   if (error) return mostrarToast(String(error), 'error');
   // Solo emitir; el padre espera POST/PUT de Laravel y cierra el modal cuando confirma.
-  enviando.value = true;
-  try { emit('save', data); } finally { enviando.value = false; }
+  emit('save', data);
 };
 onMounted(() => {
   syncLanguage();
@@ -1512,4 +1516,7 @@ button, input, select, textarea { font: inherit; }
   .day-card > strong { display: block; }
   .section-number { width: 30px; height: 30px; }
 }
+.activity-form.is-saving .form-section, .activity-form.is-saving .cancel-btn { pointer-events:none; opacity:.76; }
+.save-spinner { width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:white;animation:agenda-spin .65s linear infinite; }
+@keyframes agenda-spin { to { transform:rotate(360deg); } }
 </style>
