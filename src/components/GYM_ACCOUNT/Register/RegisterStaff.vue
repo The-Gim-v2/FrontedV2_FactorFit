@@ -98,7 +98,7 @@
                   <label for="staff-email">{{ t('email') }} <span class="req">*</span></label>
                   <div class="control has-icon">
                     <i class="bi bi-envelope control-icon"></i>
-                    <input id="staff-email" type="email" v-model="form.email" placeholder="correo@ejemplo.com" autocomplete="email" />
+                    <input id="staff-email" type="email" v-model="form.email" @blur="normalizarCorreo" placeholder="correo@ejemplo.com" autocomplete="email" />
                   </div>
                 </div>
                 <!-- ESPECIALIDAD -->
@@ -195,15 +195,15 @@
               <div class="grid grid-3">
                 <div class="field">
                   <label for="staff-nombres">{{ t('names') }} <span class="req">*</span></label>
-                  <input id="staff-nombres" type="text" v-model="form.nombres" :placeholder="t('placeholderName')" autocomplete="given-name" />
+                  <input id="staff-nombres" type="text" v-model="form.nombres" @input="normalizarCampo('nombres')" :placeholder="t('placeholderName')" autocomplete="given-name" />
                 </div>
                 <div class="field">
                   <label for="staff-ap">{{ t('lastNameP') }} <span class="req">*</span></label>
-                  <input id="staff-ap" type="text" v-model="form.apellidoP" :placeholder="t('placeholderLastNameP')" autocomplete="family-name" />
+                  <input id="staff-ap" type="text" v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" :placeholder="t('placeholderLastNameP')" autocomplete="family-name" />
                 </div>
                 <div class="field">
                   <label for="staff-am">{{ t('lastNameM') }}</label>
-                  <input id="staff-am" type="text" v-model="form.apellidoM" :placeholder="t('placeholderLastNameM')" />
+                  <input id="staff-am" type="text" v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" :placeholder="t('placeholderLastNameM')" />
                 </div>
               </div>
               <div class="grid grid-2">
@@ -235,6 +235,7 @@
                     placeholder="Ej. ABCD010101HDF000" maxlength="18" autocomplete="off" autocapitalize="characters" class="uppercase"
                     :aria-invalid="!!form.curp && !curpValidation.valid" aria-describedby="curp-validation-message" />
                 </div>
+                <a class="curp-lookup" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer">{{ L('¿No conoces tu CURP? Consúltala aquí', 'Don’t know your CURP? Look it up', 'Consulter la CURP', 'Consultar CURP') }}</a>
                 <p v-if="form.curp" id="curp-validation-message" class="note" :class="curpValidation.valid ? 'ok' : 'bad'" aria-live="polite">
                   <i class="bi" :class="curpValidation.valid ? 'bi-check-circle' : 'bi-x-circle'"></i>
                   <span>{{ curpValidation.valid ? 'CURP válida en formato y dígito verificador' : curpValidation.message }}</span>
@@ -453,6 +454,12 @@ const handleLangChange = (event) => {
 /* =========================================================
    FORMULARIO
 ========================================================= */
+/* Normalización visible de nombres, CURP y correo; validación al guardar. */
+const nombreTitulo = (valor) => String(valor ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const correoNormal = (valor) => String(valor ?? '').trim().toLowerCase();
+const validarCorreo = (valor) => { const correo = correoNormal(valor); if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false; const partes = correo.split('@'); const dominio = partes[1]; const errores = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','hotmail.con','hotmial.com','hotmail.co','outlook.con','outlok.com','yahoo.con','yaho.com','icloud.con']; if (errores.includes(dominio)) return false; const tld = dominio.split('.').at(-1); return tld.length >= 2 && tld.length <= 24; };
+const normalizarCampo = (clave) => { form[clave] = nombreTitulo(form[clave]); };
+const normalizarCorreo = () => { form.email = correoNormal(form.email); };
 const form = reactive({
   /* CREDENCIALES */
   rol: '',
@@ -1206,7 +1213,7 @@ const validateForm = () => {
   }
   if (!form.celular.trim()) return warn('El celular es obligatorio.');
   if (!/^[0-9]{10}$/.test(celularDigitos(form.celular))) return warn('El celular debe tener exactamente 10 dígitos, sin +52. Ejemplo: 481 111 1231.');
-  if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return warn('Correo electrónico inválido.');
+  if (form.email.trim() && !validarCorreo(form.email)) return warn('Revisa el correo electrónico y su dominio (ej. gmail.com, hotmail.com, outlook.com).');
   /* ROL */
   if (!form.rol) {
     return warn(
@@ -1296,7 +1303,7 @@ const saveRegistration = async () => {
       rol:
         form.rol,
       email:
-        form.email.trim(),
+        correoNormal(form.email),
       ...(needsPassword.value && {
         password: form.password
       }),
@@ -1307,11 +1314,11 @@ const saveRegistration = async () => {
       curp:
         form.curp.trim().toUpperCase(),
       nombres:
-        form.nombres.trim(),
+        nombreTitulo(form.nombres.trim()),
       apellidoP:
-        form.apellidoP.trim(),
+        nombreTitulo(form.apellidoP.trim()),
       apellidoM:
-        form.apellidoM.trim(),
+        nombreTitulo(form.apellidoM.trim()),
       fechaNacimiento:
         form.fechaNacimiento,
       celular:
@@ -1715,4 +1722,5 @@ input.uppercase { text-transform: uppercase; letter-spacing: 0.5px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+.curp-lookup{display:inline-flex;margin-top:7px;font-size:12px;color:var(--color-highlight,#60a5fa);text-decoration:underline;text-underline-offset:3px}
 </style>

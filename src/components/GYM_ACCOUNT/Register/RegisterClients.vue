@@ -140,15 +140,25 @@
             <div class="grid grid-3">
               <div class="field">
                 <label>{{ t('names') }} <span class="req">*</span></label>
-                <input type="text" v-model="form.nombres" :placeholder="t('placeholderName')" autocomplete="given-name" />
+                <input type="text" v-model="form.nombres" @input="normalizarCampo('nombres')" :placeholder="t('placeholderName')" autocomplete="given-name" />
               </div>
               <div class="field">
                 <label>{{ t('lastNameP') }} <span class="req">*</span></label>
-                <input type="text" v-model="form.apellidoP" :placeholder="t('placeholderLastNameP')" autocomplete="family-name" />
+                <input type="text" v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" :placeholder="t('placeholderLastNameP')" autocomplete="family-name" />
               </div>
               <div class="field">
                 <label>{{ t('lastNameM') }} <span class="req">*</span></label>
-                <input type="text" v-model="form.apellidoM" :placeholder="t('placeholderLastNameM')" />
+                <input type="text" v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" :placeholder="t('placeholderLastNameM')" />
+              </div>
+              <div class="field">
+                <label for="cliente-curp">{{ txt('CURP', 'CURP') }} <span class="req">*</span></label>
+                <div class="control has-icon" :class="{ ok: form.curp && curpValidation.valid, bad: form.curp && !curpValidation.valid }">
+                  <i class="bi control-icon" :class="curpValidation.valid && form.curp ? 'bi-patch-check' : 'bi-person-vcard'"></i>
+                  <input id="cliente-curp" type="text" v-model="form.curp" @input="form.curp = String($event.target.value || '').toUpperCase()" placeholder="ABCD010101HDFXXX00" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" required :aria-invalid="!!form.curp && !curpValidation.valid" />
+                </div>
+                <small v-if="form.curp && !curpValidation.valid" class="curp-feedback">{{ curpValidation.message }}</small>
+                <small v-if="form.curp && curpValidation.valid" class="curp-feedback curp-valid">{{ txt('CURP con formato y dígito verificador válidos.', 'CURP format and check digit are valid.') }}</small>
+                <a class="curp-lookup" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right"></i> {{ txt('¿No sabes tu CURP? Búscala aquí', 'Don’t know your CURP? Look it up here') }}</a>
               </div>
               <div class="field">
                 <label>{{ t('birthDate') }} <span class="req">*</span></label>
@@ -166,7 +176,7 @@
                 <label>{{ t('email') }}</label>
                 <div class="control has-icon">
                   <i class="bi bi-envelope control-icon"></i>
-                  <input type="email" v-model="form.email" placeholder="ejemplo@correo.com" autocomplete="email" />
+                  <input type="email" v-model="form.email" @blur="normalizarCorreo" placeholder="ejemplo@gmail.com" autocomplete="email" />
                 </div>
               </div>
             </div>
@@ -531,8 +541,42 @@ const fechaLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const fechaSolo = (v) => String(v || '').slice(0, 10);
+/* Normalización visible de nombres, CURP y correo; validación al guardar. */
+const nombreTitulo = (valor) => String(valor ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const correoNormal = (valor) => String(valor ?? '').trim().toLowerCase();
+const validarCorreo = (valor) => { const correo = correoNormal(valor); if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false; const partes = correo.split('@'); const dominio = partes[1]; const errores = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','hotmail.con','hotmial.com','hotmail.co','outlook.con','outlok.com','yahoo.con','yaho.com','icloud.con']; if (errores.includes(dominio)) return false; const tld = dominio.split('.').at(-1); return tld.length >= 2 && tld.length <= 24; };
+const normalizarCampo = (clave) => { form[clave] = nombreTitulo(form[clave]); };
+const normalizarCorreo = () => { form.email = correoNormal(form.email); };
+const validarCURP = (entrada) => {
+  const curp = String(entrada || '').trim().toUpperCase();
+  if (!curp) return { valid: false, message: 'La CURP es obligatoria.' };
+  if (curp.length !== 18) return { valid: false, message: 'La CURP debe tener exactamente 18 caracteres.' };
+  const patron = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
+  if (!patron.test(curp)) return { valid: false, message: 'La estructura de la CURP no es válida.' };
+  const yy = Number(curp.slice(4, 6));
+  const mm = Number(curp.slice(6, 8));
+  const dd = Number(curp.slice(8, 10));
+  const year = (/[0-9]/.test(curp[16]) ? 1900 : 2000) + yy;
+  const fecha = new Date(Date.UTC(year, mm - 1, dd));
+  const hoy = new Date();
+  if (fecha.getUTCFullYear() !== year || fecha.getUTCMonth() !== mm - 1 || fecha.getUTCDate() !== dd || fecha.getTime() > hoy.getTime()) {
+    return { valid: false, message: 'La fecha de nacimiento dentro de la CURP es inválida.' };
+  }
+  const alfabeto = '0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ';
+  let suma = 0;
+  for (let i = 0; i < 17; i++) {
+    const valor = alfabeto.indexOf(curp[i]);
+    if (valor < 0) return { valid: false, message: 'La CURP contiene caracteres no permitidos.' };
+    suma += valor * (18 - i);
+  }
+  const digito = (10 - (suma % 10)) % 10;
+  if (digito !== Number(curp[17])) return { valid: false, message: 'El dígito verificador de la CURP es incorrecto.' };
+  return { valid: true, message: '' };
+};
+const curpValidation = computed(() => validarCURP(form.curp));
 const form = reactive({
   nombres: '',
+  curp: '',
   apellidoP: '',
   apellidoM: '',
   fechaNacimiento: '',
@@ -1131,6 +1175,8 @@ const saveRegistration = async () => {
     avisar('Nombre, apellido paterno y tarifa son obligatorios.');
     return;
   }
+  if (!curpValidation.value.valid) { avisar(curpValidation.value.message); return; }
+  if (!validarCorreo(form.email)) { avisar(txt('Ingresa un correo válido y verifica su dominio, como gmail.com, hotmail.com u outlook.com.', 'Enter a valid email and check its domain.')); return; }
   if (form.celular && !celularValido()) { avisar('El celular debe tener exactamente 10 dígitos, sin +52.'); return; }
   if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
   if (!permitePendiente.value && !cobrarAhora.value) { avisar('El corte de este mes pasó. Cobra ahora.'); return; }
@@ -1165,12 +1211,13 @@ const saveRegistration = async () => {
     const values = {
       sede_id: sedeActual(),
       id_precio: idPrecio.value,
-      nombres: form.nombres.trim(),
-      apellidoP: form.apellidoP.trim(),
-      apellidoM: form.apellidoM.trim(),
+      nombres: nombreTitulo(form.nombres.trim()),
+      curp: form.curp.trim().toUpperCase(),
+      apellidoP: nombreTitulo(form.apellidoP.trim()),
+      apellidoM: nombreTitulo(form.apellidoM.trim()),
       fechaNacimiento: form.fechaNacimiento,
       celular: celularParaGuardar(),
-      email: form.email.trim(),
+      email: correoNormal(form.email),
       peso: form.peso,
       altura: form.altura,
       fechaInscripcion: form.fechaInscripcion
@@ -1223,7 +1270,7 @@ const saveRegistration = async () => {
     }
     // Limpiar formulario
     Object.assign(form, {
-      nombres: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '', email: '',
+      nombres: '', curp: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '', email: '',
       peso: '', altura: '', tipoMembresia: 'mes', fechaInscripcion: fechaLocal(), fechaCorte: ''
     });
     if (avatarPreview.value?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
@@ -1638,4 +1685,5 @@ input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-o
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+.curp-lookup{display:inline-flex;gap:6px;align-items:center;margin-top:7px;font-size:12px;color:var(--color-highlight,#60a5fa);text-decoration:underline;text-underline-offset:3px}.curp-feedback{display:block;margin-top:5px;font-size:11px;color:#fca5a5}.curp-feedback.curp-valid{color:#34d399}
 </style>
