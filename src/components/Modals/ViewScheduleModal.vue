@@ -199,7 +199,7 @@
                     </div>
                     <div class="event-progress"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
                     <!-- ACCIONES -->
-                    <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">{{ idioma === 'en' ? 'Video' : 'Video' }}</a></div>
+                    <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" @error="mediaError" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">{{ idioma === 'en' ? 'Video' : 'Video' }}</a></div>
                     <div v-if="!locked(ev)" class="event-actions">
                       <button type="button" class="icon-btn" :title="t('edit')" :aria-label="t('editActivity')" @click.stop="editActivity(ev)">
                         <svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4"/></svg>
@@ -290,7 +290,7 @@
                     {{ ev.ubicacion }}
                   </span>
                 </div>
-                <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">Video</a></div>
+                <div v-if="(ev.imagenes||[]).length || ev.video_url" class="event-media" @click.stop><a v-for="(url,i) in (ev.imagenes||[])" :key="url" :href="url" target="_blank" rel="noopener"><img :src="url" :alt="`Imagen ${i+1}`" loading="lazy" @error="mediaError" /></a><a v-if="ev.video_url" :href="ev.video_url" target="_blank" rel="noopener">Video</a></div>
                 <div class="mobile-event-footer">
                   <span>{{ levelLabel(ev.nivel) }}</span>
                   <span>{{ ev.inscritos || 0 }}/{{ ev.capacidad }} {{ t('people') }}</span>
@@ -598,7 +598,8 @@ const validateActivity = (data: Record<string, any>) => {
     : null;
 };
 /* GUARDAR (nueva o editada) */
-const uploadMedia=async(file:File,kind:'image'|'video')=>{const fd=new FormData();fd.append('archivo',file);fd.append('tipo',kind);fd.append('sede_id',String(sedeActual()));const token=tokenActual();const response=await fetch(`${API}/api/gym/agenda/media`,{method:'POST',headers:{Accept:'application/json',Authorization:`Bearer ${token}`},body:fd});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.message||`Error HTTP ${response.status}`);return String(result.url);};
+const mediaError=(event:Event)=>{const img=event.target as HTMLImageElement;img.style.display='none';const parent=img.parentElement;if(parent&&!parent.querySelector('.image-unavailable')){const span=document.createElement('span');span.className='image-unavailable';span.textContent=idioma.value==='en'?'Image unavailable':'Imagen no disponible';parent.appendChild(span);}};
+const uploadMedia=async(file:File,kind:'image'|'video')=>{const fd=new FormData();fd.append('archivo',file);fd.append('tipo',kind);fd.append('sede_id',String(sedeActual()));const token=tokenActual();const response=await fetch(`${API}/api/gym/agenda/media`,{method:'POST',headers:{Accept:'application/json',Authorization:`Bearer ${token}`},body:fd});const result=await response.json().catch(()=>({}));if(!response.ok){const detail=result?.errors?.archivo?.[0]||result?.message||`Error HTTP ${response.status}`;throw new Error(String(detail));}if(!result.url)throw new Error('La API no devolvió URL del archivo.');return String(result.url);};
 const saveActivity=async(data:Record<string,any>)=>{if(guardando.value)return;guardando.value=true;try{const sede=sedeActual();const path=data.id?`/${Number(data.id)}`:'';const method=data.id?'PUT':'POST';const imagenes=Array.isArray(data.imagenes)?[...data.imagenes]:[];if(imagenes.length+(data.imagesFiles||[]).length>3)throw new Error(idioma.value==='en'?'Maximum 3 images per event.':'Máximo 3 imágenes por evento.');for(const file of (data.imagesFiles||[]))imagenes.push(await uploadMedia(file,'image'));let video_url=data.video_url||'';if(data.videoFile)video_url=await uploadMedia(data.videoFile,'video');await consultar(path,{method,body:JSON.stringify({sede_id:sede,dia:dayKeyFromLabel(data.dia),fecha:data.fecha,nombre:data.nombre,categoria:data.categoria,nivel:data.nivel,instructor:data.instructor,capacidad:Number(data.capacidad),inicio:data.inicio,fin:data.fin,ubicacion:data.ubicacion||'',descripcion:data.descripcion||'',imagenes,video_url})});closeForm();await cargarActividades();showToast(data.id?'Evento actualizado.':'Evento registrado.');}catch(e:any){errorApi.value=e.message;showToast(e.message,'error');}finally{guardando.value=false;}};
 /* ELIMINAR */
 const askDelete = (activity: Activity) => {
@@ -1099,4 +1100,5 @@ button { font: inherit; }
   .summary-icon { width: 34px; height: 34px; }
 }
 .event-media{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:6px 0}.event-media img{width:35px;height:35px;object-fit:cover;border-radius:6px}.event-media a{font-size:11px;color:var(--color-highlight,#ffac70)}
+.image-unavailable{display:block;font-size:9px;color:#fca5a5;max-width:90px;overflow-wrap:anywhere}
 </style>

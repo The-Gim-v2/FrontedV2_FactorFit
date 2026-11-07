@@ -33,7 +33,6 @@
           </svg>
         </button>
       </header>
-
       <form class="activity-form" @submit.prevent="guardarActividad">
         <!-- ================= DÍA ================= -->
         <section class="form-section">
@@ -44,7 +43,6 @@
               <p>{{ t('daySectionDescription') }}</p>
             </div>
           </div>
-
           <div class="day-picker">
             <!-- Fecha -->
             <div class="field date-field">
@@ -66,7 +64,6 @@
                 >
               </div>
             </div>
-
             <!-- Día de la semana (compacto) -->
             <div class="field weekday-field">
               <span class="field-title">{{ t('weekdayLabel') }}</span>
@@ -89,10 +86,8 @@
               </div>
             </div>
           </div>
-
           <small v-if="isPastEvent" class="field-error">{{ t('pastEventLocked') }}</small>
         </section>
-
         <!-- ================= INFORMACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -102,7 +97,6 @@
               <p>{{ t('infoSectionDescription') }}</p>
             </div>
           </div>
-
           <div class="fields-grid">
             <div class="field field-large">
               <label for="act-name">
@@ -123,7 +117,6 @@
                 >
               </div>
             </div>
-
             <div class="field">
               <label for="act-cat">
                 {{ t('categoryLabel') }}
@@ -138,7 +131,6 @@
                   v-model="form.categoria"
                   @change="customCategory = ''"
                   class="category-select"
-                  :required="!customCategory.trim()"
                   :disabled="isPastEvent"
                 >
                   <option disabled value="">
@@ -182,7 +174,6 @@
                 </div>
               </div>
             </div>
-
             <div class="field">
               <label for="act-level">
                 {{ t('levelLabel') }}
@@ -213,7 +204,6 @@
             </div>
           </div>
         </section>
-
         <!-- ================= HORARIO ================= -->
         <section class="form-section schedule-section">
           <div class="section-title">
@@ -223,7 +213,6 @@
               <p>{{ t('scheduleSectionDescription') }}</p>
             </div>
           </div>
-
           <div class="schedule-card">
             <div class="schedule-time">
               <div class="time-icon">
@@ -244,7 +233,6 @@
                 >
               </div>
             </div>
-
             <div class="time-connector">
               <span></span>
               <strong
@@ -254,7 +242,6 @@
               </strong>
               <span></span>
             </div>
-
             <div class="schedule-time">
               <div class="time-icon end">
                 <svg viewBox="0 0 24 24">
@@ -276,7 +263,6 @@
             </div>
           </div>
         </section>
-
         <!-- ================= RESPONSABLE ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -286,7 +272,6 @@
               <p>{{ t('instructorSectionDescription') }}</p>
             </div>
           </div>
-
           <div class="fields-grid two-columns">
             <div class="field">
               <label for="act-instructor">
@@ -308,7 +293,6 @@
                 >
               </div>
             </div>
-
             <div class="field">
               <label for="act-capacity">
                 {{ t('capacityLabel') }}
@@ -334,7 +318,6 @@
             </div>
           </div>
         </section>
-
         <!-- ================= UBICACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -344,7 +327,6 @@
               <p>{{ t('locationSectionDescription') }}</p>
             </div>
           </div>
-
           <div class="fields-grid">
             <div class="field field-large">
               <label for="act-location">
@@ -365,7 +347,6 @@
                 >
               </div>
             </div>
-
             <div class="field field-large">
               <label for="act-notes">
                 {{ t('descriptionLabel') }}
@@ -379,7 +360,6 @@
             </div>
           </div>
         </section>
-
         <!-- ================= MULTIMEDIA ================= -->
         <section class="form-section">
           <div class="section-title">
@@ -389,7 +369,6 @@
               <p>{{ t('mediaHint') }}</p>
             </div>
           </div>
-
           <div class="fields-grid">
             <!-- Fotografías -->
             <div class="field">
@@ -422,7 +401,6 @@
                   :disabled="isPastEvent"
                   @change="selectImages"
                 />
-
                 <ul v-if="pendingImages.length" class="file-list">
                   <li v-for="(file, i) in pendingImages" :key="file.name + i" class="file-chip">
                     <img class="file-thumb" :src="pendingPreviews[i]" :alt="file.name">
@@ -445,7 +423,6 @@
                 </ul>
               </div>
             </div>
-
             <!-- Video -->
             <div class="field">
               <span class="field-title">{{ t('videoLabel') }}</span>
@@ -475,7 +452,6 @@
                   :disabled="isPastEvent"
                   @change="selectVideo"
                 />
-
                 <ul v-if="pendingVideo" class="file-list">
                   <li class="file-chip">
                     <span class="file-thumb file-thumb-icon">
@@ -504,7 +480,6 @@
               </div>
             </div>
           </div>
-
           <!-- Archivos ya guardados -->
           <div v-if="form.imagenes.length" class="saved-media">
             <span class="field-title">{{ t('currentImages') }}</span>
@@ -518,7 +493,7 @@
                 class="media-thumb"
                 :title="t('imageLabel') + ' ' + (i + 1)"
               >
-                <img :src="url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy">
+                <img :src="url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy" @error="onSavedImageError">
               </a>
             </div>
           </div>
@@ -530,7 +505,6 @@
             {{ t('viewVideo') }}
           </a>
         </section>
-
         <!-- ================= RESUMEN ================= -->
         <div class="event-summary">
           <div
@@ -561,14 +535,13 @@
             </p>
           </div>
           <div
-            v-if="form.categoria"
+            v-if="effectiveCategory"
             class="summary-category"
           >
             <i :style="{ background: selectedCategoryColor }"></i>
-            {{ catLabel(form.categoria) }}
+            {{ catLabel(effectiveCategory) }}
           </div>
         </div>
-
         <!-- ================= FOOTER ================= -->
         <footer class="form-footer">
           <button
@@ -600,7 +573,6 @@
         </footer>
       </form>
     </div>
-
     <!-- ================= TOAST ================= -->
     <transition name="toast">
       <div
@@ -637,31 +609,24 @@
     </transition>
   </div>
 </template>
-
 <script setup>
 import { reactive, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { categoryGroups, categoryColor, categoryLabel } from './scheduleCategories.ts';
-
 const props = defineProps({
   initialData: { type: Object, default: null },
   validator: { type: Function, default: null },
   customCategories: { type: Array, default: () => [] }
 });
-
 const emit = defineEmits(['close', 'save']);
 const enviando = ref(false);
-
 /* ==================== IDIOMA ==================== */
 const settings = reactive({
   idioma: (localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es'
 });
-
 const normalizeLanguage = (value) => String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
-
 const syncLanguage = () => {
   settings.idioma = normalizeLanguage((localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es');
 };
-
 const handleLanguageChange = (event) => {
   const nextLanguage = normalizeLanguage(
     event.detail?.idioma ||
@@ -671,10 +636,8 @@ const handleLanguageChange = (event) => {
   settings.idioma = nextLanguage;
   localStorage.setItem('GYM_ACCOUNT-idioma', nextLanguage);
 };
-
 const catLabel = (key) => categoryLabel(key, settings.idioma);
 const groupLabel = (group) => settings.idioma === 'en' ? group.en : group.es;
-
 /* ==================== TRADUCCIONES ==================== */
 const translations = {
   es: {
@@ -834,14 +797,11 @@ const translations = {
     toastUpdated: 'The event changes were saved successfully.'
   }
 };
-
 const t = (key) => translations[settings.idioma]?.[key] || translations.es[key] || key;
-
 /* ==================== DÍAS ==================== */
 const daysEs = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const currentDays = computed(() => settings.idioma === 'en' ? daysEn : daysEs);
-
 const form = reactive({
   id: null,
   dia: '', fecha: '', imagenes: [], video_url: '',
@@ -855,21 +815,18 @@ const form = reactive({
   ubicacion: '',
   descripcion: ''
 });
-
 const todayLocal = (() => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 })();
-
 const customCategory = ref('');
 const pendingImages = ref([]);
 const pendingPreviews = ref([]);
 const pendingVideo = ref(null);
+const onSavedImageError = (event) => { const img = event.target; if (img instanceof HTMLImageElement) { img.style.display = 'none'; const parent = img.parentElement; if (parent && !parent.querySelector('.image-unavailable')) { const span = document.createElement('span'); span.className = 'image-unavailable'; span.textContent = settings.idioma === 'en' ? 'Image unavailable: check public R2 URL' : 'Imagen no disponible: revisa URL pública de R2'; parent.appendChild(span); } } };
 const imagesInput = ref(null);
 const videoInput = ref(null);
-
 const isPastEvent = computed(() => Boolean(form.fecha && form.fecha < todayLocal));
-
 const selectDay = (index) => {
   if (isPastEvent.value) return;
   form.dia = daysEs[index];
@@ -879,28 +836,23 @@ const selectDay = (index) => {
   d.setDate(d.getDate() + diff);
   form.fecha = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-
 const onCustomCategory = () => {
-  if (customCategory.value) form.categoria = customCategory.value;
+  if (customCategory.value.trim()) form.categoria = '';
 };
-
 /* ==================== ARCHIVOS ==================== */
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return '';
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
-
 const revokePreviews = () => {
   pendingPreviews.value.forEach((url) => URL.revokeObjectURL(url));
   pendingPreviews.value = [];
 };
-
 const refreshPreviews = () => {
   revokePreviews();
   pendingPreviews.value = pendingImages.value.map((file) => URL.createObjectURL(file));
 };
-
 const selectImages = (event) => {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
@@ -912,13 +864,11 @@ const selectImages = (event) => {
   pendingImages.value = files;
   refreshPreviews();
 };
-
 const removeImage = (index) => {
   pendingImages.value = pendingImages.value.filter((_, i) => i !== index);
   refreshPreviews();
   if (imagesInput.value) imagesInput.value.value = '';
 };
-
 const selectVideo = (event) => {
   const file = event.target.files?.[0] || null;
   if (!file) return;
@@ -929,21 +879,17 @@ const selectVideo = (event) => {
   }
   pendingVideo.value = file;
 };
-
 const removeVideo = () => {
   pendingVideo.value = null;
   if (videoInput.value) videoInput.value.value = '';
 };
-
 const toLocalDate = (date) => {
   const d = new Date(date + 'T12:00:00');
   return Number.isNaN(d.getTime()) ? '' : daysEs[(d.getDay() + 6) % 7];
 };
-
 watch(() => form.fecha, (date) => {
   if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) form.dia = toLocalDate(date);
 });
-
 const selectedDayDisplay = computed(() => {
   if (!form.dia) return '';
   const spanishIndex = daysEs.indexOf(form.dia);
@@ -952,13 +898,11 @@ const selectedDayDisplay = computed(() => {
   if (englishIndex !== -1) return currentDays.value[englishIndex];
   return form.dia;
 });
-
 const isEdit = computed(() => form.id !== null && form.id !== undefined);
-
+const effectiveCategory = computed(() => customCategory.value.trim() || form.categoria);
 const selectedCategoryColor = computed(() => {
-  return categoryColor(form.categoria) || 'var(--color-highlight, #3b82f6)';
+  return categoryColor(effectiveCategory.value) || 'var(--color-highlight, #3b82f6)';
 });
-
 const durationText = computed(() => {
   if (!form.inicio || !form.fin) return '';
   const [startHour = 0, startMinute = 0] = form.inicio.split(':').map(Number);
@@ -971,13 +915,11 @@ const durationText = computed(() => {
   if (hours) return `${hours} h`;
   return `${remainingMinutes} min`;
 });
-
 const toast = reactive({
   show: false,
   message: '',
   type: 'success'
 });
-
 const mostrarToast = (message, type = 'success') => {
   toast.message = message;
   toast.type = type;
@@ -986,9 +928,7 @@ const mostrarToast = (message, type = 'success') => {
     toast.show = false;
   }, 2500);
 };
-
 const shortDay = (day) => day.substring(0, 3).toUpperCase();
-
 const formatTime = (time) => {
   if (!time) return '';
   const [hours = '0', minutes = '0'] = time.split(':');
@@ -1003,7 +943,6 @@ const formatTime = (time) => {
     }
   );
 };
-
 watch(() => props.initialData, (d) => {
   Object.assign(form, { id: null, dia: '', fecha: '', imagenes: [], video_url: '', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
   pendingImages.value = [];
@@ -1024,7 +963,7 @@ watch(() => props.initialData, (d) => {
   form.dia = ix >= 0 ? daysEs[ix] : dia;
   form.nombre = String(d.nombre ?? '');
   form.categoria = String(d.categoria ?? '');
-  if (form.categoria && !categoryGroups.some(g => g.items.some(c => c.key === form.categoria))) customCategory.value = form.categoria;
+  if (form.categoria && !categoryGroups.some(g => g.items.some(c => c.key === form.categoria)) && !props.customCategories.includes(form.categoria)) { customCategory.value = form.categoria; form.categoria = ''; }
   form.nivel = String(d.nivel ?? '');
   form.instructor = String(d.instructor ?? '');
   form.capacidad = d.capacidad ?? null;
@@ -1033,17 +972,15 @@ watch(() => props.initialData, (d) => {
   form.ubicacion = String(d.ubicacion ?? '');
   form.descripcion = String(d.descripcion ?? '');
 }, { immediate: true });
-
 const guardarActividad = () => {
   if (enviando.value) return;
   if (isPastEvent.value || (form.fecha && form.fecha < todayLocal)) return mostrarToast(t('pastDateError'), 'error');
   if (!form.fecha) return mostrarToast(settings.idioma === 'en' ? 'Select an event date.' : 'Selecciona la fecha del evento.', 'error');
-
   const data = {
     ...form,
     dia: String(form.dia).trim(),
     nombre: String(form.nombre).trim(),
-    categoria: String(form.categoria).trim(),
+    categoria: effectiveCategory.value.trim(),
     nivel: String(form.nivel).trim(),
     instructor: String(form.instructor).trim(),
     capacidad: Number(form.capacidad),
@@ -1058,38 +995,29 @@ const guardarActividad = () => {
     imagesFiles: pendingImages.value,
     videoFile: pendingVideo.value
   };
-  if (customCategory.value) data.categoria = customCategory.value.trim();
-
   if (!daysEs.includes(data.dia)) return mostrarToast(t('selectDayError'), 'error');
   if (!data.nombre || !data.categoria || !['Principiante', 'Intermedio', 'Avanzado', 'Todos'].includes(data.nivel) || !data.instructor || !Number.isInteger(data.capacidad) || data.capacidad < 1 || data.capacidad > 10000) return mostrarToast(settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.', 'error');
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.inicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(data.fin) || data.inicio >= data.fin) return mostrarToast(t('endTimeError'), 'error');
   if (data.nombre.length > 150 || data.categoria.length > 60 || data.instructor.length > 150 || data.ubicacion.length > 180 || data.descripcion.length > 2000) return mostrarToast(settings.idioma === 'en' ? 'A field exceeds the allowed length.' : 'Uno de los campos excede la longitud permitida.', 'error');
-
   const error = typeof props.validator === 'function' ? props.validator(data) : null;
   if (error) return mostrarToast(String(error), 'error');
-
   // Solo emitir; el padre espera POST/PUT de Laravel y cierra el modal cuando confirma.
   enviando.value = true;
   try { emit('save', data); } finally { enviando.value = false; }
 };
-
 onMounted(() => {
   syncLanguage();
   window.addEventListener('idioma-changed', handleLanguageChange);
 });
-
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
   revokePreviews();
 });
 </script>
-
 <style scoped>
 @import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
-
 * { box-sizing: border-box; }
 button, input, select, textarea { font: inherit; }
-
 .activity-wrapper {
   --hl: var(--color-highlight, #3b82f6);
   --hl-soft: rgba(59,130,246,.1);
@@ -1126,7 +1054,6 @@ button, input, select, textarea { font: inherit; }
   color: var(--color-texto-general, #f5f5f4);
   -webkit-font-smoothing: antialiased;
 }
-
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
   .activity-wrapper {
     --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
@@ -1151,7 +1078,6 @@ button, input, select, textarea { font: inherit; }
     --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
 }
-
 .activity-panel {
   width: min(840px, 95vw);
   max-height: 92vh;
@@ -1167,7 +1093,6 @@ button, input, select, textarea { font: inherit; }
 .activity-panel::-webkit-scrollbar { width: 6px; }
 .activity-panel::-webkit-scrollbar-track { background: transparent; }
 .activity-panel::-webkit-scrollbar-thumb { background: var(--w14); border-radius: 10px; }
-
 /* ============ HEADER ============ */
 .panel-header {
   position: sticky;
@@ -1216,7 +1141,6 @@ button, input, select, textarea { font: inherit; }
 }
 .close-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .close-btn:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-
 /* ============ FORMULARIO ============ */
 .activity-form { padding: 0 26px 26px; }
 .form-section { padding: 26px 0; border-bottom: 1px solid var(--line); }
@@ -1238,7 +1162,6 @@ button, input, select, textarea { font: inherit; }
 }
 .section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
 .section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
-
 /* ============ DÍA (compacto: fecha + días en una fila) ============ */
 .day-picker {
   display: grid;
@@ -1247,7 +1170,6 @@ button, input, select, textarea { font: inherit; }
   gap: 16px;
 }
 .field-error { display: block; margin-top: 10px; color: #f87171; font-size: 12.5px; }
-
 .days-grid {
   height: 50px;
   padding: 4px;
@@ -1283,7 +1205,6 @@ button, input, select, textarea { font: inherit; }
   box-shadow: 0 4px 12px color-mix(in srgb, var(--hl) 35%, transparent);
 }
 .day-card:disabled { opacity: .45; cursor: not-allowed; }
-
 /* ============ CAMPOS ============ */
 .fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .field-large { grid-column: 1 / -1; }
@@ -1325,7 +1246,6 @@ button, input, select, textarea { font: inherit; }
   box-shadow: 0 0 0 4px var(--hl-soft);
 }
 .input-control:focus-within .field-icon { color: var(--hl); }
-
 /* Campo de fecha: mismo aspecto que el resto, el calendario nativo abre al hacer clic */
 .date-input { color-scheme: dark; cursor: pointer; font-family: 'Inter', sans-serif; }
 .date-input::-webkit-calendar-picker-indicator {
@@ -1337,10 +1257,8 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer;
 }
 .date-input::-webkit-datetime-edit { padding: 0; }
-
 /* Categoría personalizada */
 .custom-category { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
-
 /* ============ HORARIO ============ */
 .schedule-card {
   padding: 20px 22px;
@@ -1376,7 +1294,6 @@ button, input, select, textarea { font: inherit; }
 .time-connector span { flex: 1; height: 1px; background: var(--line-strong); }
 .time-connector strong { padding: 6px 10px; white-space: nowrap; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-weight: 700; }
 .time-connector strong.invalid { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-
 /* ============ MULTIMEDIA ============ */
 .sr-only {
   position: absolute;
@@ -1422,7 +1339,6 @@ button, input, select, textarea { font: inherit; }
 .drop-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .drop-text strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .3px; }
 .drop-text small { color: var(--text-3); font-size: 12px; line-height: 1.4; }
-
 .file-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .file-chip {
   padding: 8px 10px;
@@ -1454,11 +1370,11 @@ button, input, select, textarea { font: inherit; }
 }
 .file-remove svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .file-remove:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-
 .saved-media { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 .media-previews { display: flex; flex-wrap: wrap; gap: 10px; }
 .media-thumb { width: 84px; height: 84px; display: block; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; transition: border-color .2s, transform .2s; }
 .media-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.image-unavailable{display:block;padding:6px;font-size:10px;line-height:1.2;color:#fca5a5;overflow-wrap:anywhere}
 .media-thumb:hover { border-color: var(--hl); transform: translateY(-2px); }
 .video-link {
   margin-top: 14px;
@@ -1476,7 +1392,6 @@ button, input, select, textarea { font: inherit; }
 }
 .video-link svg { width: 18px; height: 18px; }
 .video-link:hover { filter: brightness(1.15); }
-
 /* ============ RESUMEN ============ */
 .event-summary {
   position: relative;
@@ -1499,7 +1414,6 @@ button, input, select, textarea { font: inherit; }
 .summary-content p { margin: 4px 0 0; overflow: hidden; color: var(--text-2); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .summary-category { padding: 7px 11px; display: flex; align-items: center; gap: 8px; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 9px; font-size: 12px; font-weight: 700; }
 .summary-category i { width: 8px; height: 8px; border-radius: 50%; }
-
 /* ============ FOOTER ============ */
 .form-footer { padding-top: 22px; display: flex; align-items: center; justify-content: flex-end; gap: 11px; }
 .cancel-btn, .save-btn {
@@ -1529,7 +1443,6 @@ button, input, select, textarea { font: inherit; }
 .save-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
 .save-btn:disabled { opacity: .55; cursor: not-allowed; }
 .close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible, .file-remove:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
-
 /* ============ TOAST ============ */
 .toast-message {
   position: fixed;
@@ -1559,11 +1472,9 @@ button, input, select, textarea { font: inherit; }
 .toast-message span { color: var(--w65); font-size: 12.5px; line-height: 1.4; }
 .toast-enter-active, .toast-leave-active { transition: opacity .25s ease, transform .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 10px); }
-
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
-
 /* ============ RESPONSIVE ============ */
 @media (max-width: 760px) {
   .schedule-card { grid-template-columns: 1fr; gap: 14px; }
