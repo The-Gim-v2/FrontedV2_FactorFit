@@ -138,7 +138,8 @@
                   v-model="form.categoria"
                   @change="customCategory = ''"
                   class="category-select"
-                  required
+                  :required="!customCategory.trim()"
+                  :disabled="isPastEvent"
                 >
                   <option disabled value="">
                     {{ t('selectCategoryPlaceholder') }}
