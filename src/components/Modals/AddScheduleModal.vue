@@ -6,8 +6,8 @@
         <div class="header-left">
           <div class="calendar-icon">
             <svg viewBox="0 0 24 24">
-              <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
-              <path d="M7 13h3v3H7z"/>
+              <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z" />
+              <path d="M7 13h3v3H7z" />
             </svg>
           </div>
           <div>
@@ -16,25 +16,22 @@
               {{ isEdit ? t('editTitle') : t('newTitle') }}
               <span>{{ isEdit ? t('editHighlight') : t('newHighlight') }}</span>
             </h2>
-            <p>
-              {{ isEdit ? t('editSubtitle') : t('newSubtitle') }}
-            </p>
+            <p>{{ isEdit ? t('editSubtitle') : t('newSubtitle') }}</p>
           </div>
         </div>
         <button
           type="button"
           class="close-btn"
-          @click="!props.saving && $emit('close')"
           :title="t('closeTooltip')"
           :aria-label="t('closeTooltip')"
+          @click="!props.saving && $emit('close')"
         >
-          <svg viewBox="0 0 24 24">
-            <path d="M6 6l12 12M18 6 6 18"/>
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
         </button>
       </header>
+
       <form class="activity-form" :class="{ 'is-saving': props.saving }" @submit.prevent="guardarActividad">
-        <!-- ================= DÍA ================= -->
+        <!-- ================= 01 DÍA ================= -->
         <section class="form-section">
           <div class="section-title">
             <div class="section-number">01</div>
@@ -43,14 +40,14 @@
               <p>{{ t('daySectionDescription') }}</p>
             </div>
           </div>
+
           <div class="day-picker">
-            <!-- Fecha -->
             <div class="field date-field">
               <label for="act-date">{{ t('eventDateLabel') }}</label>
               <div class="input-control">
                 <div class="field-icon">
                   <svg viewBox="0 0 24 24">
-                    <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
+                    <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z" />
                   </svg>
                 </div>
                 <input
@@ -61,10 +58,10 @@
                   :disabled="isEdit && isPastEvent"
                   required
                   class="date-input"
-                >
+                />
               </div>
             </div>
-            <!-- Día de la semana (compacto) -->
+
             <div class="field weekday-field">
               <span class="field-title">{{ t('weekdayLabel') }}</span>
               <div class="days-grid" role="group" :aria-label="t('weekdayLabel')">
@@ -77,8 +74,8 @@
                   :title="day"
                   :aria-label="day"
                   :aria-pressed="form.dia === daysEs[index]"
-                  @click="selectDay(index)"
                   :disabled="isPastEvent"
+                  @click="selectDay(index)"
                 >
                   <span>{{ shortDay(day) }}</span>
                   <strong>{{ day }}</strong>
@@ -88,7 +85,8 @@
           </div>
           <small v-if="isPastEvent" class="field-error">{{ t('pastEventLocked') }}</small>
         </section>
-        <!-- ================= INFORMACIÓN ================= -->
+
+        <!-- ================= 02 INFORMACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
             <div class="section-number">02</div>
@@ -97,15 +95,14 @@
               <p>{{ t('infoSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="fields-grid">
             <div class="field field-large">
-              <label for="act-name">
-                {{ t('activityNameLabel') }}
-              </label>
+              <label for="act-name">{{ t('activityNameLabel') }}</label>
               <div class="input-control">
                 <div class="field-icon">
                   <svg viewBox="0 0 24 24">
-                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                   </svg>
                 </div>
                 <input
@@ -114,97 +111,66 @@
                   type="text"
                   :placeholder="t('activityNamePlaceholder')"
                   required
-                >
+                />
               </div>
             </div>
+
             <div class="field">
-              <label for="act-cat">
-                {{ t('categoryLabel') }}
-              </label>
+              <label for="act-cat">{{ t('categoryLabel') }}</label>
               <div class="select-control">
-                <span
-                  class="category-dot"
-                  :style="{ background: selectedCategoryColor }"
-                ></span>
+                <span class="category-dot" :style="{ background: selectedCategoryColor }"></span>
                 <select
                   id="act-cat"
                   v-model="form.categoria"
-                  @change="customCategory = ''"
                   class="category-select"
                   :disabled="isPastEvent"
+                  @change="customCategory = ''"
                 >
-                  <option disabled value="">
-                    {{ t('selectCategoryPlaceholder') }}
-                  </option>
-                  <optgroup
-                    v-for="group in categoryGroups"
-                    :key="group.key"
-                    :label="groupLabel(group)"
-                  >
-                    <option
-                      v-for="cat in group.items"
-                      :key="cat.key"
-                      :value="cat.key"
-                    >
+                  <option disabled value="">{{ t('selectCategoryPlaceholder') }}</option>
+                  <optgroup v-for="group in categoryGroups" :key="group.key" :label="groupLabel(group)">
+                    <option v-for="cat in group.items" :key="cat.key" :value="cat.key">
                       {{ catLabel(cat.key) }}
                     </option>
                   </optgroup>
                   <option v-for="cat in customCategories" :key="cat" :value="cat">{{ cat }}</option>
                 </select>
-                <svg class="select-arrow" viewBox="0 0 24 24">
-                  <path d="m7 10 5 5 5-5"/>
-                </svg>
+                <svg class="select-arrow" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
               </div>
+
               <div class="custom-category">
                 <label for="custom-cat">{{ t('customCategoryLabel') }}</label>
                 <div class="input-control">
                   <div class="field-icon">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 5v14M5 12h14"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
                   </div>
                   <input
                     id="custom-cat"
                     v-model.trim="customCategory"
                     maxlength="60"
                     :placeholder="t('customCategoryPlaceholder')"
-                    @input="onCustomCategory"
                     :disabled="isPastEvent"
+                    @input="onCustomCategory"
                   />
                 </div>
               </div>
             </div>
+
             <div class="field">
-              <label for="act-level">
-                {{ t('levelLabel') }}
-              </label>
+              <label for="act-level">{{ t('levelLabel') }}</label>
               <div class="select-control">
-                <select
-                  id="act-level"
-                  v-model="form.nivel"
-                  required
-                >
-                  <option disabled value="">
-                    {{ t('selectLevelPlaceholder') }}
-                  </option>
-                  <option value="Principiante">
-                    {{ t('levelBeginner') }}
-                  </option>
-                  <option value="Intermedio">
-                    {{ t('levelIntermediate') }}
-                  </option>
-                  <option value="Avanzado">
-                    {{ t('levelAdvanced') }}
-                  </option>
+                <select id="act-level" v-model="form.nivel" required>
+                  <option disabled value="">{{ t('selectLevelPlaceholder') }}</option>
+                  <option value="Principiante">{{ t('levelBeginner') }}</option>
+                  <option value="Intermedio">{{ t('levelIntermediate') }}</option>
+                  <option value="Avanzado">{{ t('levelAdvanced') }}</option>
                 </select>
-                <svg class="select-arrow" viewBox="0 0 24 24">
-                  <path d="m7 10 5 5 5-5"/>
-                </svg>
+                <svg class="select-arrow" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></svg>
               </div>
             </div>
           </div>
         </section>
-        <!-- ================= HORARIO ================= -->
+
+        <!-- ================= 03 HORARIO ================= -->
         <section class="form-section schedule-section">
           <div class="section-title">
             <div class="section-number">03</div>
@@ -213,57 +179,37 @@
               <p>{{ t('scheduleSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="schedule-card">
             <div class="schedule-time">
               <div class="time-icon">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="9"/>
-                  <path d="M12 7v5l3 2"/>
-                </svg>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
               </div>
               <div class="time-field">
-                <label for="act-start">
-                  {{ t('startTimeLabel') }}
-                </label>
-                <input
-                  id="act-start"
-                  v-model="form.inicio"
-                  type="time"
-                  required
-                >
+                <label for="act-start">{{ t('startTimeLabel') }}</label>
+                <input id="act-start" v-model="form.inicio" type="time" required />
               </div>
             </div>
+
             <div class="time-connector">
               <span></span>
-              <strong
-                :class="{ invalid: durationText === t('invalidSchedule') }"
-              >
-                {{ durationText }}
-              </strong>
+              <strong :class="{ invalid: durationText === t('invalidSchedule') }">{{ durationText }}</strong>
               <span></span>
             </div>
+
             <div class="schedule-time">
               <div class="time-icon end">
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="9"/>
-                  <path d="M12 7v5l3 2"/>
-                </svg>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
               </div>
               <div class="time-field">
-                <label for="act-end">
-                  {{ t('endTimeLabel') }}
-                </label>
-                <input
-                  id="act-end"
-                  v-model="form.fin"
-                  type="time"
-                  required
-                >
+                <label for="act-end">{{ t('endTimeLabel') }}</label>
+                <input id="act-end" v-model="form.fin" type="time" required />
               </div>
             </div>
           </div>
         </section>
-        <!-- ================= RESPONSABLE ================= -->
+
+        <!-- ================= 04 RESPONSABLE ================= -->
         <section class="form-section">
           <div class="section-title">
             <div class="section-number">04</div>
@@ -272,17 +218,13 @@
               <p>{{ t('instructorSectionDescription') }}</p>
             </div>
           </div>
-          <div class="fields-grid two-columns">
+
+          <div class="fields-grid">
             <div class="field">
-              <label for="act-instructor">
-                {{ t('instructorLabel') }}
-              </label>
+              <label for="act-instructor">{{ t('instructorLabel') }}</label>
               <div class="input-control">
                 <div class="field-icon">
-                  <svg viewBox="0 0 24 24">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 21a8 8 0 0 1 16 0"/>
-                  </svg>
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
                 </div>
                 <input
                   id="act-instructor"
@@ -290,19 +232,18 @@
                   type="text"
                   :placeholder="t('instructorPlaceholder')"
                   required
-                >
+                />
               </div>
             </div>
+
             <div class="field">
-              <label for="act-capacity">
-                {{ t('capacityLabel') }}
-              </label>
+              <label for="act-capacity">{{ t('capacityLabel') }}</label>
               <div class="input-control">
                 <div class="field-icon">
                   <svg viewBox="0 0 24 24">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                 </div>
                 <input
@@ -313,12 +254,13 @@
                   step="1"
                   :placeholder="t('capacityPlaceholder')"
                   required
-                >
+                />
               </div>
             </div>
           </div>
         </section>
-        <!-- ================= UBICACIÓN ================= -->
+
+        <!-- ================= 05 UBICACIÓN ================= -->
         <section class="form-section">
           <div class="section-title">
             <div class="section-number">05</div>
@@ -327,16 +269,15 @@
               <p>{{ t('locationSectionDescription') }}</p>
             </div>
           </div>
+
           <div class="fields-grid">
             <div class="field field-large">
-              <label for="act-location">
-                {{ t('locationLabel') }}
-              </label>
+              <label for="act-location">{{ t('locationLabel') }}</label>
               <div class="input-control">
                 <div class="field-icon">
                   <svg viewBox="0 0 24 24">
-                    <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
-                    <circle cx="12" cy="10" r="2.5"/>
+                    <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                    <circle cx="12" cy="10" r="2.5" />
                   </svg>
                 </div>
                 <input
@@ -344,13 +285,12 @@
                   v-model="form.ubicacion"
                   type="text"
                   :placeholder="t('locationPlaceholder')"
-                >
+                />
               </div>
             </div>
+
             <div class="field field-large">
-              <label for="act-notes">
-                {{ t('descriptionLabel') }}
-              </label>
+              <label for="act-notes">{{ t('descriptionLabel') }}</label>
               <textarea
                 id="act-notes"
                 v-model="form.descripcion"
@@ -360,7 +300,8 @@
             </div>
           </div>
         </section>
-        <!-- ================= MULTIMEDIA ================= -->
+
+        <!-- ================= 06 MULTIMEDIA ================= -->
         <section class="form-section">
           <div class="section-title">
             <div class="section-number">06</div>
@@ -369,6 +310,7 @@
               <p>{{ t('mediaHint') }}</p>
             </div>
           </div>
+
           <div class="fields-grid">
             <!-- Fotografías -->
             <div class="field">
@@ -381,9 +323,9 @@
                 >
                   <span class="drop-icon">
                     <svg viewBox="0 0 24 24">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <path d="m21 15-5-5L5 21"/>
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="m21 15-5-5L5 21" />
                     </svg>
                   </span>
                   <span class="drop-text">
@@ -401,9 +343,10 @@
                   :disabled="isPastEvent"
                   @change="selectImages"
                 />
+
                 <ul v-if="pendingImages.length" class="file-list">
                   <li v-for="(file, i) in pendingImages" :key="file.name + i" class="file-chip">
-                    <img class="file-thumb" :src="pendingPreviews[i]" :alt="file.name">
+                    <img class="file-thumb" :src="pendingPreviews[i]" :alt="file.name" />
                     <span class="file-info">
                       <strong>{{ file.name }}</strong>
                       <small>{{ formatSize(file.size) }}</small>
@@ -415,14 +358,13 @@
                       :aria-label="t('removeFile')"
                       @click="removeImage(i)"
                     >
-                      <svg viewBox="0 0 24 24">
-                        <path d="M6 6l12 12M18 6 6 18"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
                     </button>
                   </li>
                 </ul>
               </div>
             </div>
+
             <!-- Video -->
             <div class="field">
               <span class="field-title">{{ t('videoLabel') }}</span>
@@ -434,8 +376,8 @@
                 >
                   <span class="drop-icon">
                     <svg viewBox="0 0 24 24">
-                      <rect x="2" y="6" width="14" height="12" rx="2"/>
-                      <path d="m22 8-6 4 6 4V8Z"/>
+                      <rect x="2" y="6" width="14" height="12" rx="2" />
+                      <path d="m22 8-6 4 6 4V8Z" />
                     </svg>
                   </span>
                   <span class="drop-text">
@@ -452,12 +394,13 @@
                   :disabled="isPastEvent"
                   @change="selectVideo"
                 />
+
                 <ul v-if="pendingVideo" class="file-list">
                   <li class="file-chip">
                     <span class="file-thumb file-thumb-icon">
                       <svg viewBox="0 0 24 24">
-                        <rect x="2" y="6" width="14" height="12" rx="2"/>
-                        <path d="m22 8-6 4 6 4V8Z"/>
+                        <rect x="2" y="6" width="14" height="12" rx="2" />
+                        <path d="m22 8-6 4 6 4V8Z" />
                       </svg>
                     </span>
                     <span class="file-info">
@@ -471,18 +414,24 @@
                       :aria-label="t('removeFile')"
                       @click="removeVideo"
                     >
-                      <svg viewBox="0 0 24 24">
-                        <path d="M6 6l12 12M18 6 6 18"/>
-                      </svg>
+                      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
                     </button>
                   </li>
                 </ul>
               </div>
             </div>
           </div>
+
           <!-- Archivos ya guardados -->
-          <div v-if="form.imagenes.length" class="saved-media">
-            <span class="field-title">{{ t('currentImages') }}</span>
+          <div v-if="form.imagenes.length || form.video_url" class="saved-media">
+            <div class="saved-head">
+              <span class="field-title">{{ t('currentFiles') }}</span>
+              <small v-if="replacing" class="replace-note">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5h.01" /></svg>
+                {{ t('replaceNote') }}
+              </small>
+            </div>
+
             <div class="media-previews">
               <a
                 v-for="(url, i) in form.imagenes"
@@ -493,62 +442,83 @@
                 class="media-thumb"
                 :title="t('imageLabel') + ' ' + (i + 1)"
               >
-                <img :src="form.imagenes_vista[i] || url" :alt="t('imageLabel') + ' ' + (i + 1)" loading="lazy" @error="onSavedImageError">
+                <img
+                  :src="form.imagenes_vista[i] || url"
+                  :alt="t('imageLabel') + ' ' + (i + 1)"
+                  loading="lazy"
+                  @error="onSavedImageError"
+                />
+                <span class="media-overlay">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
+                </span>
+              </a>
+
+              <a
+                v-if="form.video_url"
+                :href="form.video_vista || form.video_url"
+                target="_blank"
+                rel="noopener"
+                class="media-thumb video-tile"
+                :title="t('viewVideo')"
+              >
+                <span class="play-circle">
+                  <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                </span>
+                <span class="video-label">{{ t('viewVideo') }}</span>
               </a>
             </div>
           </div>
-          <a v-if="form.video_url" :href="form.video_vista || form.video_url" target="_blank" rel="noopener" class="video-link">
-            <svg viewBox="0 0 24 24">
-              <rect x="2" y="6" width="14" height="12" rx="2"/>
-              <path d="m22 8-6 4 6 4V8Z"/>
-            </svg>
-            {{ t('viewVideo') }}
-          </a>
         </section>
-        <!-- ================= RESUMEN ================= -->
-        <div class="event-summary">
-          <div
-            class="summary-color"
-            :style="{ background: selectedCategoryColor }"
-          ></div>
-          <div class="summary-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
-            </svg>
+
+        <!-- ================= VISTA PREVIA ================= -->
+        <div class="event-summary" :style="{ '--event-color': selectedCategoryColor }">
+          <div class="summary-accent"></div>
+
+          <div class="summary-top">
+            <span class="summary-label">{{ t('previewTitle') }}</span>
+            <span v-if="effectiveCategory" class="summary-category">
+              <i></i>
+              {{ catLabel(effectiveCategory) }}
+            </span>
           </div>
-          <div class="summary-content">
-            <span>{{ t('previewTitle') }}</span>
-            <strong>
-              {{ form.nombre || t('previewActivityPlaceholder') }}
-            </strong>
-            <p>
-              {{ selectedDayDisplay || t('previewDayPlaceholder') }}
-              <template v-if="form.inicio">
-                · {{ formatTime(form.inicio) }}
-              </template>
-              <template v-if="form.fin">
-                — {{ formatTime(form.fin) }}
-              </template>
-              <template v-if="form.instructor">
-                · {{ form.instructor }}
-              </template>
-            </p>
-          </div>
-          <div
-            v-if="effectiveCategory"
-            class="summary-category"
-          >
-            <i :style="{ background: selectedCategoryColor }"></i>
-            {{ catLabel(effectiveCategory) }}
-          </div>
+
+          <strong class="summary-name">{{ form.nombre || t('previewActivityPlaceholder') }}</strong>
+
+          <ul class="summary-meta">
+            <li>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+              <span>
+                {{ selectedDayDisplay || t('previewDayPlaceholder') }}
+                <template v-if="form.inicio"> · {{ formatTime(form.inicio) }}</template>
+                <template v-if="form.fin"> — {{ formatTime(form.fin) }}</template>
+              </span>
+            </li>
+            <li v-if="form.instructor">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+              <span>{{ form.instructor }}</span>
+            </li>
+            <li v-if="form.ubicacion">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              <span>{{ form.ubicacion }}</span>
+            </li>
+            <li v-if="form.capacidad">
+              <svg viewBox="0 0 24 24">
+                <circle cx="9" cy="7" r="4" />
+                <path d="M2 21a7 7 0 0 1 14 0M17 11a4 4 0 0 1 5 4v6" />
+              </svg>
+              <span>{{ form.capacidad }} {{ t('peopleWord') }}</span>
+            </li>
+          </ul>
         </div>
+
         <!-- ================= FOOTER ================= -->
         <footer class="form-footer">
-          <button
-            type="button"
-            class="cancel-btn"
-            @click="!props.saving && $emit('close')"
-          >
+          <button type="button" class="cancel-btn" @click="!props.saving && $emit('close')">
             {{ t('cancelBtn') }}
           </button>
           <button
@@ -558,23 +528,14 @@
             :disabled="props.saving || enviando || isPastEvent"
           >
             <span v-if="props.saving" class="save-spinner" aria-hidden="true"></span>
-            <svg
-              v-if="isEdit && !props.saving"
-              viewBox="0 0 24 24"
-            >
-              <path d="m5 12 4 4L19 6"/>
-            </svg>
-            <svg
-              v-else-if="!props.saving"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-            {{ props.saving ? (settings.idioma === 'en' ? 'Saving…' : 'Guardando…') : (isEdit ? t('saveChangesBtn') : t('saveActivityBtn')) }}
+            <svg v-if="isEdit && !props.saving" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+            <svg v-else-if="!props.saving" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            {{ props.saving ? t('savingBtn') : isEdit ? t('saveChangesBtn') : t('saveActivityBtn') }}
           </button>
         </footer>
       </form>
     </div>
+
     <!-- ================= TOAST ================= -->
     <transition name="toast">
       <div
@@ -583,25 +544,14 @@
         :role="toast.type === 'error' ? 'alert' : 'status'"
       >
         <div class="toast-icon">
-          <svg
-            v-if="toast.type === 'success'"
-            viewBox="0 0 24 24"
-          >
-            <path d="m5 12 4 4L19 6"/>
-          </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-          >
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 8v5M12 17h.01"/>
-          </svg>
+          <svg v-if="toast.type === 'success'" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+          <svg v-else viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 17h.01" /></svg>
         </div>
         <div>
           <strong>
             {{
               toast.type === 'success'
-                ? (isEdit ? t('toastUpdatedTitle') : t('toastSavedTitle'))
+                ? isEdit ? t('toastUpdatedTitle') : t('toastSavedTitle')
                 : t('errorTitle')
             }}
           </strong>
@@ -611,36 +561,42 @@
     </transition>
   </div>
 </template>
+
 <script setup>
 import { reactive, ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { categoryGroups, categoryColor, categoryLabel } from './scheduleCategories.ts';
+
 const props = defineProps({
   saving: { type: Boolean, default: false },
   initialData: { type: Object, default: null },
   validator: { type: Function, default: null },
   customCategories: { type: Array, default: () => [] }
 });
+
 const emit = defineEmits(['close', 'save']);
+
 const enviando = ref(false);
+
 /* ==================== IDIOMA ==================== */
-const settings = reactive({
-  idioma: (localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es'
-});
-const normalizeLanguage = (value) => String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es';
+const readLanguage = () => localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma') || 'es';
+
+const settings = reactive({ idioma: readLanguage() });
+
+const normalizeLanguage = (value) => (String(value || '').toLowerCase().startsWith('en') ? 'en' : 'es');
+
 const syncLanguage = () => {
-  settings.idioma = normalizeLanguage((localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) || 'es');
+  settings.idioma = normalizeLanguage(readLanguage());
 };
+
 const handleLanguageChange = (event) => {
-  const nextLanguage = normalizeLanguage(
-    event.detail?.idioma ||
-    (localStorage.getItem('GYM_ACCOUNT-idioma') || localStorage.getItem('owner-idioma')) ||
-    'es'
-  );
+  const nextLanguage = normalizeLanguage(event.detail?.idioma || readLanguage());
   settings.idioma = nextLanguage;
   localStorage.setItem('GYM_ACCOUNT-idioma', nextLanguage);
 };
+
 const catLabel = (key) => categoryLabel(key, settings.idioma);
-const groupLabel = (group) => settings.idioma === 'en' ? group.en : group.es;
+const groupLabel = (group) => (settings.idioma === 'en' ? group.en : group.es);
+
 /* ==================== TRADUCCIONES ==================== */
 const translations = {
   es: {
@@ -659,9 +615,11 @@ const translations = {
     videoChoose: 'Elegir video',
     changeFiles: 'Cambiar selección',
     removeFile: 'Quitar archivo',
-    currentImages: 'Imágenes actuales',
+    currentFiles: 'Archivos actuales',
+    replaceNote: 'Los archivos nuevos reemplazarán a los actuales al guardar.',
     imageLabel: 'Imagen',
     viewVideo: 'Ver video',
+    peopleWord: 'personas',
     pastDateError: 'No puedes agendar ni modificar eventos pasados.',
     agendaKicker: 'AGENDA DE EVENTOS',
     newTitle: 'Nueva',
@@ -685,12 +643,6 @@ const translations = {
     activityNamePlaceholder: 'Ej. Torneo de CrossFit',
     categoryLabel: 'Categoría',
     selectCategoryPlaceholder: 'Seleccionar categoría...',
-    yoga: 'Yoga',
-    spinning: 'Spinning',
-    crossfit: 'CrossFit',
-    boxing: 'Boxeo',
-    pilates: 'Pilates',
-    zumba: 'Zumba',
     levelLabel: 'Nivel',
     selectLevelPlaceholder: 'Seleccionar nivel...',
     levelBeginner: 'Principiante',
@@ -712,14 +664,13 @@ const translations = {
     cancelBtn: 'Cancelar',
     saveActivityBtn: 'Agendar evento',
     saveChangesBtn: 'Guardar cambios',
+    savingBtn: 'Guardando…',
     invalidSchedule: 'Horario inválido',
     selectDayError: 'Selecciona el día del evento.',
     endTimeError: 'La hora de término debe ser posterior a la hora de inicio.',
     toastSavedTitle: 'Evento registrado',
     toastUpdatedTitle: 'Evento actualizado',
-    errorTitle: 'Error',
-    toastSaved: 'El evento fue agregado correctamente a la agenda.',
-    toastUpdated: 'Los cambios del evento se guardaron correctamente.'
+    errorTitle: 'Error'
   },
   en: {
     eventDateLabel: 'Event date',
@@ -737,9 +688,11 @@ const translations = {
     videoChoose: 'Choose video',
     changeFiles: 'Change selection',
     removeFile: 'Remove file',
-    currentImages: 'Current images',
+    currentFiles: 'Current files',
+    replaceNote: 'New files will replace the current ones when you save.',
     imageLabel: 'Image',
     viewVideo: 'View video',
+    peopleWord: 'people',
     pastDateError: 'You cannot schedule or edit past events.',
     agendaKicker: 'EVENT SCHEDULE',
     newTitle: 'New',
@@ -759,16 +712,10 @@ const translations = {
     instructorSectionDescription: 'Define who will host the event and the available capacity.',
     locationSectionTitle: 'Location and notes',
     locationSectionDescription: 'Add additional information to identify the event.',
-    activityNameLabel: 'Event Name',
+    activityNameLabel: 'Event name',
     activityNamePlaceholder: 'E.g. CrossFit tournament',
     categoryLabel: 'Category',
     selectCategoryPlaceholder: 'Select category...',
-    yoga: 'Yoga',
-    spinning: 'Spinning',
-    crossfit: 'CrossFit',
-    boxing: 'Boxing',
-    pilates: 'Pilates',
-    zumba: 'Zumba',
     levelLabel: 'Level',
     selectLevelPlaceholder: 'Select level...',
     levelBeginner: 'Beginner',
@@ -790,24 +737,31 @@ const translations = {
     cancelBtn: 'Cancel',
     saveActivityBtn: 'Schedule event',
     saveChangesBtn: 'Save changes',
+    savingBtn: 'Saving…',
     invalidSchedule: 'Invalid schedule',
     selectDayError: 'Select the day of the event.',
     endTimeError: 'The end time must be later than the start time.',
     toastSavedTitle: 'Event scheduled',
     toastUpdatedTitle: 'Event updated',
-    errorTitle: 'Error',
-    toastSaved: 'The event was successfully added to the schedule.',
-    toastUpdated: 'The event changes were saved successfully.'
+    errorTitle: 'Error'
   }
 };
+
 const t = (key) => translations[settings.idioma]?.[key] || translations.es[key] || key;
+
 /* ==================== DÍAS ==================== */
 const daysEs = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const daysEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const currentDays = computed(() => settings.idioma === 'en' ? daysEn : daysEs);
-const form = reactive({
+const currentDays = computed(() => (settings.idioma === 'en' ? daysEn : daysEs));
+
+const emptyForm = () => ({
   id: null,
-  dia: '', fecha: '', imagenes: [], imagenes_vista: [], video_url: '', video_vista: '',
+  dia: '',
+  fecha: '',
+  imagenes: [],
+  imagenes_vista: [],
+  video_url: '',
+  video_vista: '',
   nombre: '',
   categoria: '',
   nivel: '',
@@ -818,18 +772,42 @@ const form = reactive({
   ubicacion: '',
   descripcion: ''
 });
-const todayLocal = (() => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-})();
+
+const form = reactive(emptyForm());
+
+const pad = (n) => String(n).padStart(2, '0');
+const dateToIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+const todayLocal = dateToIso(new Date());
+
 const customCategory = ref('');
 const pendingImages = ref([]);
 const pendingPreviews = ref([]);
 const pendingVideo = ref(null);
-const onSavedImageError = (event) => { const img = event.target; if (img instanceof HTMLImageElement) { img.style.display = 'none'; const parent = img.parentElement; if (parent && !parent.querySelector('.image-unavailable')) { const span = document.createElement('span'); span.className = 'image-unavailable'; span.textContent = settings.idioma === 'en' ? 'Image unavailable: check public R2 URL' : 'Imagen no disponible: revisa URL pública de R2'; parent.appendChild(span); } } };
 const imagesInput = ref(null);
 const videoInput = ref(null);
+
+const onSavedImageError = (event) => {
+  const img = event.target;
+  if (!(img instanceof HTMLImageElement)) return;
+  img.style.display = 'none';
+  const parent = img.parentElement;
+  if (parent && !parent.querySelector('.image-unavailable')) {
+    const span = document.createElement('span');
+    span.className = 'image-unavailable';
+    span.textContent =
+      settings.idioma === 'en' ? 'Image unavailable: check public R2 URL' : 'Imagen no disponible: revisa URL pública de R2';
+    parent.appendChild(span);
+  }
+};
+
 const isPastEvent = computed(() => Boolean(form.fecha && form.fecha < todayLocal));
+
+/* Aviso: los archivos nuevos reemplazan a los guardados */
+const replacing = computed(
+  () => (pendingImages.value.length > 0 && form.imagenes.length > 0) || (!!pendingVideo.value && !!form.video_url)
+);
+
 const selectDay = (index) => {
   if (isPastEvent.value) return;
   form.dia = daysEs[index];
@@ -837,29 +815,37 @@ const selectDay = (index) => {
   const todayIndex = (d.getDay() + 6) % 7;
   const diff = (index - todayIndex + 7) % 7;
   d.setDate(d.getDate() + diff);
-  form.fecha = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  form.fecha = dateToIso(d);
 };
+
 const onCustomCategory = () => {
   if (customCategory.value.trim()) form.categoria = '';
 };
+
 /* ==================== ARCHIVOS ==================== */
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return '';
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
 const revokePreviews = () => {
   pendingPreviews.value.forEach((url) => URL.revokeObjectURL(url));
   pendingPreviews.value = [];
 };
+
 const refreshPreviews = () => {
   revokePreviews();
   pendingPreviews.value = pendingImages.value.map((file) => URL.createObjectURL(file));
 };
+
 const selectImages = (event) => {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
-  if (files.length > 3 || files.some((f) => !['image/png', 'image/jpeg', 'image/webp'].includes(f.type) || f.size > 3 * 1024 * 1024)) {
+  const invalid = files.some(
+    (f) => !['image/png', 'image/jpeg', 'image/webp'].includes(f.type) || f.size > 3 * 1024 * 1024
+  );
+  if (files.length > 3 || invalid) {
     mostrarToast(settings.idioma === 'en' ? 'Max 3 photos of 3 MB each.' : 'Máximo 3 imágenes de 3 MB cada una.', 'error');
     event.target.value = '';
     return;
@@ -867,11 +853,13 @@ const selectImages = (event) => {
   pendingImages.value = files;
   refreshPreviews();
 };
+
 const removeImage = (index) => {
   pendingImages.value = pendingImages.value.filter((_, i) => i !== index);
   refreshPreviews();
   if (imagesInput.value) imagesInput.value.value = '';
 };
+
 const selectVideo = (event) => {
   const file = event.target.files?.[0] || null;
   if (!file) return;
@@ -882,17 +870,24 @@ const selectVideo = (event) => {
   }
   pendingVideo.value = file;
 };
+
 const removeVideo = () => {
   pendingVideo.value = null;
   if (videoInput.value) videoInput.value.value = '';
 };
+
 const toLocalDate = (date) => {
   const d = new Date(date + 'T12:00:00');
   return Number.isNaN(d.getTime()) ? '' : daysEs[(d.getDay() + 6) % 7];
 };
-watch(() => form.fecha, (date) => {
-  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) form.dia = toLocalDate(date);
-});
+
+watch(
+  () => form.fecha,
+  (date) => {
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) form.dia = toLocalDate(date);
+  }
+);
+
 const selectedDayDisplay = computed(() => {
   if (!form.dia) return '';
   const spanishIndex = daysEs.indexOf(form.dia);
@@ -901,16 +896,19 @@ const selectedDayDisplay = computed(() => {
   if (englishIndex !== -1) return currentDays.value[englishIndex];
   return form.dia;
 });
+
 const isEdit = computed(() => form.id !== null && form.id !== undefined);
 const effectiveCategory = computed(() => customCategory.value.trim() || form.categoria);
-const selectedCategoryColor = computed(() => {
-  return categoryColor(effectiveCategory.value) || 'var(--color-highlight, #3b82f6)';
-});
+
+const selectedCategoryColor = computed(
+  () => categoryColor(effectiveCategory.value) || 'var(--color-highlight, #3b82f6)'
+);
+
 const durationText = computed(() => {
   if (!form.inicio || !form.fin) return '';
   const [startHour = 0, startMinute = 0] = form.inicio.split(':').map(Number);
   const [endHour = 0, endMinute = 0] = form.fin.split(':').map(Number);
-  const minutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+  const minutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
   if (minutes <= 0) return t('invalidSchedule');
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
@@ -918,69 +916,91 @@ const durationText = computed(() => {
   if (hours) return `${hours} h`;
   return `${remainingMinutes} min`;
 });
-const toast = reactive({
-  show: false,
-  message: '',
-  type: 'success'
-});
+
+/* ==================== TOAST ==================== */
+const toast = reactive({ show: false, message: '', type: 'success' });
+let toastTimer;
+
 const mostrarToast = (message, type = 'success') => {
   toast.message = message;
   toast.type = type;
   toast.show = true;
-  setTimeout(() => {
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
     toast.show = false;
-  }, 2500);
+  }, 2800);
 };
+
 const shortDay = (day) => day.substring(0, 3).toUpperCase();
+
 const formatTime = (time) => {
   if (!time) return '';
   const [hours = '0', minutes = '0'] = time.split(':');
   const date = new Date();
   date.setHours(Number(hours), Number(minutes), 0);
-  return date.toLocaleTimeString(
-    settings.idioma === 'en' ? 'en-US' : 'es-MX',
-    {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    }
-  );
+  return date.toLocaleTimeString(settings.idioma === 'en' ? 'en-US' : 'es-MX', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
 };
-watch(() => props.initialData, (d) => {
-  Object.assign(form, { id: null, dia: '', fecha: '', imagenes: [], imagenes_vista: [], video_url: '', video_vista: '', nombre: '', categoria: '', nivel: '', instructor: '', capacidad: null, inicio: '08:00', fin: '09:00', ubicacion: '', descripcion: '' });
-  pendingImages.value = [];
-  revokePreviews();
-  pendingVideo.value = null;
-  customCategory.value = '';
-  if (!d) {
-    form.fecha = todayLocal;
-    form.dia = toLocalDate(todayLocal);
-    return;
-  }
-  const dia = String(d.dia ?? d.day ?? '').trim();
-  const ix = daysEn.findIndex(x => x.toLowerCase() === dia.toLowerCase());
-  form.id = d.id ?? null;
-  form.fecha = String(d.fecha || d.fecha_evento || '');
-  form.imagenes = Array.isArray(d.imagenes) ? [...d.imagenes] : [];
-  form.imagenes_vista = Array.isArray(d.imagenes_vista) ? [...d.imagenes_vista] : [];
-  form.video_url = String(d.video_url || '');
-  form.video_vista = String(d.video_vista || '');
-  form.dia = ix >= 0 ? daysEs[ix] : dia;
-  form.nombre = String(d.nombre ?? '');
-  form.categoria = String(d.categoria ?? '');
-  if (form.categoria && !categoryGroups.some(g => g.items.some(c => c.key === form.categoria)) && !props.customCategories.includes(form.categoria)) { customCategory.value = form.categoria; form.categoria = ''; }
-  form.nivel = String(d.nivel ?? '');
-  form.instructor = String(d.instructor ?? '');
-  form.capacidad = d.capacidad ?? null;
-  form.inicio = String(d.inicio ?? d.hour ?? '08:00').slice(0, 5);
-  form.fin = String(d.fin ?? '09:00').slice(0, 5);
-  form.ubicacion = String(d.ubicacion ?? '');
-  form.descripcion = String(d.descripcion ?? '');
-}, { immediate: true });
+
+/* ==================== DATOS INICIALES ==================== */
+watch(
+  () => props.initialData,
+  (d) => {
+    Object.assign(form, emptyForm());
+    pendingImages.value = [];
+    revokePreviews();
+    pendingVideo.value = null;
+    customCategory.value = '';
+
+    if (!d) {
+      form.fecha = todayLocal;
+      form.dia = toLocalDate(todayLocal);
+      return;
+    }
+
+    const dia = String(d.dia ?? d.day ?? '').trim();
+    const ix = daysEn.findIndex((x) => x.toLowerCase() === dia.toLowerCase());
+
+    form.id = d.id ?? null;
+    form.fecha = String(d.fecha || d.fecha_evento || '');
+    form.imagenes = Array.isArray(d.imagenes) ? [...d.imagenes] : [];
+    form.imagenes_vista = Array.isArray(d.imagenes_vista) ? [...d.imagenes_vista] : [];
+    form.video_url = String(d.video_url || '');
+    form.video_vista = String(d.video_vista || '');
+    form.dia = ix >= 0 ? daysEs[ix] : dia;
+    form.nombre = String(d.nombre ?? '');
+    form.categoria = String(d.categoria ?? '');
+
+    const isKnownCategory =
+      categoryGroups.some((g) => g.items.some((c) => c.key === form.categoria)) ||
+      props.customCategories.includes(form.categoria);
+    if (form.categoria && !isKnownCategory) {
+      customCategory.value = form.categoria;
+      form.categoria = '';
+    }
+
+    form.nivel = String(d.nivel ?? '');
+    form.instructor = String(d.instructor ?? '');
+    form.capacidad = d.capacidad ?? null;
+    form.inicio = String(d.inicio ?? d.hour ?? '08:00').slice(0, 5);
+    form.fin = String(d.fin ?? '09:00').slice(0, 5);
+    form.ubicacion = String(d.ubicacion ?? '');
+    form.descripcion = String(d.descripcion ?? '');
+  },
+  { immediate: true }
+);
+
+/* ==================== GUARDAR ==================== */
 const guardarActividad = () => {
   if (enviando.value || props.saving) return;
   if (isPastEvent.value || (form.fecha && form.fecha < todayLocal)) return mostrarToast(t('pastDateError'), 'error');
-  if (!form.fecha) return mostrarToast(settings.idioma === 'en' ? 'Select an event date.' : 'Selecciona la fecha del evento.', 'error');
+  if (!form.fecha) {
+    return mostrarToast(settings.idioma === 'en' ? 'Select an event date.' : 'Selecciona la fecha del evento.', 'error');
+  }
+
   const data = {
     ...form,
     dia: String(form.dia).trim(),
@@ -1000,71 +1020,111 @@ const guardarActividad = () => {
     imagesFiles: pendingImages.value,
     videoFile: pendingVideo.value
   };
+
   if (!daysEs.includes(data.dia)) return mostrarToast(t('selectDayError'), 'error');
-  if (!data.nombre || !data.categoria || !['Principiante', 'Intermedio', 'Avanzado', 'Todos'].includes(data.nivel) || !data.instructor || !Number.isInteger(data.capacidad) || data.capacidad < 1 || data.capacidad > 10000) return mostrarToast(settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.', 'error');
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(data.inicio) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(data.fin) || data.inicio >= data.fin) return mostrarToast(t('endTimeError'), 'error');
-  if (data.nombre.length > 150 || data.categoria.length > 60 || data.instructor.length > 150 || data.ubicacion.length > 180 || data.descripcion.length > 2000) return mostrarToast(settings.idioma === 'en' ? 'A field exceeds the allowed length.' : 'Uno de los campos excede la longitud permitida.', 'error');
+
+  const requiredOk =
+    data.nombre &&
+    data.categoria &&
+    ['Principiante', 'Intermedio', 'Avanzado', 'Todos'].includes(data.nivel) &&
+    data.instructor &&
+    Number.isInteger(data.capacidad) &&
+    data.capacidad >= 1 &&
+    data.capacidad <= 10000;
+  if (!requiredOk) {
+    return mostrarToast(
+      settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.',
+      'error'
+    );
+  }
+
+  const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (!timeRe.test(data.inicio) || !timeRe.test(data.fin) || data.inicio >= data.fin) {
+    return mostrarToast(t('endTimeError'), 'error');
+  }
+
+  if (
+    data.nombre.length > 150 ||
+    data.categoria.length > 60 ||
+    data.instructor.length > 150 ||
+    data.ubicacion.length > 180 ||
+    data.descripcion.length > 2000
+  ) {
+    return mostrarToast(
+      settings.idioma === 'en' ? 'A field exceeds the allowed length.' : 'Uno de los campos excede la longitud permitida.',
+      'error'
+    );
+  }
+
   const error = typeof props.validator === 'function' ? props.validator(data) : null;
   if (error) return mostrarToast(String(error), 'error');
+
   // Solo emitir; el padre espera POST/PUT de Laravel y cierra el modal cuando confirma.
   emit('save', data);
 };
+
 onMounted(() => {
   syncLanguage();
   window.addEventListener('idioma-changed', handleLanguageChange);
 });
+
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
+  if (toastTimer) clearTimeout(toastTimer);
   revokePreviews();
 });
 </script>
+
 <style scoped>
-@import url('https\://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
-* { box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
+
+.activity-wrapper,
+.activity-wrapper *,
+.activity-wrapper *::before,
+.activity-wrapper *::after { box-sizing: border-box; }
+
 button, input, select, textarea { font: inherit; }
+
 .activity-wrapper {
   --hl: var(--color-highlight, #3b82f6);
-  --hl-soft: rgba(59,130,246,.1);
-  --hl-line: rgba(59,130,246,.45);
+  --hl-soft: rgba(59, 130, 246, .12);
+  --hl-line: rgba(59, 130, 246, .45);
   --text: var(--color-texto-general, #f5f5f4);
   --card: var(--bg-cards, #111);
   --title: var(--color-titulos, #fff);
-  --field: rgba(0,0,0,.28);
-  --field-focus: rgba(0,0,0,.36);
-  --card-glass: rgba(17,17,17,.96);
-  --w3: rgba(255,255,255,.03);
-  --w4: rgba(255,255,255,.04);
-  --w5: rgba(255,255,255,.05);
-  --w6: rgba(255,255,255,.06);
-  --w8: rgba(255,255,255,.08);
-  --w10: rgba(255,255,255,.10);
-  --w14: rgba(255,255,255,.14);
-  --w18: rgba(255,255,255,.18);
-  --w25: rgba(255,255,255,.25);
-  --w35: rgba(255,255,255,.35);
-  --w50: rgba(255,255,255,.50);
-  --w65: rgba(255,255,255,.65);
-  --w85: rgba(255,255,255,.85);
+  --field: rgba(0, 0, 0, .28);
+  --field-focus: rgba(0, 0, 0, .36);
+  --card-glass: rgba(17, 17, 17, .92);
+  --w3: rgba(255, 255, 255, .03);
+  --w4: rgba(255, 255, 255, .04);
+  --w5: rgba(255, 255, 255, .05);
+  --w6: rgba(255, 255, 255, .06);
+  --w8: rgba(255, 255, 255, .08);
+  --w14: rgba(255, 255, 255, .14);
+  --w25: rgba(255, 255, 255, .25);
+  --w65: rgba(255, 255, 255, .65);
   --line: var(--w8);
   --line-strong: var(--w14);
-  --text-2: rgba(245,245,244,.66);
-  --text-3: rgba(245,245,244,.42);
+  --text-2: rgba(245, 245, 244, .68);
+  --text-3: rgba(245, 245, 244, .44);
+
   position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Inter', sans-serif;
-  color: var(--color-texto-general, #f5f5f4);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
+
 @supports (background: color-mix(in srgb, red 10%, transparent)) {
   .activity-wrapper {
-    --hl-soft: color-mix(in srgb, var(--hl) 11%, transparent);
+    --hl-soft: color-mix(in srgb, var(--hl) 12%, transparent);
     --hl-line: color-mix(in srgb, var(--hl) 50%, transparent);
     --field: color-mix(in srgb, var(--card) 72%, #000);
     --field-focus: color-mix(in srgb, var(--card) 62%, #000);
-    --card-glass: color-mix(in srgb, var(--card) 94%, transparent);
+    --card-glass: color-mix(in srgb, var(--card) 92%, transparent);
     --text-2: color-mix(in srgb, var(--text) 68%, transparent);
     --text-3: color-mix(in srgb, var(--text) 45%, transparent);
     --w3: color-mix(in srgb, var(--text) 3%, transparent);
@@ -1072,63 +1132,65 @@ button, input, select, textarea { font: inherit; }
     --w5: color-mix(in srgb, var(--text) 5%, transparent);
     --w6: color-mix(in srgb, var(--text) 6%, transparent);
     --w8: color-mix(in srgb, var(--text) 8%, transparent);
-    --w10: color-mix(in srgb, var(--text) 10%, transparent);
     --w14: color-mix(in srgb, var(--text) 14%, transparent);
-    --w18: color-mix(in srgb, var(--text) 18%, transparent);
     --w25: color-mix(in srgb, var(--text) 25%, transparent);
-    --w35: color-mix(in srgb, var(--text) 35%, transparent);
-    --w50: color-mix(in srgb, var(--text) 50%, transparent);
     --w65: color-mix(in srgb, var(--text) 65%, transparent);
-    --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
 }
+
+/* ============ PANEL ============ */
 .activity-panel {
-  width: min(840px, 95vw);
+  width: min(860px, 95vw);
   max-height: 92vh;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--card);
+  background:
+    radial-gradient(700px 220px at 0% 0%, var(--hl-soft), transparent 70%),
+    var(--card);
   border: 1px solid var(--line-strong);
-  border-radius: 22px;
-  box-shadow: 0 35px 100px rgba(0,0,0,.65);
+  border-radius: 24px;
+  box-shadow: 0 40px 110px rgba(0, 0, 0, .65), inset 0 1px 0 var(--w6);
   scrollbar-width: thin;
   scrollbar-color: var(--w14) transparent;
 }
 .activity-panel::-webkit-scrollbar { width: 6px; }
 .activity-panel::-webkit-scrollbar-track { background: transparent; }
 .activity-panel::-webkit-scrollbar-thumb { background: var(--w14); border-radius: 10px; }
+
 /* ============ HEADER ============ */
 .panel-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  padding: 20px 26px;
+  padding: 20px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   background: var(--card-glass);
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px) saturate(140%);
 }
 .header-left { display: flex; align-items: center; gap: 15px; min-width: 0; }
 .calendar-icon {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--hl);
-  background: var(--hl-soft);
+  background: linear-gradient(145deg, var(--hl-soft), transparent);
   border: 1px solid var(--hl-line);
-  border-radius: 14px;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px var(--hl-soft);
 }
-.calendar-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.header-kicker { display: block; margin-bottom: 3px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1.3px; }
-.panel-header h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; line-height: 1.1; text-transform: uppercase; }
+.calendar-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.header-kicker { display: block; margin-bottom: 3px; color: var(--hl); font-size: 10.5px; font-weight: 800; letter-spacing: 1.5px; }
+.panel-header h2 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 25px; font-weight: 600; line-height: 1.1; text-transform: uppercase; letter-spacing: .3px; }
 .panel-header h2 span { color: var(--hl); }
 .panel-header p { margin: 5px 0 0; color: var(--text-3); font-size: 13px; }
+
 .close-btn {
   width: 40px;
   height: 40px;
@@ -1144,14 +1206,25 @@ button, input, select, textarea { font: inherit; }
   transition: .2s ease;
 }
 .close-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.close-btn:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+.close-btn:hover { color: #f87171; background: rgba(239, 68, 68, .09); border-color: rgba(239, 68, 68, .3); transform: rotate(90deg); }
+
 /* ============ FORMULARIO ============ */
-.activity-form { padding: 0 26px 26px; }
-.form-section { padding: 26px 0; border-bottom: 1px solid var(--line); }
-.section-title { margin-bottom: 18px; display: flex; align-items: center; gap: 13px; }
+.activity-form { padding: 6px 28px 0; }
+
+.form-section {
+  margin-top: 16px;
+  padding: 22px;
+  background: linear-gradient(160deg, var(--w5), var(--w3));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  transition: border-color .2s ease;
+}
+.form-section:focus-within { border-color: var(--line-strong); }
+
+.section-title { margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
 .section-number {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex: none;
   display: flex;
   align-items: center;
@@ -1159,21 +1232,24 @@ button, input, select, textarea { font: inherit; }
   color: var(--hl);
   background: var(--hl-soft);
   border: 1px solid var(--hl-line);
-  border-radius: 10px;
+  border-radius: 11px;
   font-family: 'Oswald', sans-serif;
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: .5px;
 }
-.section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
+.section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: .2px; }
 .section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
-/* ============ DÍA (compacto: fecha + días en una fila) ============ */
+
+/* ============ DÍA ============ */
 .day-picker {
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
   align-items: end;
   gap: 16px;
 }
-.field-error { display: block; margin-top: 10px; color: #f87171; font-size: 12.5px; }
+.field-error { display: block; margin-top: 12px; color: #f87171; font-size: 12.5px; }
+
 .days-grid {
   height: 50px;
   padding: 4px;
@@ -1182,7 +1258,7 @@ button, input, select, textarea { font: inherit; }
   gap: 4px;
   background: var(--field);
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 13px;
 }
 .day-card {
   position: relative;
@@ -1195,34 +1271,42 @@ button, input, select, textarea { font: inherit; }
   color: var(--text-3);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 10px;
   transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .day-card > span { font-size: 11.5px; font-weight: 800; letter-spacing: .6px; }
-/* El nombre completo solo se muestra en pantallas pequeñas */
 .day-card > strong { display: none; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 500; }
 .day-card:hover:not(:disabled):not(.active) { color: var(--title); background: var(--w5); }
 .day-card.active {
   color: var(--color-texto-botones, #fff);
   background: var(--hl);
   border-color: var(--hl);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--hl) 35%, transparent);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--hl) 38%, transparent);
 }
 .day-card:disabled { opacity: .45; cursor: not-allowed; }
+
 /* ============ CAMPOS ============ */
-.fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
 .field-large { grid-column: 1 / -1; }
 .field { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.field > label, .field-title, .time-field label, .custom-category > label {
+
+.field > label,
+.field-title,
+.time-field label,
+.custom-category > label {
   color: var(--text-2);
   font-family: 'Oswald', sans-serif;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: .6px;
+  letter-spacing: .7px;
   text-transform: uppercase;
 }
+
 .input-control, .select-control { position: relative; width: 100%; }
-.input-control input, .select-control select, .field textarea {
+
+.input-control input,
+.select-control select,
+.field textarea {
   width: 100%;
   outline: none;
   color: var(--color-texto-input, var(--text));
@@ -1234,35 +1318,39 @@ button, input, select, textarea { font: inherit; }
 .input-control input { height: 50px; padding: 0 14px 0 46px; font-size: 14px; }
 .select-control select { height: 50px; padding: 0 42px 0 14px; appearance: none; -webkit-appearance: none; cursor: pointer; font-size: 14px; }
 .select-control .category-select { padding-left: 38px; }
-.select-control select option, .select-control select optgroup { color: var(--text); background: var(--card); }
+.select-control select option,
+.select-control select optgroup { color: var(--text); background: var(--card); }
 .select-control select optgroup { font-style: normal; font-weight: 700; }
-.field textarea { min-height: 92px; padding: 13px 14px; resize: vertical; font-size: 14px; line-height: 1.55; }
-.input-control input:hover, .select-control select:hover, .field textarea:hover { border-color: var(--w25); }
-.input-control input::placeholder, .field textarea::placeholder { color: rgba(245,245,244,.28); }
+.field textarea { min-height: 96px; padding: 13px 14px; resize: vertical; font-size: 14px; line-height: 1.55; }
+
+.input-control input:hover,
+.select-control select:hover,
+.field textarea:hover { border-color: var(--w25); }
+.input-control input::placeholder,
+.field textarea::placeholder { color: rgba(245, 245, 244, .28); }
 .input-control input:disabled { opacity: .55; cursor: not-allowed; }
-.field-icon { position: absolute; z-index: 2; top: 50%; left: 15px; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-3); pointer-events: none; transition: color .2s; }
-.field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.select-arrow { position: absolute; top: 50%; right: 14px; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.category-dot { position: absolute; z-index: 2; top: 50%; left: 16px; width: 10px; height: 10px; transform: translateY(-50%); border-radius: 50%; box-shadow: 0 0 0 3px var(--w5); pointer-events: none; }
-.input-control input:focus, .select-control select:focus, .field textarea:focus {
+
+.input-control input:focus,
+.select-control select:focus,
+.field textarea:focus {
   border-color: var(--hl);
   background: var(--field-focus);
   box-shadow: 0 0 0 4px var(--hl-soft);
 }
+
+.field-icon { position: absolute; z-index: 2; top: 50%; left: 15px; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-3); pointer-events: none; transition: color .2s; }
+.field-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .input-control:focus-within .field-icon { color: var(--hl); }
-/* Campo de fecha: mismo aspecto que el resto, el calendario nativo abre al hacer clic */
+
+.select-arrow { position: absolute; top: 50%; right: 14px; width: 17px; height: 17px; transform: translateY(-50%); fill: none; stroke: var(--text-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.category-dot { position: absolute; z-index: 2; top: 50%; left: 16px; width: 10px; height: 10px; transform: translateY(-50%); border-radius: 50%; box-shadow: 0 0 0 3px var(--w5); pointer-events: none; }
+
 .date-input { color-scheme: dark; cursor: pointer; font-family: 'Inter', sans-serif; }
-.date-input::-webkit-calendar-picker-indicator {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
+.date-input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .date-input::-webkit-datetime-edit { padding: 0; }
-/* Categoría personalizada */
+
 .custom-category { margin-top: 4px; display: flex; flex-direction: column; gap: 8px; }
+
 /* ============ HORARIO ============ */
 .schedule-card {
   padding: 20px 22px;
@@ -1276,7 +1364,7 @@ button, input, select, textarea { font: inherit; }
 }
 .schedule-time { min-width: 0; display: flex; align-items: center; gap: 13px; }
 .time-icon { width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 13px; }
-.time-icon.end { color: #34d399; background: rgba(16,185,129,.09); border-color: rgba(16,185,129,.28); }
+.time-icon.end { color: #34d399; background: rgba(16, 185, 129, .09); border-color: rgba(16, 185, 129, .28); }
 .time-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .time-field { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
 .time-field input {
@@ -1296,23 +1384,16 @@ button, input, select, textarea { font: inherit; }
 .time-field input:focus { border-color: var(--hl); box-shadow: 0 0 0 4px var(--hl-soft); }
 .time-connector { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .time-connector span { flex: 1; height: 1px; background: var(--line-strong); }
-.time-connector strong { padding: 6px 10px; white-space: nowrap; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-weight: 700; }
-.time-connector strong.invalid { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
+.time-connector strong { padding: 6px 11px; white-space: nowrap; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 20px; font-size: 12px; font-weight: 700; }
+.time-connector strong.invalid { color: #f87171; background: rgba(239, 68, 68, .09); border-color: rgba(239, 68, 68, .3); }
+
 /* ============ MULTIMEDIA ============ */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
 .upload { position: relative; display: flex; flex-direction: column; gap: 10px; }
+
 .dropzone {
-  min-height: 78px;
+  min-height: 82px;
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -1320,133 +1401,205 @@ button, input, select, textarea { font: inherit; }
   cursor: pointer;
   background: var(--field);
   border: 1.5px dashed var(--line-strong);
-  border-radius: 14px;
-  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  border-radius: 15px;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease;
 }
-.dropzone:hover { border-color: var(--hl); background: var(--hl-soft); }
+.dropzone:hover { border-color: var(--hl); background: var(--hl-soft); transform: translateY(-1px); }
 .upload:focus-within .dropzone { border-color: var(--hl); box-shadow: 0 0 0 4px var(--hl-soft); }
 .dropzone.filled { border-style: solid; border-color: var(--hl-line); background: var(--hl-soft); }
 .dropzone.disabled { opacity: .5; cursor: not-allowed; pointer-events: none; }
+
 .drop-icon {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--hl);
-  background: var(--hl-soft);
+  background: linear-gradient(145deg, var(--hl-soft), transparent);
   border: 1px solid var(--hl-line);
-  border-radius: 13px;
+  border-radius: 14px;
 }
-.drop-icon svg, .file-thumb-icon svg, .video-link svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.drop-icon svg, .file-thumb-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .drop-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .drop-text strong { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 500; letter-spacing: .3px; }
 .drop-text small { color: var(--text-3); font-size: 12px; line-height: 1.4; }
+
 .file-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.file-chip {
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  background: var(--w3);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
+.file-chip { padding: 8px 10px; display: flex; align-items: center; gap: 11px; background: var(--w4); border: 1px solid var(--line); border-radius: 12px; }
 .file-thumb { width: 42px; height: 42px; flex: none; object-fit: cover; border-radius: 9px; border: 1px solid var(--line); }
 .file-thumb-icon { display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border-color: var(--hl-line); }
 .file-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
 .file-info strong { overflow: hidden; color: var(--title); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .file-info small { color: var(--text-3); font-size: 11.5px; }
-.file-remove {
-  width: 30px;
-  height: 30px;
-  flex: none;
+.file-remove { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-3); background: transparent; border: 1px solid transparent; border-radius: 8px; transition: .2s ease; }
+.file-remove svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.file-remove:hover { color: #f87171; background: rgba(239, 68, 68, .09); border-color: rgba(239, 68, 68, .3); }
+
+/* Archivos guardados */
+.saved-media {
+  margin-top: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.saved-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; }
+.replace-note { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; color: #fbbf24; background: rgba(251, 191, 36, .09); border: 1px solid rgba(251, 191, 36, .28); border-radius: 20px; font-size: 11.5px; font-weight: 600; }
+.replace-note svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.media-previews { display: flex; flex-wrap: wrap; gap: 12px; }
+.media-thumb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  text-decoration: none;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.media-thumb:hover { border-color: var(--hl); transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0, 0, 0, .4); }
+.media-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .3s ease; }
+.media-thumb:hover img { transform: scale(1.08); }
+
+.media-overlay {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: var(--text-3);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  transition: .2s ease;
+  opacity: 0;
+  background: rgba(0, 0, 0, .5);
+  transition: opacity .2s ease;
 }
-.file-remove svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-.file-remove:hover { color: #f87171; background: rgba(239,68,68,.09); border-color: rgba(239,68,68,.3); }
-.saved-media { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-.media-previews { display: flex; flex-wrap: wrap; gap: 10px; }
-.media-thumb { width: 84px; height: 84px; display: block; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 12px; transition: border-color .2s, transform .2s; }
-.media-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.image-unavailable{display:block;padding:6px;font-size:10px;line-height:1.2;color:#fca5a5;overflow-wrap:anywhere}
-.media-thumb:hover { border-color: var(--hl); transform: translateY(-2px); }
-.video-link {
-  margin-top: 14px;
-  padding: 10px 14px;
-  display: inline-flex;
+.media-overlay svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.media-thumb:hover .media-overlay { opacity: 1; }
+
+.video-tile {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
+  gap: 8px;
   color: var(--hl);
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
+  background: linear-gradient(145deg, var(--hl-soft), var(--w3));
+  border-color: var(--hl-line);
 }
-.video-link svg { width: 18px; height: 18px; }
-.video-link:hover { filter: brightness(1.15); }
-/* ============ RESUMEN ============ */
+.play-circle {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-texto-botones, #fff);
+  background: var(--hl);
+  border-radius: 50%;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--hl) 40%, transparent);
+  transition: transform .2s ease;
+}
+.play-circle svg { width: 16px; height: 16px; margin-left: 2px; fill: currentColor; }
+.video-tile:hover .play-circle { transform: scale(1.12); }
+.video-label { font-size: 11.5px; font-weight: 700; letter-spacing: .3px; }
+
+.image-unavailable { display: block; padding: 8px; font-size: 10px; line-height: 1.25; color: #fca5a5; overflow-wrap: anywhere; }
+
+/* ============ VISTA PREVIA ============ */
 .event-summary {
   position: relative;
-  margin-top: 24px;
-  padding: 16px 18px 16px 22px;
+  margin-top: 16px;
+  padding: 18px 20px 18px 26px;
   overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--event-color) 16%, transparent), transparent 65%),
+    color-mix(in srgb, var(--event-color) 6%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--event-color) 34%, transparent);
+  border-radius: 18px;
+  transition: border-color .25s ease, background .25s ease;
+}
+.summary-accent { position: absolute; top: 0; bottom: 0; left: 0; width: 5px; background: var(--event-color); box-shadow: 0 0 14px var(--event-color); transition: background .25s ease; }
+
+.summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.summary-label { color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1.2px; }
+.summary-category { padding: 5px 11px; display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 20px; font-size: 11.5px; font-weight: 700; }
+.summary-category i { width: 8px; height: 8px; border-radius: 50%; background: var(--event-color); box-shadow: 0 0 8px var(--event-color); }
+
+.summary-name {
+  display: block;
+  margin: 10px 0 12px;
+  overflow: hidden;
+  color: var(--title);
+  font-family: 'Oswald', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-meta { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.summary-meta li { min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; }
+.summary-meta svg { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--event-color); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.summary-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============ FOOTER ============ */
+.form-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  margin: 22px -28px 0;
+  padding: 16px 28px;
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: var(--w3);
-  border: 1px solid var(--line);
-  border-radius: 15px;
+  justify-content: flex-end;
+  gap: 11px;
+  background: var(--card-glass);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(140%);
 }
-.summary-color { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; }
-.summary-icon { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--hl); background: var(--hl-soft); border-radius: 12px; }
-.summary-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.summary-content { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.summary-content > span { margin-bottom: 4px; color: var(--text-3); font-size: 10.5px; font-weight: 800; letter-spacing: 1px; }
-.summary-content strong { overflow: hidden; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.summary-content p { margin: 4px 0 0; overflow: hidden; color: var(--text-2); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.summary-category { padding: 7px 11px; display: flex; align-items: center; gap: 8px; color: var(--text-2); background: var(--w5); border: 1px solid var(--line); border-radius: 9px; font-size: 12px; font-weight: 700; }
-.summary-category i { width: 8px; height: 8px; border-radius: 50%; }
-/* ============ FOOTER ============ */
-.form-footer { padding-top: 22px; display: flex; align-items: center; justify-content: flex-end; gap: 11px; }
 .cancel-btn, .save-btn {
   height: 48px;
-  padding: 0 22px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 13px;
   font-family: 'Oswald', sans-serif;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: .3px;
   transition: .2s ease;
 }
 .cancel-btn { color: var(--text-2); background: transparent; border: 1px solid var(--line-strong); }
 .cancel-btn:hover { color: var(--title); background: var(--w5); }
 .save-btn {
-  min-width: 190px;
+  min-width: 200px;
   color: var(--color-texto-botones, #fff);
-  background: var(--color-botones, #1c4fd6);
+  background: linear-gradient(135deg, var(--color-botones, #1c4fd6), color-mix(in srgb, var(--color-botones, #1c4fd6) 75%, #000));
   border: 0;
-  box-shadow: 0 8px 22px rgba(28,79,214,.28);
+  box-shadow: 0 10px 26px rgba(28, 79, 214, .3), inset 0 1px 0 rgba(255, 255, 255, .18);
 }
 .save-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
-.save-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 12px 28px rgba(28,79,214,.38); }
+.save-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 14px 30px rgba(28, 79, 214, .4); }
 .save-btn:disabled { opacity: .55; cursor: not-allowed; }
-.close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible, .file-remove:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+
+.close-btn:focus-visible, .day-card:focus-visible, .cancel-btn:focus-visible, .save-btn:focus-visible,
+.file-remove:focus-visible, .media-thumb:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+
+.activity-form.is-saving .form-section,
+.activity-form.is-saving .event-summary,
+.activity-form.is-saving .cancel-btn { pointer-events: none; opacity: .76; }
+
+.save-spinner { width: 17px; height: 17px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: agenda-spin .65s linear infinite; }
+@keyframes agenda-spin { to { transform: rotate(360deg); } }
+
 /* ============ TOAST ============ */
 .toast-message {
   position: fixed;
@@ -1465,50 +1618,53 @@ button, input, select, textarea { font: inherit; }
   background: var(--card);
   border: 1px solid var(--line-strong);
   border-radius: 14px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.55);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .55);
   backdrop-filter: blur(15px);
 }
-.toast-icon { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; color: #34d399; background: rgba(16,185,129,.12); border-radius: 10px; }
-.toast-message.error .toast-icon { color: #f87171; background: rgba(239,68,68,.12); }
+.toast-icon { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; color: #34d399; background: rgba(16, 185, 129, .12); border-radius: 10px; }
+.toast-message.error .toast-icon { color: #f87171; background: rgba(239, 68, 68, .12); }
 .toast-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 .toast-message > div:last-child { display: flex; flex-direction: column; gap: 3px; }
 .toast-message strong { font-size: 14px; }
 .toast-message span { color: var(--w65); font-size: 12.5px; line-height: 1.4; }
 .toast-enter-active, .toast-leave-active { transition: opacity .25s ease, transform .25s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 10px); }
+
 @media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
+  .activity-wrapper *, .activity-wrapper *::before, .activity-wrapper *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
 /* ============ RESPONSIVE ============ */
 @media (max-width: 760px) {
   .schedule-card { grid-template-columns: 1fr; gap: 14px; }
   .time-connector { padding: 0 6px; }
-  /* Fecha arriba y días debajo, a todo el ancho */
   .day-picker { grid-template-columns: minmax(0, 1fr); gap: 14px; }
 }
+
 @media (max-width: 700px) {
-  .activity-panel { width: 96vw; max-height: 94vh; border-radius: 18px; }
+  .activity-panel { width: 96vw; max-height: 94vh; border-radius: 20px; }
   .panel-header { padding: 16px 18px; }
   .calendar-icon { width: 42px; height: 42px; }
   .panel-header h2 { font-size: 21px; }
   .panel-header p { display: none; }
-  .activity-form { padding: 0 18px 22px; }
-  .form-section { padding: 22px 0; }
+  .activity-form { padding: 4px 16px 0; }
+  .form-section { padding: 18px 16px; border-radius: 16px; }
   .fields-grid { grid-template-columns: 1fr; gap: 18px; }
   .field-large { grid-column: auto; }
-  /* 16px evita el zoom automático de iOS */
   .input-control input, .select-control select, .field textarea, .time-field input { font-size: 16px; }
   .input-control input, .select-control select { height: 52px; }
-  .event-summary { align-items: flex-start; }
-  .summary-category { display: none; }
-  .form-footer { flex-direction: column-reverse; gap: 10px; }
+  .summary-name { font-size: 19px; }
+  .form-footer { margin: 20px -16px 0; padding: 14px 16px; flex-direction: column-reverse; gap: 10px; }
   .cancel-btn, .save-btn { width: 100%; height: 52px; }
   .toast-message { bottom: 16px; min-width: 0; }
 }
+
 @media (max-width: 520px) {
   .days-grid { height: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .day-card { height: 42px; }
+  .media-thumb { width: 84px; height: 84px; }
 }
+
 @media (max-width: 380px) {
   .days-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .day-card { height: 44px; justify-content: flex-start; gap: 10px; padding: 0 12px; }
@@ -1516,7 +1672,4 @@ button, input, select, textarea { font: inherit; }
   .day-card > strong { display: block; }
   .section-number { width: 30px; height: 30px; }
 }
-.activity-form.is-saving .form-section, .activity-form.is-saving .cancel-btn { pointer-events:none; opacity:.76; }
-.save-spinner { width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:white;animation:agenda-spin .65s linear infinite; }
-@keyframes agenda-spin { to { transform:rotate(360deg); } }
 </style>

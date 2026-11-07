@@ -151,7 +151,7 @@
       ============================================================ -->
       <div class="desktop-calendar">
         <div class="calendar-scroll">
-          <!-- CABECERA DÍAS -->
+          <!-- CABECERA DÍAS (fija al hacer scroll) -->
           <div class="calendar-days-header">
             <div class="time-header"><span>{{ t('hour') }}</span></div>
             <div
@@ -171,25 +171,23 @@
             </div>
           </div>
 
-          <!-- CUERPO -->
+          <!-- CUERPO: una fila por hora; la fila crece si el evento lo necesita -->
           <div class="calendar-body">
-            <div class="time-column">
-              <div v-for="hour in hours" :key="hour" class="time-row">
+            <div
+              v-for="hour in hours"
+              :key="hour"
+              class="hour-row"
+              :class="{ current: isCurrentHour(hour) }"
+            >
+              <div class="time-cell">
                 <span>{{ formatHour(hour) }}</span>
               </div>
-            </div>
 
-            <div
-              v-for="day in weekDays"
-              :key="day.key"
-              class="day-column"
-              :class="{ today: day.isToday }"
-            >
               <div
-                v-for="hour in hours"
+                v-for="day in weekDays"
                 :key="`${day.key}-${hour}`"
                 class="calendar-slot"
-                :class="{ occupied: !!getActivity(day.key, hour) }"
+                :class="{ occupied: !!getActivity(day.key, hour), today: day.isToday }"
               >
                 <!-- ACTIVIDAD -->
                 <template v-for="ev in eventsAt(day.key, hour)" :key="ev.id">
@@ -210,11 +208,12 @@
                       </span>
                     </div>
                     <strong>{{ ev.nombre }}</strong>
+                    <span class="event-tag">{{ catLabel(ev.categoria) }}</span>
                     <div class="event-detail">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
                       <span>{{ ev.instructor }}</span>
                     </div>
-                    <div class="event-detail">
+                    <div v-if="ev.ubicacion" class="event-detail">
                       <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2" /></svg>
                       <span>{{ ev.ubicacion }}</span>
                     </div>
@@ -330,7 +329,7 @@
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
                       {{ ev.instructor }}
                     </span>
-                    <span>
+                    <span v-if="ev.ubicacion">
                       <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2" /></svg>
                       {{ ev.ubicacion }}
                     </span>
@@ -431,6 +430,7 @@ const errorApi = ref('');
 const currentDate = ref(new Date());
 const pendingDelete = ref<Activity | null>(null);
 const activities = ref<Activity[]>([]);
+const now = ref(new Date());
 
 const toast = reactive<{ show: boolean; message: string; type: ToastType }>({
   show: false,
@@ -636,10 +636,14 @@ const cambiarSede = () => {
 /* ============================================================
    CALENDARIO
 ============================================================ */
-const hours = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00',
-  '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-];
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/* De 6:00 a. m. hasta la franja de 11:00 p. m. (cierra a las 12:00 a. m.) */
+const FIRST_HOUR = 6;
+const LAST_HOUR = 23;
+const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR + 1 }, (_, i) => `${pad(FIRST_HOUR + i)}:00`);
+
+const isCurrentHour = (hour: string) => Number(hour.slice(0, 2)) === now.value.getHours();
 
 const dayData = [
   { key: 'monday', es: 'Lunes', en: 'Monday', shortEs: 'LUN', shortEn: 'MON' },
@@ -745,7 +749,7 @@ const totalHours = computed(() => {
 });
 
 const isoDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 const dateForDay = (day: string): Date | undefined =>
   weekDays.value.find(d => d.key === day)?.date;
@@ -856,7 +860,8 @@ const showToast = (message: string, type: ToastType = 'success') => {
 ============================================================ */
 const addOneHour = (hour: string) => {
   const [h = 0, m = 0] = hour.split(':').map(Number);
-  return `${String(Math.min(h + 1, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  if (h >= 23) return '23:59';
+  return `${pad(h + 1)}:${pad(m)}`;
 };
 
 const openForm = (data: Record<string, any> | null = null) => {
@@ -1034,12 +1039,17 @@ const handleKeydown = (event: KeyboardEvent) => {
   else if (showForm.value) closeForm();
 };
 
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+
 onMounted(() => {
   syncLanguage();
   goToday();
   window.addEventListener('idioma-changed', handleLanguageChange);
   window.addEventListener('factorfit:branch-changed', cambiarSede);
   window.addEventListener('keydown', handleKeydown);
+  clockTimer = setInterval(() => {
+    now.value = new Date();
+  }, 60000);
   void cargarActividades();
 });
 
@@ -1047,6 +1057,7 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
   window.removeEventListener('factorfit:branch-changed', cambiarSede);
   window.removeEventListener('keydown', handleKeydown);
+  if (clockTimer) clearInterval(clockTimer);
   if (toastTimer) clearTimeout(toastTimer);
   ultimaConsulta++;
 });
@@ -1055,7 +1066,11 @@ onUnmounted(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 
-* { box-sizing: border-box; }
+.schedule-wrapper,
+.schedule-wrapper *,
+.schedule-wrapper *::before,
+.schedule-wrapper *::after { box-sizing: border-box; }
+
 button { font: inherit; }
 
 .schedule-wrapper {
@@ -1072,12 +1087,9 @@ button { font: inherit; }
   --w5: rgba(255, 255, 255, .05);
   --w6: rgba(255, 255, 255, .06);
   --w8: rgba(255, 255, 255, .08);
-  --w10: rgba(255, 255, 255, .10);
   --w14: rgba(255, 255, 255, .14);
-  --w18: rgba(255, 255, 255, .18);
   --w25: rgba(255, 255, 255, .25);
   --w35: rgba(255, 255, 255, .35);
-  --w50: rgba(255, 255, 255, .50);
   --w65: rgba(255, 255, 255, .65);
   --w85: rgba(255, 255, 255, .85);
   --line: var(--w8);
@@ -1085,7 +1097,8 @@ button { font: inherit; }
   --line-strong: var(--w14);
   --text-2: rgba(245, 245, 244, .66);
   --text-3: rgba(245, 245, 244, .44);
-  --row: 118px;
+  --row: 76px;
+  --header-h: 86px;
 
   position: relative;
   width: 100%;
@@ -1109,12 +1122,9 @@ button { font: inherit; }
     --w5: color-mix(in srgb, var(--text) 5%, transparent);
     --w6: color-mix(in srgb, var(--text) 6%, transparent);
     --w8: color-mix(in srgb, var(--text) 8%, transparent);
-    --w10: color-mix(in srgb, var(--text) 10%, transparent);
     --w14: color-mix(in srgb, var(--text) 14%, transparent);
-    --w18: color-mix(in srgb, var(--text) 18%, transparent);
     --w25: color-mix(in srgb, var(--text) 25%, transparent);
     --w35: color-mix(in srgb, var(--text) 35%, transparent);
-    --w50: color-mix(in srgb, var(--text) 50%, transparent);
     --w65: color-mix(in srgb, var(--text) 65%, transparent);
     --w85: color-mix(in srgb, var(--text) 85%, transparent);
   }
@@ -1139,9 +1149,9 @@ button { font: inherit; }
 .schedule-header {
   position: sticky;
   top: 0;
-  z-index: 30;
-  min-height: 86px;
-  padding: 16px 26px;
+  z-index: 40;
+  height: var(--header-h);
+  padding: 0 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1294,17 +1304,34 @@ button { font: inherit; }
 .summary-card span { margin-top: 5px; color: var(--text-3); font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
 
 /* ============ CALENDARIO (DESKTOP) ============ */
-.desktop-calendar { margin: 0 26px 22px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--w3); }
-.calendar-scroll { min-width: 1000px; overflow-x: auto; }
-.calendar-days-header, .calendar-body { display: grid; grid-template-columns: 78px repeat(7, minmax(0, 1fr)); }
-.calendar-days-header { background: var(--w4); border-bottom: 1px solid var(--line); }
+.desktop-calendar {
+  margin: 0 26px 22px;
+  overflow: hidden;
+  overflow: clip; /* permite que la cabecera de días quede fija al hacer scroll */
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--w3);
+}
+.calendar-scroll { min-width: 0; }
+
+.calendar-days-header,
+.hour-row { display: grid; grid-template-columns: 78px repeat(7, minmax(0, 1fr)); }
+
+.calendar-days-header {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 25;
+  background: var(--card-glass);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(140%);
+}
 
 .time-header { display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--line-soft); }
 .time-header span { color: var(--text-3); font-size: 10px; font-weight: 800; letter-spacing: .9px; }
 
 .day-header {
   position: relative;
-  min-height: 96px;
+  min-height: 92px;
   padding: 12px 6px;
   display: flex;
   flex-direction: column;
@@ -1322,22 +1349,39 @@ button { font: inherit; }
 .today-indicator { position: absolute; top: 8px; right: 8px; padding: 2px 7px; color: var(--hl); background: var(--hl-soft); border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: .5px; }
 .day-count { margin-top: 6px; color: var(--text-3); font-size: 10.5px; }
 
-.time-column { border-right: 1px solid var(--line-soft); background: rgba(0, 0, 0, .14); }
-.time-row { height: var(--row); padding: 10px 10px 0 0; display: flex; align-items: flex-start; justify-content: flex-end; border-bottom: 1px solid var(--line-soft); }
-.time-row:last-child { border-bottom: 0; }
-.time-row span { color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 500; }
+/* Filas por hora: crecen según el contenido */
+.hour-row { border-bottom: 1px solid var(--line-soft); }
+.hour-row:last-child { border-bottom: 0; }
 
-.day-column { min-width: 0; border-right: 1px solid var(--line-soft); }
-.day-column:last-child { border-right: 0; }
-.day-column.today { background: var(--w3); }
+.time-cell {
+  padding: 12px 10px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  background: rgba(0, 0, 0, .14);
+  border-right: 1px solid var(--line-soft);
+}
+.time-cell span { color: var(--text-3); font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+.hour-row.current .time-cell { background: var(--hl-soft); }
+.hour-row.current .time-cell span { color: var(--hl); font-weight: 700; }
 
-.calendar-slot { position: relative; height: var(--row); padding: 5px; border-bottom: 1px solid var(--line-soft); transition: background .15s; }
-.day-column .calendar-slot:last-child { border-bottom: 0; }
+.calendar-slot {
+  position: relative;
+  min-width: 0;
+  min-height: var(--row);
+  padding: 5px;
+  display: flex;
+  border-right: 1px solid var(--line-soft);
+  transition: background .15s;
+}
+.calendar-slot:last-child { border-right: 0; }
+.calendar-slot.today { background: var(--w3); }
+.hour-row.current .calendar-slot.today { background: var(--hl-soft); }
 .calendar-slot:not(.occupied):hover { background: var(--hl-soft); }
 
 .empty-slot {
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1357,9 +1401,9 @@ button { font: inherit; }
 /* ============ EVENTOS ============ */
 .activity-event {
   position: relative;
-  width: 100%;
-  height: 100%;
-  padding: 9px 10px 12px 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px 13px 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1387,7 +1431,7 @@ button { font: inherit; }
 
 .activity-event > strong {
   display: block;
-  margin: 4px 0 5px;
+  margin: 4px 0 3px;
   overflow: hidden;
   color: var(--title);
   font-family: 'Oswald', sans-serif;
@@ -1397,6 +1441,24 @@ button { font: inherit; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.event-tag {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: 4px;
+  padding: 1px 7px;
+  overflow: hidden;
+  color: var(--event-color);
+  background: color-mix(in srgb, var(--event-color) 14%, transparent);
+  border-radius: 20px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .event-detail { margin-top: 2px; display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--text-2); }
 .event-detail svg { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .event-detail span { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1429,11 +1491,11 @@ button { font: inherit; }
 .icon-btn.danger:hover { background: #dc2626; border-color: #dc2626; }
 
 /* ============ MEDIA ============ */
-.event-media { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin: 6px 0 2px; }
+.event-media { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin: 7px 0 2px; }
 .event-media a { color: var(--hl); font-size: 11px; text-decoration: none; }
 .event-media img { width: 32px; height: 32px; display: block; object-fit: cover; border: 1px solid var(--w14); border-radius: 7px; transition: transform .15s; }
 .event-media img:hover { transform: scale(1.12); }
-.video-link { padding: 3px 8px; background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 20px; font-weight: 700; }
+.video-link { padding: 4px 9px; background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 20px; font-weight: 700; }
 .image-unavailable { display: block; max-width: 90px; color: #fca5a5; font-size: 9px; overflow-wrap: anywhere; }
 
 /* ============ MOBILE (oculto en desktop) ============ */
@@ -1482,7 +1544,7 @@ button { font: inherit; }
 .confirm-actions button:focus-visible, .empty-slot:focus-visible, .activity-event:focus-visible { outline: 2px solid var(--hl); outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  .schedule-wrapper *, .schedule-wrapper *::before, .schedule-wrapper *::after { transition: none !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
 /* ============ RESPONSIVE ============ */
@@ -1490,9 +1552,17 @@ button { font: inherit; }
   .legend { display: none; }
 }
 
+/* Entre tablet y laptop pequeña: scroll horizontal (la cabecera deja de ser fija) */
+@media (max-width: 1050px) {
+  .desktop-calendar { overflow-x: auto; }
+  .calendar-scroll { min-width: 980px; }
+  .calendar-days-header { position: static; }
+}
+
 @media (max-width: 767px) {
+  .schedule-wrapper { --header-h: 74px; }
   .schedule-panel { width: 96vw; max-height: 94vh; border-radius: 20px; }
-  .schedule-header { min-height: 74px; padding: 14px 16px; }
+  .schedule-header { padding: 0 16px; }
   .header-icon { width: 42px; height: 42px; }
   .header-info h2 { font-size: 20px; }
   .header-info p { display: none; }
