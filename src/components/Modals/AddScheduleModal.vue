@@ -45,46 +45,52 @@
             </div>
           </div>
 
-          <div class="field date-field">
-            <label for="act-date">{{ t('eventDateLabel') }}</label>
-            <div class="input-control">
-              <div class="field-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
-                </svg>
+          <div class="day-picker">
+            <!-- Fecha -->
+            <div class="field date-field">
+              <label for="act-date">{{ t('eventDateLabel') }}</label>
+              <div class="input-control">
+                <div class="field-icon">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M6 2v3M18 2v3M3 9h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/>
+                  </svg>
+                </div>
+                <input
+                  id="act-date"
+                  v-model="form.fecha"
+                  type="date"
+                  :min="todayLocal"
+                  :disabled="isEdit && isPastEvent"
+                  required
+                  class="date-input"
+                >
               </div>
-              <input
-                id="act-date"
-                v-model="form.fecha"
-                type="date"
-                :min="todayLocal"
-                :disabled="isEdit && isPastEvent"
-                required
-                class="date-input"
-              >
             </div>
-            <small v-if="isPastEvent" class="field-error">{{ t('pastEventLocked') }}</small>
+
+            <!-- Día de la semana (compacto) -->
+            <div class="field weekday-field">
+              <span class="field-title">{{ t('weekdayLabel') }}</span>
+              <div class="days-grid" role="group" :aria-label="t('weekdayLabel')">
+                <button
+                  v-for="(day, index) in currentDays"
+                  :key="day"
+                  type="button"
+                  class="day-card"
+                  :class="{ active: form.dia === daysEs[index] }"
+                  :title="day"
+                  :aria-label="day"
+                  :aria-pressed="form.dia === daysEs[index]"
+                  @click="selectDay(index)"
+                  :disabled="isPastEvent"
+                >
+                  <span>{{ shortDay(day) }}</span>
+                  <strong>{{ day }}</strong>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div class="days-grid">
-            <button
-              v-for="(day, index) in currentDays"
-              :key="day"
-              type="button"
-              class="day-card"
-              :class="{ active: form.dia === daysEs[index] }"
-              @click="selectDay(index)"
-              :disabled="isPastEvent"
-            >
-              <span>{{ shortDay(day) }}</span>
-              <strong>{{ day }}</strong>
-              <div class="day-check">
-                <svg viewBox="0 0 24 24">
-                  <path d="m6 12 4 4 8-8"/>
-                </svg>
-              </div>
-            </button>
-          </div>
+          <small v-if="isPastEvent" class="field-error">{{ t('pastEventLocked') }}</small>
         </section>
 
         <!-- ================= INFORMACIÓN ================= -->
@@ -672,6 +678,7 @@ const groupLabel = (group) => settings.idioma === 'en' ? group.en : group.es;
 const translations = {
   es: {
     eventDateLabel: 'Fecha exacta del evento',
+    weekdayLabel: 'Día de la semana',
     pastEventLocked: 'Este evento ya pasó y no puede modificarse.',
     customCategoryLabel: 'O escribe una nueva categoría',
     customCategoryPlaceholder: 'Ej. Torneo de fuerza',
@@ -749,6 +756,7 @@ const translations = {
   },
   en: {
     eventDateLabel: 'Event date',
+    weekdayLabel: 'Day of the week',
     pastEventLocked: 'This event is in the past and cannot be edited.',
     customCategoryLabel: 'Or write a new category',
     customCategoryPlaceholder: 'E.g. Strength competition',
@@ -1230,50 +1238,50 @@ button, input, select, textarea { font: inherit; }
 .section-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; }
 .section-title p { margin: 3px 0 0; color: var(--text-3); font-size: 12.5px; }
 
-/* ============ DÍAS ============ */
-.date-field { margin-bottom: 16px; }
-.field-error { color: #f87171; font-size: 12.5px; }
-.days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+/* ============ DÍA (compacto: fecha + días en una fila) ============ */
+.day-picker {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  align-items: end;
+  gap: 16px;
+}
+.field-error { display: block; margin-top: 10px; color: #f87171; font-size: 12.5px; }
+
+.days-grid {
+  height: 50px;
+  padding: 4px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  background: var(--field);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
 .day-card {
   position: relative;
   min-width: 0;
-  min-height: 76px;
-  padding: 11px 5px;
+  padding: 0 2px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
   cursor: pointer;
   color: var(--text-3);
-  background: var(--w3);
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  transition: .2s ease;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
-.day-card > span { font-size: 11px; font-weight: 800; letter-spacing: .6px; }
-.day-card > strong { max-width: 100%; overflow: hidden; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 500; text-overflow: ellipsis; }
-.day-card:hover:not(:disabled) { color: var(--title); border-color: var(--hl-line); background: var(--hl-soft); }
-.day-card.active { color: var(--hl); background: var(--hl-soft); border-color: var(--hl); box-shadow: 0 0 0 3px var(--hl-soft); }
-.day-card:disabled { opacity: .45; cursor: not-allowed; }
-.day-check {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  color: var(--title);
+.day-card > span { font-size: 11.5px; font-weight: 800; letter-spacing: .6px; }
+/* El nombre completo solo se muestra en pantallas pequeñas */
+.day-card > strong { display: none; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 500; }
+.day-card:hover:not(:disabled):not(.active) { color: var(--title); background: var(--w5); }
+.day-card.active {
+  color: var(--color-texto-botones, #fff);
   background: var(--hl);
-  border-radius: 50%;
-  transform: scale(.6);
-  transition: .2s ease;
+  border-color: var(--hl);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--hl) 35%, transparent);
 }
-.day-check svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.day-card.active .day-check { opacity: 1; transform: scale(1); }
+.day-card:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ============ CAMPOS ============ */
 .fields-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -1559,7 +1567,8 @@ button, input, select, textarea { font: inherit; }
 @media (max-width: 760px) {
   .schedule-card { grid-template-columns: 1fr; gap: 14px; }
   .time-connector { padding: 0 6px; }
-  .days-grid { grid-template-columns: repeat(4, 1fr); }
+  /* Fecha arriba y días debajo, a todo el ancho */
+  .day-picker { grid-template-columns: minmax(0, 1fr); gap: 14px; }
 }
 @media (max-width: 700px) {
   .activity-panel { width: 96vw; max-height: 94vh; border-radius: 18px; }
@@ -1580,10 +1589,15 @@ button, input, select, textarea { font: inherit; }
   .cancel-btn, .save-btn { width: 100%; height: 52px; }
   .toast-message { bottom: 16px; min-width: 0; }
 }
-@media (max-width: 420px) {
-  .days-grid { grid-template-columns: repeat(2, 1fr); }
-  .day-card { min-height: 60px; flex-direction: row; gap: 10px; justify-content: flex-start; padding: 0 14px; }
+@media (max-width: 520px) {
+  .days-grid { height: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .day-card { height: 42px; }
+}
+@media (max-width: 380px) {
+  .days-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .day-card { height: 44px; justify-content: flex-start; gap: 10px; padding: 0 12px; }
   .day-card > span { min-width: 30px; text-align: left; }
+  .day-card > strong { display: block; }
   .section-number { width: 30px; height: 30px; }
 }
 </style>
