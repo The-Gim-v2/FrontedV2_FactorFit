@@ -13,7 +13,7 @@ const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const k
 const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok){const errors=data?.errors?Object.values(data.errors).flat().join(' '):'';throw new Error(response.status===403?'No tienes autorización para modificar clientes de esta sucursal. Verifica que la sede seleccionada pertenezca a tu gimnasio.':errors||data?.message||`Error HTTP ${response.status}`);}return data;};
 const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
 const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
-const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',curp:String(c.Curp??c.curp??'').toUpperCase(),fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
 const chooseClient=async(c)=>{showSuggestions.value=false;searchQuery.value='';const id=String(c.ID_Cliente);if(String(route.params.id)===id)await loadClient(id);else await router.push(`/GYM_ACCOUNT/editar-usuario/${id}`);};
 const toastRef = ref(null);
 const searchQuery = ref('');
@@ -31,6 +31,7 @@ const form = reactive({
   nombres: '',
   apellidoPaterno: '',
   apellidoMaterno: '',
+  curp: '',
   fechaNacimiento: '',
   celular: '',
   correo: '',
@@ -239,7 +240,20 @@ const capturePhoto = () => {
   );
 };
 /* ============================ GUARDAR ============================ */
-const saveChanges=async()=>{if(saving.value)return;if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+const normalizarCurp = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
+const curpEstructura = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/;
+const curpValida = (value) => {
+  const c = normalizarCurp(value);
+  if (!curpEstructura.test(c)) return false;
+  const yy = Number(c.slice(4, 6));
+  const mm = Number(c.slice(6, 8));
+  const dd = Number(c.slice(8, 10));
+  const year = (/[0-9]/.test(c[16]) ? 1900 : 2000) + yy;
+  const fecha = new Date(Date.UTC(year, mm - 1, dd));
+  return fecha.getUTCFullYear() === year && fecha.getUTCMonth() === mm - 1 && fecha.getUTCDate() === dd;
+};
+watch(() => form.curp, (v) => { const limpio = normalizarCurp(v); if (v !== limpio) form.curp = limpio; });
+const saveChanges=async()=>{if(saving.value)return;if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(!curpValida(form.curp))return toastRef.value?.notify('La CURP es obligatoria y debe tener 18 caracteres con fecha válida.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,curp:normalizarCurp(form.curp),fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
 watch(()=>route.params.id,id=>{if(id)loadClient(id);});
 const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
@@ -500,6 +514,13 @@ onUnmounted(() => {
                   type="text"
                   placeholder="García"
                 />
+              </div>
+              <!-- CURP OBLIGATORIA -->
+              <div class="input-group">
+                <label for="f-curp">CURP <span aria-hidden="true">*</span></label>
+                <input id="f-curp" v-model="form.curp" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="18" placeholder="ABCD010101HDFXXX00" aria-required="true" :aria-invalid="form.curp.length > 0 && !curpValida(form.curp)" style="text-transform:uppercase" />
+                <small class="curp-helper" :class="{ 'curp-error': form.curp.length > 0 && !curpValida(form.curp) }">{{ form.curp.length }}/18 caracteres · Campo obligatorio</small>
+                <a class="curp-link" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer">¿No conoces tu CURP? Consultarla aquí</a>
               </div>
               <!-- FECHA DE NACIMIENTO -->
               <div class="input-group">
@@ -1818,4 +1839,7 @@ onUnmounted(() => {
     padding-left: 8px;
   }
 }
+.curp-helper{font-size:11px;color:var(--muted,#9ca3af)}
+.curp-error{color:#fb7185}
+.curp-link{font-size:11px;color:var(--accent,#60a5fa);text-decoration:underline;text-underline-offset:2px}
 </style>
