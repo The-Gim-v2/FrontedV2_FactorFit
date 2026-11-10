@@ -188,14 +188,14 @@ const loadUser = async (id) => {
     const horario = user.horario || {};
     Object.assign(form, emptyForm(), {
       rol: roleMap[user.Nombre_Rol ?? user.rol?.Nombre_Rol] || '',
-      correo: user.Correo_Electronico || '',
+      correo: correoNormalEdicion(user.Correo_Electronico || ''),
       sedes: sedes.length ? sedes : [Number(user.ID_Sede)].filter(Boolean),
       curp: user.Curp || '',
       nombres: user.Nombre || '',
       apellidoPaterno: user.Apellido_P || '',
       apellidoMaterno: user.Apellido_M || '',
       fechaNacimiento: String(user.Fecha_Nacimiento || '').slice(0, 10),
-      celular: user.Celular || '',
+      celular: formatoCelularEdicion(user.Celular || ''),
       especialidad: user.Especialidad || user.datos_extras?.Especialidad || '',
       facebook: user.Facebook || user.datos_extras?.Facebook || '',
       instagram: user.Instagram || user.datos_extras?.Instagram || '',
@@ -488,6 +488,35 @@ const capturePhoto = () => {
     0.92
   );
 };
+/* Mismas reglas de captura que el registro (sin consultar RENAPO ni verificar buzones). */
+const nombreTituloEdicion = v => String(v ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const correoNormalEdicion = v => String(v ?? '').trim().toLowerCase();
+const validarCorreoEdicion = value => {
+  const correo = correoNormalEdicion(value);
+  if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false;
+  const dominio = correo.split('@')[1];
+  const equivocados = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','gmail.om','gmail.cmo','gnail.com','gmaill.com','hotmail.con','hotmial.com','hotmail.co','hotmai.com','outlook.con','outlok.com','outlook.co','yahoo.con','yaho.com','icloud.con'];
+  return !equivocados.includes(dominio) && dominio.split('.').at(-1).length >= 2;
+};
+const digitosCelularEdicion = v => String(v ?? '').replace(/\D/g,'').slice(0,10);
+const formatoCelularEdicion = v => {const d=digitosCelularEdicion(v);return [d.slice(0,3),d.slice(3,6),d.slice(6,10)].filter(Boolean).join(' ');};
+const inputCelularEdicion = (event, form) => {
+  const texto=String(event.target.value??'');
+  if (texto.includes('+') || /^\s*52[\s-]/.test(texto)) {event.target.value=form.celular;return;}
+  form.celular=formatoCelularEdicion(texto);event.target.value=form.celular;
+};
+const pasteCelularEdicion = event => {const t=event.clipboardData?.getData('text')??'';if(t.includes('+')||/^\s*52[\s-]/.test(t)||t.replace(/\D/g,'').length>10)event.preventDefault();};
+const medidaEdicion = (value, decimales = false) => {
+  let t=String(value??'').replace(',', '.').replace(/[^0-9.]/g,'');
+  const partes=t.split('.');let entero=partes[0].slice(0,3);
+  return decimales && partes.length>1 ? entero+'.'+(partes[1]??'').slice(0,1) : entero;
+};
+const medidaValidaEdicion = (value, tipo) => {
+  if (value === '' || value === null || value === undefined) return true;
+  const txt=String(value);if(!/^(?:\d{1,3})(?:\.\d)?$/.test(txt))return false;
+  const n=Number(txt);return n>0 && n<=(tipo==='altura'?300:999.9);
+};
+
 /* ============================ VALIDACIÓN ============================ */
 const validateForm = () => {
   if (!form.nombres.trim() || !form.apellidoPaterno.trim()) {
@@ -510,6 +539,9 @@ const validateForm = () => {
       )
     );
   }
+  if(!validarCorreoEdicion(form.correo))return warn('Revisa el correo y su dominio (gmail.com, hotmail.com, outlook.com, etc.).');
+  if(!/^\d{10}$/.test(digitosCelularEdicion(form.celular)))return warn('El celular debe tener 10 dígitos nacionales, sin +52.');
+  if(form.curp && (!/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/.test(form.curp)))return warn('Revisa la CURP: debe contener 18 caracteres.');
   /* Contraseña: opcional al editar, pero si se escribe debe coincidir */
   if (needsPassword.value && (form.password || form.confirmPassword)) {
     if (form.password !== form.confirmPassword) {
@@ -572,13 +604,13 @@ const saveChanges = async () => {
     const fd = new FormData();
     const values = {
       rol: form.rol,
-      correo: form.correo.trim(),
-      curp: form.curp.trim(),
-      nombres: form.nombres.trim(),
-      apellidoPaterno: form.apellidoPaterno.trim(),
-      apellidoMaterno: form.apellidoMaterno.trim(),
+      correo: correoNormalEdicion(form.correo),
+      curp: form.curp.trim().toUpperCase(),
+      nombres: nombreTituloEdicion(form.nombres.trim()),
+      apellidoPaterno: nombreTituloEdicion(form.apellidoPaterno.trim()),
+      apellidoMaterno: nombreTituloEdicion(form.apellidoMaterno.trim()),
       fechaNacimiento: form.fechaNacimiento,
-      celular: form.celular.trim(),
+      celular: digitosCelularEdicion(form.celular),
       especialidad: form.especialidad.trim(),
       facebook: form.facebook.trim(),
       instagram: form.instagram.trim(),
@@ -913,10 +945,10 @@ onUnmounted(() => {
                 <label for="p-curp">CURP</label>
                 <input
                   id="p-curp"
-                  v-model="form.curp"
+                  v-model="form.curp" @input="form.curp = String($event.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,18)"
                   type="text"
                   maxlength="18"
-                  placeholder="CURP"
+                  placeholder="ABCD010101HDFXXX00"
                 />
               </div>
               <!-- NOMBRES -->
@@ -927,7 +959,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="p-nombres"
-                  v-model="form.nombres"
+                  v-model="form.nombres" @input="form.nombres = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="given-name"
                   placeholder="Carlos Luis"
@@ -941,7 +973,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="p-paterno"
-                  v-model="form.apellidoPaterno"
+                  v-model="form.apellidoPaterno" @input="form.apellidoPaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="family-name"
                   placeholder="Ramírez"
@@ -954,7 +986,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="p-materno"
-                  v-model="form.apellidoMaterno"
+                  v-model="form.apellidoMaterno" @input="form.apellidoMaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   placeholder="García"
                 />
@@ -988,10 +1020,10 @@ onUnmounted(() => {
                   </svg>
                   <input
                     id="p-celular"
-                    v-model="form.celular"
+                     :value="form.celular" @input="inputCelularEdicion($event, form)" @paste="pasteCelularEdicion"
                     type="tel"
-                    autocomplete="tel"
-                    placeholder="+52 000 000 0000"
+                    autocomplete="tel-national"
+                    placeholder="481 111 1231" inputmode="numeric" maxlength="12"
                   />
                 </div>
               </div>
@@ -1201,7 +1233,7 @@ onUnmounted(() => {
                     </svg>
                     <input
                       id="p-correo"
-                      v-model="form.correo"
+                      v-model="form.correo" @blur="form.correo = correoNormalEdicion(form.correo)"
                       type="email"
                       autocomplete="email"
                       placeholder="personal@gimnasio.com"

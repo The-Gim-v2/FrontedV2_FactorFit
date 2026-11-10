@@ -195,7 +195,7 @@
                 <label>{{ t('weight') }}</label>
                 <div class="control has-icon has-suffix">
                   <i class="bi bi-speedometer2 control-icon"></i>
-                  <input type="number" step="0.1" min="0" v-model="form.peso" placeholder="70" />
+                  <input type="text" inputmode="decimal" maxlength="5" v-model="form.peso" @input="form.peso = limitarMedidaRegistro($event.target.value, true)" placeholder="70" />
                   <span class="control-suffix">kg</span>
                 </div>
               </div>
@@ -203,7 +203,7 @@
                 <label>{{ t('height') }}</label>
                 <div class="control has-icon has-suffix">
                   <i class="bi bi-rulers control-icon"></i>
-                  <input type="number" min="0" v-model="form.altura" placeholder="175" />
+                  <input type="text" inputmode="numeric" maxlength="3" v-model="form.altura" @input="form.altura = limitarMedidaRegistro($event.target.value)" placeholder="175" />
                   <span class="control-suffix">cm</span>
                 </div>
               </div>
@@ -543,6 +543,15 @@ const fechaLocal = () => {
 const fechaSolo = (v) => String(v || '').slice(0, 10);
 /* Normalización visible de nombres, CURP y correo; validación al guardar. */
 const nombreTitulo = (valor) => String(valor ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const limitarMedidaRegistro = (value, decimal = false) => {
+  const partes = String(value??'').replace(',', '.').replace(/[^0-9.]/g,'').split('.');
+  const entero = partes[0].slice(0,3);
+  return decimal && partes.length>1 ? entero+'.'+(partes[1]??'').slice(0,1):entero;
+};
+const medidaRegistroValida = (value,tipo) => {
+  if(value===''||value===null||value===undefined)return true;
+  const v=String(value);return /^\d{1,3}(?:\.\d)?$/.test(v)&&Number(v)>0&&Number(v)<=(tipo==='altura'?300:999.9);
+};
 const correoNormal = (valor) => String(valor ?? '').trim().toLowerCase();
 const validarCorreo = (valor) => { const correo = correoNormal(valor); if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false; const partes = correo.split('@'); const dominio = partes[1]; const errores = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','hotmail.con','hotmial.com','hotmail.co','outlook.con','outlok.com','yahoo.con','yaho.com','icloud.con']; if (errores.includes(dominio)) return false; const tld = dominio.split('.').at(-1); return tld.length >= 2 && tld.length <= 24; };
 const normalizarCampo = (clave) => { form[clave] = nombreTitulo(form[clave]); };
@@ -1176,6 +1185,7 @@ const saveRegistration = async () => {
     return;
   }
   if (!curpValidation.value.valid) { avisar(curpValidation.value.message); return; }
+  if(!medidaRegistroValida(form.peso,'peso')||!medidaRegistroValida(form.altura,'altura')){avisar('Peso: máximo 999.9 kg y altura: máximo 300 cm, con 3 dígitos enteros.');return;}
   if (!validarCorreo(form.email)) { avisar(txt('Ingresa un correo válido y verifica su dominio, como gmail.com, hotmail.com u outlook.com.', 'Enter a valid email and check its domain.')); return; }
   if (form.celular && !celularValido()) { avisar('El celular debe tener exactamente 10 dígitos, sin +52.'); return; }
   if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }

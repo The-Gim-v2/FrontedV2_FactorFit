@@ -13,7 +13,7 @@ const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const k
 const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok){const errors=data?.errors?Object.values(data.errors).flat().join(' '):'';throw new Error(response.status===403?'No tienes autorización para modificar clientes de esta sucursal. Verifica que la sede seleccionada pertenezca a tu gimnasio.':errors||data?.message||`Error HTTP ${response.status}`);}return data;};
 const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
 const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
-const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',curp:String(c.Curp??c.curp??'').toUpperCase(),fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:c.Celular||'',correo:c.Correo_Electronico||'',peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',curp:String(c.Curp??c.curp??'').toUpperCase(),fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:formatoCelularEdicion(c.Celular||''),correo:correoNormalEdicion(c.Correo_Electronico||''),peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
 const chooseClient=async(c)=>{showSuggestions.value=false;searchQuery.value='';const id=String(c.ID_Cliente);if(String(route.params.id)===id)await loadClient(id);else await router.push(`/GYM_ACCOUNT/editar-usuario/${id}`);};
 const toastRef = ref(null);
 const searchQuery = ref('');
@@ -239,6 +239,35 @@ const capturePhoto = () => {
     0.92
   );
 };
+/* Mismas reglas de captura que el registro (sin consultar RENAPO ni verificar buzones). */
+const nombreTituloEdicion = v => String(v ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const correoNormalEdicion = v => String(v ?? '').trim().toLowerCase();
+const validarCorreoEdicion = value => {
+  const correo = correoNormalEdicion(value);
+  if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false;
+  const dominio = correo.split('@')[1];
+  const equivocados = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','gmail.om','gmail.cmo','gnail.com','gmaill.com','hotmail.con','hotmial.com','hotmail.co','hotmai.com','outlook.con','outlok.com','outlook.co','yahoo.con','yaho.com','icloud.con'];
+  return !equivocados.includes(dominio) && dominio.split('.').at(-1).length >= 2;
+};
+const digitosCelularEdicion = v => String(v ?? '').replace(/\D/g,'').slice(0,10);
+const formatoCelularEdicion = v => {const d=digitosCelularEdicion(v);return [d.slice(0,3),d.slice(3,6),d.slice(6,10)].filter(Boolean).join(' ');};
+const inputCelularEdicion = (event, form) => {
+  const texto=String(event.target.value??'');
+  if (texto.includes('+') || /^\s*52[\s-]/.test(texto)) {event.target.value=form.celular;return;}
+  form.celular=formatoCelularEdicion(texto);event.target.value=form.celular;
+};
+const pasteCelularEdicion = event => {const t=event.clipboardData?.getData('text')??'';if(t.includes('+')||/^\s*52[\s-]/.test(t)||t.replace(/\D/g,'').length>10)event.preventDefault();};
+const medidaEdicion = (value, decimales = false) => {
+  let t=String(value??'').replace(',', '.').replace(/[^0-9.]/g,'');
+  const partes=t.split('.');let entero=partes[0].slice(0,3);
+  return decimales && partes.length>1 ? entero+'.'+(partes[1]??'').slice(0,1) : entero;
+};
+const medidaValidaEdicion = (value, tipo) => {
+  if (value === '' || value === null || value === undefined) return true;
+  const txt=String(value);if(!/^(?:\d{1,3})(?:\.\d)?$/.test(txt))return false;
+  const n=Number(txt);return n>0 && n<=(tipo==='altura'?300:999.9);
+};
+
 /* ============================ GUARDAR ============================ */
 const normalizarCurp = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
 const curpEstructura = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/;
@@ -253,7 +282,25 @@ const curpValida = (value) => {
   return fecha.getUTCFullYear() === year && fecha.getUTCMonth() === mm - 1 && fecha.getUTCDate() === dd;
 };
 watch(() => form.curp, (v) => { const limpio = normalizarCurp(v); if (v !== limpio) form.curp = limpio; });
-const saveChanges=async()=>{if(saving.value)return;if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');if(!curpValida(form.curp))return toastRef.value?.notify('La CURP es obligatoria y debe tener 18 caracteres con fecha válida.','warning');if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}saving.value=true;try{const fd=new FormData();const values={sede_id:clienteSedeId.value||sedeId(),nombres:form.nombres,apellidoP:form.apellidoPaterno,apellidoM:form.apellidoMaterno,curp:normalizarCurp(form.curp),fechaNacimiento:form.fechaNacimiento,celular:form.celular,email:form.correo,peso:form.peso,altura:form.altura};Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});if(avatarFile.value)fd.append('foto',avatarFile.value);await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');}catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}};
+const saveChanges=async()=>{
+  if(saving.value)return;
+  if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');
+  if(!form.nombres.trim()||!form.apellidoPaterno.trim())return toastRef.value?.notify('Nombre y apellido paterno son obligatorios.','warning');
+  if(!curpValida(form.curp))return toastRef.value?.notify('La CURP debe tener 18 caracteres y fecha válida.','warning');
+  if(form.celular && !/^\d{10}$/.test(digitosCelularEdicion(form.celular)))return toastRef.value?.notify('El celular debe tener 10 dígitos, sin +52.','warning');
+  if(!validarCorreoEdicion(form.correo))return toastRef.value?.notify('Corrige el correo electrónico y su dominio (gmail.com, hotmail.com, outlook.com, etc.).','warning');
+  if(!medidaValidaEdicion(form.peso,'peso')||!medidaValidaEdicion(form.altura,'altura'))return toastRef.value?.notify('Peso: máximo 3 enteros y 1 decimal (999.9 kg). Altura: máximo 3 dígitos (300 cm).','warning');
+  if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}
+  saving.value=true;
+  try{
+    const fd=new FormData();
+    const values={sede_id:clienteSedeId.value||sedeId(),nombres:nombreTituloEdicion(form.nombres.trim()),apellidoP:nombreTituloEdicion(form.apellidoPaterno.trim()),apellidoM:nombreTituloEdicion(form.apellidoMaterno.trim()),curp:normalizarCurp(form.curp),fechaNacimiento:form.fechaNacimiento,celular:digitosCelularEdicion(form.celular),email:correoNormalEdicion(form.correo),peso:form.peso,altura:form.altura};
+    Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});
+    if(avatarFile.value)fd.append('foto',avatarFile.value);
+    await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});
+    await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');
+  }catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}
+};
 watch(()=>route.params.id,id=>{if(id)loadClient(id);});
 const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
 onMounted(() => {
@@ -484,7 +531,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="f-nombres"
-                  v-model="form.nombres"
+                  v-model="form.nombres" @input="form.nombres = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="given-name"
                   placeholder="José Luis"
@@ -497,7 +544,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="f-paterno"
-                  v-model="form.apellidoPaterno"
+                  v-model="form.apellidoPaterno" @input="form.apellidoPaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="family-name"
                   placeholder="Ramírez"
@@ -510,7 +557,7 @@ onUnmounted(() => {
                 </label>
                 <input
                   id="f-materno"
-                  v-model="form.apellidoMaterno"
+                  v-model="form.apellidoMaterno" @input="form.apellidoMaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   placeholder="García"
                 />
@@ -551,10 +598,10 @@ onUnmounted(() => {
                   </svg>
                   <input
                     id="f-celular"
-                    v-model="form.celular"
+                     :value="form.celular" @input="inputCelularEdicion($event, form)" @paste="pasteCelularEdicion"
                     type="tel"
-                    autocomplete="tel"
-                    placeholder="+52 000 000 0000"
+                    autocomplete="tel-national"
+                    placeholder="481 111 1231" inputmode="numeric" maxlength="12"
                   />
                 </div>
               </div>
@@ -577,7 +624,7 @@ onUnmounted(() => {
                   </svg>
                   <input
                     id="f-correo"
-                    v-model="form.correo"
+                    v-model="form.correo" @blur="form.correo = correoNormalEdicion(form.correo)"
                     type="email"
                     autocomplete="email"
                     placeholder="ejemplo@correo.com"
@@ -620,10 +667,8 @@ onUnmounted(() => {
                   <div class="unit-input">
                     <input
                       id="f-peso"
-                      v-model="form.peso"
-                      type="number"
-                      min="0"
-                      step="0.1"
+                      v-model="form.peso" @input="form.peso = medidaEdicion($event.target.value, true)"
+                      type="text" inputmode="decimal" maxlength="5"
                       placeholder="70"
                     />
                     <span>kg</span>
@@ -637,10 +682,8 @@ onUnmounted(() => {
                   <div class="unit-input">
                     <input
                       id="f-altura"
-                      v-model="form.altura"
-                      type="number"
-                      min="0"
-                      step="1"
+                      v-model="form.altura" @input="form.altura = medidaEdicion($event.target.value)"
+                      type="text" inputmode="numeric" maxlength="3"
                       placeholder="175"
                     />
                     <span>cm</span>
