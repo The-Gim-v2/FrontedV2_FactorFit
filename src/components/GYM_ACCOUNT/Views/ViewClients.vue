@@ -428,7 +428,7 @@ await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${user.sedeId||obtenerSed
 users.value=users.value.filter(u=>u.id!==user.id);
 showDelete.value=false;selectedUser.value=null;
 toastRef.value?.notify('Cliente retirado temporalmente. Sus datos se conservan para una futura renovación.','success');
-}catch(e){toastRef.value?.notify(e.message||'No se pudo retirar al cliente.','error');}
+}catch(e){await cargarClientes().catch(()=>{});toastRef.value?.notify(e.message||'No se pudo retirar al cliente.','error');}
 finally{deleting.value=false;}
 };
 const goToEdit = (id) => router.push(`/GYM_ACCOUNT/editar-usuario/${users.value.find(u=>u.id===id)?.clienteId||id}`);

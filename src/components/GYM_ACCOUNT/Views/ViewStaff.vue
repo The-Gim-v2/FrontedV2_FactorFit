@@ -355,6 +355,7 @@ selectedUser.value = null;
 await cargarPersonal();
 toastRef.value?.notify('Personal eliminado correctamente.', 'success');
 } catch (error) {
+await cargarPersonal().catch(()=>{});
 toastRef.value?.notify(error.message || 'No se pudo eliminar el personal.', 'error');
 console.error('Error al eliminar personal:', error);
 } finally {

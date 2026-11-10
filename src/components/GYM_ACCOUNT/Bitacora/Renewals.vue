@@ -232,7 +232,7 @@ const executeDelete=async():Promise<void>=>{
   const res=await fetch(`${API}/api/gym/reactivaciones/${selectedUser.value.id}?sede_id=${encodeURIComponent(sedeId())}`,{method:'DELETE',headers:{Accept:'application/json',Authorization:`Bearer ${token}`,'X-Confirmar-Eliminacion':'ELIMINAR'}});
   if(!res.ok){const body=await res.json().catch(()=>({}));throw new Error(body?.message||`Error HTTP ${res.status}`);}
   showDelete.value=false;selectedUser.value=null;toastRef.value?.notify?.(t('successDeleted'),'success');await loadUsers();
- }catch(e){notifyError(e instanceof Error?e.message:'No se pudo retirar al cliente.');}
+ }catch(e){await loadUsers().catch(()=>{});notifyError(e instanceof Error?e.message:'No se pudo retirar al cliente.');}
  finally{deleting.value=false;}
 };
 onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange as EventListener);window.addEventListener('resize',updateWidth);window.addEventListener('factorfit:branch-changed',branchChange);window.addEventListener('focus',refreshFocus);document.addEventListener('visibilitychange',refreshVisible);void loadUsers();});
