@@ -209,6 +209,7 @@
                     </div>
                     <strong>{{ ev.nombre }}</strong>
                     <span class="event-tag">{{ catLabel(ev.categoria) }}</span>
+                    <span class="event-price">{{ (ev.precio || 0) > 0 ? '$' + Number(ev.precio).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MXN' : (idioma === 'en' ? 'Free' : 'Gratis') }}</span>
                     <div class="event-detail">
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3" /><path d="M5 21a7 7 0 0 1 14 0" /></svg>
                       <span>{{ ev.instructor }}</span>
@@ -320,7 +321,8 @@
                     </div>
                   </div>
 
-                  <div class="mobile-event-details">
+                    <div class="mobile-event-price">{{ (ev.precio || 0) > 0 ? '$' + Number(ev.precio).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MXN' : (idioma === 'en' ? 'Free admission' : 'Entrada gratuita') }}</div>
+                   <div class="mobile-event-details">
                     <span>
                       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
                       {{ formatHour(ev.inicio) }} – {{ formatHour(ev.fin) }}
@@ -401,6 +403,7 @@ interface Activity {
   nivel: string;
   instructor: string;
   capacidad: number;
+  precio: number;
   inscritos?: number;
   inicio: string;
   fin: string;
@@ -615,6 +618,7 @@ const cargarActividades = async () => {
       ...a,
       id: Number(a.id),
       capacidad: Number(a.capacidad),
+      precio: Number(a.precio ?? 0),
       inscritos: Number(a.inscritos || 0)
     }));
   } catch (e: any) {
@@ -914,6 +918,7 @@ const editActivity = (activity: Activity) => {
     nivel: activity.nivel,
     instructor: activity.instructor,
     capacidad: activity.capacidad,
+    precio: activity.precio ?? 0,
     ubicacion: activity.ubicacion,
     descripcion: activity.descripcion || ''
   });
@@ -963,6 +968,7 @@ const saveActivity = async (data: Record<string, any>) => {
         nivel: data.nivel,
         instructor: data.instructor,
         capacidad: Number(data.capacidad),
+        precio: Number(data.precio),
         inicio: data.inicio,
         fin: data.fin,
         ubicacion: data.ubicacion || '',
@@ -1664,4 +1670,6 @@ button { font: inherit; }
   .mobile-time-row { grid-template-columns: 56px 12px minmax(0, 1fr); }
   .summary-icon { width: 36px; height: 36px; }
 }
+.event-price { display: inline-block; margin: 3px 0 5px; color: var(--color-highlight, #f59e0b); font-size: 12px; font-weight: 800; }
+.mobile-event-price { margin-top: 8px; color: var(--color-highlight, #f59e0b); font-weight: 800; font-size: 14px; }
 </style>

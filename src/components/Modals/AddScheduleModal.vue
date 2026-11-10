@@ -257,6 +257,16 @@
                 />
               </div>
             </div>
+            <div class="field field-large">
+              <label for="act-price">{{ t('priceLabel') }}</label>
+              <div class="input-control">
+                <div class="field-icon"><span style="font-weight:800;font-size:16px">$</span></div>
+                <input id="act-price" v-model.number="form.precio" type="number" inputmode="decimal"
+                  min="0" max="999999.99" step="0.01" required
+                  :placeholder="t('pricePlaceholder')" />
+              </div>
+              <small class="price-hint">{{ t('priceHint') }}</small>
+            </div>
           </div>
         </section>
 
@@ -486,6 +496,7 @@
 
           <strong class="summary-name">{{ form.nombre || t('previewActivityPlaceholder') }}</strong>
 
+          <p class="price-preview">{{ Number(form.precio) > 0 ? '$' + Number(form.precio).toLocaleString(settings.idioma === 'en' ? 'en-US' : 'es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' MXN' : (settings.idioma === 'en' ? 'Free admission' : 'Entrada gratuita') }}</p>
           <ul class="summary-meta">
             <li>
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
@@ -652,6 +663,9 @@ const translations = {
     instructorPlaceholder: 'Ej. Marisol Reyes',
     capacityLabel: 'Cupo',
     capacityPlaceholder: 'Ej. 20 personas',
+    priceLabel: 'Precio de entrada (MXN)',
+    pricePlaceholder: 'Ej. 150.00',
+    priceHint: 'Escribe 0 para un evento gratuito. Este precio es informativo, no genera cobros.',
     startTimeLabel: 'Hora de inicio',
     endTimeLabel: 'Hora de término',
     locationLabel: 'Ubicación / Aula',
@@ -725,6 +739,9 @@ const translations = {
     instructorPlaceholder: 'E.g. Marisol Reyes',
     capacityLabel: 'Capacity',
     capacityPlaceholder: 'E.g. 20 people',
+    priceLabel: 'Entry price (MXN)',
+    pricePlaceholder: 'E.g. 150.00',
+    priceHint: 'Enter 0 for a free event. This is informational and does not charge attendees.',
     startTimeLabel: 'Start time',
     endTimeLabel: 'End time',
     locationLabel: 'Location / Room',
@@ -767,6 +784,7 @@ const emptyForm = () => ({
   nivel: '',
   instructor: '',
   capacidad: null,
+  precio: 0,
   inicio: '08:00',
   fin: '09:00',
   ubicacion: '',
@@ -985,6 +1003,7 @@ watch(
     form.nivel = String(d.nivel ?? '');
     form.instructor = String(d.instructor ?? '');
     form.capacidad = d.capacidad ?? null;
+    form.precio = Number(d.precio ?? 0);
     form.inicio = String(d.inicio ?? d.hour ?? '08:00').slice(0, 5);
     form.fin = String(d.fin ?? '09:00').slice(0, 5);
     form.ubicacion = String(d.ubicacion ?? '');
@@ -1009,6 +1028,7 @@ const guardarActividad = () => {
     nivel: String(form.nivel).trim(),
     instructor: String(form.instructor).trim(),
     capacidad: Number(form.capacidad),
+    precio: Number(form.precio),
     inicio: String(form.inicio).slice(0, 5),
     fin: String(form.fin).slice(0, 5),
     ubicacion: String(form.ubicacion ?? '').trim(),
@@ -1030,7 +1050,9 @@ const guardarActividad = () => {
     data.instructor &&
     Number.isInteger(data.capacidad) &&
     data.capacidad >= 1 &&
-    data.capacidad <= 10000;
+    data.capacidad <= 10000 &&
+    Number.isFinite(data.precio) && data.precio >= 0 && data.precio <= 999999.99 &&
+    Math.abs(Math.round(data.precio * 100) - data.precio * 100) < 0.000001;
   if (!requiredOk) {
     return mostrarToast(
       settings.idioma === 'en' ? 'Complete all required fields correctly.' : 'Completa correctamente todos los campos obligatorios.',
@@ -1672,4 +1694,6 @@ button, input, select, textarea { font: inherit; }
   .day-card > strong { display: block; }
   .section-number { width: 30px; height: 30px; }
 }
+.price-hint { color: var(--color-texto-general, #94a3b8); opacity: .75; font-size: 11px; }
+.price-preview { margin: 8px 0; font-weight: 700; color: var(--color-highlight, #f59e0b); font-size: 14px; }
 </style>
