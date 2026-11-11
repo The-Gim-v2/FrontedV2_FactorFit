@@ -202,7 +202,7 @@ const actions: Action[] = ['Crear', 'Modificar', 'Eliminar', 'Acceso'];
 const actionClass = (a: Action) => ({ Crear: 'tag-green', Modificar: 'tag-blue', Eliminar: 'tag-red', Acceso: 'tag-purple' }[a]);
 // Nombres de rol legibles: GYM_ADMIN → Dueño, GYM_ADMIN → Propietario, GYM_RECEPC → Recepcionista.
 const roleLabels: Record<string, [string, string]> = {
-  GYM_ADMIN: ['Dueño', 'Owner'],
+  GYM_ACCOUNT: ['Dueño', 'Owner'],
   GYM_ADMIN: ['Propietario', 'Proprietor'],
   GYM_RECEPC: ['Recepcionista', 'Receptionist'],
   GYM_RECEPCION: ['Recepcionista', 'Receptionist'],
