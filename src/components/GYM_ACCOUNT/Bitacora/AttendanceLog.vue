@@ -1,5 +1,5 @@
 <template>
-  <HeadingGYM_ADMIN>
+  <HeadingGYM_ACCOUNT>
     <NotificationSystem ref="toastRef" />
     <main class="main-content">
       <header class="header-section">
@@ -128,12 +128,12 @@
         <Asistencias @close="activeModal = null" />
       </div>
     </transition>
-  </HeadingGYM_ADMIN>
+  </HeadingGYM_ACCOUNT>
 </template>
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
-import HeadingGYM_ADMIN from '../HeadingGYM_ADMIN.vue';
+import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import Asistencias from '../Componets/Attendance.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
@@ -163,7 +163,7 @@ const users = ref<User[]>([]);
 const loading = ref(false);
 const errorCarga = ref('');
 const avisoAsistencia = ref('');
-const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
+const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const isMobile = ref(window.innerWidth <= 900);
 const sedeEvento = ref(0);
 
@@ -272,11 +272,11 @@ const API = String(import.meta.env.VITE_API_URL || '')
 const getToken = (): string => {
   for (const store of [sessionStorage, localStorage]) {
     for (const key of ['token', 'auth_token', 'access_token', 'gym_token',
-      'GYM_ADMIN_token', 'gymAccountToken']) {
+      'GYM_ACCOUNT_token', 'gymAccountToken']) {
       const value = store.getItem(key);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const key of ['auth', 'user', 'session', 'gymAccount', 'GYM_ADMIN']) {
+    for (const key of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
       try {
         const data = JSON.parse(store.getItem(key) || 'null');
         const value = data?.token || data?.access_token || data?.accessToken;
