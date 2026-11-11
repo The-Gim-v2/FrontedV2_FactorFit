@@ -31,7 +31,7 @@ import { reactive, onMounted } from 'vue';
 const emit = defineEmits(['close']);
 
 const settings = reactive({
-  idioma: localStorage.getItem('GYM_ACCOUNT-idioma') || 'es'
+  idioma: localStorage.getItem('GYM_ADMIN-idioma') || 'es'
 });
 
 const translations: Record<string, Record<string, string>> = {

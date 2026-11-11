@@ -4,107 +4,80 @@ import { useRoute, useRouter } from 'vue-router';
 import HeadingGYM_ADMIN from '../HeadingGYM_ADMIN.vue';
 import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-
 /* ============================ GENERAL ============================ */
-
 const route = useRoute();
 const router = useRouter();
-
 const toastRef = ref(null);
 const searchQuery = ref('');
+const showSuggestions = ref(false);
 const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
-
 const t = (key) => {
   const langTable = traducciones[currentLang.value] || traducciones.es;
   return langTable?.[key] || traducciones.es?.[key] || key;
 };
-
 const txt = (es, en) => (currentLang.value === 'en' ? en : es);
-
 /* Texto en 4 idiomas para las cadenas nuevas. Si falta fr/pt se usa el inglés. */
 const L = (es, en, fr, pt) => {
   const texts = { es, en, fr: fr ?? en, pt: pt ?? en };
   return texts[currentLang.value] ?? es;
 };
-
 const handleLangChange = (event) => {
   if (event.detail?.idioma) currentLang.value = event.detail.idioma;
 };
-
 const warn = (message) => {
   toastRef.value?.notify(message, 'warning');
   return false;
 };
-
 /* ============================ SEDES ============================ */
-
-const listaSedes = ref([
-  { id: 'sede_norte', nombre: 'Sucursal Norte (Centro)' },
-  { id: 'sede_sur', nombre: 'Sucursal Sur (Plaza)' },
-  { id: 'sede_oriente', nombre: 'Sucursal Oriente' },
-  { id: 'sede_poniente', nombre: 'Sucursal Poniente' }
-]);
-
-const ALL_SEDES = listaSedes.value.map((sede) => sede.id);
-
-/* ============================ DATOS DE EJEMPLO ============================
-   Mismos usuarios que la tabla de personal. Cuando conectes la API,
-   reemplaza esto por una petición con el id de la ruta.
-   Roles: propietario | gerente | entrenador | recepcion
-================================================================== */
-
-const staffDB = [
-  {
-    id: 1, rol: 'propietario',
-    nombres: 'Armando Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Armandoluis@gmail.com', celular: '+52 481 1265412',
-    sedes: [...ALL_SEDES]
-  },
-  {
-    id: 2, rol: 'gerente',
-    nombres: 'Francisco Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Francisco.luis@example.com', celular: '+52 4811 243422',
-    sedes: ['sede_norte', 'sede_sur']
-  },
-  {
-    id: 3, rol: 'gerente',
-    nombres: 'Maria Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Maria.luis@example.com', celular: '+52 4811 243423',
-    sedes: [...ALL_SEDES]
-  },
-  {
-    id: 4, rol: 'entrenador',
-    nombres: 'Jorge Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Jorge.luis@example.com', celular: '+52 4811 243424',
-    especialidad: 'Musculación', instagram: '@jorge_fit',
-    sedes: ['sede_norte']
-  },
-  {
-    id: 5, rol: 'entrenador',
-    nombres: 'Mario Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Mario.luis@example.com', celular: '+52 4811 243425',
-    especialidad: 'Crossfit', tiktok: '@mario_cf',
-    entrada: '06:00', salida: '14:00',
-    sedes: ['sede_norte', 'sede_oriente']
-  },
-  {
-    id: 6, rol: 'recepcion',
-    nombres: 'Luis', apellidoPaterno: 'Ramires', apellidoMaterno: 'Sanchez',
-    correo: 'Luis.ramires@example.com', celular: '+52 4811 243426',
-    entrada: '08:00', salida: '16:00',
-    sedes: ['sede_norte']
-  },
-  {
-    id: 7, rol: 'recepcion',
-    nombres: 'Ana Sofia', apellidoPaterno: 'Torres', apellidoMaterno: 'Perez',
-    correo: 'Ana.torres@example.com', celular: '+52 4811 243427',
-    entrada: '14:00', salida: '22:00',
-    sedes: ['sede_sur']
+const listaSedes = ref([]);
+const ALL_SEDES = computed(() => listaSedes.value.map(s => s.id));
+const staffDB = ref([]);
+const loadingProfile = ref(false);
+const saving = ref(false);
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const token = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['token','auth_token','access_token','gym_token','GYM_ADMIN_token','gymAccountToken']) {
+      const value = store.getItem(key);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const key of ['auth','user','session','gymAccount','GYM_ADMIN']) {
+      try {
+        const value = JSON.parse(store.getItem(key) || 'null');
+        if (value?.token || value?.access_token || value?.accessToken)
+          return value.token || value.access_token || value.accessToken;
+      } catch {}
+    }
   }
-];
-
+  return '';
+};
+const request = async (path, options = {}) => {
+  const auth = token();
+  if (!auth) throw new Error('Tu sesión ha expirado. Inicia sesión nuevamente.');
+  const response = await fetch(`${API}${path}`, {
+    ...options,
+    headers: { Accept: 'application/json', Authorization: `Bearer ${auth}`, ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errors = Object.values(data?.errors || {}).flat().filter(Boolean).join(' ');
+    throw new Error(errors || data?.message || `Error HTTP ${response.status}`);
+  }
+  return data;
+};
+const fetchSedes = async () => {
+  const data = await request('/api/personal/sedes');
+  const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
+  listaSedes.value = rows.map(x => ({
+    id: Number(x.ID_Sede ?? x.id),
+    nombre: x.Sede_Colonia ?? x.Nombre_Sede ?? x.nombre ?? `Sede ${x.ID_Sede ?? x.id}`
+  })).filter(x => x.id > 0);
+};
+const fetchStaffSearch = async () => {
+  const data = await request('/api/personal');
+  staffDB.value = Array.isArray(data) ? data : (data?.data || []);
+};
 /* ============================ FORMULARIO ============================ */
-
 const emptyForm = () => ({
   /* comunes */
   rol: '',
@@ -130,16 +103,12 @@ const emptyForm = () => ({
   entrada: '',
   salida: ''
 });
-
 const form = reactive(emptyForm());
 const currentStaffId = ref(null);
-
 const loaded = computed(() => currentStaffId.value !== null);
-
 const staffCode = computed(() =>
   loaded.value ? `GymPer${String(currentStaffId.value).padStart(3, '0')}` : '—'
 );
-
 const initials = computed(() =>
   [form.nombres, form.apellidoPaterno]
     .filter(Boolean)
@@ -147,40 +116,32 @@ const initials = computed(() =>
     .join('')
     .toUpperCase()
 );
-
 /* ============================ REGLAS POR ROL ============================
    propietario : todas las sedes · sin horario · con contraseña
    gerente     : una, varias o todas · sin horario · con contraseña
    recepcion   : UNA sola sede · horario obligatorio · con contraseña
    entrenador  : varias sedes · especialidad y redes · horario opcional · sin contraseña
 ================================================================== */
-
 const isOwner = computed(() => form.rol === 'propietario');
 const isManager = computed(() => form.rol === 'gerente');
 const isTrainer = computed(() => form.rol === 'entrenador');
 const isReception = computed(() => form.rol === 'recepcion');
-
 const needsPassword = computed(
   () => isOwner.value || isManager.value || isReception.value
 );
-
 const multiSedes = computed(() => isManager.value || isTrainer.value);
-
 /* Solo recepción y entrenador tienen horario */
 const showScheduleCard = computed(() => isReception.value || isTrainer.value);
-
 const scheduleMode = computed(() => {
   if (isReception.value) return 'required';
   if (isTrainer.value) return 'optional';
   return 'none';
 });
-
 const showTimes = computed(
   () =>
     scheduleMode.value === 'required' ||
     (scheduleMode.value === 'optional' && form.tieneHorario)
 );
-
 const roleLabel = computed(() => {
   if (isOwner.value) return L('Propietario', 'Owner', 'Propriétaire', 'Proprietário');
   if (isManager.value) return L('Gerente', 'Manager', 'Gérant', 'Gerente');
@@ -188,7 +149,6 @@ const roleLabel = computed(() => {
   if (isReception.value) return t('roleReception');
   return '';
 });
-
 const sedesHint = computed(() => {
   if (isReception.value) {
     return L(
@@ -198,7 +158,6 @@ const sedesHint = computed(() => {
       'A recepção só pode ter uma unidade.'
     );
   }
-
   if (multiSedes.value) {
     return L(
       'Puede tener una, varias o todas las sedes.',
@@ -207,12 +166,9 @@ const sedesHint = computed(() => {
       'Pode ter uma, várias ou todas as unidades.'
     );
   }
-
   return '';
 });
-
 /* ============================ CARGAR USUARIO ============================ */
-
 const resetAvatar = () => {
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
     URL.revokeObjectURL(avatarSrc.value);
@@ -220,85 +176,80 @@ const resetAvatar = () => {
   avatarFile.value = null;
   avatarSrc.value = '';
 };
-
-const loadUser = (id) => {
-  const user = staffDB.find((item) => String(item.id) === String(id));
-
-  if (!user) {
-    currentStaffId.value = null;
-    Object.assign(form, emptyForm());
+const loadUser = async (id) => {
+  if (!id) return;
+  loadingProfile.value = true;
+  try {
+    const data = await request(`/api/personal/${encodeURIComponent(id)}`);
+    const user = data?.data || data;
+    const roleMap = { GYM_ADMIN: 'propietario', GYM_MANAGER: 'gerente', GYM_COACH: 'entrenador', GYM_RECEPCIONIST: 'recepcion' };
+    const assigned = user.sedes_asignadas || user.sedes || [];
+    const sedes = assigned.map(x => Number(typeof x === 'object' ? (x.ID_Sede ?? x.id) : x)).filter(x => x > 0);
+    const horario = user.horario || {};
+    Object.assign(form, emptyForm(), {
+      rol: roleMap[user.Nombre_Rol ?? user.rol?.Nombre_Rol] || '',
+      correo: correoNormalEdicion(user.Correo_Electronico || ''),
+      sedes: sedes.length ? sedes : [Number(user.ID_Sede)].filter(Boolean),
+      curp: user.Curp || '',
+      nombres: user.Nombre || '',
+      apellidoPaterno: user.Apellido_P || '',
+      apellidoMaterno: user.Apellido_M || '',
+      fechaNacimiento: String(user.Fecha_Nacimiento || '').slice(0, 10),
+      celular: formatoCelularEdicion(user.Celular || ''),
+      especialidad: user.Especialidad || user.datos_extras?.Especialidad || '',
+      facebook: user.Facebook || user.datos_extras?.Facebook || '',
+      instagram: user.Instagram || user.datos_extras?.Instagram || '',
+      tiktok: user.TikTok || user.datos_extras?.TikTok || '',
+      otrasApp: user.Otras_App || user.datos_extras?.Otras_App || '',
+      entrada: horario.entrada || user.Horario_Entrada || '',
+      salida: horario.salida || user.Horario_Salida || '',
+      tieneHorario: Boolean(horario.entrada || user.Horario_Entrada)
+    });
+    if (form.rol === 'recepcion') form.sedes = form.sedes.slice(0, 1);
+    currentStaffId.value = Number(user.ID_Personal);
+    isDropdownOpen.value = false;
     resetAvatar();
-    return false;
+    avatarSrc.value = user.foto_url || '';
+  } catch (error) {
+    currentStaffId.value = null;
+    toastRef.value?.notify(error.message, 'error');
+  } finally {
+    loadingProfile.value = false;
   }
-
-  const { id: userId, ...data } = user;
-
-  Object.assign(form, emptyForm(), data, { sedes: [...(data.sedes || [])] });
-
-  /* Recepción siempre una sola sede */
-  if (data.rol === 'recepcion' && form.sedes.length > 1) {
-    form.sedes = [form.sedes[0]];
-  }
-
-  /* Horario: obligatorio en recepción, opcional en entrenador */
-  form.tieneHorario =
-    data.rol === 'recepcion' || Boolean(data.entrada && data.salida);
-
-  currentStaffId.value = userId;
-  isDropdownOpen.value = false;
-  resetAvatar();
-
-  return true;
 };
-
-/* ============================ BÚSQUEDA ============================ */
-
+/* ============================ BÚSQUEDA (CON SUGERENCIAS) ============================ */
+const suggestions = computed(() => {
+  const q = searchQuery.value.trim().toLocaleLowerCase();
+  if (!q) return [];
+  return staffDB.value
+    .filter(u =>
+      [u.Nombre, u.Apellido_P, u.Apellido_M, u.Celular, u.Correo_Electronico, u.ID_Personal]
+        .some(v => String(v ?? '').toLocaleLowerCase().includes(q))
+    )
+    .slice(0, 8);
+});
+const chooseStaff = async (u) => {
+  showSuggestions.value = false;
+  searchQuery.value = '';
+  const id = String(u.ID_Personal);
+  if (String(route.params.id) === id) await loadUser(id);
+  else await router.push(`/GYM_ADMIN/editar-staff/${id}`);
+};
 const handleSearch = () => {
-  const term = searchQuery.value.trim().toLowerCase();
-  if (!term) return;
-
-  const match = staffDB.find((user) => {
-    const fullName = [user.nombres, user.apellidoPaterno, user.apellidoMaterno]
-      .join(' ')
-      .toLowerCase();
-
-    return (
-      fullName.includes(term) ||
-      user.correo.toLowerCase().includes(term) ||
-      String(user.id) === term
-    );
-  });
-
-  if (!match) {
-    warn(
-      L(
-        'No se encontró personal con esa búsqueda.',
-        'No staff member matches that search.',
-        'Aucun membre du personnel ne correspond à cette recherche.',
-        'Nenhum funcionário corresponde a essa busca.'
-      )
-    );
-    return;
-  }
-
-  router.push(`/GYM_ADMIN/editar-staff/${match.id}`);
+  if (suggestions.value.length === 1) chooseStaff(suggestions.value[0]);
+  else showSuggestions.value = true;
 };
-
 /* ============================ SEDES (SELECTOR) ============================ */
-
 const isDropdownOpen = ref(false);
 const dropdownRef = ref(null);
-
 const allSedesSelected = computed(
   () =>
     listaSedes.value.length > 0 &&
     form.sedes.length === listaSedes.value.length
 );
-
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
 };
-
 /* Recepción: una sola sede (se reemplaza y se cierra). Resto: agrega o quita. */
 const toggleSede = (id) => {
   if (isReception.value) {
@@ -306,16 +257,13 @@ const toggleSede = (id) => {
     isDropdownOpen.value = false;
     return;
   }
-
   const index = form.sedes.indexOf(id);
   if (index > -1) form.sedes.splice(index, 1);
   else form.sedes.push(id);
 };
-
 const toggleAllSedes = () => {
-  form.sedes = allSedesSelected.value ? [] : [...ALL_SEDES];
+  form.sedes = allSedesSelected.value ? [] : [...ALL_SEDES.value];
 };
-
 const getSedesDisplayText = () => {
   if (form.sedes.length === 0) {
     return L(
@@ -325,27 +273,26 @@ const getSedesDisplayText = () => {
       isReception.value ? 'Selecionar unidade' : 'Selecionar unidades'
     );
   }
-
   if (allSedesSelected.value && multiSedes.value) {
     return L('Todas las sedes', 'All locations', 'Tous les sites', 'Todas as unidades');
   }
-
   return listaSedes.value
     .filter((sede) => form.sedes.includes(sede.id))
     .map((sede) => sede.nombre)
     .join(', ');
 };
-
 const handleClickOutside = (event) => {
+  if (!event.target.closest?.('.search-small')) showSuggestions.value = false;
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     isDropdownOpen.value = false;
   }
 };
-
 const handleKeydown = (event) => {
-  if (event.key === 'Escape') isDropdownOpen.value = false;
+  if (event.key === 'Escape') {
+    isDropdownOpen.value = false;
+    showSuggestions.value = false;
+  }
 };
-
 /* Si el entrenador desactiva el horario, se limpian las horas */
 watch(
   () => form.tieneHorario,
@@ -356,48 +303,39 @@ watch(
     }
   }
 );
-
 /* ============================ FOTO ============================ */
-
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const isValidImage = file => !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
+const notifyInvalidImage = () => toastRef.value?.notify('Selecciona una imagen JPG, PNG o WebP de máximo 4 MB.', 'warning');
 const fileInput = ref(null);
 const avatarFile = ref(null);
 const avatarSrc = ref('');
-
 const showPhotoOptions = ref(false);
 const openPhotoOptions = () => (showPhotoOptions.value = true);
 const closePhotoOptions = () => (showPhotoOptions.value = false);
-
 const selectPhoto = () => {
   showPhotoOptions.value = false;
   if (!fileInput.value) return;
   fileInput.value.value = '';
   fileInput.value.click();
 };
-
 const setAvatarFile = (file) => {
   if (!file) return;
-
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
     URL.revokeObjectURL(avatarSrc.value);
   }
-
   avatarFile.value = file;
   avatarSrc.value = URL.createObjectURL(file);
 };
-
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    toastRef.value?.notify(
-      txt('Selecciona una imagen válida.', 'Select a valid image.'),
-      'warning'
-    );
+  if (!isValidImage(file)) {
+    notifyInvalidImage();
     event.target.value = '';
     return;
   }
-
   setAvatarFile(file);
   toastRef.value?.notify(
     txt('Foto seleccionada correctamente.', 'Photo selected successfully.'),
@@ -405,16 +343,13 @@ const handleFileChange = (event) => {
   );
   event.target.value = '';
 };
-
 /* ============================ CÁMARA REAL ============================ */
-
 const showCamera = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
 const cameraStream = ref(null);
 const cameraFacingMode = ref('user');
 const switchingCamera = ref(false);
-
 const stopCamera = () => {
   if (cameraStream.value) {
     cameraStream.value.getTracks().forEach((track) => track.stop());
@@ -422,10 +357,8 @@ const stopCamera = () => {
   }
   if (videoRef.value) videoRef.value.srcObject = null;
 };
-
 const startCamera = async () => {
   stopCamera();
-
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
     video: {
@@ -434,21 +367,16 @@ const startCamera = async () => {
       height: { ideal: 720 }
     }
   });
-
   cameraStream.value = stream;
   await nextTick();
-
   if (!videoRef.value) {
     throw new Error('No se encontró el visor de cámara.');
   }
-
   videoRef.value.srcObject = stream;
   await videoRef.value.play();
 };
-
 const takePhoto = async () => {
   showPhotoOptions.value = false;
-
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     toastRef.value?.notify(
       txt(
@@ -459,20 +387,16 @@ const takePhoto = async () => {
     );
     return;
   }
-
   cameraFacingMode.value = 'user';
   showCamera.value = true;
   await nextTick();
-
   try {
     await startCamera();
   } catch (error) {
     console.error(error);
     stopCamera();
     showCamera.value = false;
-
     let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
-
     if (error?.name === 'NotAllowedError') {
       message = txt(
         'Permiso de cámara rechazado. Actívalo desde el navegador.',
@@ -491,30 +415,24 @@ const takePhoto = async () => {
         'The camera is being used by another application.'
       );
     }
-
     toastRef.value?.notify(message, 'warning');
   }
 };
-
 const switchCamera = async () => {
   if (switchingCamera.value) return;
   switchingCamera.value = true;
-
   const previous = cameraFacingMode.value;
   cameraFacingMode.value = previous === 'user' ? 'environment' : 'user';
-
   try {
     await startCamera();
   } catch (error) {
     console.error(error);
     cameraFacingMode.value = previous;
-
     try {
       await startCamera();
     } catch {
       closeCamera();
     }
-
     toastRef.value?.notify(
       txt('La cámara seleccionada no está disponible.', 'The selected camera is not available.'),
       'warning'
@@ -523,19 +441,15 @@ const switchCamera = async () => {
     switchingCamera.value = false;
   }
 };
-
 const closeCamera = () => {
   stopCamera();
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
 const capturePhoto = () => {
   if (switchingCamera.value) return;
-
   const video = videoRef.value;
   const canvas = canvasRef.value;
-
   if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
     toastRef.value?.notify(
       txt('La cámara todavía no está lista.', 'The camera is not ready yet.'),
@@ -543,13 +457,10 @@ const capturePhoto = () => {
     );
     return;
   }
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
   const context = canvas.getContext('2d');
   if (!context) return;
-
   if (cameraFacingMode.value === 'user') {
     context.save();
     context.translate(canvas.width, 0);
@@ -559,18 +470,15 @@ const capturePhoto = () => {
   } else {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
-
   canvas.toBlob(
     (blob) => {
       if (!blob) return;
-
       const file = new File([blob], `personal-${Date.now()}.jpg`, {
         type: 'image/jpeg'
       });
-
+      if (!isValidImage(file)) { notifyInvalidImage(); return; }
       setAvatarFile(file);
       closeCamera();
-
       toastRef.value?.notify(
         txt('Foto tomada correctamente.', 'Photo captured successfully.'),
         'success'
@@ -580,9 +488,36 @@ const capturePhoto = () => {
     0.92
   );
 };
+/* Mismas reglas de captura que el registro (sin consultar RENAPO ni verificar buzones). */
+const nombreTituloEdicion = v => String(v ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const correoNormalEdicion = v => String(v ?? '').trim().toLowerCase();
+const validarCorreoEdicion = value => {
+  const correo = correoNormalEdicion(value);
+  if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false;
+  const dominio = correo.split('@')[1];
+  const equivocados = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','gmail.om','gmail.cmo','gnail.com','gmaill.com','hotmail.con','hotmial.com','hotmail.co','hotmai.com','outlook.con','outlok.com','outlook.co','yahoo.con','yaho.com','icloud.con'];
+  return !equivocados.includes(dominio) && dominio.split('.').at(-1).length >= 2;
+};
+const digitosCelularEdicion = v => String(v ?? '').replace(/\D/g,'').slice(0,10);
+const formatoCelularEdicion = v => {const d=digitosCelularEdicion(v);return [d.slice(0,3),d.slice(3,6),d.slice(6,10)].filter(Boolean).join(' ');};
+const inputCelularEdicion = (event, form) => {
+  const texto=String(event.target.value??'');
+  if (texto.includes('+') || /^\s*52[\s-]/.test(texto)) {event.target.value=form.celular;return;}
+  form.celular=formatoCelularEdicion(texto);event.target.value=form.celular;
+};
+const pasteCelularEdicion = event => {const t=event.clipboardData?.getData('text')??'';if(t.includes('+')||/^\s*52[\s-]/.test(t)||t.replace(/\D/g,'').length>10)event.preventDefault();};
+const medidaEdicion = (value, decimales = false) => {
+  let t=String(value??'').replace(',', '.').replace(/[^0-9.]/g,'');
+  const partes=t.split('.');let entero=partes[0].slice(0,3);
+  return decimales && partes.length>1 ? entero+'.'+(partes[1]??'').slice(0,1) : entero;
+};
+const medidaValidaEdicion = (value, tipo) => {
+  if (value === '' || value === null || value === undefined) return true;
+  const txt=String(value);if(!/^(?:\d{1,3})(?:\.\d)?$/.test(txt))return false;
+  const n=Number(txt);return n>0 && n<=(tipo==='altura'?300:999.9);
+};
 
 /* ============================ VALIDACIÓN ============================ */
-
 const validateForm = () => {
   if (!form.nombres.trim() || !form.apellidoPaterno.trim()) {
     return warn(
@@ -594,7 +529,6 @@ const validateForm = () => {
       )
     );
   }
-
   if (!form.correo.trim()) {
     return warn(
       L(
@@ -605,7 +539,9 @@ const validateForm = () => {
       )
     );
   }
-
+  if(!validarCorreoEdicion(form.correo))return warn('Revisa el correo y su dominio (gmail.com, hotmail.com, outlook.com, etc.).');
+  if(!/^\d{10}$/.test(digitosCelularEdicion(form.celular)))return warn('El celular debe tener 10 dígitos nacionales, sin +52.');
+  if(form.curp && (!/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/.test(form.curp)))return warn('Revisa la CURP: debe contener 18 caracteres.');
   /* Contraseña: opcional al editar, pero si se escribe debe coincidir */
   if (needsPassword.value && (form.password || form.confirmPassword)) {
     if (form.password !== form.confirmPassword) {
@@ -619,7 +555,6 @@ const validateForm = () => {
       );
     }
   }
-
   if (isTrainer.value && !form.especialidad.trim()) {
     return warn(
       L(
@@ -630,7 +565,6 @@ const validateForm = () => {
       )
     );
   }
-
   if (!isOwner.value && form.sedes.length === 0) {
     return warn(
       L(
@@ -649,7 +583,6 @@ const validateForm = () => {
       )
     );
   }
-
   if (showTimes.value && (!form.entrada || !form.salida)) {
     return warn(
       L(
@@ -660,61 +593,47 @@ const validateForm = () => {
       )
     );
   }
-
   return true;
 };
-
 /* ============================ GUARDAR ============================ */
-
-const saveChanges = () => {
-  if (!loaded.value || !validateForm()) return;
-
-  /* Solo se envía lo que aplica al rol */
-  const data = {
-    id: currentStaffId.value,
-    rol: form.rol,
-    correo: form.correo.trim(),
-
-    ...(needsPassword.value && form.password && { password: form.password }),
-
-    sedes: isOwner.value ? [...ALL_SEDES] : [...form.sedes],
-    todasLasSedes: isOwner.value || allSedesSelected.value,
-
-    curp: form.curp.trim(),
-    nombres: form.nombres.trim(),
-    apellidoPaterno: form.apellidoPaterno.trim(),
-    apellidoMaterno: form.apellidoMaterno.trim(),
-    fechaNacimiento: form.fechaNacimiento,
-    celular: form.celular.trim(),
-
-    ...(isTrainer.value && {
+const saveChanges = async () => {
+  if (!loaded.value || saving.value || !validateForm()) return;
+  if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
+  saving.value = true;
+  try {
+    const fd = new FormData();
+    const values = {
+      rol: form.rol,
+      correo: correoNormalEdicion(form.correo),
+      curp: form.curp.trim().toUpperCase(),
+      nombres: nombreTituloEdicion(form.nombres.trim()),
+      apellidoPaterno: nombreTituloEdicion(form.apellidoPaterno.trim()),
+      apellidoMaterno: nombreTituloEdicion(form.apellidoMaterno.trim()),
+      fechaNacimiento: form.fechaNacimiento,
+      celular: digitosCelularEdicion(form.celular),
       especialidad: form.especialidad.trim(),
       facebook: form.facebook.trim(),
       instagram: form.instagram.trim(),
       tiktok: form.tiktok.trim(),
       otrasApp: form.otrasApp.trim()
-    }),
-
-    horario: showTimes.value
-      ? { entrada: form.entrada, salida: form.salida }
-      : null,
-
-    foto: avatarFile.value
-  };
-
-  console.log('Guardando cambios...', data);
-
-  form.password = '';
-  form.confirmPassword = '';
-
-  toastRef.value?.notify(
-    txt('Guardado correctamente', 'Saved successfully'),
-    'success'
-  );
+    };
+    if (showTimes.value) values.horario = JSON.stringify({ entrada: form.entrada, salida: form.salida });
+    if (form.password) values.password = form.password;
+    for (const [key, value] of Object.entries(values)) fd.append(key, value ?? '');
+    const selected = isOwner.value ? ALL_SEDES.value : form.sedes;
+    selected.forEach(id => fd.append('sedes[]', String(id)));
+    if (avatarFile.value) fd.append('foto', avatarFile.value);
+    await request(`/api/personal/${currentStaffId.value}`, { method: 'POST', body: fd });
+    await loadUser(currentStaffId.value);
+    await fetchStaffSearch();
+    toastRef.value?.notify('Cambios guardados correctamente.', 'success');
+  } catch (error) {
+    toastRef.value?.notify(error.message || 'No se pudieron guardar los cambios.', 'error');
+  } finally {
+    saving.value = false;
+  }
 };
-
 /* ============================ CICLO DE VIDA ============================ */
-
 /* Carga el usuario según el id de la ruta: /GYM_ADMIN/editar-staff/:id */
 watch(
   () => route.params.id,
@@ -727,29 +646,28 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
+onMounted(async () => {
+  try { await Promise.all([fetchSedes(), fetchStaffSearch()]); }
+  catch (error) { toastRef.value?.notify(error.message, 'error'); }
   window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', fetchStaffSearch);
   document.addEventListener('click', handleClickOutside);
   document.addEventListener('keydown', handleKeydown);
 });
-
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', fetchStaffSearch);
   document.removeEventListener('click', handleClickOutside);
   document.removeEventListener('keydown', handleKeydown);
   stopCamera();
-
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
     URL.revokeObjectURL(avatarSrc.value);
   }
 });
 </script>
-
 <template>
   <HeadingGYM_ADMIN>
     <NotificationSystem ref="toastRef" />
-
     <main class="main-content">
       <!-- ==================== ENCABEZADO ==================== -->
       <header class="page-header">
@@ -757,12 +675,10 @@ onUnmounted(() => {
           <span class="eyebrow">
             {{ txt('GESTIÓN DE PERSONAL', 'STAFF MANAGEMENT') }}
           </span>
-
           <h1>
             {{ txt('Perfil del', 'Staff') }}
             <span>{{ txt('personal', 'profile') }}</span>
           </h1>
-
           <p>
             {{
               txt(
@@ -772,11 +688,9 @@ onUnmounted(() => {
             }}
           </p>
         </div>
-
         <!-- TUTOR 0: BUSCAR PERSONAL -->
         <div id="tutor-0" class="input-group search-small">
           <label for="staff-search">{{ t('searchStaffLabel') }}</label>
-
           <div class="search-input-wrapper">
             <svg
               viewBox="0 0 24 24"
@@ -787,18 +701,44 @@ onUnmounted(() => {
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-
             <input
               id="staff-search"
               v-model="searchQuery"
               type="text"
+              autocomplete="off"
               :placeholder="t('searchPlaceholder')"
+              @focus="showSuggestions = true"
+              @input="showSuggestions = true"
               @keyup.enter="handleSearch"
             />
           </div>
+          <div
+            v-if="showSuggestions && searchQuery.trim()"
+            class="client-suggestions"
+            role="listbox"
+          >
+            <button
+              v-for="u in suggestions"
+              :key="u.ID_Personal"
+              type="button"
+              class="client-suggestion"
+              role="option"
+              @click="chooseStaff(u)"
+            >
+              <span class="suggestion-avatar">{{ String(u.Nombre || '?').charAt(0).toUpperCase() }}</span>
+              <span class="suggestion-info">
+                <strong>{{ [u.Nombre, u.Apellido_P, u.Apellido_M].filter(Boolean).join(' ') }}</strong>
+                <small>{{ u.Correo_Electronico || u.Celular || 'Personal registrado' }}</small>
+              </span>
+              <span class="suggestion-id">#{{ u.ID_Personal }}</span>
+            </button>
+            <p v-if="!suggestions.length" class="suggestion-empty">
+              No se encontró personal en esta sucursal.
+            </p>
+          </div>
         </div>
       </header>
-
+      <div v-if="loadingProfile" class="login-card">Cargando información del personal...</div>
       <!-- ==================== SIN PERSONAL SELECCIONADO ==================== -->
       <section v-if="!loaded" class="login-card empty-staff">
         <svg
@@ -810,7 +750,6 @@ onUnmounted(() => {
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
-
         <h3>
           {{
             L(
@@ -821,7 +760,6 @@ onUnmounted(() => {
             )
           }}
         </h3>
-
         <p>
           {{
             L(
@@ -833,14 +771,11 @@ onUnmounted(() => {
           }}
         </p>
       </section>
-
       <!-- ==================== PERSONAL SELECCIONADO ==================== -->
       <div v-else class="profile-card">
-
         <!-- ==================== PERFIL LATERAL ==================== -->
         <!-- TUTOR 1: PERFIL -->
         <aside id="tutor-1" class="profile-section">
-
           <!-- TUTOR 2: FOTO -->
           <div id="tutor-2" class="avatar-wrapper">
             <button
@@ -855,11 +790,9 @@ onUnmounted(() => {
                 :alt="t('avatarAlt')"
                 class="user-avatar-img"
               />
-
               <span v-else class="avatar-initials">
                 {{ initials }}
               </span>
-
               <span class="avatar-overlay">
                 <svg
                   viewBox="0 0 24 24"
@@ -872,11 +805,9 @@ onUnmounted(() => {
                   />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
-
                 {{ txt('Cambiar foto', 'Change photo') }}
               </span>
             </button>
-
             <!-- TUTOR 3: BOTÓN CAMBIAR FOTO -->
             <button
               id="tutor-3"
@@ -898,7 +829,6 @@ onUnmounted(() => {
                 <circle cx="12" cy="13" r="4" />
               </svg>
             </button>
-
             <input
               ref="fileInput"
               type="file"
@@ -907,19 +837,16 @@ onUnmounted(() => {
               @change="handleFileChange"
             />
           </div>
-
           <!-- NOMBRE -->
           <h2 class="main-title">
             {{ form.nombres || '—' }}
             <span>{{ form.apellidoPaterno || '—' }}</span>
           </h2>
-
           <!-- ESTADO -->
           <span class="status-badge">
             <i></i>
             {{ t('statusActive') }}
           </span>
-
           <p class="photo-hint">
             {{
               txt(
@@ -928,21 +855,17 @@ onUnmounted(() => {
               )
             }}
           </p>
-
           <!-- INFORMACIÓN RESUMIDA -->
           <dl class="profile-meta">
-
             <!-- TUTOR 4: ID -->
             <div id="tutor-4">
               <dt>ID</dt>
               <dd>{{ staffCode }}</dd>
             </div>
-
             <div>
               <dt>{{ txt('Rol', 'Role') }}</dt>
               <dd>{{ roleLabel }}</dd>
             </div>
-
             <div>
               <dt>{{ txt('Sedes', 'Locations') }}</dt>
               <dd>
@@ -953,7 +876,6 @@ onUnmounted(() => {
                 }}
               </dd>
             </div>
-
             <div v-if="showScheduleCard">
               <dt>{{ t('workScheduleTitle') }}</dt>
               <dd>
@@ -965,7 +887,6 @@ onUnmounted(() => {
               </dd>
             </div>
           </dl>
-
           <!-- TUTOR 5: ESTADO -->
           <div id="tutor-5" class="profile-status-info">
             <span class="status-dot"></span>
@@ -984,10 +905,8 @@ onUnmounted(() => {
             </div>
           </div>
         </aside>
-
         <!-- ==================== FORMULARIOS ==================== -->
         <div class="forms-wrapper">
-
           <!-- ================================================== -->
           <!-- TUTOR 6: DATOS PERSONALES -->
           <!-- ================================================== -->
@@ -1005,12 +924,10 @@ onUnmounted(() => {
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </span>
-
                 <div>
                   <h3 class="section-title">
                     {{ t('personalDataTitle') }}
                   </h3>
-
                   <p>
                     {{
                       txt(
@@ -1022,87 +939,74 @@ onUnmounted(() => {
                 </div>
               </div>
             </div>
-
             <div class="form-grid-3">
-
               <!-- CURP -->
               <div class="input-group">
                 <label for="p-curp">CURP</label>
-
                 <input
                   id="p-curp"
-                  v-model="form.curp"
+                  v-model="form.curp" @input="form.curp = String($event.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,18)"
                   type="text"
                   maxlength="18"
-                  placeholder="CURP"
+                  placeholder="ABCD010101HDFXXX00"
                 />
               </div>
-
               <!-- NOMBRES -->
               <div class="input-group">
                 <label for="p-nombres">
                   {{ t('namesLabel') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   id="p-nombres"
-                  v-model="form.nombres"
+                  v-model="form.nombres" @input="form.nombres = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="given-name"
                   placeholder="Carlos Luis"
                 />
               </div>
-
               <!-- APELLIDO PATERNO -->
               <div class="input-group">
                 <label for="p-paterno">
                   {{ t('lastNamePaternalLabel') }}
                   <span class="required">*</span>
                 </label>
-
                 <input
                   id="p-paterno"
-                  v-model="form.apellidoPaterno"
+                  v-model="form.apellidoPaterno" @input="form.apellidoPaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="family-name"
                   placeholder="Ramírez"
                 />
               </div>
-
               <!-- APELLIDO MATERNO -->
               <div class="input-group">
                 <label for="p-materno">
                   {{ t('lastNameMaternalLabel') }}
                 </label>
-
                 <input
                   id="p-materno"
-                  v-model="form.apellidoMaterno"
+                  v-model="form.apellidoMaterno" @input="form.apellidoMaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   placeholder="García"
                 />
               </div>
-
               <!-- FECHA NACIMIENTO -->
               <div class="input-group">
                 <label for="p-fecha">
                   {{ t('birthDateLabel') }}
                 </label>
-
                 <input
                   id="p-fecha"
                   v-model="form.fechaNacimiento"
                   type="date"
                 />
               </div>
-
               <!-- CELULAR -->
               <div class="input-group">
                 <label for="p-celular">
                   {{ t('phoneLabel') }}
                 </label>
-
                 <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
@@ -1114,19 +1018,17 @@ onUnmounted(() => {
                       d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
                     />
                   </svg>
-
                   <input
                     id="p-celular"
-                    v-model="form.celular"
+                     :value="form.celular" @input="inputCelularEdicion($event, form)" @paste="pasteCelularEdicion"
                     type="tel"
-                    autocomplete="tel"
-                    placeholder="+52 000 000 0000"
+                    autocomplete="tel-national"
+                    placeholder="481 111 1231" inputmode="numeric" maxlength="12"
                   />
                 </div>
               </div>
             </div>
           </section>
-
           <!-- ================================================== -->
           <!-- TUTOR 7: REDES SOCIALES -->
           <!-- SOLO ENTRENADOR -->
@@ -1152,7 +1054,6 @@ onUnmounted(() => {
                     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                   </svg>
                 </span>
-
                 <div>
                   <h3 class="section-title">
                     {{
@@ -1164,7 +1065,6 @@ onUnmounted(() => {
                       )
                     }}
                   </h3>
-
                   <p>
                     {{
                       txt(
@@ -1175,7 +1075,6 @@ onUnmounted(() => {
                   </p>
                 </div>
               </div>
-
               <span class="card-badge">
                 {{
                   L(
@@ -1187,16 +1086,12 @@ onUnmounted(() => {
                 }}
               </span>
             </div>
-
             <div class="form-grid-2">
-
               <!-- FACEBOOK -->
               <div class="input-group">
                 <label for="p-facebook">Facebook</label>
-
                 <div class="social-input">
                   <span>f</span>
-
                   <input
                     id="p-facebook"
                     v-model="form.facebook"
@@ -1205,14 +1100,11 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-
               <!-- INSTAGRAM -->
               <div class="input-group">
                 <label for="p-instagram">Instagram</label>
-
                 <div class="social-input">
                   <span>◎</span>
-
                   <input
                     id="p-instagram"
                     v-model="form.instagram"
@@ -1221,14 +1113,11 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-
               <!-- TIKTOK -->
               <div class="input-group">
                 <label for="p-tiktok">TikTok</label>
-
                 <div class="social-input">
                   <span>♪</span>
-
                   <input
                     id="p-tiktok"
                     v-model="form.tiktok"
@@ -1237,13 +1126,11 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-
               <!-- OTRAS REDES -->
               <div class="input-group">
                 <label for="p-otras">
                   {{ t('otherAppsLabel') }}
                 </label>
-
                 <input
                   id="p-otras"
                   v-model="form.otrasApp"
@@ -1258,13 +1145,11 @@ onUnmounted(() => {
               </div>
             </div>
           </section>
-
           <!-- ==================== BLOQUE INFERIOR ==================== -->
           <div
             class="lower-grid"
             :class="{ single: !showScheduleCard }"
           >
-
             <!-- ================================================== -->
             <!-- TUTOR 8: CREDENCIALES -->
             <!-- ================================================== -->
@@ -1288,12 +1173,10 @@ onUnmounted(() => {
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </span>
-
                   <div>
                     <h3 class="section-title">
                       {{ t('credentialsTitle') }}
                     </h3>
-
                     <p>
                       {{
                         txt(
@@ -1305,18 +1188,14 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
-
               <div class="form-grid-2">
-
                 <!-- ROL -->
                 <div class="input-group">
                   <label>{{ t('systemRoleLabel') }}</label>
-
                   <div class="readonly-field">
                     <span class="role-chip">
                       {{ roleLabel }}
                     </span>
-
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
@@ -1334,14 +1213,12 @@ onUnmounted(() => {
                     </svg>
                   </div>
                 </div>
-
                 <!-- CORREO -->
                 <div class="input-group">
                   <label for="p-correo">
                     {{ t('emailLabel') }}
                     <span class="required">*</span>
                   </label>
-
                   <div class="input-with-icon">
                     <svg
                       viewBox="0 0 24 24"
@@ -1354,17 +1231,15 @@ onUnmounted(() => {
                       />
                       <polyline points="22,6 12,13 2,6" />
                     </svg>
-
                     <input
                       id="p-correo"
-                      v-model="form.correo"
+                      v-model="form.correo" @blur="form.correo = correoNormalEdicion(form.correo)"
                       type="email"
                       autocomplete="email"
                       placeholder="personal@gimnasio.com"
                     />
                   </div>
                 </div>
-
                 <!-- CONTRASEÑA -->
                 <template v-if="needsPassword">
                   <div class="input-group">
@@ -1378,7 +1253,6 @@ onUnmounted(() => {
                         )
                       }}
                     </label>
-
                     <input
                       id="p-password"
                       v-model="form.password"
@@ -1387,7 +1261,6 @@ onUnmounted(() => {
                       placeholder="••••••••"
                     />
                   </div>
-
                   <div class="input-group">
                     <label for="p-confirm">
                       {{
@@ -1399,7 +1272,6 @@ onUnmounted(() => {
                         )
                       }}
                     </label>
-
                     <input
                       id="p-confirm"
                       v-model="form.confirmPassword"
@@ -1408,7 +1280,6 @@ onUnmounted(() => {
                       placeholder="••••••••"
                     />
                   </div>
-
                   <p class="field-hint span-full">
                     {{
                       L(
@@ -1420,7 +1291,6 @@ onUnmounted(() => {
                     }}
                   </p>
                 </template>
-
                 <!-- ESPECIALIDAD -->
                 <div
                   v-if="isTrainer"
@@ -1430,7 +1300,6 @@ onUnmounted(() => {
                     {{ t('specialtyLabel') }}
                     <span class="required">*</span>
                   </label>
-
                   <input
                     id="p-especialidad"
                     v-model="form.especialidad"
@@ -1438,7 +1307,6 @@ onUnmounted(() => {
                     :placeholder="txt('Musculación', 'Strength training')"
                   />
                 </div>
-
                 <!-- ==================== SEDES ==================== -->
                 <div class="input-group span-full">
                   <label>
@@ -1450,7 +1318,6 @@ onUnmounted(() => {
                       *
                     </span>
                   </label>
-
                   <!-- PROPIETARIO -->
                   <div
                     v-if="isOwner"
@@ -1473,7 +1340,6 @@ onUnmounted(() => {
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
                     </span>
-
                     <span class="sedes-static-text">
                       <strong>
                         {{
@@ -1485,7 +1351,6 @@ onUnmounted(() => {
                           )
                         }}
                       </strong>
-
                       <small>
                         {{ listaSedes.length }}
                         {{
@@ -1499,7 +1364,6 @@ onUnmounted(() => {
                       </small>
                     </span>
                   </div>
-
                   <!-- OTROS ROLES -->
                   <div
                     v-else
@@ -1521,7 +1385,6 @@ onUnmounted(() => {
                       >
                         {{ getSedesDisplayText() }}
                       </span>
-
                       <svg
                         class="dropdown-arrow"
                         :class="{ rotate: isDropdownOpen }"
@@ -1533,7 +1396,6 @@ onUnmounted(() => {
                         <polyline points="6 9 12 15 18 9" />
                       </svg>
                     </button>
-
                     <transition name="dropdown">
                       <div
                         v-if="isDropdownOpen"
@@ -1559,7 +1421,6 @@ onUnmounted(() => {
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
                           </span>
-
                           <span>
                             {{
                               L(
@@ -1571,7 +1432,6 @@ onUnmounted(() => {
                             }}
                           </span>
                         </button>
-
                         <!-- SEDES -->
                         <button
                           v-for="sede in listaSedes"
@@ -1599,7 +1459,6 @@ onUnmounted(() => {
                             >
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
-
                             <span
                               v-else-if="
                                 form.sedes.includes(sede.id) &&
@@ -1608,13 +1467,11 @@ onUnmounted(() => {
                               class="radio-dot"
                             ></span>
                           </span>
-
                           <span>{{ sede.nombre }}</span>
                         </button>
                       </div>
                     </transition>
                   </div>
-
                   <p
                     v-if="sedesHint"
                     class="field-hint"
@@ -1624,7 +1481,6 @@ onUnmounted(() => {
                 </div>
               </div>
             </section>
-
             <!-- ================================================== -->
             <!-- TUTOR 9: HORARIO -->
             <!-- ================================================== -->
@@ -1646,12 +1502,10 @@ onUnmounted(() => {
                       <polyline points="12 7 12 12 15 14" />
                     </svg>
                   </span>
-
                   <div>
                     <h3 class="section-title">
                       {{ t('workScheduleTitle') }}
                     </h3>
-
                     <p>
                       {{
                         txt(
@@ -1662,7 +1516,6 @@ onUnmounted(() => {
                     </p>
                   </div>
                 </div>
-
                 <span
                   class="card-badge"
                   :class="{
@@ -1687,7 +1540,6 @@ onUnmounted(() => {
                   }}
                 </span>
               </div>
-
               <!-- INTERRUPTOR ENTRENADOR -->
               <label
                 v-if="scheduleMode === 'optional'"
@@ -1698,10 +1550,8 @@ onUnmounted(() => {
                     v-model="form.tieneHorario"
                     type="checkbox"
                   />
-
                   <span class="slider-round"></span>
                 </span>
-
                 <span class="switch-copy">
                   <strong>
                     {{
@@ -1713,7 +1563,6 @@ onUnmounted(() => {
                       )
                     }}
                   </strong>
-
                   <small>
                     {{
                       L(
@@ -1726,7 +1575,6 @@ onUnmounted(() => {
                   </small>
                 </span>
               </label>
-
               <!-- HORAS -->
               <div
                 v-if="showTimes"
@@ -1739,7 +1587,6 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="p-entrada">
                     {{ t('entryTimeLabel') }}
-
                     <span
                       v-if="scheduleMode === 'required'"
                       class="required"
@@ -1747,18 +1594,15 @@ onUnmounted(() => {
                       *
                     </span>
                   </label>
-
                   <input
                     id="p-entrada"
                     v-model="form.entrada"
                     type="time"
                   />
                 </div>
-
                 <div class="input-group">
                   <label for="p-salida">
                     {{ t('exitTimeLabel') }}
-
                     <span
                       v-if="scheduleMode === 'required'"
                       class="required"
@@ -1766,7 +1610,6 @@ onUnmounted(() => {
                       *
                     </span>
                   </label>
-
                   <input
                     id="p-salida"
                     v-model="form.salida"
@@ -1774,7 +1617,6 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-
               <p
                 v-if="showTimes"
                 class="schedule-help"
@@ -1786,7 +1628,6 @@ onUnmounted(() => {
                   )
                 }}
               </p>
-
               <div
                 v-if="
                   showTimes &&
@@ -1803,21 +1644,18 @@ onUnmounted(() => {
                     )
                   }}
                 </span>
-
                 <strong>
                   {{ form.entrada }} — {{ form.salida }}
                 </strong>
               </div>
             </section>
           </div>
-
           <!-- ================================================== -->
           <!-- TUTOR 10: GUARDAR CAMBIOS -->
           <!-- ================================================== -->
           <footer class="action-footer">
             <span class="required-hint">
               <span class="required">*</span>
-
               {{
                 L(
                   'Campos obligatorios',
@@ -1827,14 +1665,16 @@ onUnmounted(() => {
                 )
               }}
             </span>
-
             <button
               id="tutor-10"
               type="button"
               class="btn-primary"
+              :disabled="saving || loadingProfile"
               @click="saveChanges"
             >
+              <span v-if="saving" class="btn-spinner"></span>
               <svg
+                v-else
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -1846,14 +1686,21 @@ onUnmounted(() => {
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
-
-              {{ t('saveChangesBtn') }}
+              {{
+                saving
+                  ? L(
+                      'Procesando cambios...',
+                      'Processing changes...',
+                      'Traitement en cours...',
+                      'Processando alterações...'
+                    )
+                  : t('saveChangesBtn')
+              }}
             </button>
           </footer>
         </div>
       </div>
     </main>
-
     <!-- ====================================================== -->
     <!-- MODAL: OPCIONES DE FOTO -->
     <!-- ====================================================== -->
@@ -1878,7 +1725,6 @@ onUnmounted(() => {
                   )
                 }}
               </h3>
-
               <p>
                 {{
                   txt(
@@ -1888,7 +1734,6 @@ onUnmounted(() => {
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close"
@@ -1898,9 +1743,7 @@ onUnmounted(() => {
               ×
             </button>
           </header>
-
           <div class="photo-options">
-
             <!-- TOMAR FOTO -->
             <button
               type="button"
@@ -1920,12 +1763,10 @@ onUnmounted(() => {
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </span>
-
               <span>
                 <strong>
                   {{ txt('Tomar foto', 'Take photo') }}
                 </strong>
-
                 <small>
                   {{
                     txt(
@@ -1935,10 +1776,8 @@ onUnmounted(() => {
                   }}
                 </small>
               </span>
-
               <b>›</b>
             </button>
-
             <!-- GALERÍA -->
             <button
               type="button"
@@ -1963,7 +1802,6 @@ onUnmounted(() => {
                   <polyline points="21 15 16 10 5 21" />
                 </svg>
               </span>
-
               <span>
                 <strong>
                   {{
@@ -1973,7 +1811,6 @@ onUnmounted(() => {
                     )
                   }}
                 </strong>
-
                 <small>
                   {{
                     txt(
@@ -1983,11 +1820,9 @@ onUnmounted(() => {
                   }}
                 </small>
               </span>
-
               <b>›</b>
             </button>
           </div>
-
           <button
             type="button"
             class="cancel-btn"
@@ -1998,7 +1833,6 @@ onUnmounted(() => {
         </div>
       </div>
     </transition>
-
     <!-- ====================================================== -->
     <!-- MODAL: CÁMARA -->
     <!-- ====================================================== -->
@@ -2018,7 +1852,6 @@ onUnmounted(() => {
               <h3>
                 {{ txt('Tomar fotografía', 'Take photo') }}
               </h3>
-
               <p>
                 {{
                   cameraFacingMode === 'user'
@@ -2033,7 +1866,6 @@ onUnmounted(() => {
                 }}
               </p>
             </div>
-
             <button
               type="button"
               class="modal-close"
@@ -2043,7 +1875,6 @@ onUnmounted(() => {
               ×
             </button>
           </header>
-
           <div class="camera-preview">
             <video
               ref="videoRef"
@@ -2055,7 +1886,6 @@ onUnmounted(() => {
                   cameraFacingMode === 'user'
               }"
             ></video>
-
             <button
               type="button"
               class="switch-camera-btn"
@@ -2075,16 +1905,13 @@ onUnmounted(() => {
                   d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"
                 />
               </svg>
-
               {{
                 cameraFacingMode === 'user'
                   ? txt('Trasera', 'Rear')
                   : txt('Frontal', 'Front')
               }}
             </button>
-
             <div class="face-guide"></div>
-
             <div
               v-if="switchingCamera"
               class="camera-loading"
@@ -2092,12 +1919,10 @@ onUnmounted(() => {
               <span></span>
             </div>
           </div>
-
           <canvas
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
-
           <div class="camera-actions">
             <button
               type="button"
@@ -2106,7 +1931,6 @@ onUnmounted(() => {
             >
               {{ txt('Cancelar', 'Cancel') }}
             </button>
-
             <button
               type="button"
               class="capture-btn"
@@ -2116,7 +1940,6 @@ onUnmounted(() => {
               <i>
                 <span></span>
               </i>
-
               {{ txt('Tomar foto', 'Take photo') }}
             </button>
           </div>
@@ -2125,10 +1948,21 @@ onUnmounted(() => {
     </transition>
   </HeadingGYM_ADMIN>
 </template>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
+/* ============================ BUSCADOR CON SUGERENCIAS ============================ */
+.page-header{position:relative;z-index:20;isolation:isolate}
+.search-small{position:relative;z-index:21}
+.client-suggestions{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:50;max-height:310px;overflow-y:auto;border:1px solid #39394e;border-radius:12px;background:#1b1b2b;box-shadow:0 18px 42px rgba(0,0,0,.45);padding:5px;box-sizing:border-box}
+.client-suggestion{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:#f5f5fa;text-align:left;cursor:pointer;font-family:inherit}
+.client-suggestion:hover,.client-suggestion:focus-visible{background:#303047;outline:none}
+.suggestion-avatar{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:9px;background:rgba(238,80,126,.15);color:#ff789f;font-size:13px;font-weight:700}
+.suggestion-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.suggestion-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.suggestion-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#a8a9c2}
+.suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
+.suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
+@media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
 .main-content {
   --accent: var(--color-highlight, #3b82f6);
   --card: var(--bg-cards, #121416);
@@ -2138,7 +1972,6 @@ onUnmounted(() => {
   --line: color-mix(in srgb, var(--text) 10%, transparent);
   --input: color-mix(in srgb, var(--card) 90%, #ffffff);
   --radius: 14px;
-
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
@@ -2147,9 +1980,7 @@ onUnmounted(() => {
   color: var(--text);
   font-family: 'Inter', sans-serif;
 }
-
 /* ============================ ENCABEZADO ============================ */
-
 .page-header {
   display: flex;
   align-items: flex-end;
@@ -2157,11 +1988,9 @@ onUnmounted(() => {
   gap: 28px;
   margin-bottom: 26px;
 }
-
 .page-heading {
   min-width: 0;
 }
-
 .eyebrow {
   display: block;
   margin-bottom: 6px;
@@ -2170,7 +1999,6 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0.12em;
 }
-
 .page-header h1 {
   margin: 0;
   color: var(--title);
@@ -2181,11 +2009,9 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
-
 .page-header h1 span {
   color: var(--accent);
 }
-
 .page-header p {
   max-width: 600px;
   margin: 8px 0 0;
@@ -2193,32 +2019,26 @@ onUnmounted(() => {
   font-size: 0.8rem;
   line-height: 1.55;
 }
-
 /* ============================ INPUTS ============================ */
-
 .search-small {
   width: min(100%, 320px);
   flex-shrink: 0;
 }
-
 .input-group {
   display: flex;
   flex-direction: column;
   gap: 7px;
   min-width: 0;
 }
-
 .input-group label {
   color: color-mix(in srgb, var(--text) 78%, transparent);
   font-size: 0.72rem;
   font-weight: 500;
   line-height: 1.2;
 }
-
 .required {
   color: #ef4444;
 }
-
 .input-group input {
   width: 100%;
   height: 44px;
@@ -2234,40 +2054,33 @@ onUnmounted(() => {
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-
 .input-group input::placeholder {
   color: color-mix(in srgb, var(--muted) 70%, transparent);
   font-weight: 400;
 }
-
 .input-group input:hover {
   border-color: color-mix(in srgb, var(--text) 24%, transparent);
 }
-
 .input-group input:focus {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--input) 90%, var(--accent));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
-
 .input-group input[type='date'],
 .input-group input[type='time'] {
   color-scheme: dark;
 }
-
 .input-group input[type='date']::-webkit-calendar-picker-indicator,
 .input-group input[type='time']::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.7;
 }
-
 .field-hint {
   margin: 0;
   color: var(--muted);
   font-size: 0.68rem;
   line-height: 1.45;
 }
-
 .search-input-wrapper,
 .input-with-icon,
 .social-input {
@@ -2275,7 +2088,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
 }
-
 .search-input-wrapper svg,
 .input-with-icon svg {
   position: absolute;
@@ -2286,12 +2098,10 @@ onUnmounted(() => {
   color: var(--muted);
   pointer-events: none;
 }
-
 .search-input-wrapper input,
 .input-with-icon input {
   padding-left: 38px;
 }
-
 .social-input > span {
   position: absolute;
   z-index: 2;
@@ -2303,13 +2113,10 @@ onUnmounted(() => {
   text-align: center;
   pointer-events: none;
 }
-
 .social-input input {
   padding-left: 40px;
 }
-
 /* ============================ ROL (SOLO LECTURA) ============================ */
-
 .readonly-field {
   min-height: 44px;
   display: flex;
@@ -2322,7 +2129,6 @@ onUnmounted(() => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--card) 96%, #ffffff);
 }
-
 .readonly-field svg {
   width: 15px;
   height: 15px;
@@ -2330,7 +2136,6 @@ onUnmounted(() => {
   color: var(--muted);
   opacity: 0.7;
 }
-
 .role-chip {
   display: inline-flex;
   align-items: center;
@@ -2343,16 +2148,13 @@ onUnmounted(() => {
   font-size: 0.72rem;
   font-weight: 700;
 }
-
 /* ============================ ESTRUCTURA ============================ */
-
 .profile-card {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
-
 .profile-section,
 .login-card {
   box-sizing: border-box;
@@ -2360,9 +2162,7 @@ onUnmounted(() => {
   border-radius: var(--radius);
   background: var(--card);
 }
-
 /* ============================ SIN SELECCIÓN ============================ */
-
 .empty-staff {
   min-height: 320px;
   display: flex;
@@ -2374,14 +2174,12 @@ onUnmounted(() => {
   border-style: dashed;
   text-align: center;
 }
-
 .empty-staff svg {
   width: 42px;
   height: 42px;
   color: var(--muted);
   opacity: 0.55;
 }
-
 .empty-staff h3 {
   margin: 6px 0 0;
   color: var(--title);
@@ -2390,7 +2188,6 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
 }
-
 .empty-staff p {
   max-width: 380px;
   margin: 0;
@@ -2398,9 +2195,7 @@ onUnmounted(() => {
   font-size: 0.78rem;
   line-height: 1.55;
 }
-
 /* ============================ PERFIL ============================ */
-
 .profile-section {
   position: sticky;
   top: 20px;
@@ -2410,7 +2205,6 @@ onUnmounted(() => {
   padding: 28px 22px 22px;
   overflow: hidden;
 }
-
 .profile-section::before {
   content: '';
   position: absolute;
@@ -2420,13 +2214,11 @@ onUnmounted(() => {
   height: 3px;
   background: var(--accent);
 }
-
 .avatar-wrapper {
   position: relative;
   width: 148px;
   margin-bottom: 20px;
 }
-
 .avatar-circle {
   position: relative;
   display: block;
@@ -2440,14 +2232,12 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
 }
-
 .user-avatar-img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .avatar-initials {
   width: 100%;
   height: 100%;
@@ -2457,7 +2247,6 @@ onUnmounted(() => {
   font-family: 'Oswald', sans-serif;
   font-size: 2.5rem;
 }
-
 .avatar-overlay {
   position: absolute;
   right: 0;
@@ -2475,17 +2264,14 @@ onUnmounted(() => {
   transform: translateY(100%);
   transition: transform 0.2s ease;
 }
-
 .avatar-circle:hover .avatar-overlay,
 .avatar-circle:focus-visible .avatar-overlay {
   transform: translateY(0);
 }
-
 .avatar-overlay svg {
   width: 14px;
   height: 14px;
 }
-
 .avatar-action {
   position: absolute;
   right: -6px;
@@ -2502,22 +2288,18 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
 }
-
 .avatar-action:hover {
   transform: scale(1.08);
   filter: brightness(1.08);
 }
-
 .avatar-action svg {
   width: 16px;
   height: 16px;
 }
-
 .hidden-input,
 .hidden-canvas {
   display: none;
 }
-
 .main-title {
   margin: 0 0 12px;
   color: var(--title);
@@ -2528,12 +2310,10 @@ onUnmounted(() => {
   text-align: center;
   text-transform: uppercase;
 }
-
 .main-title span {
   display: block;
   color: var(--accent);
 }
-
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -2546,14 +2326,12 @@ onUnmounted(() => {
   font-size: 0.66rem;
   font-weight: 600;
 }
-
 .status-badge i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
-
 .photo-hint {
   margin: 16px 0 20px;
   color: var(--muted);
@@ -2561,14 +2339,12 @@ onUnmounted(() => {
   line-height: 1.5;
   text-align: center;
 }
-
 .profile-meta {
   width: 100%;
   margin: 0;
   padding-top: 6px;
   border-top: 1px solid var(--line);
 }
-
 .profile-meta > div {
   display: flex;
   align-items: center;
@@ -2577,17 +2353,14 @@ onUnmounted(() => {
   padding: 11px 2px;
   border-bottom: 1px solid var(--line);
 }
-
 .profile-meta > div:last-child {
   padding-bottom: 2px;
   border-bottom: 0;
 }
-
 .profile-meta dt {
   color: var(--muted);
   font-size: 0.72rem;
 }
-
 .profile-meta dd {
   margin: 0;
   overflow: hidden;
@@ -2597,21 +2370,40 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
+/* ============================ ESTADO DEL EMPLEADO ============================ */
+.profile-status-info {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  border-radius: 12px;
+  background: rgba(52, 211, 153, 0.07);
+}
+.profile-status-info > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.profile-status-info strong { color: var(--title); font-size: 0.78rem; font-weight: 600; }
+.profile-status-info small { color: var(--muted); font-size: 0.68rem; line-height: 1.4; }
+.status-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18), 0 0 10px #34d399;
+}
 /* ============================ FORMULARIOS ============================ */
-
 .forms-wrapper {
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-width: 0;
 }
-
 .login-card {
   padding: 24px;
   overflow: visible;
 }
-
 .card-header-flex {
   display: flex;
   align-items: center;
@@ -2619,13 +2411,11 @@ onUnmounted(() => {
   gap: 12px;
   margin-bottom: 20px;
 }
-
 .card-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
 .card-icon {
   width: 34px;
   height: 34px;
@@ -2636,18 +2426,15 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
-
 .card-icon svg {
   width: 17px;
   height: 17px;
 }
-
 .card-title-group p {
   margin: 3px 0 0;
   color: var(--muted);
   font-size: 0.7rem;
 }
-
 .card-badge {
   display: inline-flex;
   align-items: center;
@@ -2663,13 +2450,11 @@ onUnmounted(() => {
   text-transform: uppercase;
   white-space: nowrap;
 }
-
 .card-badge.required-badge {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   background: color-mix(in srgb, var(--accent) 11%, transparent);
   color: var(--accent);
 }
-
 .section-title {
   margin: 0;
   color: var(--title);
@@ -2679,46 +2464,37 @@ onUnmounted(() => {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
-
 .form-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
-
 .form-grid-2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-
 .form-grid-2.with-gap {
   margin-top: 16px;
 }
-
 .form-grid-3 .span-full,
 .form-grid-2 .span-full {
   grid-column: 1 / -1;
 }
-
 .lower-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
 }
-
 .lower-grid.single {
   grid-template-columns: 1fr;
 }
-
 /* ============================ MULTISELECT ============================ */
-
 .custom-multiselect {
   position: relative;
   width: 100%;
 }
-
 .select-box-trigger {
   width: 100%;
   min-height: 44px;
@@ -2739,28 +2515,23 @@ onUnmounted(() => {
   cursor: pointer;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-
 .select-box-trigger > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .select-box-trigger:hover {
   border-color: color-mix(in srgb, var(--text) 24%, transparent);
 }
-
 .select-box-trigger.open {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
-
 .placeholder-text {
   color: var(--muted);
   font-weight: 400;
 }
-
 .dropdown-arrow {
   width: 14px;
   height: 14px;
@@ -2768,11 +2539,9 @@ onUnmounted(() => {
   color: var(--muted);
   transition: transform 0.18s ease;
 }
-
 .dropdown-arrow.rotate {
   transform: rotate(180deg);
 }
-
 .dropdown-options-list {
   position: absolute;
   z-index: 200;
@@ -2787,7 +2556,6 @@ onUnmounted(() => {
   background: var(--bg-cards, #121416);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
 }
-
 .dropdown-option-item {
   width: 100%;
   min-height: 40px;
@@ -2805,17 +2573,14 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
-
 .dropdown-option-item:hover {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   color: var(--text);
 }
-
 .dropdown-option-item.selected {
   background: color-mix(in srgb, var(--accent) 13%, transparent);
   color: #93c5fd;
 }
-
 .dropdown-option-item.select-all {
   margin-bottom: 4px;
   border-bottom: 1px solid var(--line);
@@ -2823,7 +2588,6 @@ onUnmounted(() => {
   color: var(--text);
   font-weight: 600;
 }
-
 .option-checkbox {
   width: 16px;
   height: 16px;
@@ -2833,11 +2597,9 @@ onUnmounted(() => {
   border: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
   border-radius: 4px;
 }
-
 .option-checkbox.radio {
   border-radius: 50%;
 }
-
 .radio-dot {
   width: 7px;
   height: 7px;
@@ -2845,32 +2607,26 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #ffffff;
 }
-
 .dropdown-option-item.selected .option-checkbox {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
 }
-
 .option-checkbox svg {
   width: 10px;
   height: 10px;
 }
-
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition: opacity 0.14s ease, transform 0.14s ease;
   transform-origin: top;
 }
-
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
   transform: translateY(-4px) scale(0.985);
 }
-
 /* ============================ PROPIETARIO: TODAS LAS SEDES ============================ */
-
 .sedes-static {
   min-height: 56px;
   display: flex;
@@ -2881,7 +2637,6 @@ onUnmounted(() => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
-
 .sedes-static-icon {
   width: 34px;
   height: 34px;
@@ -2892,32 +2647,26 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
 }
-
 .sedes-static-icon svg {
   width: 16px;
   height: 16px;
 }
-
 .sedes-static-text {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
 .sedes-static-text strong {
   color: var(--title);
   font-size: 0.8rem;
   font-weight: 600;
 }
-
 .sedes-static-text small {
   color: var(--muted);
   font-size: 0.68rem;
 }
-
 /* ============================ HORARIO ============================ */
-
 .switch-row {
   display: flex;
   align-items: center;
@@ -2929,30 +2678,25 @@ onUnmounted(() => {
   cursor: pointer;
   transition: border-color 0.18s ease;
 }
-
 .switch-row:hover {
   border-color: color-mix(in srgb, var(--text) 24%, transparent);
 }
-
 .switch-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-
 .switch-copy strong {
   color: var(--title);
   font-size: 0.8rem;
   font-weight: 600;
 }
-
 .switch-copy small {
   color: var(--muted);
   font-size: 0.68rem;
   line-height: 1.4;
 }
-
 .switch-toggle {
   position: relative;
   display: inline-block;
@@ -2960,14 +2704,12 @@ onUnmounted(() => {
   height: 22px;
   flex-shrink: 0;
 }
-
 .switch-toggle input {
   position: absolute;
   width: 0;
   height: 0;
   opacity: 0;
 }
-
 .slider-round {
   position: absolute;
   inset: 0;
@@ -2975,7 +2717,6 @@ onUnmounted(() => {
   background: #2a2e39;
   transition: background 0.2s ease;
 }
-
 .slider-round::before {
   content: '';
   position: absolute;
@@ -2987,26 +2728,21 @@ onUnmounted(() => {
   background: #ffffff;
   transition: transform 0.2s ease;
 }
-
 .switch-toggle input:checked + .slider-round {
   background: var(--accent);
 }
-
 .switch-toggle input:checked + .slider-round::before {
   transform: translateX(18px);
 }
-
 .switch-toggle input:focus-visible + .slider-round {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
-
 .schedule-help {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 0.72rem;
   line-height: 1.5;
 }
-
 .schedule-summary {
   display: flex;
   align-items: center;
@@ -3020,25 +2756,20 @@ onUnmounted(() => {
   color: #34d399;
   font-size: 0.72rem;
 }
-
 .schedule-summary strong {
   font-size: 0.78rem;
 }
-
 /* ============================ GUARDAR ============================ */
-
 .action-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
-
 .required-hint {
   color: var(--muted);
   font-size: 0.7rem;
 }
-
 .btn-primary {
   min-height: 46px;
   display: inline-flex;
@@ -3056,23 +2787,33 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.18s ease, filter 0.18s ease;
 }
-
 .btn-primary:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-
 .btn-primary:active {
   transform: translateY(0);
 }
-
 .btn-primary svg {
   width: 16px;
   height: 16px;
 }
-
+.btn-primary:disabled,
+.btn-primary:disabled:hover {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
 /* ============================ FOCO VISIBLE ============================ */
-
 .avatar-circle:focus-visible,
 .avatar-action:focus-visible,
 .btn-primary:focus-visible,
@@ -3087,9 +2828,7 @@ onUnmounted(() => {
   outline: 2px solid var(--color-highlight, #3b82f6);
   outline-offset: 2px;
 }
-
 /* ============================ MODALES ============================ */
-
 .modal-overlay {
   position: fixed;
   z-index: 4000;
@@ -3101,12 +2840,10 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(3px);
 }
-
 .camera-overlay {
   z-index: 4100;
   background: rgba(0, 0, 0, 0.92);
 }
-
 .photo-modal,
 .camera-modal {
   width: min(100%, 440px);
@@ -3117,11 +2854,9 @@ onUnmounted(() => {
   background: var(--bg-cards, #121416);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
 }
-
 .camera-modal {
   width: min(100%, 620px);
 }
-
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -3129,7 +2864,6 @@ onUnmounted(() => {
   gap: 16px;
   margin-bottom: 20px;
 }
-
 .modal-header h3 {
   margin: 0;
   color: var(--color-titulos, #ffffff);
@@ -3138,14 +2872,12 @@ onUnmounted(() => {
   font-weight: 600;
   text-transform: uppercase;
 }
-
 .modal-header p {
   margin: 6px 0 0;
   color: #8b95a7;
   font-size: 0.74rem;
   line-height: 1.5;
 }
-
 .modal-close {
   width: 34px;
   height: 34px;
@@ -3159,19 +2891,15 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, border-color 0.18s ease;
 }
-
 .modal-close:hover {
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.09);
 }
-
 /* ============================ OPCIONES FOTO ============================ */
-
 .photo-options {
   display: grid;
   gap: 10px;
 }
-
 .photo-option {
   width: 100%;
   display: grid;
@@ -3187,12 +2915,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
 }
-
 .photo-option:hover {
   border-color: var(--color-highlight, #3b82f6);
   background: color-mix(in srgb, var(--color-highlight, #3b82f6) 7%, transparent);
 }
-
 .option-icon {
   width: 44px;
   height: 44px;
@@ -3202,30 +2928,25 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--color-highlight, #3b82f6) 13%, transparent);
   color: var(--color-highlight, #60a5fa);
 }
-
 .option-icon svg {
   width: 20px;
   height: 20px;
 }
-
 .photo-option strong {
   display: block;
   color: var(--color-titulos, #ffffff);
   font-size: 0.8rem;
 }
-
 .photo-option small {
   display: block;
   margin-top: 3px;
   color: #8b95a7;
   font-size: 0.68rem;
 }
-
 .photo-option b {
   color: #8b95a7;
   font-size: 1.2rem;
 }
-
 .cancel-btn,
 .camera-cancel {
   height: 42px;
@@ -3240,20 +2961,16 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease;
 }
-
 .cancel-btn:hover,
 .camera-cancel:hover {
   background: rgba(255, 255, 255, 0.05);
   color: #ffffff;
 }
-
 .cancel-btn {
   width: 100%;
   margin-top: 14px;
 }
-
 /* ============================ CÁMARA ============================ */
-
 .camera-preview {
   position: relative;
   width: 100%;
@@ -3263,18 +2980,15 @@ onUnmounted(() => {
   border-radius: 14px;
   background: #000000;
 }
-
 .camera-preview video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .camera-mirrored {
   transform: scaleX(-1);
 }
-
 .face-guide {
   position: absolute;
   top: 50%;
@@ -3286,7 +3000,6 @@ onUnmounted(() => {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-
 .switch-camera-btn {
   position: absolute;
   z-index: 3;
@@ -3305,18 +3018,15 @@ onUnmounted(() => {
   font-weight: 600;
   cursor: pointer;
 }
-
 .switch-camera-btn:disabled,
 .capture-btn:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
-
 .switch-camera-btn svg {
   width: 15px;
   height: 15px;
 }
-
 .camera-loading {
   position: absolute;
   z-index: 4;
@@ -3325,7 +3035,6 @@ onUnmounted(() => {
   place-items: center;
   background: rgba(0, 0, 0, 0.25);
 }
-
 .camera-loading span {
   width: 34px;
   height: 34px;
@@ -3334,13 +3043,11 @@ onUnmounted(() => {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 .camera-actions {
   display: flex;
   align-items: center;
@@ -3348,7 +3055,6 @@ onUnmounted(() => {
   gap: 14px;
   margin-top: 18px;
 }
-
 .capture-btn {
   display: flex;
   align-items: center;
@@ -3364,12 +3070,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: filter 0.18s ease, transform 0.18s ease;
 }
-
 .capture-btn:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-
 .capture-btn i {
   width: 34px;
   height: 34px;
@@ -3378,35 +3082,28 @@ onUnmounted(() => {
   border: 2px solid #ffffff;
   border-radius: 50%;
 }
-
 .capture-btn i span {
   width: 23px;
   height: 23px;
   border-radius: 50%;
   background: #ffffff;
 }
-
 /* ============================ TRANSICIONES ============================ */
-
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.18s ease;
 }
-
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
-
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
 }
-
 /* ============================ TOAST ============================ */
-
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important;
@@ -3417,135 +3114,105 @@ onUnmounted(() => {
   box-sizing: border-box !important;
   transform: translateX(-50%) !important;
 }
-
 /* ============================ TABLET ============================ */
-
 @media (max-width: 1100px) {
   .profile-card {
     grid-template-columns: 250px minmax(0, 1fr);
   }
-
   .form-grid-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
   .lower-grid {
     grid-template-columns: 1fr;
   }
 }
-
 /* ============================ MÓVIL / TABLET ============================ */
-
 @media (max-width: 900px) {
   .main-content {
     padding: 22px 18px 40px;
   }
-
   .page-header {
     align-items: stretch;
     flex-direction: column;
   }
-
   .search-small {
     width: 100%;
   }
-
   .profile-card {
     grid-template-columns: 1fr;
   }
-
   .profile-section {
     position: relative;
     top: auto;
   }
-
   .forms-wrapper {
     gap: 16px;
   }
 }
-
 /* ============================ TELÉFONO ============================ */
-
 @media (max-width: 600px) {
   .main-content {
     padding: 16px 12px 32px;
   }
-
   .page-header {
     margin-bottom: 18px;
   }
-
   .page-header h1 {
     font-size: 1.45rem;
   }
-
   .profile-section {
     padding: 22px 16px 16px;
   }
-
   .login-card {
     padding: 18px 16px;
   }
-
   .card-header-flex {
     align-items: flex-start;
   }
-
   .form-grid-3,
   .form-grid-2 {
     grid-template-columns: 1fr;
   }
-
   .form-grid-3 .span-full,
   .form-grid-2 .span-full {
     grid-column: auto;
   }
-
   .action-footer {
     align-items: stretch;
     flex-direction: column-reverse;
   }
-
   .btn-primary {
     width: 100%;
   }
-
   .modal-overlay {
     align-items: flex-end;
     padding: 8px;
   }
-
   .photo-modal,
   .camera-modal {
     padding: 18px 16px;
     border-radius: 16px;
   }
-
   .camera-overlay {
     align-items: center;
   }
-
   .camera-actions {
     align-items: stretch;
     flex-direction: column-reverse;
   }
-
   .camera-cancel,
   .capture-btn {
     width: 100%;
     justify-content: center;
   }
-
   .face-guide {
     width: 52%;
     height: 68%;
   }
-
   .dropdown-options-list {
     max-height: 200px;
   }
 }
-
 @media (max-width: 380px) {
   .main-content {
     padding-right: 8px;
