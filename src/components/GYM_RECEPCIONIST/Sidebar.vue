@@ -15,12 +15,12 @@
         <div class="gym-dropdown-menu">
           <div 
             v-for="gym in gyms" 
-            :key="gym" 
+            :key="gym.ID_Sede" 
             class="gym-option"
-            :class="{ 'active': selectedGym === gym }"
+            :class="{ 'active': selectedSedeId === Number(gym.ID_Sede) }"
             @click="selectGym(gym)"
           >
-            <span>{{ gym }}</span>
+            <span>{{ gym.Sede_Colonia }}</span>
           </div>
         </div>
       </div>
@@ -99,111 +99,102 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router'; 
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 
-const router = useRouter(); 
-const isSidebarOpen = ref<boolean>(false);
-const openSection = ref<string | null>(null);
-
-const isGymDropdownOpen = ref<boolean>(false);
-const selectedGym = ref<string>('Gimnasio Principal');
-const gyms = ref<string[]>([
-  'Gimnasio Principal',
-  'Sucursal Secundaria'
-]);
-
-// Sistema de Idiomas
-const currentLang = ref<string>(localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es');
-const handleLangChange = (e: Event): void => {
-  const customEvent = e as CustomEvent<{ idioma?: string }>;
-  if (customEvent.detail?.idioma) currentLang.value = customEvent.detail.idioma;
+const router = useRouter();
+type Sede = { ID_Sede: number; ID_Gym?: number; Sede_Colonia: string; [key: string]: unknown };
+type SesionGym = { sedes?: Sede[]; ID_Sede?: number; sede_id?: number; [key: string]: unknown };
+const leerSesion = (): SesionGym => {
+  try { return JSON.parse(sessionStorage.getItem('gym_account') || '{}') as SesionGym; }
+  catch { return {}; }
 };
-
+const cuenta = ref<SesionGym>(leerSesion());
+// Solo las sedes que el backend autorizó para este usuario.
+const gyms = computed<Sede[]>(() => {
+  const sedes = cuenta.value.sedes;
+  if (!Array.isArray(sedes)) return [];
+  const ids = new Set<number>();
+  return sedes.filter((s): s is Sede => {
+    const id = Number(s?.ID_Sede);
+    if (!Number.isInteger(id) || id <= 0 || ids.has(id)) return false;
+    ids.add(id);
+    return true;
+  });
+});
+const selectedSedeId = ref<number | null>(null);
+const sedeSeleccionada = computed<Sede | null>(() =>
+  gyms.value.find(s => Number(s.ID_Sede) === selectedSedeId.value) || gyms.value[0] || null
+);
+const selectedGym = computed(() => sedeSeleccionada.value?.Sede_Colonia || 'Sin sucursales');
+const isSidebarOpen = ref(false);
+const openSection = ref<string | null>(null);
+const isGymDropdownOpen = ref(false);
+const currentLang = ref(localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es');
 const langData: Record<'es' | 'en', Record<string, string>> = {
-  es: {
-    currentBranch: 'Sucursal Actual',
-    profile: 'Perfil',
-    home: 'Inicio',
-    register: 'Registro',
-    registerClients: 'Registrar Clientes',
-    registerStaff: 'Registrar Personal',
-    users: 'Usuarios',
-    viewClients: 'Ver Clientes',
-    viewStaff: 'Ver Personal',
-    payments: 'Pagos',
-    administration: 'Administración',
-    pricingAndPromos: 'Precios y Promos',
-    feesAndSurcharges: 'Multas y Recargos',
-    logbook: 'Bitácora',
-    revenue: 'Ingresos',
-    debtors: 'Deudores',
-    attendance: 'Asistencias',
-    renewals: 'Renovación',
-    settings: 'Configuración',
-    logout: 'Cerrar Sesión'
-  },
-  en: {
-    currentBranch: 'Current Branch',
-    profile: 'Profile',
-    home: 'Home',
-    register: 'Register',
-    registerClients: 'Register Clients',
-    registerStaff: 'Register Staff',
-    users: 'Users',
-    viewClients: 'View Clients',
-    viewStaff: 'View Staff',
-    payments: 'Payments',
-    administration: 'Administration',
-    pricingAndPromos: 'Pricing & Promos',
-    feesAndSurcharges: 'Fees & Surcharges',
-    logbook: 'Logbook',
-    revenue: 'Revenue',
-    debtors: 'Debtors',
-    attendance: 'Attendance',
-    renewals: 'Renewals',
-    settings: 'Settings',
-    logout: 'Log Out'
+  es: { currentBranch: 'Sucursal actual', profile: 'Perfil', home: 'Inicio', register: 'Registro', registerClients: 'Registrar clientes', registerStaff: 'Registrar personal', users: 'Usuarios', viewClients: 'Ver clientes', viewStaff: 'Ver personal', payments: 'Pagos', administration: 'Administración', pricingAndPromos: 'Precios y promociones', feesAndSurcharges: 'Multas y recargos', logbook: 'Bitácora', revenue: 'Ingresos', debtors: 'Deudores', attendance: 'Asistencias', renewals: 'Renovaciones', settings: 'Configuración', logout: 'Cerrar sesión' },
+  en: { currentBranch: 'Current branch', profile: 'Profile', home: 'Home', register: 'Registration', registerClients: 'Register clients', registerStaff: 'Register staff', users: 'Users', viewClients: 'View clients', viewStaff: 'View staff', payments: 'Payments', administration: 'Administration', pricingAndPromos: 'Pricing & promotions', feesAndSurcharges: 'Fees & surcharges', logbook: 'Logbook', revenue: 'Revenue', debtors: 'Debtors', attendance: 'Attendance', renewals: 'Renewals', settings: 'Settings', logout: 'Log out' }
+};
+const t = (key: string): string => langData[currentLang.value === 'en' ? 'en' : 'es'][key] || key;
+const handleLangChange = (event: Event) => {
+  const idioma = (event as CustomEvent<{ idioma?: string }>).detail?.idioma;
+  if (idioma === 'es' || idioma === 'en') {
+    currentLang.value = idioma;
+    localStorage.setItem('GYM_RECEPCIONIST-idioma', idioma);
   }
 };
-
-const t = (key: string): string => {
-  const langKey = (currentLang.value === 'en' ? 'en' : 'es') as 'es' | 'en';
-  return langData[langKey][key] || langData.es[key] || key;
+const toggleSidebar = () => { isSidebarOpen.value = !isSidebarOpen.value; };
+const toggleGroup = (section: string) => { openSection.value = openSection.value === section ? null : section; };
+const toggleGymDropdown = () => { isGymDropdownOpen.value = !isGymDropdownOpen.value; };
+const sincronizarSede = () => {
+  const guardada = Number(sessionStorage.getItem('selected_sede_id'));
+  const preferida = Number(cuenta.value.ID_Sede ?? cuenta.value.sede_id ?? 0);
+  const id = gyms.value.some(s => Number(s.ID_Sede) === guardada) ? guardada
+    : gyms.value.some(s => Number(s.ID_Sede) === preferida) ? preferida
+    : gyms.value.length ? Number(gyms.value[0]?.ID_Sede) : null;
+  selectedSedeId.value = id;
+  if (id !== null) sessionStorage.setItem('selected_sede_id', String(id));
 };
-
-onMounted(() => {
-  window.addEventListener('idioma-changed', handleLangChange as EventListener);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('idioma-changed', handleLangChange as EventListener);
-});
-
-const toggleSidebar = (): void => {
-  isSidebarOpen.value = !isSidebarOpen.value;
-};
-
-const toggleGroup = (section: string): void => {
-  openSection.value = openSection.value === section ? null : section;
-};
-
-const toggleGymDropdown = (): void => {
-  isGymDropdownOpen.value = !isGymDropdownOpen.value;
-};
-
-const selectGym = (gym: string): void => {
-  selectedGym.value = gym;
+const selectGym = (gym: Sede) => {
+  const id = Number(gym.ID_Sede);
+  if (!gyms.value.some(s => Number(s.ID_Sede) === id)) return;
+  selectedSedeId.value = id;
+  sessionStorage.setItem('selected_sede_id', String(id));
+  localStorage.setItem('selected_sede_id', String(id));
   isGymDropdownOpen.value = false;
+  window.dispatchEvent(new CustomEvent('sede-changed', { detail: { id, sede: gym } }));
 };
-
-const handleLogout = (): void => {
-  localStorage.removeItem('user_role');
-  localStorage.removeItem('token'); 
-  localStorage.removeItem('user');
-  
-  router.replace({ name: 'login' }); 
+const handleSedeChange = (event: Event) => {
+  const id = Number((event as CustomEvent<{ id?: number }>).detail?.id ?? sessionStorage.getItem('selected_sede_id'));
+  if (gyms.value.some(s => Number(s.ID_Sede) === id)) selectedSedeId.value = id;
 };
+const handleLogout = async () => {
+  const token = sessionStorage.getItem('auth_token');
+  try {
+    if (token) {
+      const base = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      if (base) await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
+    }
+  } catch (error) { console.warn('No se pudo revocar el token:', error); }
+  finally {
+    for (const key of ['auth_token', 'user_role', 'gym_account', 'user', 'selected_sede_id', 'token']) {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    }
+    isGymDropdownOpen.value = false;
+    await router.replace({ name: 'login' }).catch(() => router.replace('/login'));
+  }
+};
+onMounted(() => {
+  cuenta.value = leerSesion();
+  sincronizarSede();
+  window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('sede-changed', handleSedeChange);
+});
+onUnmounted(() => {
+  window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('sede-changed', handleSedeChange);
+});
 </script>
 
 <style scoped>

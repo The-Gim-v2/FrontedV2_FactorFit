@@ -520,9 +520,12 @@ const desktopDropdown = ref(null);
 /* Hoja inferior móvil: null | 'clients' | 'more' */
 const mobileSheet = ref(null);
 
-const selectedGym = ref(
-  localStorage.getItem('GYM_RECEPCIONIST-selected-gym') || 'Gimnasio Principal'
-);
+
+const readStaff = () => { try { const a=JSON.parse(sessionStorage.getItem('gym_account') || '{}'); return a.usuario || a.user || a; } catch { return {}; } };
+const allowedBranches = computed(() => { const a=readStaff(); return Array.isArray(a.sedes) ? a.sedes : []; });
+const currentBranch = computed(() => allowedBranches.value.find(s => String(s.ID_Sede) === sessionStorage.getItem('selected_sede_id')) || allowedBranches.value[0] || null);
+const refreshBranch = () => { const a=currentBranch.value; if(a){ const id=String(a.ID_Sede);sessionStorage.setItem('selected_sede_id',id);localStorage.setItem('selected_sede_id',id); } };
+const selectedGym = computed(() => currentBranch.value?.Sede_Colonia || 'Sin sucursal asignada');
 
 const notifications = ref([]); // Notificaciones desde Laravel, no datos de prueba
 
@@ -530,10 +533,10 @@ const notifications = ref([]); // Notificaciones desde Laravel, no datos de prue
    PERFIL (datos de prueba)
 ========================================================= */
 
-const userName = 'José Luis';
+const userName = computed(() => { const a = readStaff(); return String(a.nombre || a.Nombre || 'Recepción'); });
 
 const userInitials = computed(() =>
-  userName
+  userName.value
     .trim()
     .split(/\s+/)
     .slice(0, 2)
@@ -594,8 +597,8 @@ const notificationsToken = () => {
   return '';
 };
 const notificationsSede = () => {
-  const stored = sessionStorage.getItem('selected_sede_id') || localStorage.getItem('selected_sede_id');
-  if (stored && Number.isSafeInteger(Number(stored)) && Number(stored) > 0) return Number(stored);
+  const stored = sessionStorage.getItem('selected_sede_id');
+  if (stored && allowedBranches.value.some(s => String(s.ID_Sede) === String(stored))) return Number(stored);
   // Si el login no guardó selected_sede_id, intentar la sede del usuario autenticado.
   for (const key of ['user', 'gym_account']) {
     for (const storage of [sessionStorage, localStorage]) {

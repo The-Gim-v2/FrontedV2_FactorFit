@@ -564,9 +564,11 @@ const presetActivo = computed(() => {
 });
 
 const cambiarIdioma = (event) => {
-  const nuevoIdioma = event.target.value;
+  const nuevoIdioma = event.target.value === 'en' ? 'en' : 'es';
   settings.idioma = nuevoIdioma;
+  localStorage.setItem('GYM_RECEPCIONIST-idioma', nuevoIdioma);
   setLang(nuevoIdioma);
+  window.dispatchEvent(new CustomEvent('idioma-changed', { detail: { idioma: nuevoIdioma } }));
 };
 
 const toast = reactive({ visible: false, message: '' });

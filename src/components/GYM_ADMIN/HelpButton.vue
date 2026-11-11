@@ -53,7 +53,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 const route = useRoute();
 const activeStep = ref(null);
-const tutorialEnabled = ref(localStorage.getItem('tutorialActivo') === 'true');
+const tutorialEnabled = ref(localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true');
 const targetRect = ref(null);
 const windowWidth = ref(window.innerWidth);
 // Idioma actual de la interfaz, sincronizado con localStorage
@@ -911,7 +911,7 @@ const closeTutorial = () => {
   textRevealed.value = false;
 };
 const updateTutorialStatus = () => {
-  tutorialEnabled.value = localStorage.getItem('tutorialActivo') === 'true';
+  tutorialEnabled.value = localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true';
 };
 // Listener para actualizar el idioma en tiempo real si se modifica en la app
 const handleLanguageUpdate = () => {

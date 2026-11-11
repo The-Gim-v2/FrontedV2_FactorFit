@@ -836,7 +836,7 @@ const notifications = ref([]); // Notificaciones desde Laravel, no datos de prue
    PERFIL (datos de prueba)
 ========================================================= */
 
-const GYM_ADMINName = 'Jose Luis';
+const GYM_ADMINName = computed(() => { const u = readAccount(); return String(u.nombre || u.Nombre || u.propietario || 'Administrador'); });
 
 /* Logo temporal generado en línea; reemplázalo por el real */
 const gymLogo =
@@ -845,7 +845,7 @@ const gymLogo =
 const logoOk = ref(true);
 
 const GYM_ADMINInitials = computed(() =>
-  GYM_ADMINName
+  GYM_ADMINName.value
     .split(' ')
     .slice(0, 2)
     .map((p) => p[0])

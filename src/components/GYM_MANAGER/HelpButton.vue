@@ -57,7 +57,7 @@ import { useRoute } from 'vue-router';
 
 const route = useRoute();
 const activeStep = ref(null);
-const tutorialEnabled = ref(localStorage.getItem('tutorialActivo') === 'true');
+const tutorialEnabled = ref(localStorage.getItem('GYM_MANAGER-tutorialActivo') === 'true');
 const targetRect = ref(null);
 const windowWidth = ref(window.innerWidth);
 
@@ -910,7 +910,7 @@ const closeTutorial = () => {
 };
 
 const updateTutorialStatus = () => {
-  tutorialEnabled.value = localStorage.getItem('tutorialActivo') === 'true';
+  tutorialEnabled.value = localStorage.getItem('GYM_MANAGER-tutorialActivo') === 'true';
 };
 
 // Listener para actualizar el idioma en tiempo real si se modifica en la app
@@ -919,6 +919,7 @@ const handleLanguageUpdate = () => {
 };
 
 onMounted(() => {
+  window.addEventListener('idioma-changed', handleLangUpdate);
   window.addEventListener('tutorial-updated', updateTutorialStatus);
   window.addEventListener('language-updated', handleLanguageUpdate);
   window.addEventListener('resize', handleResize);

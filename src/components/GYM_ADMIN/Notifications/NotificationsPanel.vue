@@ -432,6 +432,15 @@ type NotificationItem = {
   type?: 'payment' | 'membership' | 'client' | 'schedule' | 'system';
   date?: string | Date;
 };
+
+// Caché separado por rol y usuario: el servidor conserva el estado verdadero.
+const notificationPrefsKey = () => {
+  let account: Record<string, unknown> = {};
+  try { account = JSON.parse(sessionStorage.getItem('gym_account') || '{}'); } catch { /* ignore */ }
+  const u = (account.usuario || account.user || account) as Record<string, unknown>;
+  const id = String(u.id ?? u.ID_Personal ?? u.ID_Gym ?? u.email ?? 'sin-id');
+  return 'GYM_ADMIN-notification-preferences-' + id;
+};
 const props = defineProps<{
   isOpen: boolean;
   notifications?: NotificationItem[];
@@ -856,7 +865,7 @@ const toggleMenu = (id: string | number, event: MouseEvent) => {
 ========================================================= */
 const saveSettings = async () => {
   localStorage.setItem(
-    'notification-preferences',
+    notificationPrefsKey(),
     JSON.stringify({
       settings: settings.value,
       types: notificationTypes.value.map(item => ({
@@ -868,7 +877,7 @@ const saveSettings = async () => {
   try{await apiRequest('/preferencias','PUT',{sede_id:scopeSede(),settings:settings.value,types:notificationTypes.value.map(x=>({key:x.key,value:x.value}))});currentView.value='list';}catch(e){apiError.value=e instanceof Error?e.message:'No se pudieron guardar preferencias.';}
 };
 const loadPreferences = () => {
-  const stored = localStorage.getItem('notification-preferences');
+  const stored = localStorage.getItem(notificationPrefsKey());
   if (!stored) return;
   try {
     const data = JSON.parse(stored);
