@@ -19,8 +19,7 @@
           <p class="form-subtitle">{{ t('emailSubtitle') }}</p>
         </div>
       </div>
-
-      <button type="button" class="close-x" @click="$emit('close')" :aria-label="t('close')">
+      <button type="button" class="close-x" :aria-label="t('close')" @click="$emit('close')">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
       </button>
     </header>
@@ -42,7 +41,6 @@
       <div class="mail-workspace">
         <!-- COLUMNA IZQUIERDA: EDITOR -->
         <div class="composer-column" :class="{ 'mobile-hidden': activeMailView !== 'editor' }">
-
           <!-- 01 DESTINATARIOS -->
           <section class="form-section">
             <div class="section-heading">
@@ -66,7 +64,7 @@
               <div class="chips">
                 <span v-for="r in visibleChips" :key="r.email" class="chip" :class="{ invalid: !r.valid }">
                   <span class="chip-text">{{ r.email }}</span>
-                  <button type="button" class="chip-x" @click="removeRecipient(r.email)" :aria-label="t('remove')">
+                  <button type="button" class="chip-x" :aria-label="t('remove')" @click="removeRecipient(r.email)">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </button>
                 </span>
@@ -115,34 +113,35 @@
               </button>
             </div>
 
-            <div ref="editorContainer" class="editor-container" @mouseleave="onContainerLeave">
+            <div class="editor-container">
               <div class="toolbar">
                 <div class="toolbar-group">
-                  <button type="button" class="tool-btn" @mousedown.prevent @click="execCommand('bold')" :title="t('bold')"><strong>B</strong></button>
-                  <button type="button" class="tool-btn italic-tool" @mousedown.prevent @click="execCommand('italic')" :title="t('italic')">I</button>
-                  <button type="button" class="tool-btn underline-tool" @mousedown.prevent @click="execCommand('underline')" :title="t('underline')">U</button>
-                  <button type="button" class="tool-btn" @mousedown.prevent @click="execCommand('insertUnorderedList')" :title="t('list')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>
+                  <button type="button" class="tool-btn" :title="t('bold')" @mousedown.prevent @click="execCommand('bold')"><strong>B</strong></button>
+                  <button type="button" class="tool-btn italic-tool" :title="t('italic')" @mousedown.prevent @click="execCommand('italic')">I</button>
+                  <button type="button" class="tool-btn underline-tool" :title="t('underline')" @mousedown.prevent @click="execCommand('underline')">U</button>
+                  <button type="button" class="tool-btn" :title="t('list')" @mousedown.prevent @click="execCommand('insertUnorderedList')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6" /><line x1="9" y1="12" x2="20" y2="12" /><line x1="9" y1="18" x2="20" y2="18" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></svg>
                   </button>
-                  <button type="button" class="tool-btn" @mousedown.prevent @click="execCommand('removeFormat')" :title="t('clearFormat')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v8"/><path d="M3 21 21 3"/></svg>
+                  <button type="button" class="tool-btn" :title="t('clearFormat')" @mousedown.prevent @click="execCommand('removeFormat')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3" /><path d="M9 20h6" /><path d="M12 4v8" /><path d="M3 21 21 3" /></svg>
                   </button>
                 </div>
 
                 <div class="toolbar-separator"></div>
 
                 <div class="toolbar-group">
-                  <button type="button" class="tool-btn tool-btn-image" @click="fileInput?.click()" :title="t('attachImage')">
+                  <button type="button" class="tool-btn tool-btn-image" :title="t('attachImage')" @click="fileInput?.click()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
                     <span>{{ t('image') }}</span>
                   </button>
-                  <input ref="fileInput" type="file" accept="image/*" class="hidden-file-input" @change="handleImage" />
+                  <input ref="fileInput" type="file" accept="image/*" multiple class="hidden-file-input" @change="handleImage" />
                 </div>
 
                 <div class="toolbar-spacer"></div>
                 <span class="editor-status"><span class="status-dot"></span>{{ t('editor') }}</span>
               </div>
 
+              <!-- Texto: aquí nunca se insertan imágenes -->
               <div
                 ref="editor"
                 class="editor-area"
@@ -150,32 +149,27 @@
                 role="textbox"
                 aria-multiline="true"
                 :data-placeholder="t('editorPlaceholder')"
-                @input="updateContent"
+                @input="syncMessage"
                 @paste="handlePaste"
-                @mouseover="onEditorMouseOver"
-                @pointerup="onEditorTap"
-                @click="onEditorTap"
-                @scroll="positionImageButton"
+                @drop="handleDrop"
               ></div>
 
-              <!-- Botón flotante para eliminar la imagen -->
-              <button
-                ref="imgBtnEl"
-                v-show="imgBtn.visible"
-                type="button"
-                class="img-delete-btn"
-                :style="{ top: imgBtn.top + 'px', left: imgBtn.left + 'px' }"
-                :title="t('removeImage')"
-                :aria-label="t('removeImage')"
-                @mousedown.prevent
-                @pointerdown.stop
-                @click.stop="removeActiveImage"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
-                <span>{{ t('delete') }}</span>
-              </button>
+              <!-- Imágenes: siempre debajo del texto -->
+              <div v-if="images.length" class="images-bar">
+                <div class="images-bar-head">
+                  <strong>{{ t('imagesBelow') }} ({{ images.length }})</strong>
+                  <small>{{ t('imagesBelowHint') }}</small>
+                </div>
+                <ul class="images-grid">
+                  <li v-for="(img, i) in images" :key="img.id" class="image-card">
+                    <img :src="img.src" :alt="img.name || `${t('image')} ${i + 1}`" />
+                    <span class="image-index">{{ i + 1 }}</span>
+                    <button type="button" class="image-remove" :title="t('removeImage')" :aria-label="t('removeImage')" @click="removeImage(img.id)">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
+                  </li>
+                </ul>
+              </div>
 
               <div class="editor-footer">
                 <div class="editor-tip">
@@ -230,7 +224,7 @@
             </div>
 
             <div class="email-preview-body">
-              <div v-if="hasMessage" class="preview-html-content" v-html="emailForm.mensaje"></div>
+              <div v-if="hasMessage" class="preview-html-content" v-html="messageHtml"></div>
               <div v-else class="preview-empty">
                 <div class="preview-empty-icon">
                   <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" /></svg>
@@ -287,9 +281,8 @@
           <span>{{ invalidCount > 0 ? invalidCount + ' ' + t('invalidWarning') : t('verifyBeforeSend') }}</span>
         </div>
       </div>
-
-      <button type="button" class="btn-send" @click="sendEmail">
-        <span>{{ t('btnSend') }}</span>
+      <button type="button" class="btn-send" :disabled="sending" @click="sendEmail">
+        <span>{{ sending ? t('sending') : t('btnSend') }}</span>
         <span class="send-icon">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
         </span>
@@ -299,14 +292,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 
 defineEmits<{ (e: 'close'): void }>();
+const props = withDefaults(defineProps<{ destinatarioInicial?: string }>(), { destinatarioInicial: '' });
 
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const editor = ref<HTMLElement | null>(null);
-const editorContainer = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 /* ---------- IDIOMA ---------- */
@@ -326,18 +319,21 @@ const translations: Record<string, Record<string, string>> = {
     message: 'Mensaje', messageHelp: 'Redacta el contenido que recibirán tus usuarios.',
     templates: 'Plantillas', tplPayment: 'Recordatorio de pago', tplPromo: 'Promoción', tplSchedule: 'Cambio de horario',
     bold: 'Negrita', italic: 'Cursiva', underline: 'Subrayado', list: 'Lista', clearFormat: 'Quitar formato',
-    attachImage: 'Adjuntar imagen', image: 'Imagen', delete: 'Eliminar', removeImage: 'Eliminar imagen',
+    attachImage: 'Adjuntar imagen', image: 'Imagen', removeImage: 'Eliminar imagen',
+    imagesBelow: 'Imágenes del mensaje', imagesBelowHint: 'Siempre se mostrarán debajo del texto.',
     editor: 'Editor', editorPlaceholder: 'Escribe tu mensaje aquí...',
-    editorTip: 'Puedes aplicar formato e insertar imágenes.', chars: 'caracteres',
+    editorTip: 'Puedes aplicar formato y adjuntar imágenes.', chars: 'caracteres',
     mail: 'Correo', noSubject: 'Sin asunto', gymSender: 'Gimnasio', to: 'para', noRecipients: 'Sin destinatarios',
     previewEmptyTitle: 'Tu mensaje aparecerá aquí', previewEmptyText: 'Comienza a escribir para visualizar el correo.',
     automaticMessage: 'Este mensaje fue enviado desde el sistema de administración.',
     reply: 'Responder', forward: 'Reenviar', ready: 'Listo', pending: 'Pendiente',
     verifyBeforeSend: 'Verifica destinatarios y contenido antes de realizar el envío.',
-    btnSend: 'Enviar Correo',
-    imgAdded: 'Imagen añadida al contenido', imgRemoved: 'Imagen eliminada',
+    btnSend: 'Enviar Correo', sending: 'Enviando...',
+    imgAdded: 'Imagen añadida debajo del texto', imgRemoved: 'Imagen eliminada',
     completeFields: 'Completa destinatarios, asunto y mensaje',
-    invalidRecipients: 'Revisa los correos de los destinatarios', emailSent: 'Correo enviado correctamente'
+    invalidRecipients: 'Revisa los correos de los destinatarios', emailSent: 'Correo enviado correctamente',
+    maxRecipients: 'Máximo 20 destinatarios por envío.', signInAgain: 'Inicia sesión nuevamente.',
+    sendError: 'No se pudo enviar el correo.'
   },
   en: {
     emailTitle: 'SEND', emailHighlight: 'EMAIL',
@@ -352,25 +348,35 @@ const translations: Record<string, Record<string, string>> = {
     message: 'Message', messageHelp: 'Write the content your users will receive.',
     templates: 'Templates', tplPayment: 'Payment reminder', tplPromo: 'Promotion', tplSchedule: 'Schedule change',
     bold: 'Bold', italic: 'Italic', underline: 'Underline', list: 'List', clearFormat: 'Clear formatting',
-    attachImage: 'Attach image', image: 'Image', delete: 'Delete', removeImage: 'Remove image',
+    attachImage: 'Attach image', image: 'Image', removeImage: 'Remove image',
+    imagesBelow: 'Message images', imagesBelowHint: 'They are always shown below the text.',
     editor: 'Editor', editorPlaceholder: 'Write your message here...',
-    editorTip: 'You can apply formatting and insert images.', chars: 'characters',
+    editorTip: 'You can apply formatting and attach images.', chars: 'characters',
     mail: 'Mail', noSubject: 'No subject', gymSender: 'Gym', to: 'to', noRecipients: 'No recipients',
     previewEmptyTitle: 'Your message will appear here', previewEmptyText: 'Start writing to preview the email.',
     automaticMessage: 'This message was sent from the administration system.',
     reply: 'Reply', forward: 'Forward', ready: 'Ready', pending: 'Pending',
     verifyBeforeSend: 'Check recipients and content before sending.',
-    btnSend: 'Send Email',
-    imgAdded: 'Image added to content', imgRemoved: 'Image removed',
+    btnSend: 'Send Email', sending: 'Sending...',
+    imgAdded: 'Image added below the text', imgRemoved: 'Image removed',
     completeFields: 'Complete recipients, subject and message',
-    invalidRecipients: 'Check the recipient email addresses', emailSent: 'Email sent successfully'
+    invalidRecipients: 'Check the recipient email addresses', emailSent: 'Email sent successfully',
+    maxRecipients: 'Maximum 20 recipients per send.', signInAgain: 'Sign in again.',
+    sendError: 'Could not send email.'
   }
 };
 
 const t = (key: string): string => translations[settings.idioma]?.[key] ?? translations['es']?.[key] ?? key;
 
 /* ---------- FORMULARIO ---------- */
-const emailForm = reactive({ asunto: '', destinatarios: '', mensaje: '' });
+const emailForm = reactive({ asunto: '', destinatarios: props.destinatarioInicial.trim(), mensaje: '' });
+
+watch(
+  () => props.destinatarioInicial,
+  (v) => { emailForm.destinatarios = String(v || '').trim(); },
+  { immediate: true }
+);
+
 const activeMailView = ref<'editor' | 'preview'>('editor');
 
 /* ---------- PLANTILLAS ---------- */
@@ -390,11 +396,11 @@ const templates = computed<MailTemplate[]>(() =>
       ]
 );
 
+/* La plantilla reemplaza solo el texto; las imágenes adjuntas se conservan */
 const applyTemplate = (tpl: MailTemplate) => {
   emailForm.asunto = tpl.subject;
   emailForm.mensaje = tpl.body;
   if (editor.value) editor.value.innerHTML = tpl.body;
-  hideImageButton();
 };
 
 /* ---------- DESTINATARIOS ---------- */
@@ -404,11 +410,11 @@ const recipientList = computed<string[]>(() => {
   const all = emailForm.destinatarios.split(/[,;\n]+/).map(e => e.trim()).filter(Boolean);
   return Array.from(new Set(all));
 });
-
 const recipientEntries = computed(() => recipientList.value.map(email => ({ email, valid: isValidEmail(email) })));
 const recipientCount = computed(() => recipientList.value.length);
 const validCount = computed(() => recipientEntries.value.filter(r => r.valid).length);
 const invalidCount = computed(() => recipientCount.value - validCount.value);
+
 const MAX_CHIPS = 8;
 const visibleChips = computed(() => recipientEntries.value.slice(0, MAX_CHIPS));
 const hiddenChips = computed(() => Math.max(0, recipientCount.value - MAX_CHIPS));
@@ -424,28 +430,118 @@ const recipientPreview = computed<string>(() => {
   return recipientList.value.length === 1 ? first : `${first} +${recipientList.value.length - 1}`;
 });
 
+/* ---------- IMÁGENES (siempre debajo del texto) ----------
+   El editor solo contiene texto. Las imágenes viven en una lista aparte y
+   se agregan al FINAL del HTML, así nunca quedan arriba ni en medio. */
+interface MailImage { id: number; src: string; name: string }
+
+const images = ref<MailImage[]>([]);
+let imageSeq = 0;
+
+/* Las imágenes se convierten a JPEG para que Brevo y Gmail las acepten.
+   Admite formatos que el navegador pueda abrir; HEIC/SVG no se garantizan. */
+const readImage = async (file: File): Promise<MailImage | null> => {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return null;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('No se puede leer esta imagen'));
+      element.src = url;
+    });
+    let width = img.naturalWidth;
+    let height = img.naturalHeight;
+    if (!width || !height || width > 12000 || height > 12000) return null;
+    const ratio = Math.min(1, 1600 / Math.max(width, height));
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.fillStyle = '#ffffff'; // Fondo blanco para imágenes transparentes
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const src = canvas.toDataURL('image/jpeg', attempt < 3 ? .84 - attempt * .12 : .65);
+      const bytes = Math.round((src.length - src.indexOf(',') - 1) * .75);
+      if (bytes <= 1024 * 1024) return { id: ++imageSeq, src, name: file.name.replace(/\.[^.]+$/, '') + '.jpg' };
+      width = Math.max(1, Math.round(width * .75));
+      height = Math.max(1, Math.round(height * .75));
+    }
+    return null;
+  } catch { return null; }
+  finally { URL.revokeObjectURL(url); }
+};
+
+const addImageFiles = async (files: File[]) => {
+  const remaining = 3 - images.value.length;
+  if (remaining <= 0) {
+    toastRef.value?.notify('Máximo 3 imágenes por correo.', 'error'); return;
+  }
+  const loaded = (await Promise.all(files.slice(0, remaining).map(readImage))).filter((i): i is MailImage => i !== null);
+  if (loaded.length) {
+    images.value = [...images.value, ...loaded];
+    toastRef.value?.notify(t('imgAdded'), 'success');
+  }
+  if (loaded.length !== files.length) {
+    toastRef.value?.notify('Máximo 3 imágenes. Algunos archivos no se pudieron convertir; usa JPG, PNG, WebP, GIF o BMP.', 'error');
+  }
+};
+
+const handleImage = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const files = Array.from(target.files ?? []);
+  target.value = '';
+  void addImageFiles(files);
+};
+
+const removeImage = (id: number) => {
+  images.value = images.value.filter(i => i.id !== id);
+  toastRef.value?.notify(t('imgRemoved'), 'success');
+};
+
+/* HTML de las imágenes, con estilos en línea para que se vean bien en cualquier cliente de correo */
+const imagesHtml = computed(() =>
+  images.value
+    .map(img => `<p style="margin:16px 0 0;text-align:center;"><img src="${img.src}" alt="" style="display:block;max-width:100%;height:auto;margin:0 auto;border-radius:8px;"></p>`)
+    .join('')
+);
+
+/* Mensaje final = texto + imágenes al final */
+const messageHtml = computed(() => emailForm.mensaje + imagesHtml.value);
+
 /* ---------- MENSAJE ---------- */
 const plainText = computed<string>(() => {
   const temp = document.createElement('div');
   temp.innerHTML = emailForm.mensaje;
   return temp.textContent?.trim() ?? '';
 });
-
-const hasMessage = computed<boolean>(() => {
-  if (plainText.value.length > 0) return true;
-  const temp = document.createElement('div');
-  temp.innerHTML = emailForm.mensaje;
-  return Boolean(temp.querySelector('img'));
-});
-
+const hasMessage = computed<boolean>(() => plainText.value.length > 0 || images.value.length > 0);
 const charCount = computed(() => plainText.value.length);
-
 const previewDate = computed(() =>
   new Intl.DateTimeFormat(settings.idioma === 'en' ? 'en-US' : 'es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date())
 );
 
 /* ---------- EDITOR ---------- */
+/* Si por cualquier vía (arrastrar, pegar HTML) se cuela una imagen en el texto,
+   se saca de ahí y se manda a la lista de imágenes del final. */
+const extractStrayImages = () => {
+  const area = editor.value;
+  if (!area) return;
+  const stray = Array.from(area.querySelectorAll('img'));
+  if (!stray.length) return;
+  const found: MailImage[] = [];
+  stray.forEach((img) => {
+    if (img.src.startsWith('data:image/')) found.push({ id: ++imageSeq, src: img.src, name: '' });
+    img.remove();
+  });
+  if (found.length) images.value = [...images.value, ...found];
+};
+
 const syncMessage = () => {
+  extractStrayImages();
   if (editor.value) emailForm.mensaje = editor.value.innerHTML;
 };
 
@@ -456,138 +552,105 @@ const execCommand = (cmd: string) => {
   syncMessage();
 };
 
-const updateContent = () => {
-  syncMessage();
-  // Si la imagen activa fue borrada con el teclado, oculta el botón
-  if (activeImg.value && !activeImg.value.isConnected) hideImageButton();
-  else positionImageButton();
-};
-
-// Pega siempre como texto plano (evita HTML/estilos externos y atributos peligrosos)
+/* Pega texto plano; si lo pegado es una imagen, va a la lista de imágenes */
 const handlePaste = (event: ClipboardEvent) => {
   event.preventDefault();
+  const files = Array.from(event.clipboardData?.files ?? []).filter(f => f.type.startsWith('image/'));
+  if (files.length) {
+    void addImageFiles(files);
+    return;
+  }
   const text = event.clipboardData?.getData('text/plain') ?? '';
   document.execCommand('insertText', false, text);
   syncMessage();
 };
 
-const handleImage = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = readerEvent => {
-    const result = readerEvent.target?.result;
-    if (!result || typeof result !== 'string') return;
-
-    if (editor.value) {
-      editor.value.focus();
-      document.execCommand('insertImage', false, result);
-      syncMessage();
-    }
-    toastRef.value?.notify(t('imgAdded'), 'success');
-    target.value = '';
-  };
-  reader.readAsDataURL(file);
-};
-
-/* ---------- ELIMINAR IMAGEN (botón flotante) ---------- */
-const activeImg = ref<HTMLImageElement | null>(null);
-const imgBtnEl = ref<HTMLElement | null>(null);
-const imgBtn = reactive({ visible: false, top: 0, left: 0 });
-
-const canHover = () => window.matchMedia('(hover: hover)').matches;
-
-const hideImageButton = () => {
-  activeImg.value = null;
-  imgBtn.visible = false;
-};
-
-const positionImageButton = () => {
-  const img = activeImg.value;
-  const container = editorContainer.value;
-  const area = editor.value;
-  if (!img || !container || !area || !img.isConnected) {
-    imgBtn.visible = false;
-    return;
-  }
-
-  const i = img.getBoundingClientRect();
-  const c = container.getBoundingClientRect();
-  const a = area.getBoundingClientRect();
-
-  // La imagen quedó fuera del área visible del editor (scroll)
-  if (i.bottom < a.top + 12 || i.top > a.bottom - 12) {
-    imgBtn.visible = false;
-    return;
-  }
-
-  const btnW = imgBtnEl.value?.offsetWidth || 40;
-  imgBtn.top = Math.max(i.top, a.top) - c.top + 8;
-  imgBtn.left = Math.max(Math.min(i.right, a.right) - c.left - btnW - 8, 8);
-  imgBtn.visible = true;
-};
-
-const selectImage = (img: HTMLImageElement) => {
-  activeImg.value = img;
-  positionImageButton();
-  // En móvil el teclado/viewport cambia el layout tras el toque: recalcula
-  setTimeout(positionImageButton, 120);
-  setTimeout(positionImageButton, 350);
-};
-
-const onEditorMouseOver = (event: MouseEvent) => {
-  if (!canHover()) return; // en táctil no hay hover
-  const el = event.target as HTMLElement;
-  if (el.tagName === 'IMG') selectImage(el as HTMLImageElement);
-};
-
-const onEditorTap = (event: Event) => {
-  const el = event.target as HTMLElement;
-  if (el.tagName === 'IMG') selectImage(el as HTMLImageElement);
-  else hideImageButton();
-};
-
-const onContainerLeave = () => {
-  if (canHover()) hideImageButton(); // en táctil no se oculta al "salir"
-};
-
-const removeActiveImage = () => {
-  const img = activeImg.value;
-  if (!img) return;
-  img.remove();
-  hideImageButton();
-  syncMessage();
-  toastRef.value?.notify(t('imgRemoved'), 'success');
+/* Soltar un archivo de imagen en el editor también la manda debajo del texto */
+const handleDrop = (event: DragEvent) => {
+  const files = Array.from(event.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  event.preventDefault();
+  void addImageFiles(files);
 };
 
 /* ---------- ENVIAR ---------- */
-const sendEmail = () => {
-  // Demo: aquí va tu petición HTTP real.
+const sending = ref(false);
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+
+const getAuthToken = (): string => {
+  for (const s of [sessionStorage, localStorage]) {
+    for (const k of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_RECEPCIONIST_token', 'gymAccountToken']) {
+      const v = s.getItem(k);
+      if (v) return v.replace(/^Bearer\s+/i, '');
+    }
+    for (const k of ['auth', 'user', 'session', 'gymAccount', 'GYM_RECEPCIONIST']) {
+      try {
+        const d = JSON.parse(s.getItem(k) || 'null');
+        const v = d?.token || d?.access_token || d?.accessToken;
+        if (v) return String(v).replace(/^Bearer\s+/i, '');
+      } catch { /* dato no JSON */ }
+    }
+  }
+  return '';
+};
+
+const sendEmail = async () => {
+  if (sending.value) return;
+
   if (recipientCount.value === 0 || !emailForm.asunto.trim() || !hasMessage.value) {
     toastRef.value?.notify(t('completeFields'), 'error');
     return;
   }
-
   if (!allRecipientsAreValid.value) {
     toastRef.value?.notify(t('invalidRecipients'), 'error');
     return;
   }
+  if (recipientCount.value > 20) {
+    toastRef.value?.notify(t('maxRecipients'), 'error');
+    return;
+  }
+  const auth = getAuthToken();
+  if (!auth) {
+    toastRef.value?.notify(t('signInAgain'), 'error');
+    return;
+  }
 
-  toastRef.value?.notify(t('emailSent'), 'success');
+  sending.value = true;
+  try {
+    const response = await fetch(`${API}/api/gym/correos/enviar`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
+      body: JSON.stringify({
+        destinatarios: recipientList.value,
+        asunto: emailForm.asunto.trim(),
+        mensaje: messageHtml.value
+      })
+    });
+    const data = await response.json().catch(() => ({}));
 
-  // Limpia el formulario para evitar un doble envío accidental
-  emailForm.destinatarios = '';
-  emailForm.asunto = '';
-  emailForm.mensaje = '';
-  if (editor.value) editor.value.innerHTML = '';
-  hideImageButton();
+    if (!response.ok) {
+      throw new Error(data.message || Object.values(data.errors || {}).flat().join(' ') || `HTTP ${response.status}`);
+    }
+    if (Number(data.enviados || 0) !== recipientCount.value) {
+      const sent = data.enviados || 0;
+      throw new Error(
+        settings.idioma === 'en'
+          ? `Sent ${sent} of ${recipientCount.value}. ${data.message || ''}`
+          : `Enviados ${sent} de ${recipientCount.value}. ${data.message || ''}`
+      );
+    }
+
+    toastRef.value?.notify(t('emailSent'), 'success');
+    emailForm.destinatarios = '';
+    emailForm.asunto = '';
+    emailForm.mensaje = '';
+    images.value = [];
+    if (editor.value) editor.value.innerHTML = '';
+  } catch (e) {
+    toastRef.value?.notify(e instanceof Error ? e.message : t('sendError'), 'error');
+  } finally {
+    sending.value = false;
+  }
 };
 
 /* ---------- CAMBIO DE IDIOMA ---------- */
@@ -598,15 +661,10 @@ const handleLanguageChange = (event: Event) => {
 
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLanguageChange);
-  window.addEventListener('resize', positionImageButton);
-  window.addEventListener('scroll', positionImageButton, true);
-  window.visualViewport?.addEventListener('resize', positionImageButton);
 });
+
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLanguageChange);
-  window.removeEventListener('resize', positionImageButton);
-  window.removeEventListener('scroll', positionImageButton, true);
-  window.visualViewport?.removeEventListener('resize', positionImageButton);
 });
 </script>
 
@@ -638,10 +696,15 @@ onUnmounted(() => {
 
 .mail-panel *, .mail-panel *::before, .mail-panel *::after { box-sizing: border-box; }
 
-/* HEADER */
+/* ============ HEADER ============ */
 .mail-header {
-  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  flex-shrink: 0; padding: 18px 22px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-shrink: 0;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--border-soft);
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent);
 }
@@ -663,7 +726,6 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--accent); font-size: 0.62rem; font-weight: 650;
 }
 .campaign-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-
 .close-x {
   width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
   border: 1px solid var(--border); border-radius: 10px;
@@ -673,18 +735,17 @@ onUnmounted(() => {
 .close-x:hover { border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.07); color: #f87171; }
 .close-x:active { transform: scale(0.94); }
 
-/* BODY CON SCROLL */
+/* ============ BODY CON SCROLL ============ */
 .form-body {
   flex: 1; min-height: 0; padding: 20px 22px; overflow-y: auto;
   scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--text) 15%, transparent) transparent;
 }
 .form-body::-webkit-scrollbar { width: 5px; }
 .form-body::-webkit-scrollbar-thumb { border-radius: 999px; background: color-mix(in srgb, var(--text) 16%, transparent); }
-
 .mail-workspace { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr); gap: 22px; align-items: start; }
 .composer-column, .preview-column { min-width: 0; }
 
-/* SECCIONES */
+/* ============ SECCIONES ============ */
 .form-section { margin-bottom: 20px; }
 .message-section { margin-bottom: 0; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
@@ -693,12 +754,11 @@ onUnmounted(() => {
 .section-description { color: var(--muted); font-size: 0.68rem; line-height: 1.4; }
 .section-number { color: color-mix(in srgb, var(--text) 25%, transparent); font-family: 'Oswald', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; }
 
-/* CAMPOS */
+/* ============ CAMPOS ============ */
 .field-wrapper { position: relative; }
 .field-icon { position: absolute; z-index: 2; top: 50%; left: 13px; display: flex; color: var(--muted); pointer-events: none; transform: translateY(-50%); transition: color 0.18s ease; }
 .recipients-wrapper .field-icon { top: 15px; transform: none; }
 .field-wrapper:focus-within .field-icon { color: var(--accent); }
-
 .custom-input {
   width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--input); color: var(--color-texto-input, var(--text));
@@ -711,7 +771,7 @@ onUnmounted(() => {
 .custom-input:focus { border-color: var(--accent); background: color-mix(in srgb, var(--input) 96%, var(--accent)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
 .textarea-field { min-height: 64px; max-height: 120px; resize: vertical; line-height: 1.5; }
 
-/* CHIPS */
+/* ============ CHIPS ============ */
 .chips-area { display: flex; flex-direction: column; gap: 7px; margin-top: 9px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -732,7 +792,7 @@ onUnmounted(() => {
 .meta-ok { color: #34d399; }
 .meta-bad { color: #f87171; }
 
-/* PLANTILLAS */
+/* ============ PLANTILLAS ============ */
 .templates-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 9px; }
 .templates-label { color: var(--muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-right: 2px; }
 .template-btn {
@@ -743,10 +803,9 @@ onUnmounted(() => {
 }
 .template-btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--accent); }
 
-/* EDITOR */
+/* ============ EDITOR ============ */
 .editor-container { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--input); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
 .editor-container:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 11%, transparent); }
-
 .toolbar { min-height: 46px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; padding: 6px 8px; border-bottom: 1px solid var(--border-soft); background: color-mix(in srgb, var(--panel) 82%, var(--input)); }
 .toolbar-group { display: flex; align-items: center; gap: 3px; }
 .toolbar-spacer { flex: 1; }
@@ -766,34 +825,49 @@ onUnmounted(() => {
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1); }
 
 .editor-area {
-  width: 100%; min-height: 200px; max-height: 340px; overflow-y: auto; padding: 16px 17px;
+  width: 100%; min-height: 170px; max-height: 280px; overflow-y: auto; padding: 16px 17px;
   background: transparent; color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.84rem; line-height: 1.65;
   outline: none; text-align: left; scrollbar-width: thin;
 }
 .editor-area:empty::before { content: attr(data-placeholder); display: block; color: var(--muted); opacity: 0.6; pointer-events: none; }
-.editor-area :deep(img) { display: block; max-width: 100%; height: auto; margin: 12px auto; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; transition: border-color 0.16s ease, box-shadow 0.16s ease; }
-.editor-area :deep(img:hover) { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .editor-area :deep(ul), .editor-area :deep(ol) { padding-left: 22px; margin: 8px 0; }
 .editor-area :deep(p) { margin: 0 0 10px; }
 
-/* BOTÓN ELIMINAR IMAGEN */
-.img-delete-btn {
-  position: absolute; z-index: 5; height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px;
-  border: 1px solid rgba(248, 113, 113, 0.55); border-radius: 8px;
-  background: rgba(127, 29, 29, 0.92); color: #fecaca;
-  font-family: 'Inter', sans-serif; font-size: 0.68rem; font-weight: 650; cursor: pointer;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4); backdrop-filter: blur(4px);
-  transition: background 0.16s ease, transform 0.16s ease, color 0.16s ease;
+/* ============ IMÁGENES (siempre debajo del texto) ============ */
+.images-bar {
+  padding: 12px 14px 14px;
+  border-top: 1px dashed var(--border);
+  background: color-mix(in srgb, var(--accent) 3%, transparent);
 }
-.img-delete-btn:hover { background: #dc2626; color: #ffffff; transform: translateY(-1px); }
-.img-delete-btn:active { transform: translateY(0) scale(0.97); }
+.images-bar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.images-bar-head strong { color: var(--title); font-size: 0.72rem; font-weight: 650; }
+.images-bar-head small { color: var(--muted); font-size: 0.64rem; }
+.images-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.image-card {
+  position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--input);
+  transition: border-color 0.16s ease, transform 0.16s ease;
+}
+.image-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.image-card img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.image-index {
+  position: absolute; left: 6px; bottom: 6px; min-width: 20px; height: 20px; display: grid; place-items: center; padding: 0 6px;
+  border-radius: 999px; background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 0.62rem; font-weight: 700;
+}
+.image-remove {
+  position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 8px;
+  background: rgba(10, 10, 10, 0.72); color: #fff; cursor: pointer; backdrop-filter: blur(4px);
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.image-remove:hover { border-color: #dc2626; background: #dc2626; }
 
 .editor-footer { min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--border-soft); background: color-mix(in srgb, var(--panel) 70%, transparent); }
 .editor-tip { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.64rem; }
 .editor-tip svg { flex-shrink: 0; opacity: 0.7; }
 .char-count { flex-shrink: 0; color: var(--muted); font-size: 0.64rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* PREVIEW (sticky) */
+/* ============ PREVIEW (sticky) ============ */
 .preview-column {
   position: sticky; top: 0; align-self: start; overflow: hidden;
   border: 1px solid var(--border); border-radius: 13px;
@@ -808,14 +882,13 @@ onUnmounted(() => {
 .live-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid rgba(52, 211, 153, 0.18); border-radius: 999px; background: rgba(52, 211, 153, 0.06); color: #34d399; font-size: 0.6rem; font-weight: 650; }
 .live-badge > span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.1); }
 
-/* CLIENTE DE CORREO */
+/* ============ CLIENTE DE CORREO ============ */
 .email-client { margin: 12px; overflow: hidden; border: 1px solid #d8dde5; border-radius: 10px; background: #ffffff; color: #202124; font-family: Arial, Helvetica, sans-serif; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.17); }
 .email-client-topbar { height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid #e6e9ee; background: #f7f8fa; }
 .client-brand { display: flex; align-items: center; gap: 7px; color: #4b5563; font-size: 0.68rem; font-weight: 600; }
 .client-logo { width: 23px; height: 23px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #2563eb; color: #ffffff; font-size: 0.65rem; font-weight: 700; }
 .client-actions { display: flex; gap: 5px; }
 .client-actions span { width: 5px; height: 5px; border-radius: 50%; background: #c5cad1; }
-
 .email-preview-header { padding: 16px 18px 13px; border-bottom: 1px solid #edf0f3; }
 .preview-subject { margin-bottom: 14px; color: #202124; font-size: 1rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
 .preview-subject.placeholder { color: #9ca3af; }
@@ -827,54 +900,42 @@ onUnmounted(() => {
 .sender-email { color: #6b7280; font-size: 0.62rem; }
 .recipient-line { margin-top: 2px; overflow: hidden; color: #6b7280; font-size: 0.62rem; text-overflow: ellipsis; white-space: nowrap; }
 .preview-date { flex-shrink: 0; color: #9ca3af; font-size: 0.58rem; }
-
-.email-preview-body { min-height: 230px; max-height: 330px; overflow-y: auto; padding: 20px; background: #ffffff; scrollbar-width: thin; }
+.email-preview-body { min-height: 230px; max-height: 380px; overflow-y: auto; padding: 20px; background: #ffffff; scrollbar-width: thin; }
 .preview-html-content { color: #374151; font-size: 0.78rem; line-height: 1.65; overflow-wrap: anywhere; }
 .preview-html-content :deep(p) { margin: 0 0 12px; }
 .preview-html-content :deep(ul), .preview-html-content :deep(ol) { padding-left: 20px; margin: 0 0 12px; }
-.preview-html-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 14px auto; border-radius: 7px; }
+.preview-html-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 8px; }
 .preview-html-content :deep(a) { color: #2563eb; }
 .preview-html-content :deep(strong), .preview-html-content :deep(b) { color: #111827; }
-
 .preview-empty { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #9ca3af; text-align: center; }
 .preview-empty-icon { width: 47px; height: 47px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f9fafb; color: #9ca3af; }
 .preview-empty strong { color: #6b7280; font-size: 0.74rem; font-weight: 600; }
 .preview-empty span { max-width: 230px; font-size: 0.64rem; line-height: 1.45; }
-
-.preview-signature { padding: 0 20px 16px; background: #ffffff; color: #9ca3af; font-size: 0.58rem; line-height: 1.45; }
+.preview-signature { padding: 12px 20px 16px; border-top: 1px solid #f1f3f5; background: #ffffff; color: #9ca3af; font-size: 0.58rem; line-height: 1.45; }
 .signature-line { width: 38px; height: 1px; margin-bottom: 8px; background: #d1d5db; }
 .email-client-footer { display: flex; gap: 7px; padding: 10px 17px; border-top: 1px solid #edf0f3; background: #fafbfc; }
 .fake-mail-action { min-height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 10px; border: 1px solid #dfe3e8; border-radius: 7px; background: #ffffff; color: #6b7280; font-family: Arial, sans-serif; font-size: 0.6rem; pointer-events: none; }
 
-/* CHECKLIST (3 columnas siempre en una sola fila) */
+/* ============ CHECKLIST ============ */
 .mail-check {
   display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; gap: 8px;
   width: auto; margin: 0 12px 12px; padding: 10px 8px;
   border: 1px solid var(--border-soft); border-radius: 10px;
   background: color-mix(in srgb, var(--text) 2%, transparent);
 }
-.mail-check-item {
-  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 2px 4px; text-align: center;
-}
+.mail-check-item { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 2px 4px; text-align: center; }
 .mail-check-item + .mail-check-item { border-left: 1px solid var(--border-soft); }
-.mail-check-label {
-  max-width: 100%; overflow: hidden; color: var(--muted); font-size: 0.6rem; font-weight: 500;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-.mail-check-value {
-  max-width: 100%; overflow: hidden; color: #fbbf24; font-size: 0.7rem; font-weight: 650;
-  text-overflow: ellipsis; white-space: nowrap;
-}
+.mail-check-label { max-width: 100%; overflow: hidden; color: var(--muted); font-size: 0.6rem; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.mail-check-value { max-width: 100%; overflow: hidden; color: #fbbf24; font-size: 0.7rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .mail-check-value.success { color: #34d399; }
 .mail-check-value.danger { color: #f87171; }
 
-/* SWITCHER */
+/* ============ SWITCHER ============ */
 .mobile-view-switcher { display: none; margin-bottom: 14px; }
 .view-switch-btn { min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; flex: 1; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 600; cursor: pointer; transition: background 0.16s ease, color 0.16s ease; }
 .view-switch-btn.active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 
-/* FOOTER FIJO */
+/* ============ FOOTER FIJO ============ */
 .composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-shrink: 0; padding: 14px 22px; border-top: 1px solid var(--border-soft); background: color-mix(in srgb, var(--panel) 92%, #000000); }
 .send-info { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .send-info-icon { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(52, 211, 153, 0.2); border-radius: 9px; background: rgba(52, 211, 153, 0.07); color: #34d399; }
@@ -882,18 +943,18 @@ onUnmounted(() => {
 .send-info > div:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .send-info strong { color: var(--title); font-size: 0.74rem; font-weight: 600; }
 .send-info span { color: var(--muted); font-size: 0.64rem; }
-
 .btn-send {
   min-width: 230px; height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 8px 0 18px; flex-shrink: 0;
   border: 1px solid var(--accent); border-radius: 11px;
   background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 78%, black));
   color: #ffffff; font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 650; cursor: pointer;
   box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 22%, transparent);
-  transition: filter 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  transition: filter 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
 }
 .send-icon { width: 31px; height: 31px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255, 255, 255, 0.16); }
-.btn-send:hover { filter: brightness(1.08); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 30%, transparent); transform: translateY(-1px); }
-.btn-send:active { transform: translateY(0); }
+.btn-send:hover:not(:disabled) { filter: brightness(1.08); box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 30%, transparent); transform: translateY(-1px); }
+.btn-send:active:not(:disabled) { transform: translateY(0); }
+.btn-send:disabled { opacity: 0.7; cursor: wait; }
 
 :deep(.notification-container),
 :deep(.toast-container) {
@@ -902,9 +963,9 @@ onUnmounted(() => {
 }
 
 .close-x:focus-visible, .tool-btn:focus-visible, .btn-send:focus-visible, .view-switch-btn:focus-visible,
-.template-btn:focus-visible, .chip-x:focus-visible, .img-delete-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.template-btn:focus-visible, .chip-x:focus-visible, .image-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* TABLET */
+/* ============ TABLET ============ */
 @media (max-width: 950px) {
   .mail-panel { width: min(95vw, 720px); }
   .mail-workspace { grid-template-columns: 1fr; }
@@ -915,7 +976,7 @@ onUnmounted(() => {
   .mail-check { max-width: 620px; margin: 0 auto 12px; }
 }
 
-/* MÓVIL */
+/* ============ MÓVIL ============ */
 @media (max-width: 600px) {
   .mail-panel { width: calc(100vw - 16px); height: calc(100dvh - 16px); border-radius: 13px; }
   .mail-header { padding: 14px; }
@@ -929,8 +990,9 @@ onUnmounted(() => {
   .toolbar-spacer { display: none; }
   .editor-status { margin-left: auto; }
   .tool-btn-image span { display: none; }
-  .editor-area { min-height: 180px; }
+  .editor-area { min-height: 160px; }
   .editor-tip { display: none; }
+  .images-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); }
   .composer-footer { padding: 11px 13px; gap: 10px; }
   .send-info > div:last-child span { display: none; }
   .btn-send { flex: 1; min-width: 0; }
@@ -941,8 +1003,6 @@ onUnmounted(() => {
   .mail-check { margin: 0 9px 9px; gap: 4px; }
   .mail-check-label { font-size: 0.56rem; }
   .mail-check-value { font-size: 0.64rem; }
-  .img-delete-btn { width: 38px; height: 38px; padding: 0; border-radius: 10px; }
-  .img-delete-btn span { display: none; }
 }
 
 @media (max-width: 380px) {
@@ -952,14 +1012,7 @@ onUnmounted(() => {
   .mail-check { padding: 8px 4px; }
 }
 
-/* TÁCTIL: sin hover, el botón siempre es solo ícono y fácil de tocar */
-@media (hover: none) {
-  .editor-area :deep(img) { -webkit-touch-callout: none; touch-action: manipulation; }
-  .img-delete-btn { width: 38px; height: 38px; padding: 0; border-radius: 10px; }
-  .img-delete-btn span { display: none; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .custom-input, .editor-container, .tool-btn, .close-x, .btn-send, .view-switch-btn, .template-btn, .img-delete-btn { transition: none !important; }
+  .custom-input, .editor-container, .tool-btn, .close-x, .btn-send, .view-switch-btn, .template-btn, .image-card, .image-remove { transition: none !important; }
 }
 </style>
