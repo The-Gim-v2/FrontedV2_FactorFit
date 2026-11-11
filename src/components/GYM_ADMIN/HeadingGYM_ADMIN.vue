@@ -664,6 +664,7 @@
     <NotificationsPanel
       :is-open="isNotificationsOpen"
       :notifications="notifications"
+      @notifications-updated="onNotificationsUpdated"
       @close="isNotificationsOpen = false"
     />
   </div>
@@ -812,15 +813,7 @@ const selectedGym = ref(
 
 const gyms = ref(['Gimnasio Principal', 'Sucursal Secundaria']);
 
-const notifications = ref([
-  {
-    id: 1,
-    title: 'Sistema',
-    message: 'Bienvenido',
-    time: 'ahora',
-    read: false
-  }
-]);
+const notifications = ref([]); // Notificaciones desde Laravel, no datos de prueba
 
 /* =========================================================
    PERFIL (datos de prueba)
@@ -878,6 +871,73 @@ const handleIdiomaChanged = (event) => {
 const unreadNotifications = computed(() => {
   return notifications.value.filter((n) => !n.read).length;
 });
+
+// El servidor debe filtrar por usuario autenticado, rol, gimnasio y sede.
+// GYM_ADMIN y GYM_ACCOUNT comparten categorías, pero NO estados de lectura.
+const onNotificationsUpdated = (items) => {
+  if (Array.isArray(items)) notifications.value = items;
+};
+const notificationsBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const notificationsToken = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_ADMIN_token', 'gymAccountToken']) {
+      const value = store.getItem(key);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+  }
+  return '';
+};
+const notificationsSede = () => {
+  const stored = sessionStorage.getItem('selected_sede_id') || localStorage.getItem('selected_sede_id');
+  if (stored && Number.isSafeInteger(Number(stored)) && Number(stored) > 0) return Number(stored);
+  // Si el login no guardó selected_sede_id, intentar la sede del usuario autenticado.
+  for (const key of ['user', 'gym_account']) {
+    for (const storage of [sessionStorage, localStorage]) {
+      try {
+        const raw = JSON.parse(storage.getItem(key) || '{}');
+        const user = raw.usuario || raw.user || raw;
+        const id = Number(user.ID_Sede || user.id_sede || user.sede_id || user.sedes?.[0]?.ID_Sede);
+        if (Number.isSafeInteger(id) && id > 0) return id;
+      } catch { /* No hay información de sede en esta clave */ }
+    }
+  }
+  return null;
+};
+let notificationsVersion = 0;
+let notificationsTimer = null;
+const fetchNotifications = async (sync = false) => {
+  const version = ++notificationsVersion;
+  const token = notificationsToken();
+  const sede = notificationsSede();
+  if (!token || !sede || !notificationsBase) { notifications.value = []; return; }
+  const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+  try {
+    if (sync) {
+      const response = await fetch(`${notificationsBase}/api/gym/notificaciones/sincronizar`, {
+        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sede_id: sede }), cache: 'no-store'
+      });
+      if (!response.ok) throw new Error(`Sincronización: HTTP ${response.status}`);
+    }
+    const response = await fetch(`${notificationsBase}/api/gym/notificaciones?sede_id=${sede}`, { headers, cache: 'no-store' });
+    if (!response.ok) throw new Error(`Consulta: HTTP ${response.status}`);
+    const data = await response.json();
+    if (version === notificationsVersion && sede === notificationsSede()) {
+      notifications.value = Array.isArray(data.notifications) ? data.notifications : [];
+    }
+  } catch (error) {
+    console.warn(`[GYM_ADMIN] No se pudieron cargar las notificaciones:`, error);
+  }
+};
+const refreshNotificationsOnBranch = () => {
+  notificationsVersion++;
+  notifications.value = [];
+  void fetchNotifications(true);
+};
+const refreshNotificationsOnFocus = () => {
+  if (document.visibilityState === 'visible') void fetchNotifications(true);
+};
+
 
 /* =========================================================
    GRUPO ACTIVO (resalta el menú cuando estás en una de sus páginas)
@@ -1006,6 +1066,17 @@ const closeDesktopDropdown = () => {
 const selectGym = (gym) => {
   selectedGym.value = gym;
   localStorage.setItem('GYM_ADMIN-selected-gym', gym);
+  // Conservar la sede real si el login incluye una lista de sedes.
+  try {
+    const account = JSON.parse(sessionStorage.getItem('gym_account') || '{}');
+    const user = account.usuario || account;
+    const sede = (user.sedes || []).find(x => x.Sede_Colonia === gym || x.Nombre === gym || x.Nombre_Sede === gym);
+    if (sede?.ID_Sede) {
+      sessionStorage.setItem('selected_sede_id', String(sede.ID_Sede));
+      localStorage.setItem('selected_sede_id', String(sede.ID_Sede));
+    }
+  } catch { /* Mantener sede actual */ }
+  window.dispatchEvent(new Event('factorfit:branch-changed'));
   closeDesktopDropdown();
   closeSheet();
 };
@@ -1056,15 +1127,29 @@ const handleResize = () => {
    LOGOUT
 ========================================================= */
 
-const handleLogout = () => {
-  localStorage.removeItem('user_role');
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-
-  closeDesktopDropdown();
-  closeSheet();
-
-  router.replace({ name: 'login' });
+const handleLogout = async () => {
+  const token = notificationsToken();
+  try {
+    if (token && notificationsBase) {
+      const response = await fetch(`${notificationsBase}/api/auth/logout`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+      });
+      if (!response.ok) console.warn('No se pudo revocar el token:', response.status);
+    }
+  } catch (error) {
+    console.warn('Error al cerrar sesión:', error);
+  } finally {
+    notificationsVersion++;
+    notifications.value = [];
+    ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'GYM_ADMIN_token', 'GYM_MANAGER_token', 'GYM_RECEPCIONIST_token', 'gymAccountToken', 'user_role', 'gym_account', 'user', 'selected_sede_id'].forEach(key => {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    });
+    localStorage.removeItem('GYM_ADMIN-selected-gym');
+    closeDesktopDropdown();
+    closeSheet();
+    await router.replace({ name: 'login' });
+  }
 };
 
 /* =========================================================
@@ -1153,6 +1238,10 @@ const aplicarEstilosGlobales = () => {
 ========================================================= */
 
 onMounted(() => {
+  void fetchNotifications(true);
+  notificationsTimer = window.setInterval(() => { void fetchNotifications(true); }, 60000);
+  document.addEventListener('visibilitychange', refreshNotificationsOnFocus);
+  window.addEventListener('factorfit:branch-changed', refreshNotificationsOnBranch);
   aplicarEstilosGlobales();
 
   document.addEventListener('click', handleDocumentClick);
@@ -1163,6 +1252,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  notificationsVersion++;
+  if (notificationsTimer !== null) window.clearInterval(notificationsTimer);
+  document.removeEventListener('visibilitychange', refreshNotificationsOnFocus);
+  window.removeEventListener('factorfit:branch-changed', refreshNotificationsOnBranch);
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('resize', handleResize);
