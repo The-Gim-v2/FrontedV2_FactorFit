@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
 /* ================= DATOS ================= */
 const DAYS = [
-  { short: 'LUN', long: 'Lunes' },
-  { short: 'MAR', long: 'Martes' },
-  { short: 'MIÉ', long: 'Miércoles' },
-  { short: 'JUE', long: 'Jueves' },
-  { short: 'VIE', long: 'Viernes' },
+  { key: 'monday', short: 'LUN', long: 'Lunes' },
+  { key: 'tuesday', short: 'MAR', long: 'Martes' },
+  { key: 'wednesday', short: 'MIÉ', long: 'Miércoles' },
+  { key: 'thursday', short: 'JUE', long: 'Jueves' },
+  { key: 'friday', short: 'VIE', long: 'Viernes' },
 ];
 
-interface Row { time: string; period: 'am' | 'pm'; classes: (string | null)[] } // classes: Lun a Vie
+/* classes: Lun a Vie. start/end en minutos desde medianoche (vienen del backend). */
+interface Row { time: string; period: 'am' | 'pm'; classes: (string | null)[]; start: number; end: number }
 interface Sede {
   id: string; name: string; short: string; tagline: string;
   address: string; phone: string; phoneLink: string; email: string;
-  accent: string; accent2: string; mapSrc: string; rows: Row[];
+  accent: string; accent2: string; mapSrc: string;
+  /** Palabras (en minúsculas y sin acentos) para reconocer la sucursal en el backend por su nombre. */
+  match: string[];
+  /** Opcional: ID_Sede del backend. Si lo pones, se usa directo y no se busca por nombre. */
+  apiId?: number;
 }
+type Bloque = { id: number; dia: string; titulo: string; color: string; inicio: string; fin: string };
+type Sucursal = { ID_Sede: number; ID_Gym: number; Nombre_Gym: string; Nombre_Sede: string };
 
 const SEDES: Sede[] = [
   {
@@ -30,13 +37,7 @@ const SEDES: Sede[] = [
     accent: '#a78bfa',
     accent2: '#7c3aed',
     mapSrc: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3699.1108590337626!2d-99.0218956!3d22.007062899999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d612aa4818ecdf%3A0xa45c1ad4926a32c4!2sLos%20Delfines%20Sal%C3%B3n%20de%20Eventos!5e0!3m2!1ses!2smx!4v1767058530057!5m2!1ses!2smx',
-    rows: [
-      { time: '7:00 – 8:00',  period: 'am', classes: ['Glute Bands', 'Circuito', 'GAP', 'Tabata', 'Entrenamiento Funcional'] },
-      { time: '8:00 – 9:00',  period: 'am', classes: ['Entrenamiento Funcional', 'Tabata', 'Zumba', 'Entrenamiento Funcional', 'Circuito'] },
-      { time: '9:00 – 10:00', period: 'am', classes: ['Entrenamiento Funcional', 'Meta HIT', 'GAP', 'Core', 'Glute Bands'] },
-      { time: '6:00 – 7:00',  period: 'pm', classes: ['GAP', 'Entrenamiento Funcional', 'Glute Bands', 'Entrenamiento Funcional', 'Circuito'] },
-      { time: '7:00 – 8:00',  period: 'pm', classes: ['Zumba', 'Core', 'Circuito', 'Tabata', 'Entrenamiento Funcional'] },
-    ],
+    match: ['emiliano', 'zapata'],
   },
   {
     id: 'obrera',
@@ -50,24 +51,24 @@ const SEDES: Sede[] = [
     accent: '#ff8a9b',
     accent2: '#e6397b',
     mapSrc: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3699.7266367143366!2d-99.00868919999999!3d21.9834523!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d66d99c8e6a805%3A0x7a04e0cfe709160!2sOFICINA%20MUNICIPAL%20DE%20ENLACE%20SECRETARIA%20DE%20RELACIONES%20EXTERIORES%20SRE!5e0!3m2!1ses!2smx!4v1767058431791!5m2!1ses!2smx',
-    rows: [
-      { time: '7:00', period: 'am', classes: ['GAP', 'Entrenamiento Funcional', 'Glute Bands', 'Entrenamiento Funcional', 'Tabata'] },
-      { time: '8:00', period: 'am', classes: ['Entrenamiento Funcional', 'GAP', 'Entrenamiento Funcional', 'Meta HIT', 'Circuito'] },
-      { time: '9:00', period: 'am', classes: ['Glute Bands', 'Entrenamiento Funcional', 'Full Body', 'Power Rebounder', 'Zumba'] },
-      { time: '5:00', period: 'pm', classes: ['Circuito', 'Entrenamiento Funcional', 'Full Body', 'Entrenamiento Funcional', null] },
-      { time: '6:00', period: 'pm', classes: ['Glute Bands', 'Circuito', 'Tabata', 'Full Body', 'Clase libre'] },
-      { time: '7:00', period: 'pm', classes: ['Entrenamiento Funcional', 'Zumba', 'Entrenamiento Funcional', 'GAP', 'Entrenamiento Funcional'] },
-      { time: '8:00', period: 'pm', classes: ['Entrenamiento Funcional', 'Meta HIT', 'Glute Bands', 'Entrenamiento Funcional', null] },
-    ],
+    match: ['obrera'],
   },
 ];
 
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+
+/* Colores de respaldo por nombre; si el backend manda color, ese tiene prioridad. */
 const COLORS: Record<string, string> = {
   'entrenamiento funcional': '#c9a7ff', 'gap': '#7cc4ff', 'glute bands': '#7ee8b0',
   'tabata': '#ff8fa3', 'circuito': '#ffb37a', 'zumba': '#ff8fd8', 'core': '#5eead4',
   'meta hit': '#a5b4fc', 'full body': '#ffd36b', 'power rebounder': '#fff07a', 'clase libre': '#e5e7eb',
 };
-const colorOf = (name: string) => COLORS[name.toLowerCase()] ?? '#f5d0fe';
+const hexValido = (color: string) => /^#[0-9a-f]{6}$/i.test(color) ? color : '';
+const colorMap = ref<Record<string, string>>({});
+const colorOf = (name: string) => {
+  const k = name.toLowerCase();
+  return colorMap.value[k] ?? COLORS[k] ?? '#f5d0fe';
+};
 
 /* Figuras que flotan en el fondo */
 const KINDS = ['heart', 'dot', 'star', 'dot', 'heart', 'dot', 'star'] as const;
@@ -88,14 +89,107 @@ const view = ref<'day' | 'week'>('week');
 const nowMin = ref(-1);
 const copied = ref(false);
 
+/* Horario desde el backend */
+const sucursales = ref<Sucursal[]>([]);
+const rows = ref<Row[]>([]);
+const cargando = ref(false);
+const error = ref('');
+let solicitud = 0;
+let sucursalesListas: Promise<void> = Promise.resolve();
+
 const sede = computed(() => SEDES.find(s => s.id === sedeId.value) ?? SEDES[0]!);
 
-const startMin = (r: Row) => {
-  const m = r.time.match(/(\d+):(\d+)/);
-  const h = m ? parseInt(m[1]!, 10) : 0;
-  const mi = m ? parseInt(m[2]!, 10) : 0;
-  return (r.period === 'pm' && h < 12 ? h + 12 : h) * 60 + mi;
+/* ================= BACKEND ================= */
+const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const aMinutos = (h: string) => {
+  const [a = '0', b = '0'] = h.split(':');
+  return Number(a) * 60 + Number(b);
 };
+const hora12 = (h: string) => {
+  const [hh = '0', mm = '00'] = h.split(':');
+  return `${Number(hh) % 12 || 12}:${mm}`;
+};
+
+/** Convierte los bloques del backend en filas (una por rango de hora) con Lun–Vie. */
+function construirFilas(bloques: Bloque[]): Row[] {
+  const mapa = new Map<string, Row>();
+  for (const b of bloques) {
+    const inicio = String(b.inicio).slice(0, 5);
+    const fin = String(b.fin).slice(0, 5);
+    const clave = `${inicio}|${fin}`;
+    let fila = mapa.get(clave);
+    if (!fila) {
+      const s = aMinutos(inicio);
+      const e = aMinutos(fin);
+      fila = {
+        time: `${hora12(inicio)} – ${hora12(fin)}`,
+        period: s >= 720 ? 'pm' : 'am',
+        classes: DAYS.map(() => null),
+        start: s,
+        end: e > s ? e : s + 60,
+      };
+      mapa.set(clave, fila);
+    }
+    const i = DAYS.findIndex(d => d.key === b.dia);
+    if (i >= 0) fila.classes[i] = b.titulo;
+  }
+  return [...mapa.values()].sort((a, b) => a.start - b.start);
+}
+
+async function cargarSucursales() {
+  try {
+    const r = await fetch(`${API}/api/public/sucursales`, { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('No se pudieron consultar las sucursales.');
+    const j = await r.json();
+    const lista = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : [];
+    sucursales.value = lista.filter((s: Sucursal) => Number(s.ID_Sede) > 0);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Error al cargar sucursales.';
+  }
+}
+
+/** ID_Sede del backend que corresponde a la sede de la página. */
+const apiIdDe = (s: Sede): number => {
+  if (s.apiId) return s.apiId;
+  const hit = sucursales.value.find(x =>
+    s.match.some(k => sinAcentos(`${x.Nombre_Sede} ${x.Nombre_Gym}`).includes(k)));
+  return hit ? Number(hit.ID_Sede) : 0;
+};
+
+async function cargarHorario() {
+  const indice = ++solicitud;
+  rows.value = [];
+  error.value = '';
+  cargando.value = true;
+  await sucursalesListas;
+  if (indice !== solicitud) return;
+  const id = apiIdDe(sede.value);
+  if (!id) {
+    cargando.value = false;
+    error.value = error.value || `No encontramos "${sede.value.name}" en el sistema.`;
+    return;
+  }
+  try {
+    const respuesta = await fetch(`${API}/api/public/horario-clases/${id}`, { headers: { Accept: 'application/json' } });
+    const json = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(json?.message || `No se pudo consultar el horario (${respuesta.status}).`);
+    if (indice !== solicitud) return;
+    const bloques: Bloque[] = Array.isArray(json?.bloques) ? json.bloques : [];
+    const colores: Record<string, string> = {};
+    for (const b of bloques) {
+      const c = hexValido(String(b.color || ''));
+      if (c && b.titulo) colores[b.titulo.toLowerCase()] = c;
+    }
+    colorMap.value = colores;
+    rows.value = construirFilas(bloques);
+  } catch (e) {
+    if (indice === solicitud) error.value = e instanceof Error ? e.message : 'Error de conexión.';
+  } finally {
+    if (indice === solicitud) cargando.value = false;
+  }
+}
+
+/* ================= HORARIO: CÁLCULOS ================= */
 const fmt = (min: number) => {
   const h24 = Math.floor(min / 60), m = min % 60;
   const h = h24 % 12 === 0 ? 12 : h24 % 12;
@@ -104,21 +198,20 @@ const fmt = (min: number) => {
 
 const statusOf = (r: Row): 'live' | 'past' | '' => {
   if (todayIdx.value !== day.value || nowMin.value < 0) return '';
-  const s = startMin(r);
-  if (nowMin.value >= s && nowMin.value < s + 60) return 'live';
-  if (nowMin.value >= s + 60) return 'past';
+  if (nowMin.value >= r.start && nowMin.value < r.end) return 'live';
+  if (nowMin.value >= r.end) return 'past';
   return '';
 };
 
 /* Datos rápidos de la sede (salen de los horarios) */
 const stats = computed(() => {
-  const rows = sede.value.rows;
-  const total = rows.reduce((a, r) => a + r.classes.filter(Boolean).length, 0);
-  const starts = rows.map(startMin);
+  const list = rows.value;
+  if (!list.length) return { total: '—', first: '—', last: '—' };
+  const total = list.reduce((a, r) => a + r.classes.filter(Boolean).length, 0);
   return {
-    total,
-    first: fmt(Math.min(...starts)),
-    last: fmt(Math.max(...starts) + 60),
+    total: String(total),
+    first: fmt(Math.min(...list.map(r => r.start))),
+    last: fmt(Math.max(...list.map(r => r.end))),
   };
 });
 
@@ -126,7 +219,7 @@ const stats = computed(() => {
 const tableRows = computed(() => {
   const out: ({ kind: 'label'; text: string } | { kind: 'row'; row: Row })[] = [];
   let last = '';
-  sede.value.rows.forEach(r => {
+  rows.value.forEach(r => {
     if (r.period !== last) {
       out.push({ kind: 'label', text: r.period === 'am' ? 'Mañana' : 'Tarde y noche' });
       last = r.period;
@@ -139,7 +232,7 @@ const tableRows = computed(() => {
 /* Vista por día */
 const groups = computed(() => {
   const pick = (period: 'am' | 'pm') =>
-    sede.value.rows
+    rows.value
       .filter(r => r.period === period && r.classes[day.value])
       .map(r => ({ time: r.time, name: r.classes[day.value] as string, status: statusOf(r) }));
   return [
@@ -150,12 +243,12 @@ const groups = computed(() => {
 
 const banner = computed(() => {
   if (todayIdx.value < 0) return { kind: 'rest', title: 'Hoy descansamos', text: 'Nos vemos el lunes con toda la energía.', color: '' };
-  const today = sede.value.rows
+  const today = rows.value
     .filter(r => r.classes[todayIdx.value])
-    .map(r => ({ s: startMin(r), name: r.classes[todayIdx.value] as string }))
+    .map(r => ({ s: r.start, e: r.end, name: r.classes[todayIdx.value] as string }))
     .sort((a, b) => a.s - b.s);
-  const live = today.find(c => nowMin.value >= c.s && nowMin.value < c.s + 60);
-  if (live) return { kind: 'live', title: 'En curso ahora', text: `${live.name} · termina a las ${fmt(live.s + 60)}`, color: colorOf(live.name) };
+  const live = today.find(c => nowMin.value >= c.s && nowMin.value < c.e);
+  if (live) return { kind: 'live', title: 'En curso ahora', text: `${live.name} · termina a las ${fmt(live.e)}`, color: colorOf(live.name) };
   const next = today.find(c => c.s > nowMin.value);
   if (next) return { kind: 'next', title: 'Siguiente clase hoy', text: `${next.name} · ${fmt(next.s)}`, color: colorOf(next.name) };
   return { kind: 'rest', title: 'Por hoy terminamos', text: 'Mañana te esperamos con más ganas.', color: '' };
@@ -163,7 +256,7 @@ const banner = computed(() => {
 
 const legend = computed(() => {
   const set = new Set<string>();
-  sede.value.rows.forEach(r => r.classes.forEach(c => c && set.add(c)));
+  rows.value.forEach(r => r.classes.forEach(c => c && set.add(c)));
   return [...set];
 });
 
@@ -180,6 +273,9 @@ const copyAddress = async () => {
     setTimeout(() => (copied.value = false), 1800);
   } catch { /* sin permiso */ }
 };
+
+/* Al cambiar de sede se vuelve a consultar el horario */
+watch(sedeId, () => { void cargarHorario(); });
 
 /* ---------- Aparición + reloj ---------- */
 const root = ref<HTMLElement | null>(null);
@@ -199,11 +295,17 @@ onMounted(() => {
   if (todayIdx.value >= 0) day.value = todayIdx.value;
   if (window.innerWidth < 900) view.value = 'day'; // en celular arranca por día
   timer = setInterval(tick, 30000);
+  sucursalesListas = cargarSucursales();
+  void cargarHorario();
   if (!('IntersectionObserver' in window) || !root.value) { revealed.value = true; return; }
   io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { revealed.value = true; io?.disconnect(); } }, { threshold: 0.04 });
   io.observe(root.value);
 });
-onUnmounted(() => { io?.disconnect(); if (timer) clearInterval(timer); });
+onUnmounted(() => {
+  solicitud++;
+  io?.disconnect();
+  if (timer) clearInterval(timer);
+});
 </script>
 
 <template>
@@ -346,83 +448,93 @@ onUnmounted(() => { io?.disconnect(); if (timer) clearInterval(timer); });
               <button :class="{ on: view === 'week' }" role="tab" :aria-selected="view === 'week'" @click="view = 'week'">Semana</button>
             </div>
           </div>
-          <div :key="sede.id + banner.kind + banner.text" :class="['now-bar', banner.kind]" :style="{ '--k': banner.color || 'var(--accent)' }">
+          <div v-if="rows.length" :key="sede.id + banner.kind + banner.text" :class="['now-bar', banner.kind]" :style="{ '--k': banner.color || 'var(--accent)' }">
             <span class="pulse" aria-hidden="true"></span>
             <span class="now-txt"><strong>{{ banner.title }}</strong><span>{{ banner.text }}</span></span>
           </div>
         </div>
 
-        <!-- Tabla grande -->
-        <div v-if="view === 'week'" class="desk">
-          <table :key="sede.id" class="week">
-            <thead>
-              <tr>
-                <th class="corner">Hora</th>
-                <th v-for="(d, i) in DAYS" :key="d.short" :class="{ now: todayIdx === i }">
-                  {{ d.long }}
-                  <small v-if="todayIdx === i">Hoy</small>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <template v-for="(e, ei) in tableRows" :key="ei">
-                <tr v-if="e.kind === 'label'" class="band">
-                  <td colspan="6"><span>{{ e.text }}</span></td>
-                </tr>
-                <tr v-else>
-                  <th class="time">{{ e.row.time }}<small>{{ e.row.period }}</small></th>
-                  <td v-for="(c, ci) in e.row.classes" :key="ci" :class="{ today: todayIdx === ci }">
-                    <span v-if="c" class="chip" :style="{ '--k': colorOf(c) }">{{ c }}</span>
-                    <span v-else class="dash">—</span>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
+        <!-- Estados de carga -->
+        <div v-if="cargando" class="msg" role="status">Cargando horario...</div>
+        <div v-else-if="error" class="msg error" role="alert">
+          <span>{{ error }}</span>
+          <button type="button" @click="cargarHorario">Reintentar</button>
         </div>
+        <div v-else-if="!rows.length" class="msg">Aún no hay clases registradas para esta sede.</div>
 
-        <!-- Vista por día -->
-        <div v-else class="mob">
-          <div class="days" role="tablist" aria-label="Días">
-            <button
-              v-for="(d, i) in DAYS"
-              :key="d.short"
-              role="tab"
-              :aria-selected="day === i"
-              :class="['day', { active: day === i }]"
-              @click="day = i"
-            >
-              <span>{{ d.short }}</span>
-              <i v-if="todayIdx === i" class="today-tag">Hoy</i>
-            </button>
+        <template v-else>
+          <!-- Tabla grande -->
+          <div v-if="view === 'week'" class="desk">
+            <table :key="sede.id" class="week">
+              <thead>
+                <tr>
+                  <th class="corner">Hora</th>
+                  <th v-for="(d, i) in DAYS" :key="d.short" :class="{ now: todayIdx === i }">
+                    {{ d.long }}
+                    <small v-if="todayIdx === i">Hoy</small>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="(e, ei) in tableRows" :key="ei">
+                  <tr v-if="e.kind === 'label'" class="band">
+                    <td colspan="6"><span>{{ e.text }}</span></td>
+                  </tr>
+                  <tr v-else>
+                    <th class="time">{{ e.row.time }}<small>{{ e.row.period }}</small></th>
+                    <td v-for="(c, ci) in e.row.classes" :key="ci" :class="{ today: todayIdx === ci }">
+                      <span v-if="c" class="chip" :style="{ '--k': colorOf(c) }">{{ c }}</span>
+                      <span v-else class="dash">—</span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
 
-          <div :key="sede.id + day" class="day-body">
-            <p class="day-name">{{ DAYS[day]?.long }}<em v-if="todayIdx === day"> · Hoy</em></p>
-            <div class="groups">
-              <section v-for="g in groups" :key="g.kind" class="group">
-                <h4>{{ g.label }}</h4>
-                <ul>
-                  <li
-                    v-for="(it, i) in g.items"
-                    :key="i"
-                    :class="[it.status]"
-                    :style="{ '--k': colorOf(it.name), '--i': i }"
-                  >
-                    <span class="t">{{ it.time }}<small>{{ g.kind }}</small></span>
-                    <span class="n">{{ it.name }}</span>
-                    <em v-if="it.status === 'live'" class="live-tag">En vivo</em>
-                  </li>
-                </ul>
-              </section>
+          <!-- Vista por día -->
+          <div v-else class="mob">
+            <div class="days" role="tablist" aria-label="Días">
+              <button
+                v-for="(d, i) in DAYS"
+                :key="d.short"
+                role="tab"
+                :aria-selected="day === i"
+                :class="['day', { active: day === i }]"
+                @click="day = i"
+              >
+                <span>{{ d.short }}</span>
+                <i v-if="todayIdx === i" class="today-tag">Hoy</i>
+              </button>
             </div>
-            <p v-if="!groups.length" class="empty">No hay clases este día.</p>
-          </div>
-        </div>
 
-        <ul class="legend" aria-label="Tipos de clase">
-          <li v-for="l in legend" :key="l" :style="{ '--k': colorOf(l) }"><i></i>{{ l }}</li>
-        </ul>
+            <div :key="sede.id + day" class="day-body">
+              <p class="day-name">{{ DAYS[day]?.long }}<em v-if="todayIdx === day"> · Hoy</em></p>
+              <div class="groups">
+                <section v-for="g in groups" :key="g.kind" class="group">
+                  <h4>{{ g.label }}</h4>
+                  <ul>
+                    <li
+                      v-for="(it, i) in g.items"
+                      :key="i"
+                      :class="[it.status]"
+                      :style="{ '--k': colorOf(it.name), '--i': i }"
+                    >
+                      <span class="t">{{ it.time }}<small>{{ g.kind }}</small></span>
+                      <span class="n">{{ it.name }}</span>
+                      <em v-if="it.status === 'live'" class="live-tag">En vivo</em>
+                    </li>
+                  </ul>
+                </section>
+              </div>
+              <p v-if="!groups.length" class="empty">No hay clases este día.</p>
+            </div>
+          </div>
+
+          <ul class="legend" aria-label="Tipos de clase">
+            <li v-for="l in legend" :key="l" :style="{ '--k': colorOf(l) }"><i></i>{{ l }}</li>
+          </ul>
+        </template>
       </article>
     </div>
   </section>
@@ -620,6 +732,18 @@ a.c-val:hover { text-decoration: underline; }
 .seg button:hover { color: #fff; }
 .seg button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 8px 18px rgba(5, 2, 20, 0.45); }
 .seg button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Mensajes de carga / error / vacío */
+.msg {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  min-height: 120px; padding: 22px; text-align: center; border-radius: 18px;
+  font-weight: 700; color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08); border: 1px dashed rgba(255, 255, 255, 0.28);
+  animation: fadeIn 0.4s ease both;
+}
+.msg.error { border-color: #fa8da5; color: #ffd0da; }
+.msg button { cursor: pointer; border: 0; border-radius: 999px; padding: 9px 18px; background: #fff; color: #3b2459; font: 800 0.9rem 'Inter', sans-serif; }
+.msg button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
 /* Tabla */
 .desk { overflow-x: auto; -webkit-overflow-scrolling: touch; }
