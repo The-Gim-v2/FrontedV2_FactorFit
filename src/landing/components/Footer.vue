@@ -9,7 +9,7 @@ const EMAIL = 'g-nafc@hotmail.com';
 /* Ajusta los href a los ids reales de tus secciones */
 const LINKS = [
   { label: 'Inicio', href: '#' },
-  { label: 'Clases', href: '#clases' },
+  { label: 'Sobre nosotros', href: '#sobre-nosotros' },
   { label: 'Comunidad', href: '#comunidad' },
   { label: 'Sedes y horarios', href: '#location' },
 ];
@@ -118,7 +118,7 @@ onUnmounted(() => io?.disconnect());
 /* Dos columnas: marca a la izquierda, navegación a la derecha */
 .main { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: clamp(28px, 6vw, 96px); padding-bottom: clamp(32px, 4vw, 48px); align-items: start; }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.explore { justify-self: end; width: 100%; max-width: 260px; }
+.explore { justify-self: end; width: 100%; max-width: 260px; padding-left: clamp(20px, 3vw, 40px); border-left: 1px solid rgba(255, 255, 255, 0.1); }
 
 .logo { margin: 0; font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; font-size: clamp(1.9rem, 3.4vw, 2.5rem); letter-spacing: 1px; line-height: 1; text-transform: uppercase; }
 .logo span { background: linear-gradient(135deg, #c4b5fd, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
@@ -133,14 +133,17 @@ onUnmounted(() => io?.disconnect());
 .title { margin: 0 0 2px; font-size: 0.82rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: #d8c8ff; }
 
 .links { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.links a { color: rgba(255, 255, 255, 0.85); font-weight: 600; font-size: 0.98rem; text-decoration: none; word-break: break-word; transition: color 0.2s ease, padding-left 0.25s ease; }
-.links a:hover { color: #fff; padding-left: 6px; }
+.links a { position: relative; display: inline-block; color: rgba(255, 255, 255, 0.85); font-weight: 600; font-size: 0.98rem; text-decoration: none; word-break: break-word; transition: color 0.2s ease, transform 0.25s ease; }
+.links a::after { content: ''; position: absolute; left: 0; bottom: -3px; width: 100%; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--accent), #f0abfc); transform: scaleX(0); transform-origin: left; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.links a:hover { color: #fff; transform: translateX(4px); }
+.links a:hover::after { transform: scaleX(1); }
 .links a:focus-visible, .legal a:focus-visible, .top:focus-visible { outline: 2px solid #fff; outline-offset: 3px; border-radius: 6px; }
 
 .bottom {
   display: flex; align-items: center; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap;
-  padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.12); font-size: 0.9rem; color: rgba(255, 255, 255, 0.6);
+  position: relative; padding-top: 22px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 0.9rem; color: rgba(255, 255, 255, 0.6);
 }
+.bottom::before { content: ''; position: absolute; top: -1px; left: 0; width: 120px; height: 1px; background: linear-gradient(90deg, var(--accent), transparent); }
 .copy { margin: 0; }
 .copy strong { color: rgba(255, 255, 255, 0.9); font-weight: 700; }
 .legal { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
@@ -154,12 +157,15 @@ onUnmounted(() => io?.disconnect());
 
 @media (max-width: 800px) {
   .main { grid-template-columns: minmax(0, 1fr); gap: 32px; }
-  .explore { justify-self: start; max-width: none; }
-  .links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+  .explore { justify-self: start; max-width: none; padding-left: 0; border-left: 0; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+  .links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
 }
 @media (max-width: 560px) {
-  .bottom { flex-direction: column; text-align: center; }
-  .legal { justify-content: center; }
+  .bottom { flex-direction: column; align-items: flex-start; text-align: left; gap: 16px; }
+  .bottom::before { width: 80px; }
+  .legal { gap: 8px 20px; }
+  .sep { display: none; }
+  .top { align-self: stretch; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
