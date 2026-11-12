@@ -59,8 +59,7 @@
 
       <!-- RESUMEN -->
       <p v-if="loading" class="data-message" role="status">{{ t('loading') }}</p>
-      <p v-if="errorCarga" class="data-message error" role="alert">{{ errorCarga }} <button type="button" @click="loadUsers">{{ t('retry') }}</button></p>
-      <p v-if="avisoAsistencia" class="data-message warning" role="alert">{{ avisoAsistencia }}</p>
+
       <section class="stats-row">
         <div class="stat-card" v-for="s in stats" :key="s.key" :class="'stat-' + s.tone">
           <span class="stat-value">{{ s.value }}</span>
@@ -238,12 +237,12 @@ type MonthDay = {
 const route = useRoute();
 const activeModal = ref<string | null>(null);
 const toastRef = ref<NotifyRef | null>(null);
+let lastAttendanceError = '';
 const selectedDay = ref('');
 const searchQuery = ref('');
 const users = ref<User[]>([]);
 const loading = ref(false);
 const errorCarga = ref('');
-const avisoAsistencia = ref('');
 const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const isMobile = ref(window.innerWidth <= 900);
 const sedeEvento = ref(0);
@@ -549,7 +548,6 @@ const loadUsers = async (): Promise<void> => {
   const seq = ++loadSequence;
   loading.value = true;
   errorCarga.value = '';
-  avisoAsistencia.value = '';
   const branch = sedeId();
   const monthKey = monthValue.value; // YYYY-MM
   try {
@@ -563,10 +561,12 @@ const loadUsers = async (): Promise<void> => {
       const month = await apiRequest<ApiMes>(`/api/gym/asistencias-mes?sede_id=${branch}&mes=${monthKey}`);
       if (!Array.isArray(month.asistencias)) throw new Error('Formato de asistencia no válido.');
       attendances = month.asistencias;
+      lastAttendanceError = '';
     } catch (error) {
       if (seq === loadSequence) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
-        avisoAsistencia.value = `No se pudo consultar la asistencia del mes: ${message}. Se muestran los socios sin atribuirles entradas.`;
+        if (message !== lastAttendanceError) toastRef.value?.notify?.(`No se pudo consultar la asistencia del mes: ${message}. Se muestran los socios sin atribuir entradas.`, 'error');
+        lastAttendanceError = message;
       }
     }
     if (seq !== loadSequence) return;
