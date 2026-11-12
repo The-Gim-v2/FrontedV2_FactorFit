@@ -83,25 +83,195 @@ async function handleRegisterClick() {
 onMounted(() => { void cargarSucursales(); });
 onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage.value); });
 </script>
+
 <template>
-<div class="register-page"><div class="photo-bg"></div><div class="photo-overlay"></div>
-<NotificationSystem ref="toastRef" />
-<NoGymModal v-if="showNoGymModal" rol="atleta" @add="onAddGym" @close="showNoGymModal = false" />
-<header class="topbar"><router-link :to="{ name: 'home' }" class="brand"><img src="../../assets/factor_fit-25.webp" alt="Factor Fit" class="brand-logo"/><span>FACTOR FIT</span></router-link><router-link :to="{ name: 'login' }" class="back-link"><span>Volver a iniciar sesión</span></router-link></header>
-<main class="main-content"><div class="register-card"><div class="header-section"><h1 class="title">Regístrate a <span>Factor Fit</span></h1><p>Elige tu sucursal y crea tu cuenta para empezar a entrenar</p><button type="button" class="demo-fill" @click="rellenarEjemplo">Rellenar datos de ejemplo</button></div>
-<div v-if="registroExitoso" class="success-box"><h2>Solicitud registrada</h2><p>{{ mensaje }}</p><router-link :to="{ name: 'login' }">Ir a iniciar sesión</router-link></div>
-<form v-else @submit.prevent="handleRegisterClick"><div class="rg-grid"><div class="form-column"><h3 class="section-title first">Fotografía</h3><div class="upload-container"><div class="image-preview" role="button" tabindex="0" @click="triggerFileInput" @keydown.enter="triggerFileInput"><img v-if="previewImage" :src="previewImage" class="profile-img" alt="Vista previa"/><div v-else class="upload-placeholder"><span>Subir foto</span></div></div><input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onFileSelected"/><p>Sube una fotografía reciente (JPG, PNG o WebP, menos de 3 MB)</p></div>
-<h3 class="section-title">Datos personales</h3><div class="fields"><div class="field"><label>Nombre(s)</label><input v-model="form.nombres" @input="normalizarCampo('nombres')" required maxlength="150" placeholder="Luis"/></div><div class="field-row"><div class="field"><label>Apellido paterno</label><input v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" required maxlength="150" placeholder="Posada"/></div><div class="field"><label>Apellido materno</label><input v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" maxlength="150" placeholder="Lopez"/></div></div><div class="field"><label>CURP</label><input v-model="form.curp" @input="limpiarCurp" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="ABCD010101HDFXXX00" required/><small v-if="errorCurp" class="field-note invalid">{{ errorCurp }}</small><small v-else-if="form.curp.length === 18" class="field-note">CURP con formato válido (sin consulta oficial).</small><a class="curp-link" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer">Consultar mi CURP</a></div><div class="field-row"><div class="field"><label>Fecha de nacimiento</label><input v-model="form.fechaNac" type="date" required/></div><div class="field"><label>Teléfono celular</label><input  :value="form.celular" @input="actualizarCelular" @paste="pegarCelular" @keydown.plus.prevent type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="481 000 0000" required maxlength="12"/></div></div><div class="field-row"><div class="field"><label>Peso (kg) <small>Opcional</small></label><input v-model="form.peso" @input="normalizarPeso" type="text" inputmode="decimal" maxlength="5" placeholder="72.5"/></div><div class="field"><label>Altura (cm) <small>Opcional</small></label><input v-model="form.altura" @input="normalizarAltura" type="text" inputmode="numeric" maxlength="3" placeholder="175"/></div></div></div></div>
-<div class="form-column"><h3 class="section-title first">Cuenta de acceso</h3><div class="fields"><div class="field"><label>Correo electrónico</label><input v-model="form.email" @blur="normalizarCorreo" placeholder="ejemplo@gmail.com" type="email" required maxlength="255" autocomplete="email"/></div><div class="field-row"><div class="field"><label>Contraseña</label><div class="password-field"><input v-model="form.password" :type="showPassword ? 'text' : 'password'" required minlength="8" autocomplete="new-password"/><button type="button" @click="showPassword = !showPassword">{{ showPassword ? 'Ocultar' : 'Ver' }}</button></div></div><div class="field"><label>Confirmar contraseña</label><div class="password-field"><input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" required minlength="8" autocomplete="new-password"/><button type="button" @click="showConfirmPassword = !showConfirmPassword">{{ showConfirmPassword ? 'Ocultar' : 'Ver' }}</button></div></div></div></div>
-<h3 class="section-title">Tu sucursal</h3><div ref="gymPickerRef" class="gym-picker"><div v-if="!selectedGym" class="field"><label>Buscar sucursal</label><input ref="gymSearchInput" v-model="gymSearch" placeholder="Nombre o ciudad de la sucursal..." autocomplete="off" @focus="isGymDropdownOpen = true"/></div><div v-if="!selectedGym && isGymDropdownOpen" class="gym-dropdown"><button v-for="gym in filteredGyms" :key="gym.ID_Sede" type="button" class="gym-option" @click="selectGym(gym)"><span><strong>{{ gym.Nombre_Gym }} — {{ gym.Nombre_Sede }}</strong><small>{{ gym.Ciudad || '' }} {{ gym.Estado || '' }}</small></span></button><div v-if="loadingGyms" class="gym-empty">Cargando sucursales...</div><div v-else-if="errorSucursales" class="gym-empty">{{ errorSucursales }} <button type="button" @click="cargarSucursales">Reintentar</button></div><div v-else-if="!filteredGyms.length" class="gym-empty">No se encontraron sucursales.</div></div><div v-if="selectedGym" class="selected-gym"><div><strong>{{ selectedGym.Nombre_Gym }} — {{ selectedGym.Nombre_Sede }}</strong><span>{{ selectedGym.Direccion || '' }} · {{ selectedGym.Ciudad || '' }}</span></div><button type="button" @click="clearGym">Cambiar</button></div></div>
-<div v-if="selectedGym" class="membership"><label>Tipo de membresía</label><p v-if="loadingTarifas">Cargando tarifas...</p><div v-else class="membership-options"><button v-for="p in tarifas" :key="p.ID_Precio" type="button" class="membership-option" :class="{ active: selectedTarifa === Number(p.ID_Precio) }" @click="selectedTarifa = Number(p.ID_Precio)"><span><strong>{{ p.Nombre_Paquete }}</strong><small>{{ p.Periodo || 'Membresía' }}</small></span><b>${{ Number(p.Precio).toFixed(2) }}</b></button><p v-if="!tarifas.length">Esta sucursal no tiene tarifas disponibles.</p></div><p v-if="tarifaElegida">Seleccionaste: {{ tarifaElegida.Nombre_Paquete }}</p></div>
-<div class="actions"><p v-if="mensaje" role="alert" class="form-message">{{ mensaje }}</p><button type="submit" class="submit-btn" :disabled="guardando || loadingTarifas || !selectedGym || !selectedTarifa">{{ guardando ? 'Registrando...' : 'Registrarme' }}</button><p class="login-link">¿Ya tienes cuenta? <router-link :to="{ name: 'login' }">Inicia sesión</router-link></p></div></div></div></form></div></main></div>
+  <div class="register-page">
+    <div class="photo-bg"></div>
+    <div class="photo-overlay"></div>
+    <NotificationSystem ref="toastRef" />
+    <NoGymModal v-if="showNoGymModal" rol="atleta" @add="onAddGym" @close="showNoGymModal = false" />
+
+    <header class="topbar">
+      <router-link :to="{ name: 'home' }" class="brand">
+        <img src="../../assets/factor_fit-25.webp" alt="Factor Fit" class="brand-logo" />
+        <span>FACTOR FIT</span>
+      </router-link>
+      <router-link :to="{ name: 'login' }" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+        <span>Volver a iniciar sesión</span>
+      </router-link>
+    </header>
+
+    <main class="main-content">
+      <div class="register-card">
+        <!-- ===== Encabezado ===== -->
+        <div class="header-section">
+          <button type="button" class="demo-fill" @click="rellenarEjemplo" title="Carga datos ficticios para probar el formulario">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20l-.8-1.9-1.9-.8 1.9-.8L19 15z"/></svg>
+            <span>Datos de ejemplo</span>
+          </button>
+          <h1 class="title">Regístrate a <span>Factor Fit</span></h1>
+          <p class="subtitle">Elige tu sucursal y crea tu cuenta para empezar a entrenar</p>
+        </div>
+
+        <div v-if="registroExitoso" class="success-box">
+          <h2>Solicitud registrada</h2>
+          <p>{{ mensaje }}</p>
+          <router-link :to="{ name: 'login' }">Ir a iniciar sesión</router-link>
+        </div>
+
+        <form v-else @submit.prevent="handleRegisterClick">
+          <div class="rg-grid">
+            <!-- ===== Columna izquierda: persona ===== -->
+            <div class="form-column">
+              <h3 class="section-title first">Fotografía</h3>
+              <div class="upload-container">
+                <div class="image-preview" role="button" tabindex="0" aria-label="Subir fotografía" @click="triggerFileInput" @keydown.enter="triggerFileInput">
+                  <img v-if="previewImage" :src="previewImage" class="profile-img" alt="Vista previa" />
+                  <div v-else class="upload-placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span>Subir foto</span>
+                  </div>
+                </div>
+                <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onFileSelected" />
+                <p>Sube una fotografía reciente<br /><span class="hint">JPG, PNG o WebP, menos de 3 MB</span></p>
+              </div>
+
+              <h3 class="section-title">Datos personales</h3>
+              <div class="fields">
+                <div class="field">
+                  <label>Nombre(s)</label>
+                  <input v-model="form.nombres" @input="normalizarCampo('nombres')" required maxlength="150" placeholder="Luis" />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Apellido paterno</label>
+                    <input v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" required maxlength="150" placeholder="Posada" />
+                  </div>
+                  <div class="field">
+                    <label>Apellido materno</label>
+                    <input v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" maxlength="150" placeholder="Lopez" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>CURP</label>
+                  <input v-model="form.curp" @input="limpiarCurp" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="ABCD010101HDFXXX00" required />
+                  <div class="field-foot">
+                    <small v-if="errorCurp" class="field-note invalid">{{ errorCurp }}</small>
+                    <small v-else-if="form.curp.length === 18" class="field-note">CURP con formato válido (sin consulta oficial).</small>
+                    <a class="curp-link" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer">Consultar mi CURP</a>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Fecha de nacimiento</label>
+                    <input v-model="form.fechaNac" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label>Teléfono celular</label>
+                    <input :value="form.celular" @input="actualizarCelular" @paste="pegarCelular" @keydown.plus.prevent type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="481 000 0000" required maxlength="12" />
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Peso (kg) <small>Opcional</small></label>
+                    <input v-model="form.peso" @input="normalizarPeso" type="text" inputmode="decimal" maxlength="5" placeholder="72.5" />
+                  </div>
+                  <div class="field">
+                    <label>Altura (cm) <small>Opcional</small></label>
+                    <input v-model="form.altura" @input="normalizarAltura" type="text" inputmode="numeric" maxlength="3" placeholder="175" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== Columna derecha: cuenta y sucursal ===== -->
+            <div class="form-column">
+              <h3 class="section-title first">Cuenta de acceso</h3>
+              <div class="fields">
+                <div class="field">
+                  <label>Correo electrónico</label>
+                  <input v-model="form.email" @blur="normalizarCorreo" placeholder="ejemplo@gmail.com" type="email" required maxlength="255" autocomplete="email" />
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Contraseña</label>
+                    <div class="password-field">
+                      <input v-model="form.password" :type="showPassword ? 'text' : 'password'" required minlength="8" autocomplete="new-password" />
+                      <button type="button" @click="showPassword = !showPassword">{{ showPassword ? 'Ocultar' : 'Ver' }}</button>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Confirmar contraseña</label>
+                    <div class="password-field">
+                      <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" required minlength="8" autocomplete="new-password" />
+                      <button type="button" @click="showConfirmPassword = !showConfirmPassword">{{ showConfirmPassword ? 'Ocultar' : 'Ver' }}</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h3 class="section-title">Tu sucursal</h3>
+              <div ref="gymPickerRef" class="gym-picker">
+                <div v-if="!selectedGym" class="field">
+                  <label>Buscar sucursal</label>
+                  <input ref="gymSearchInput" v-model="gymSearch" placeholder="Nombre o ciudad de la sucursal..." autocomplete="off" @focus="isGymDropdownOpen = true" />
+                </div>
+                <div v-if="!selectedGym && isGymDropdownOpen" class="gym-dropdown">
+                  <button v-for="gym in filteredGyms" :key="gym.ID_Sede" type="button" class="gym-option" @click="selectGym(gym)">
+                    <span>
+                      <strong>{{ gym.Nombre_Gym }} — {{ gym.Nombre_Sede }}</strong>
+                      <small>{{ gym.Ciudad || '' }} {{ gym.Estado || '' }}</small>
+                    </span>
+                  </button>
+                  <div v-if="loadingGyms" class="gym-empty">Cargando sucursales...</div>
+                  <div v-else-if="errorSucursales" class="gym-empty">{{ errorSucursales }} <button type="button" @click="cargarSucursales">Reintentar</button></div>
+                  <div v-else-if="!filteredGyms.length" class="gym-empty">No se encontraron sucursales.</div>
+                </div>
+                <div v-if="selectedGym" class="selected-gym">
+                  <div>
+                    <strong>{{ selectedGym.Nombre_Gym }} — {{ selectedGym.Nombre_Sede }}</strong>
+                    <span>{{ selectedGym.Direccion || '' }} · {{ selectedGym.Ciudad || '' }}</span>
+                  </div>
+                  <button type="button" @click="clearGym">Cambiar</button>
+                </div>
+              </div>
+
+              <div v-if="selectedGym" class="membership">
+                <label>Tipo de membresía</label>
+                <p v-if="loadingTarifas" class="membership-note">Cargando tarifas...</p>
+                <div v-else class="membership-options">
+                  <button v-for="p in tarifas" :key="p.ID_Precio" type="button" class="membership-option" :class="{ active: selectedTarifa === Number(p.ID_Precio) }" @click="selectedTarifa = Number(p.ID_Precio)">
+                    <span>
+                      <strong>{{ p.Nombre_Paquete }}</strong>
+                      <small>{{ p.Periodo || 'Membresía' }}</small>
+                    </span>
+                    <b>${{ Number(p.Precio).toFixed(2) }}</b>
+                  </button>
+                  <p v-if="!tarifas.length" class="membership-note">Esta sucursal no tiene tarifas disponibles.</p>
+                </div>
+                <p v-if="tarifaElegida" class="membership-note chosen">Seleccionaste: {{ tarifaElegida.Nombre_Paquete }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== Acciones a todo el ancho ===== -->
+          <div class="actions">
+            <p v-if="mensaje" role="alert" class="form-message">{{ mensaje }}</p>
+            <button type="submit" class="submit-btn" :disabled="guardando || loadingTarifas || !selectedGym || !selectedTarifa">
+              {{ guardando ? 'Registrando...' : 'Registrarme' }}
+              <svg v-if="!guardando" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            <p class="login-link">¿Ya tienes cuenta? <router-link :to="{ name: 'login' }">Inicia sesión</router-link></p>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
 </template>
+
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-.demo-fill{margin-top:14px;padding:9px 14px;border-radius:10px;border:1px solid rgba(233,176,138,.45);background:rgba(233,176,138,.09);color:#e9b08a;font-weight:700;cursor:pointer;}
-.demo-fill:hover{background:rgba(233,176,138,.18);}
-.field-note{font-size:11px;color:#76dfb4;} .field-note.invalid{color:#ffb36c;} .curp-link{font-size:11px;color:#e9b08a;text-decoration:underline;}
 
 *{ box-sizing: border-box; }
 .register-page {
@@ -139,6 +309,7 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
     radial-gradient(ellipse 55% 45% at 22% 8%, rgba(224, 74, 109, .14), transparent 70%),
     linear-gradient(180deg, rgba(18, 18, 28, .86), rgba(18, 18, 28, .95));
 }
+
 /* HEADER */
 .topbar {
   width: 100%;
@@ -177,8 +348,8 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 .back-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px 14px 9px 10px;
+  gap: 8px;
+  padding: 9px 16px 9px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: rgba(18, 18, 28, .55);
@@ -194,10 +365,13 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 .brand:focus-visible,
 .back-link:focus-visible,
 .login-link a:focus-visible,
-.submit-btn:focus-visible {
+.submit-btn:focus-visible,
+.demo-fill:focus-visible,
+.curp-link:focus-visible {
   outline: 2px solid var(--soft);
   outline-offset: 3px;
 }
+
 /* CONTENIDO */
 .main-content {
   position: relative;
@@ -208,6 +382,7 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
   padding: 12px clamp(16px, 3vw, 40px) 48px;
 }
 .register-card {
+  position: relative;
   width: 100%;
   max-width: 1020px;
   padding: clamp(26px, 3vw, 42px);
@@ -218,9 +393,29 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
   border-radius: 24px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, .45);
 }
-.header-section { margin-bottom: 32px; text-align: center; }
+
+/* ---- Encabezado de la tarjeta ---- */
+.header-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 34px;
+  padding-bottom: 30px;
+  text-align: center;
+}
+.header-section::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(233, 176, 138, .38), transparent);
+}
 .header-section .title {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: clamp(1.9rem, 4vw, 2.6rem);
   font-weight: 800;
   line-height: 1.1;
@@ -233,8 +428,36 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
   -webkit-text-fill-color: transparent;
   color: var(--soft);
 }
-.header-section p { margin: 0; color: var(--text-2); font-size: 14px; line-height: 1.55; }
-.rg-grid { display: grid; grid-template-columns: 1fr; gap: clamp(30px, 4vw, 48px); align-items: start; }
+.header-section .subtitle {
+  max-width: 420px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+/* Botón de datos de ejemplo: discreto, en la esquina de la tarjeta */
+.demo-fill {
+  order: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 7px 13px 7px 11px;
+  border: 1px dashed rgba(233, 176, 138, .4);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s;
+}
+.demo-fill svg { width: 14px; height: 14px; color: var(--soft); }
+.demo-fill:hover { color: #fff; border-color: var(--soft); background: rgba(233, 176, 138, .1); }
+
+/* ---- Formulario ---- */
+.rg-grid { display: grid; grid-template-columns: 1fr; gap: clamp(30px, 4vw, 52px); align-items: start; }
 .form-column, .fields, .field { display: flex; flex-direction: column; }
 .form-column { gap: 15px; min-width: 0; }
 .fields { gap: 14px; }
@@ -285,6 +508,13 @@ input::placeholder { color: #716e83; font-weight: 400; }
 input:hover { border-color: rgba(255, 255, 255, .24); }
 input:focus { border-color: var(--accent); background: rgba(212, 80, 110, .06); box-shadow: 0 0 0 3px rgba(212, 80, 110, .2); }
 input[type="date"] { color-scheme: dark; }
+
+.field-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 16px; }
+.field-note { font-size: 11px; color: #76dfb4; }
+.field-note.invalid { color: #ffb36c; }
+.curp-link { margin-left: auto; font-size: 11px; color: var(--soft); text-decoration: underline; text-underline-offset: 2px; border-radius: 4px; }
+.curp-link:hover { color: #fff; }
+
 .upload-container {
   display: flex;
   align-items: center;
@@ -294,7 +524,8 @@ input[type="date"] { color-scheme: dark; }
   border: 1px dashed rgba(233, 176, 138, .3);
   border-radius: 14px;
 }
-.upload-container p { margin: 0; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+.upload-container p { margin: 0; color: var(--text-2); font-size: 12.5px; font-weight: 600; line-height: 1.5; }
+.upload-container .hint { color: var(--text-3); font-size: 11.5px; font-weight: 400; }
 .image-preview {
   width: 72px;
   height: 72px;
@@ -309,29 +540,32 @@ input[type="date"] { color-scheme: dark; }
   transition: border-color .2s, background .2s;
 }
 .image-preview:hover { border-color: var(--soft); background: rgba(233, 176, 138, .16); }
+.image-preview:focus-visible { outline: 2px solid var(--soft); outline-offset: 3px; }
 .profile-img { width: 100%; height: 100%; object-fit: cover; }
-.upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--soft); }
+.upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--soft); }
 .upload-placeholder svg { width: 20px; height: 20px; }
 .upload-placeholder span { font-size: 8px; font-weight: 700; text-transform: uppercase; }
 .password-field { position: relative; }
-.password-field input { padding-right: 44px; }
+.password-field input { padding-right: 60px; }
 .password-field button {
   position: absolute;
   top: 0;
   right: 0;
-  width: 44px;
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 0 13px;
   border: 0;
   background: transparent;
-  color: var(--text-3);
+  color: var(--soft);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: color .2s;
 }
 .password-field button:hover { color: #fff; }
-.password-field svg { width: 17px; height: 17px; }
+
 .gym-picker { position: relative; min-width: 0; }
 .gym-dropdown {
   max-height: 240px;
@@ -362,7 +596,6 @@ input[type="date"] { color-scheme: dark; }
 .gym-option > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .gym-option strong { overflow: hidden; font-size: 12.5px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
 .gym-option small { overflow: hidden; color: var(--text-3); font-size: 10.5px; white-space: nowrap; text-overflow: ellipsis; }
-.gym-option b { flex-shrink: 0; color: var(--soft); font-size: 11.5px; font-weight: 700; }
 .gym-empty { padding: 15px; color: var(--text-3); font-size: 12px; text-align: center; }
 .selected-gym {
   display: flex;
@@ -390,9 +623,13 @@ input[type="date"] { color-scheme: dark; }
   transition: background .2s, color .2s;
 }
 .selected-gym button:hover { background: rgba(212, 80, 110, .25); color: #fff; }
+
 /* MEMBRESÍA */
 .membership { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.membership-note { margin: 0; color: var(--text-3); font-size: 12px; }
+.membership-note.chosen { color: var(--soft); }
 .membership-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.membership-options .membership-note { grid-column: 1 / -1; }
 .membership-option {
   min-width: 0;
   min-height: 64px;
@@ -421,9 +658,30 @@ input[type="date"] { color-scheme: dark; }
   color: #fff;
   box-shadow: 0 0 0 3px rgba(212, 80, 110, .16);
 }
-.membership-option.active small { color: var(--soft); }
+.membership-option.active small,
 .membership-option.active b { color: var(--soft); }
-.actions { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+
+/* ACCIONES (ancho completo, centradas) */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 440px;
+  margin: 36px auto 0;
+  padding-top: 30px;
+  position: relative;
+}
+.actions::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -40%;
+  right: -40%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+.form-message { margin: 0; color: #ffb5c5; font-size: 13px; text-align: center; }
 .submit-btn {
   width: 100%;
   min-height: 54px;
@@ -443,18 +701,27 @@ input[type="date"] { color-scheme: dark; }
   box-shadow: 0 8px 20px rgba(212, 80, 110, .22);
   transition: filter .2s, transform .2s, box-shadow .2s;
 }
-.submit-btn:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(212, 80, 110, .32); }
-.submit-btn:active { transform: none; filter: brightness(.97); }
+.submit-btn:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(212, 80, 110, .32); }
+.submit-btn:active:not(:disabled) { transform: none; filter: brightness(.97); }
+.submit-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
 .submit-btn svg { width: 18px; height: 18px; transition: transform .2s; }
-.submit-btn:hover svg { transform: translateX(3px); }
+.submit-btn:hover:not(:disabled) svg { transform: translateX(3px); }
 .login-link { margin: 0; color: var(--text-3); font-size: 13px; text-align: center; }
 .login-link a { color: var(--soft); font-weight: 650; text-decoration: none; }
 .login-link a:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+.success-box { text-align: center; padding: 30px; border: 1px solid rgba(233, 176, 138, .3); border-radius: 16px; }
+.success-box h2 { margin: 0 0 8px; }
+.success-box p { margin: 0 0 14px; color: var(--text-2); }
+.success-box a { color: var(--soft); font-weight: 650; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
 @media (min-width: 900px) {
   .rg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* En escritorio el botón de ejemplo sale del flujo y queda en la esquina */
+  .demo-fill { position: absolute; top: -12px; right: -12px; order: 0; margin: 0; background: rgba(18, 18, 28, .5); }
 }
 @media (max-width: 768px) {
   .topbar { height: 68px; padding: 0 17px; }
@@ -466,8 +733,11 @@ input[type="date"] { color-scheme: dark; }
   .back-link svg { width: 19px; height: 19px; }
   .main-content { padding: 8px 14px 30px; }
   .register-card { padding: 24px 18px; border-radius: 20px; }
+  .header-section { margin-bottom: 26px; padding-bottom: 24px; }
   .field-row { grid-template-columns: 1fr; }
   .membership-options { grid-template-columns: 1fr; }
+  .actions { margin-top: 28px; padding-top: 24px; }
+  .actions::before { left: 0; right: 0; }
   input { font-size: 16px; } /* evita el zoom automático en iOS */
 }
 @media (max-width: 420px) {
@@ -476,6 +746,6 @@ input[type="date"] { color-scheme: dark; }
   .register-card { padding: 22px 15px; }
   .header-section .title { font-size: 1.75rem; }
   .selected-gym { flex-direction: column; align-items: stretch; }
+  .upload-container { flex-direction: column; text-align: center; }
 }
-.form-message{color:#ffb5c5;font-size:13px}.success-box{text-align:center;padding:30px;border:1px solid rgba(233,176,138,.3);border-radius:16px}.success-box a{color:#e9b08a}.submit-btn:disabled{opacity:.6;cursor:wait}.password-field button{width:auto;padding:0 12px;font-size:12px;color:#e9b08a}
 </style>
