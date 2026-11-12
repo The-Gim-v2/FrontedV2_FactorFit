@@ -86,12 +86,15 @@
                 <th class="col-photo">{{ t('colPhoto') }}</th>
                 <th class="col-name">{{ t('colName') }}</th>
                 <th class="col-days">
-                  <div class="days-strip">
-                    <div v-for="(week, wi) in weeks" :key="'h' + wi" class="week" :style="weekStyle(week)">
-                      <span v-for="d in week" :key="d.n" class="head-day" :class="{ weekend: d.weekend, today: d.isToday }">
-                        <b>{{ d.n }}</b><i>{{ d.initial }}</i>
-                      </span>
-                    </div>
+                  <div class="days-strip" :style="stripStyle">
+                    <span
+                      v-for="d in monthDays"
+                      :key="d.n"
+                      class="head-day"
+                      :class="{ weekend: d.weekend, today: d.isToday, 'wk-start': d.weekStart }"
+                    >
+                      <b>{{ d.n }}</b><i>{{ d.initial }}</i>
+                    </span>
                   </div>
                 </th>
                 <th class="col-total">{{ t('colTotal') }}</th>
@@ -122,16 +125,19 @@
                     </div>
                   </td>
                   <td class="cell-days">
-                    <div class="days-strip">
-                      <div v-for="(week, wi) in weeks" :key="'r' + wi" class="week" :style="weekStyle(week)">
-                        <span
-                          v-for="d in week"
-                          :key="d.n"
+                    <div class="days-strip" :style="stripStyle">
+                      <span
+                        v-for="d in monthDays"
+                        :key="d.n"
+                        class="day-cell"
+                        :class="{ 'wk-start': d.weekStart }"
+                      >
+                        <i
                           class="day-dot"
                           :class="{ on: user.attendedSet.has(d.n), weekend: d.weekend, today: d.isToday, future: d.future }"
                           :title="`${d.label} · ${user.attendedSet.has(d.n) ? t('attended') : t('noAttended')}`"
-                        ></span>
-                      </div>
+                        ></i>
+                      </span>
                     </div>
                   </td>
                   <td>
@@ -205,7 +211,14 @@
 
             <p class="card-count"><b>{{ user.attendedSet.size }}</b> / {{ elapsedDays }} {{ t('visitsShort') }}</p>
 
-            <div class="mini-strip">
+            <div class="mini-cal">
+              <span
+                v-for="(h, i) in weekHeads"
+                :key="'wh' + i"
+                class="mini-head"
+                :class="{ weekend: i >= 5 }"
+              >{{ h }}</span>
+              <span v-for="b in monthOffset" :key="'b' + b" class="mini-blank" aria-hidden="true"></span>
               <span
                 v-for="d in monthDays"
                 :key="d.n"
@@ -279,7 +292,7 @@ type NotifyRef = { notify?: (message: string, type?: string) => void };
 type StatusFilter = 'all' | 'active' | 'pending' | 'inactive';
 type MonthDay = {
   n: number; dow: number; weekend: boolean; isToday: boolean; future: boolean;
-  initial: string; label: string;
+  weekStart: boolean; initial: string; label: string;
 };
 
 const route = useRoute();
@@ -423,6 +436,7 @@ const monthDays = computed<MonthDay[]>(() => {
     return {
       n, dow,
       weekend: dow === 0 || dow === 6,
+      weekStart: dow === 1 && n > 1,
       isToday: isThisMonth && p[2] === n,
       future: inFuture || (isThisMonth && n > p[2]),
       initial: initialsByLang.value[dow] as string,
@@ -432,19 +446,15 @@ const monthDays = computed<MonthDay[]>(() => {
     };
   });
 });
-// Semanas (lunes a domingo) para separar visualmente los bloques en escritorio.
-const weeks = computed<MonthDay[][]>(() => {
-  const groups: MonthDay[][] = [];
-  for (const day of monthDays.value) {
-    const last = groups[groups.length - 1];
-    if (!last || day.dow === 1) groups.push([day]); else last.push(day);
-  }
-  return groups;
-});
-const weekStyle = (week: MonthDay[]) => ({
-  flex: `${week.length} 1 0`,
-  gridTemplateColumns: `repeat(${week.length}, minmax(0, 1fr))`
-});
+// Una sola cuadrícula para encabezado y filas: todas las columnas miden lo mismo.
+const stripStyle = computed(() => ({
+  gridTemplateColumns: `repeat(${daysInMonth.value}, minmax(0, 1fr))`
+}));
+// Calendario móvil (semana de lunes a domingo).
+const weekHeads = computed<string[]>(() => currentLang.value === 'en'
+  ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'M', 'J', 'V', 'S', 'D']);
+const monthOffset = computed(() =>
+  (new Date(Date.UTC(viewYear.value, viewMonth.value - 1, 1)).getUTCDay() + 6) % 7);
 const elapsedDays = computed(() => {
   const p = dateParts();
   if (viewKey.value < todayKey.value) return daysInMonth.value;
@@ -788,7 +798,7 @@ button.stat-card { cursor: pointer; }
 .table-container { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-cards, #121419); box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2); }
 .table-container::before { content: ''; position: absolute; z-index: 3; top: 0; right: 0; left: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.72; }
 .table-scroll { width: 100%; overflow-x: auto; }
-.user-table { width: 100%; min-width: 1060px; border-collapse: collapse; color: var(--color-texto-general, #e5e7eb); text-align: left; }
+.user-table { width: 100%; min-width: 1180px; border-collapse: collapse; color: var(--color-texto-general, #e5e7eb); text-align: left; }
 .user-table thead { background: color-mix(in srgb, var(--bg-cards, #121419) 94%, var(--color-texto-general, #ffffff)); }
 .user-table th { padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap; }
 .user-table td { padding: 14px; border-top: 1px solid var(--line-soft); font-size: 0.82rem; vertical-align: middle; }
@@ -799,7 +809,7 @@ button.stat-card { cursor: pointer; }
 .col-name { width: 240px; }
 .col-total { width: 140px; }
 .col-status { width: 150px; }
-.col-days, .cell-days { min-width: 600px; }
+.col-days, .cell-days { min-width: 720px; }
 /* Foto y nombre fijos al desplazar horizontalmente */
 .user-table th:nth-child(1), .user-table td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: var(--bg-cards, #121419); }
 .user-table th:nth-child(2), .user-table td:nth-child(2) { position: sticky; left: 72px; z-index: 2; background: var(--bg-cards, #121419); box-shadow: 1px 0 0 var(--line-soft); }
@@ -808,16 +818,18 @@ button.stat-card { cursor: pointer; }
 .name-cell .text-bold { font-size: 0.88rem; }
 .small { font-size: 0.72rem; overflow: hidden; text-overflow: ellipsis; max-width: 210px; white-space: nowrap; }
 
-/* ---- Días del mes agrupados por semana ---- */
-.days-strip { display: flex; gap: 10px; width: 100%; }
-.week { display: grid; gap: 3px; min-width: 0; }
+/* ---- Días del mes (cuadrícula única) ---- */
+.days-strip { display: grid; gap: 5px; width: 100%; }
+.head-day, .day-cell { position: relative; min-width: 0; }
+.day-cell { display: flex; align-items: center; justify-content: center; padding: 2px 0; }
+.wk-start::before { content: ''; position: absolute; left: -3px; top: 10%; bottom: 10%; width: 1px; background: var(--line); pointer-events: none; }
 .head-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 3px 0; border-radius: 8px; line-height: 1.1; text-transform: none; letter-spacing: 0; }
 .head-day b { color: var(--color-titulos, #ffffff); font-size: 0.7rem; font-weight: 700; }
 .head-day i { color: var(--muted); font-size: 0.58rem; font-style: normal; font-weight: 600; }
 .head-day.weekend b, .head-day.weekend i { opacity: 0.55; }
 .head-day.today { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .head-day.today b, .head-day.today i { color: var(--accent); opacity: 1; }
-.day-dot { display: block; width: 100%; max-width: 26px; aspect-ratio: 1; margin: 0 auto; border: 1px solid var(--line); border-radius: 7px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); transition: transform 0.15s ease; }
+.day-dot { display: block; width: 100%; max-width: 24px; aspect-ratio: 1; margin: 0 auto; border: 1px solid var(--line); border-radius: 7px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); transition: transform 0.15s ease; }
 .day-dot.weekend { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 7%, transparent); }
 .day-dot.future { opacity: 0.35; border-style: dashed; }
 .day-dot.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, var(--ok), var(--ok-deep)); box-shadow: 0 0 10px rgba(52, 211, 153, 0.28); }
@@ -956,12 +968,16 @@ button.stat-card { cursor: pointer; }
 
   .card-count { margin: 13px 0 9px; color: var(--muted); font-size: 0.74rem; font-weight: 600; }
   .card-count b { color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.1rem; font-weight: 600; }
-  .mini-strip { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
-  .mini-day { display: grid; place-items: center; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 7px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); color: var(--muted); font-size: 0.62rem; font-weight: 600; }
+
+  /* Mini calendario (L–D) */
+  .mini-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .mini-head { padding-bottom: 2px; color: var(--muted); font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; text-align: center; }
+  .mini-head.weekend { opacity: 0.55; }
+  .mini-day { display: grid; place-items: center; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); color: var(--muted); font-size: 0.68rem; font-weight: 600; }
   .mini-day.weekend { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 7%, transparent); }
   .mini-day.future { opacity: 0.35; border-style: dashed; }
-  .mini-day.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, var(--ok), var(--ok-deep)); color: #04130d; font-weight: 800; }
-  .mini-day.today { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent); }
+  .mini-day.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, var(--ok), var(--ok-deep)); color: #04130d; font-weight: 800; box-shadow: 0 0 8px rgba(52, 211, 153, 0.25); }
+  .mini-day.today { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); color: var(--color-titulos, #ffffff); }
 
   .card-more { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 13px; padding: 0; border: 0; border-top: 1px solid var(--line-soft); background: transparent; color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.74rem; font-weight: 600; cursor: pointer; }
   .card-more svg { transition: transform 0.2s ease; }
@@ -989,7 +1005,7 @@ button.stat-card { cursor: pointer; }
   .search-input { font-size: 0.78rem; }
   .btn-label { font-size: 0.55rem; }
   .highlight-text-custom { font-size: 0.73rem; }
-  .mini-day { font-size: 0.56rem; }
+  .mini-day { height: 26px; font-size: 0.6rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .search-input, .btn-bulk, .nav-btn, .stat-card, .day-dot, .total-fill, .ring-fg, .pop-enter-active, .pop-leave-active { transition: none !important; }
