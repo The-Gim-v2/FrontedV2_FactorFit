@@ -200,7 +200,7 @@
                   <span :class="['status-badge', getStatusClass(user.status)]">{{ user.status }}</span>
                 </div>
               </div>
-              <div class="ring" :class="levelClass(user)" :aria-label="percent(user) + '%'">
+              <div class="pct-ring" :class="levelClass(user)" :aria-label="percent(user) + '%'">
                 <svg viewBox="0 0 44 44" aria-hidden="true">
                   <circle class="ring-bg" cx="22" cy="22" r="18"></circle>
                   <circle class="ring-fg" cx="22" cy="22" r="18" :stroke-dasharray="`${percent(user) * 1.131} 113.1`" :style="{ opacity: percent(user) ? 1 : 0 }"></circle>
@@ -957,10 +957,10 @@ button.stat-card { cursor: pointer; }
   .badges-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
   /* Anillo de porcentaje */
-  .ring { position: relative; width: 54px; height: 54px; flex-shrink: 0; --ring: var(--ok); }
-  .ring.lvl-mid { --ring: #fbbf24; }
-  .ring.lvl-low { --ring: #f87171; }
-  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .pct-ring { position: relative; box-shadow: none; outline: 0; border: 0; width: 54px; height: 54px; flex-shrink: 0; --ring: var(--ok); }
+  .pct-ring.lvl-mid { --ring: #fbbf24; }
+  .pct-ring.lvl-low { --ring: #f87171; }
+  .pct-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
   .ring-bg { fill: none; stroke: color-mix(in srgb, var(--color-texto-general, #ffffff) 10%, transparent); stroke-width: 4; }
   .ring-fg { fill: none; stroke: var(--ring); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
   .ring-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 0.95rem; font-weight: 600; }
