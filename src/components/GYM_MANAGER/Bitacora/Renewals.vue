@@ -8,7 +8,6 @@
           <span class="title-underline"></span>
           <p class="main-subtitle">{{ t('renewalsSubtitle') }}</p>
         </div>
-
         <div class="actions-bar" id="tutorial-step-0">
           <div class="search-wrapper">
             <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -19,15 +18,15 @@
           </div>
         </div>
       </header>
-
       <!-- RESUMEN -->
+      <p v-if="loading" class="data-message" role="status">{{ t('loading') }}</p>
+      <p v-if="errorCarga" class="data-message error" role="alert">{{ errorCarga }} <button type="button" @click="loadUsers">{{ t('retry') }}</button></p>
       <section class="stats-row">
         <div class="stat-card" v-for="s in stats" :key="s.key" :class="'stat-' + s.tone">
           <span class="stat-value">{{ s.value }}</span>
           <span class="stat-label">{{ t(s.key) }}</span>
         </div>
       </section>
-
       <!-- ESCRITORIO -->
       <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : undefined">
         <table class="user-table">
@@ -44,12 +43,12 @@
           </thead>
           <tbody>
             <tr v-for="(user, index) in pagedUsers" :key="user.id">
-              <td><div class="avatar-small" :style="avatarStyle(user.id)">{{ getInitials(user.name) }}</div></td>
+              <td><div class="avatar-small" :style="avatarStyle(user.id)"><img v-if="user.photo" :src="user.photo" :alt="user.name" @error="user.photo=null" />{{ user.photo ? '' : getInitials(user.name) }}</div></td>
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
-              <td><span class="type-chip">{{ typeLabel(user.mensualidad) }}</span></td>
+              <td><span class="type-chip" :class="periodClass(user.mensualidad)">{{ typeLabel(user.mensualidad) }}</span></td>
               <td class="text-muted">{{ user.expiredDate }}</td>
-              <td><span class="status-badge" :class="getDebtClass(user.status)">{{ user.debt }}</span></td>
+              <td><span class="status-badge" :class="getDebtClass(user.status)">{{ user.debt }}</span><small class="renew-state">{{user.status}}</small></td>
               <td>
                 <div class="actions-cell" :id="!isMobile && index === 0 ? 'tutorial-step-2' : undefined">
                   <button class="icon-btn" :title="t('renewBtn')" @click="handleOpenRenew(user)"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.5 4a3.5 3.5 0 1 0 5 0m-5 0V3m5 6l-5-5-5 5"/></svg></button>
@@ -69,7 +68,6 @@
         </table>
         <div class="table-footer">{{ filteredUsers.length }} {{ t('resultsLabel') }}</div>
       </div>
-
       <!-- MÓVIL -->
       <div class="mobile-only">
         <div
@@ -80,22 +78,20 @@
           :id="isMobile && index === 0 ? 'tutorial-step-1' : undefined"
         >
           <div class="card-top-section">
-            <div class="avatar-small" :style="avatarStyle(user.id)">{{ getInitials(user.name) }}</div>
+            <div class="avatar-small" :style="avatarStyle(user.id)"><img v-if="user.photo" :src="user.photo" :alt="user.name" @error="user.photo=null" />{{ user.photo ? '' : getInitials(user.name) }}</div>
             <div class="card-user-titles">
               <div class="text-bold name-text">{{ user.name }}</div>
               <div class="badges-row">
-                <span class="status-badge" :class="getDebtClass(user.status)">{{ user.debt }}</span>
-                <span class="type-chip">{{ typeLabel(user.mensualidad) }}</span>
+                <span class="status-badge" :class="getDebtClass(user.status)">{{ user.debt }}</span><small class="renew-state">{{user.status}}</small>
+                <span class="type-chip" :class="periodClass(user.mensualidad)">{{ typeLabel(user.mensualidad) }}</span>
               </div>
             </div>
           </div>
-
           <div class="card-meta">
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="email-text">{{ user.email }}</span></span>
             <span class="meta-row expiration-warning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span class="vence-label">{{ t('expiresLabel') }}:</span> {{ user.expiredDate }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="phone-text">{{ user.phone }}</span></span>
           </div>
-
           <div class="card-actions" :id="isMobile && index === 0 ? 'tutorial-step-2' : undefined">
             <button class="action-chip btn-renew-chip" @click="handleOpenRenew(user)">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.5 4a3.5 3.5 0 1 0 5 0m-5 0V3m5 6l-5-5-5 5"/></svg>
@@ -107,13 +103,11 @@
             </button>
           </div>
         </div>
-
         <div v-if="filteredUsers.length === 0" class="empty-state-mobile">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span>{{ t('emptyState') }}</span>
         </div>
       </div>
-
       <!-- PAGINACIÓN (solo con más de 40 resultados) -->
       <nav v-if="showPager" class="pager" :aria-label="t('pagination')">
         <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="t('prevPage')" @click="goPage(page - 1)">
@@ -124,14 +118,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </nav>
-
-      <!-- Modal de renovación -->
-      <transition name="pop">
-        <div v-if="activeModal === 'renovacion'" class="modal-wrapper" @click.self="activeModal = null">
-          <RenovacionModal :user="selectedUser" @close="activeModal = null" @renewed="handleRenewSuccess" />
-        </div>
-      </transition>
-
+      <ReactivateAccountModal v-if="selectedRenewal" :inscripcion-id="selectedRenewal.id" :sede-id="sedeId()" @close="selectedRenewal=null" @reactivated="onReactivated" />
       <!-- Modal Eliminar -->
       <ModalComponent :isOpen="showDelete" @close="showDelete = false">
         <div class="modal-body-custom">
@@ -142,278 +129,119 @@
           <p>{{ t('deleteMsgPre') }} <span class="highlight-name">{{ selectedUser?.name }}</span> {{ t('deleteMsgPost') }}</p>
           <div class="modal-buttons">
             <button class="btn-modal secondary" @click="showDelete = false">{{ t('cancelBtn') }}</button>
-            <button class="btn-modal danger" @click="executeDelete">{{ t('confirmDeleteBtn') }}</button>
+            <button class="btn-modal danger" :disabled="deleting" @click="executeDelete">{{ t('confirmDeleteBtn') }}</button>
           </div>
         </div>
       </ModalComponent>
     </main>
   </HeadingGYM_MANAGER>
 </template>
-
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import {ref,computed,watch,onMounted,onUnmounted} from 'vue';
+import {useRoute,useRouter} from 'vue-router';
 import HeadingGYM_MANAGER from '../HeadingGYM_MANAGER.vue';
 import ModalComponent from '../../Modals/ModalComponent.vue';
-import RenovacionModal from '../Componets/Account-Recovery.vue';
+import ReactivateAccountModal from '../Componets/Account-Recovery.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  expiredDate: string;
-  mensualidad: string;
-  debt: string;
-  status: string;
-  phone: string;
-}
-
-const activeModal = ref<string | null>(null);
-const showDelete = ref<boolean>(false);
-const selectedUser = ref<User | null>(null);
-const searchQuery = ref<string>('');
-const toastRef = ref<any>(null);
-
-// Idiomas
-const currentLang = ref<string>(localStorage.getItem('GYM_MANAGER-idioma') || 'es');
-const handleLangChange = (e: Event) => {
-  const customEvent = e as CustomEvent<{ idioma?: string }>;
-  if (customEvent.detail?.idioma) currentLang.value = customEvent.detail.idioma;
+interface User{id:number;clienteId:number;name:string;email:string;expiredDate:string;mensualidad:string;debt:string;debtValue:number;status:string;phone:string;photo:string|null;}
+const selectedRenewal=ref<User|null>(null);const onReactivated=async()=>{selectedRenewal.value=null;toastRef.value?.notify?.('Cuenta reactivada correctamente.','success');await loadUsers();};
+const router=useRouter(),toastRef=ref<{notify?:(message:string,type:string)=>void}|null>(null),showDelete=ref(false),selectedUser=ref<User|null>(null),searchQuery=ref(''),users=ref<User[]>([]),loading=ref(false),errorCarga=ref(''),deleting=ref(false);
+const langData={
+ es:{renewalsTitle:'Renovaciones',renewalsSubtitle:'Reactiva cuentas inactivas o retiradas temporalmente',searchPlaceholder:'Buscar usuario...',monthly:'Mensual',fortnightly:'Quincenal',colPhoto:'Foto',colName:'Nombre',colEmail:'Correo',colType:'Pago',colExpiration:'Vencimiento',colDebt:'Adeudo',colActions:'Acciones',expiresLabel:'Vence',renewBtn:'Reactivar',deleteBtn:'Eliminar definitivamente',emptyState:'No hay membresías que requieran renovación.',resultsLabel:'resultados',pagination:'Paginación',prevPage:'Página anterior',nextPage:'Página siguiente',statTotal:'Total',statExpired:'Inactivos',statPending:'Retirados',statDebt:'Adeudo total',deleteTitle:'¿Eliminar definitivamente?',deleteMsgPre:'¿Eliminar permanentemente a',deleteMsgPost:'? Se eliminará su inscripción y los registros asociados. No se puede deshacer.',cancelBtn:'Cancelar',confirmDeleteBtn:'Eliminar definitivamente',successDeleted:'Inscripción eliminada definitivamente.',successRenewed:'Membresía actualizada.',loading:'Cargando renovaciones...',retry:'Reintentar'},
+ en:{renewalsTitle:'Renewals',renewalsSubtitle:'Reactivate inactive or temporarily removed accounts',searchPlaceholder:'Search client...',monthly:'Monthly',fortnightly:'Fortnightly',colPhoto:'Photo',colName:'Name',colEmail:'Email',colType:'Payment',colExpiration:'Expiration',colDebt:'Debt',colActions:'Actions',expiresLabel:'Expires',renewBtn:'Reactivate',deleteBtn:'Delete permanently',emptyState:'No memberships currently require renewal.',resultsLabel:'results',pagination:'Pagination',prevPage:'Previous page',nextPage:'Next page',statTotal:'Total',statExpired:'Inactive',statPending:'Removed',statDebt:'Total debt',deleteTitle:'Delete permanently?',deleteMsgPre:'Permanently delete',deleteMsgPost:'? The membership and related records will be deleted permanently.',cancelBtn:'Cancel',confirmDeleteBtn:'Delete permanently',successDeleted:'Membership deleted permanently.',successRenewed:'Membership updated.',loading:'Loading renewals...',retry:'Retry'}
+} as const;
+const t=(key:keyof typeof langData.es)=>langData[currentLang.value==='en'?'en':'es'][key]||langData.es[key];
+const typeLabel=(p:string)=>p==='Mensual'?t('monthly'):p==='Quincenal'?t('fortnightly'):p;
+const periodClass=(p:string)=>p==='Mensual'?'type-mensual':p==='Quincenal'?'type-quincenal':'type-other';
+const getDebtClass=(s:string)=>s==='Inactivo'?'debt-inactive':s==='Próximo a vencer'?'debt-upcoming':s==='En tolerancia'?'debt-pending':'debt-pending';
+type ApiRow={ID_Inscripto:number|string;ID_Cliente:number|string;nombre:string;correo:string|null;celular:string|null;foto_url:string|null;fecha_vencimiento:string|null;fecha_inscripcion?:string|null;plan:string|null;periodo:string|null;cantidad_meses?:number|null;estatus_inscripcion?:string|null;saldo_a_pagar:number|string|null;};
+type ApiIngresos={inscripciones?:ApiRow[];message?:string;};
+const API=String(import.meta.env.VITE_API_URL||'').trim().replace(/\/+$/,'').replace(/\/api$/i,'');
+const getToken=():string=>{
+ for(const store of [sessionStorage,localStorage]){
+  for(const key of ['token','auth_token','access_token','gym_token','GYM_MANAGER_token','gymAccountToken']){const v=store.getItem(key);if(v)return v.replace(/^Bearer\s+/i,'');}
+  for(const storageKey of ['auth','user','session','gymAccount','GYM_MANAGER']){try{const session=JSON.parse(store.getItem(storageKey)||'null');const sessionToken=session?.token||session?.access_token||session?.accessToken;if(sessionToken)return String(sessionToken).replace(/^Bearer\s+/i,'');}catch{}}
+ }
+ return '';
 };
-
-const langData: Record<'es' | 'en', Record<string, string>> = {
-  es: {
-    renewalsTitle: 'Renovaciones',
-    renewalsSubtitle: 'Gestiona las membresías vencidas o próximas a vencer de los usuarios',
-    searchPlaceholder: 'Buscar usuario...',
-    monthly: 'Mensual',
-    fortnightly: 'Quincenal',
-    colPhoto: 'Foto',
-    colName: 'Nombre',
-    colEmail: 'Correo',
-    colType: 'Pago',
-    colExpiration: 'Vencimiento',
-    colDebt: 'Adeudo',
-    colActions: 'Acciones',
-    expiresLabel: 'Vence',
-    renewBtn: 'Renovar',
-    deleteBtn: 'Eliminar',
-    emptyState: 'No se encontraron resultados con esos filtros.',
-    resultsLabel: 'resultados',
-    pagination: 'Paginación',
-    prevPage: 'Página anterior',
-    nextPage: 'Página siguiente',
-    statTotal: 'Total',
-    statExpired: 'Vencidos',
-    statPending: 'Pendientes',
-    statDebt: 'Adeudo total',
-    deleteTitle: '¿Eliminar usuario?',
-    deleteMsgPre: '¿Estás seguro de que deseas eliminar a',
-    deleteMsgPost: 'permanentemente? Esta acción no se puede deshacer.',
-    cancelBtn: 'Cancelar',
-    confirmDeleteBtn: 'Sí, eliminar',
-    successDeleted: 'Usuario eliminado correctamente',
-    successRenewed: 'Membresía renovada correctamente'
-  },
-  en: {
-    renewalsTitle: 'Renewals',
-    renewalsSubtitle: 'Manage expired or upcoming membership renewals for users',
-    searchPlaceholder: 'Search user...',
-    monthly: 'Monthly',
-    fortnightly: 'Fortnightly',
-    colPhoto: 'Photo',
-    colName: 'Name',
-    colEmail: 'Email',
-    colType: 'Payment',
-    colExpiration: 'Expiration',
-    colDebt: 'Debt',
-    colActions: 'Actions',
-    expiresLabel: 'Expires',
-    renewBtn: 'Renew',
-    deleteBtn: 'Delete',
-    emptyState: 'No results found with those filters.',
-    resultsLabel: 'results',
-    pagination: 'Pagination',
-    prevPage: 'Previous page',
-    nextPage: 'Next page',
-    statTotal: 'Total',
-    statExpired: 'Expired',
-    statPending: 'Pending',
-    statDebt: 'Total debt',
-    deleteTitle: 'Delete user?',
-    deleteMsgPre: 'Are you sure you want to permanently delete',
-    deleteMsgPost: '? This action cannot be undone.',
-    cancelBtn: 'Cancel',
-    confirmDeleteBtn: 'Yes, delete',
-    successDeleted: 'User deleted successfully',
-    successRenewed: 'Membership renewed successfully'
-  }
+const getStoredSede=():number=>{
+ const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];
+ for(const store of [sessionStorage,localStorage])for(const key of keys){
+  const raw=store.getItem(key);if(!raw)continue;let value:unknown=raw;
+  try{const obj:unknown=JSON.parse(raw);value=obj&&typeof obj==='object'?((obj as Record<string,unknown>).ID_Sede??(obj as Record<string,unknown>).sede_id??(obj as Record<string,unknown>).id??(obj as Record<string,unknown>).value):obj;}catch{}
+  const num=Number(value);if(Number.isInteger(num)&&num>0)return num;
+ }
+ return 0;
 };
-
-const t = (key: string): string => {
-  const langKey = (currentLang.value === 'en' ? 'en' : 'es') as 'es' | 'en';
-  return langData[langKey][key] || langData.es[key] || key;
+const sedeEvento=ref(0),route=useRoute();
+const sedeId=():number=>{if(sedeEvento.value>0)return sedeEvento.value;const fromUrl=Number(route.query.sede_id);if(Number.isInteger(fromUrl)&&fromUrl>0)return fromUrl;return getStoredSede()||1;};
+const branchChange=(e:Event)=>{
+ const detail=(e as CustomEvent<Record<string,unknown>>).detail;
+ const nested=detail?.sede&&typeof detail.sede==='object'?detail.sede as Record<string,unknown>:{};
+ const id=Number(detail?.sede_id??detail?.ID_Sede??detail?.id??detail?.sedeId??detail?.selectedSedeId??nested.ID_Sede??getStoredSede());
+ sedeEvento.value=Number.isInteger(id)&&id>0?id:0;
+ void loadUsers();
 };
-
-const typeLabel = (m: string): string => (m === 'Quincenal' ? t('fortnightly') : t('monthly'));
-
-const isMobile = ref<boolean>(window.innerWidth <= 900);
-const handleResize = (): void => {
-  isMobile.value = window.innerWidth <= 900;
+const apiRequest=async<T>(path:string):Promise<T>=>{
+ const token=getToken();if(!token)throw new Error('No se encontró el token de sesión. Vuelve a iniciar sesión.');
+ const r=await fetch(`${API}${path}`,{headers:{Accept:'application/json',Authorization:`Bearer ${token}`},cache:'no-store'});
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.message||`HTTP ${r.status}: no se pudo consultar la sede ${sedeId()}.`);
+ return d as T;
 };
-
-onMounted(() => {
-  window.addEventListener('idioma-changed', handleLangChange as EventListener);
-  window.addEventListener('resize', handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('idioma-changed', handleLangChange as EventListener);
-  window.removeEventListener('resize', handleResize);
-});
-
-
-const users = ref<User[]>([
-  { id: 1, name: 'Jesus Luis Ramires Sanchez', email: 'jesusluis@gmail.com', expiredDate: '18/03/2026', mensualidad: 'Mensual', debt: '$600.00', status: 'Inactivo', phone: '+52 481 123 4321' },
-  { id: 2, name: 'Armando Luis Ramires Sanchez', email: 'armando@gmail.com', expiredDate: '18/03/2026', mensualidad: 'Mensual', debt: '$700.00', status: 'Inactivo', phone: '+52 481 124 3421' },
-  { id: 3, name: 'Luis Luis Ramires Sanchez', email: 'luis@gmail.com', expiredDate: '18/03/2026', mensualidad: 'Mensual', debt: '$900.00', status: 'Inactivo', phone: '+52 481 125 5421' },
-  { id: 4, name: 'Francisco Luis Ramires', email: 'francisco@gmail.com', expiredDate: '18/03/2026', mensualidad: 'Quincenal', debt: '$500.00', status: 'Pendiente', phone: '+52 481 126 6421' },
-  { id: 5, name: 'Jorge Luis Ramires Sanchez', email: 'jorge@gmail.com', expiredDate: '18/03/2026', mensualidad: 'Quincenal', debt: '$0.00', status: 'Activo', phone: '+52 481 127 7421' },
-  { id: 6, name: 'Maria Fernanda Lopez Garcia', email: 'maria.lopez@example.com', expiredDate: '25/10/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 234 5678' },
-  { id: 7, name: 'Erick Alejandro Hernandez Ruiz', email: 'erick.hernandez@example.com', expiredDate: '12/11/2026', mensualidad: 'Mensual', debt: '$300.00', status: 'Pendiente', phone: '+52 481 345 6789' },
-  { id: 8, name: 'Daniela Guadalupe Garcia Reyes', email: 'daniela.garcia@example.com', expiredDate: '14/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 456 7890' },
-  { id: 9, name: 'Jose Manuel Ortiz Hernandez', email: 'jose.ortiz@example.com', expiredDate: '02/11/2026', mensualidad: 'Quincenal', debt: '$250.00', status: 'Pendiente', phone: '+52 481 567 8901' },
-  { id: 10, name: 'Valeria Fernanda Cruz Martinez', email: 'valeria.cruz@example.com', expiredDate: '20/02/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 678 9012' },
-  { id: 11, name: 'Miguel Angel Ramirez Castillo', email: 'miguel.ramirez@example.com', expiredDate: '09/10/2026', mensualidad: 'Mensual', debt: '$350.00', status: 'Inactivo', phone: '+52 481 789 0123' },
-  { id: 12, name: 'Andrea Carolina Flores Vargas', email: 'andrea.flores@example.com', expiredDate: '25/11/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 890 1234' },
-  { id: 13, name: 'Roberto Carlos Diaz Moreno', email: 'roberto.diaz@example.com', expiredDate: '17/10/2026', mensualidad: 'Quincenal', debt: '$500.00', status: 'Pendiente', phone: '+52 481 901 2345' },
-  { id: 14, name: 'Gabriela Alejandra Morales Ruiz', email: 'gabriela.morales@example.com', expiredDate: '11/01/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 112 3456' },
-  { id: 15, name: 'Ricardo Antonio Navarro Lopez', email: 'ricardo.navarro@example.com', expiredDate: '03/10/2026', mensualidad: 'Mensual', debt: '$700.00', status: 'Inactivo', phone: '+52 481 223 4567' },
-  { id: 16, name: 'Paola Andrea Jimenez Sanchez', email: 'paola.jimenez@example.com', expiredDate: '29/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 334 5678' },
-  { id: 17, name: 'Eduardo Sebastian Vargas Torres', email: 'eduardo.vargas@example.com', expiredDate: '07/11/2026', mensualidad: 'Quincenal', debt: '$250.00', status: 'Pendiente', phone: '+52 481 445 6789' },
-  { id: 18, name: 'Karla Vanessa Castillo Perez', email: 'karla.castillo@example.com', expiredDate: '19/03/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 556 7890' },
-  { id: 19, name: 'Hector Alejandro Salazar Medina', email: 'hector.salazar@example.com', expiredDate: '01/10/2026', mensualidad: 'Mensual', debt: '$900.00', status: 'Inactivo', phone: '+52 481 667 8901' },
-  { id: 20, name: 'Monica Isabel Romero Garcia', email: 'monica.romero@example.com', expiredDate: '16/11/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 778 9012' },
-  { id: 21, name: 'Oscar Ivan Aguilar Rodriguez', email: 'oscar.aguilar@example.com', expiredDate: '24/10/2026', mensualidad: 'Quincenal', debt: '$150.00', status: 'Pendiente', phone: '+52 481 889 0123' },
-  { id: 22, name: 'Fernanda Guadalupe Rios Lopez', email: 'fernanda.rios@example.com', expiredDate: '13/02/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 990 1234' },
-  { id: 23, name: 'Alberto Enrique Vega Martinez', email: 'alberto.vega@example.com', expiredDate: '06/10/2026', mensualidad: 'Mensual', debt: '$600.00', status: 'Inactivo', phone: '+52 481 101 2345' },
-  { id: 24, name: 'Lucia Fernanda Herrera Castro', email: 'lucia.herrera@example.com', expiredDate: '21/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 212 3456' },
-  { id: 25, name: 'Diego Armando Molina Reyes', email: 'diego.molina@example.com', expiredDate: '31/10/2026', mensualidad: 'Quincenal', debt: '$350.00', status: 'Pendiente', phone: '+52 481 323 4567' },
-  { id: 26, name: 'Samantha Nicole Campos Flores', email: 'samantha.campos@example.com', expiredDate: '08/01/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 434 5678' },
-  { id: 27, name: 'Adrian Eduardo Fuentes Sanchez', email: 'adrian.fuentes@example.com', expiredDate: '04/10/2026', mensualidad: 'Mensual', debt: '$450.00', status: 'Inactivo', phone: '+52 481 545 6789' },
-  { id: 28, name: 'Natalia Berenice Pineda Ortiz', email: 'natalia.pineda@example.com', expiredDate: '27/11/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 656 7890' },
-  { id: 29, name: 'Victor Hugo Cardenas Lopez', email: 'victor.cardenas@example.com', expiredDate: '10/10/2026', mensualidad: 'Quincenal', debt: '$250.00', status: 'Pendiente', phone: '+52 481 767 8901' },
-  { id: 30, name: 'Regina Alejandra Espinoza Torres', email: 'regina.espinoza@example.com', expiredDate: '15/04/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 878 9012' },
-  { id: 31, name: 'Emmanuel David Guerrero Ruiz', email: 'emmanuel.guerrero@example.com', expiredDate: '23/10/2026', mensualidad: 'Quincenal', debt: '$400.00', status: 'Pendiente', phone: '+52 481 989 0123' },
-  { id: 32, name: 'Brenda Lizbeth Acosta Garcia', email: 'brenda.acosta@example.com', expiredDate: '12/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 190 1234' },
-  { id: 33, name: 'Rafael Antonio Bautista Perez', email: 'rafael.bautista@example.com', expiredDate: '29/09/2026', mensualidad: 'Mensual', debt: '$800.00', status: 'Inactivo', phone: '+52 481 201 2345' },
-  { id: 34, name: 'Ximena Guadalupe Nunez Morales', email: 'ximena.nunez@example.com', expiredDate: '18/01/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 312 3456' },
-  { id: 35, name: 'Angel Gabriel Contreras Lopez', email: 'angel.contreras@example.com', expiredDate: '05/11/2026', mensualidad: 'Quincenal', debt: '$200.00', status: 'Pendiente', phone: '+52 481 423 4567' },
-  { id: 36, name: 'Diana Carolina Serrano Vargas', email: 'diana.serrano@example.com', expiredDate: '22/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 534 5678' },
-  { id: 37, name: 'Kevin Alexander Valdez Martinez', email: 'kevin.valdez@example.com', expiredDate: '02/10/2026', mensualidad: 'Mensual', debt: '$500.00', status: 'Inactivo', phone: '+52 481 645 6789' },
-  { id: 38, name: 'Mariana Alejandra Ochoa Sanchez', email: 'mariana.ochoa@example.com', expiredDate: '14/03/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 756 7890' },
-  { id: 39, name: 'Cristian Eduardo Padilla Flores', email: 'cristian.padilla@example.com', expiredDate: '26/10/2026', mensualidad: 'Quincenal', debt: '$300.00', status: 'Pendiente', phone: '+52 481 867 8901' },
-  { id: 40, name: 'Alejandra Sofia Dominguez Reyes', email: 'alejandra.dominguez@example.com', expiredDate: '09/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 978 9012' },
-  { id: 41, name: 'Ivan Alejandro Cabrera Torres', email: 'ivan.cabrera@example.com', expiredDate: '07/10/2026', mensualidad: 'Quincenal', debt: '$450.00', status: 'Inactivo', phone: '+52 481 189 0123' },
-  { id: 42, name: 'Sofia Valentina Mendoza Garcia', email: 'sofia.mendoza@example.com', expiredDate: '20/02/2027', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 290 1234' },
-  { id: 43, name: 'Carlos Andres Mendoza Lopez', email: 'carlos.mendoza@example.com', expiredDate: '28/10/2026', mensualidad: 'Mensual', debt: '$350.00', status: 'Pendiente', phone: '+52 481 301 2345' },
-  { id: 44, name: 'Fernando Daniel Perez Morales', email: 'fernando.perez@example.com', expiredDate: '15/12/2026', mensualidad: 'Mensual', debt: '$0.00', status: 'Activo', phone: '+52 481 412 3456' },
-  { id: 45, name: 'Mario Alberto Gonzalez Flores', email: 'mario.gonzalez@example.com', expiredDate: '08/11/2026', mensualidad: 'Quincenal', debt: '$250.00', status: 'Pendiente', phone: '+52 481 523 4567' }
-]);
-
-
-const filteredUsers = computed(() => {
-  const term = searchQuery.value.toLowerCase().trim();
-  return users.value.filter(user =>
-    user.name.toLowerCase().includes(term) ||
-    user.email.toLowerCase().includes(term) ||
-    user.debt.toLowerCase().includes(term) ||
-    user.phone.toLowerCase().includes(term) ||
-    user.mensualidad.toLowerCase().includes(term) ||
-    user.status.toLowerCase().includes(term) ||
-    user.expiredDate.toLowerCase().includes(term) ||
-    user.id.toString().includes(term)
-  );
-});
-
-const parseAmount = (s: string): number => parseFloat(s.replace(/[^0-9.]/g, '')) || 0;
-const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
-
-// Paginación: se muestra solo cuando hay más de 40 resultados
-const PAGE_SIZE = 40;
-const page = ref<number>(1);
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
-const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
-const pagedUsers = computed(() => {
-  const start = (page.value - 1) * PAGE_SIZE;
-  return filteredUsers.value.slice(start, start + PAGE_SIZE);
-});
-const goPage = (n: number): void => {
-  page.value = Math.min(Math.max(1, n), totalPages.value);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+const formatDate=(value:string|null|undefined)=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(value||''));return m?`${m[3]}/${m[2]}/${m[1]}`:'—';};
+const money=(n:number)=>new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(Math.max(0,n));
+const notifyError=(message:string)=>{errorCarga.value=message;toastRef.value?.notify?.(message,'error');};
+const avatarGradients=['linear-gradient(135deg,#7e22ce,#4c1d95)','linear-gradient(135deg,#ea580c,#9a3412)','linear-gradient(135deg,#db2777,#9d174d)','linear-gradient(135deg,#dc2626,#7f1d1d)','linear-gradient(135deg,#2563eb,#1e3a8a)','linear-gradient(135deg,#059669,#064e3b)'];
+const avatarStyle=(id:number)=>({backgroundImage:avatarGradients[Math.abs(id)%avatarGradients.length]});
+const getInitials=(name:string)=>{const p=name.trim().split(/\s+/).filter(Boolean);return((p[0]?.[0]||'')+(p[1]?.[0]||'')).toUpperCase();};
+const isMobile=ref(window.innerWidth<=900),updateWidth=()=>{isMobile.value=window.innerWidth<=900;};
+const currentLang=ref(localStorage.getItem('GYM_MANAGER-idioma')||'es');
+const handleLangChange=(e:Event)=>{const v=(e as CustomEvent<{idioma?:string}>).detail?.idioma;if(v)currentLang.value=v;};
+const PAGE_SIZE=40,page=ref(1),totalPages=computed(()=>Math.max(1,Math.ceil(filteredUsers.value.length/PAGE_SIZE))),showPager=computed(()=>filteredUsers.value.length>PAGE_SIZE),pagedUsers=computed(()=>filteredUsers.value.slice((page.value-1)*PAGE_SIZE,page.value*PAGE_SIZE));
+const goPage=(n:number)=>{page.value=Math.min(Math.max(1,n),totalPages.value);window.scrollTo({top:0,behavior:'smooth'});};
+const refreshVisible=()=>{if(document.visibilityState==='visible')void loadUsers();};
+const refreshFocus=()=>{void loadUsers();};
+let loadSequence=0;
+const loadUsers=async():Promise<void>=>{
+ const seq=++loadSequence;loading.value=true;errorCarga.value='';
+ try{
+  const res=await apiRequest<{inscripciones:ApiRow[]}>(`/api/gym/reactivaciones?sede_id=${encodeURIComponent(sedeId())}`);
+  if(!Array.isArray(res.inscripciones))throw new Error('La API de ingresos no devolvió inscripciones[].');
+  if(seq!==loadSequence)return;
+  // Usar estatus del servidor (calculado con la morosidad configurada), no fechas ni saldos inventados.
+  const candidatos=new Set(['Eliminado temporal','Inactivo']);
+  users.value=res.inscripciones.filter(r=>Number(r.ID_Inscripto)>0&&candidatos.has(String(r.estatus_inscripcion||''))).map(r=>({
+   id:Number(r.ID_Inscripto),clienteId:Number(r.ID_Cliente),name:r.nombre||'Sin nombre',email:r.correo||'',phone:r.celular||'',photo:r.foto_url||null,
+   expiredDate:formatDate(r.fecha_vencimiento),mensualidad:String(r.periodo||'—'),status:String(r.estatus_inscripcion||'Pendiente'),debtValue:Math.max(0,Number(r.saldo_a_pagar||0)),debt:money(Number(r.saldo_a_pagar||0))
+  }));
+ }catch(e){if(seq!==loadSequence)return;users.value=[];notifyError(e instanceof Error?e.message:'Error consultando renovaciones.');}
+ finally{if(seq===loadSequence)loading.value=false;}
 };
-watch([searchQuery], () => { page.value = 1; });
-watch(totalPages, n => { if (page.value > n) page.value = n; });
-
-const stats = computed(() => {
-  const list = filteredUsers.value;
-  const total = list.reduce((sum, u) => sum + parseAmount(u.debt), 0);
-  return [
-    { key: 'statTotal', value: String(list.length), tone: 'total' },
-    { key: 'statExpired', value: String(list.filter(u => u.status === 'Inactivo').length), tone: 'red' },
-    { key: 'statPending', value: String(list.filter(u => u.status === 'Pendiente').length), tone: 'orange' },
-    { key: 'statDebt', value: formatCurrency(total), tone: 'red' }
-  ];
-});
-
-const avatarGradients: string[] = [
-  'linear-gradient(135deg, #7e22ce, #4c1d95)',
-  'linear-gradient(135deg, #ea580c, #9a3412)',
-  'linear-gradient(135deg, #db2777, #9d174d)',
-  'linear-gradient(135deg, #dc2626, #7f1d1d)',
-  'linear-gradient(135deg, #2563eb, #1e3a8a)',
-  'linear-gradient(135deg, #059669, #064e3b)'
-];
-const getInitials = (name: string): string => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+const filteredUsers=computed(()=>{const q=searchQuery.value.toLocaleLowerCase().trim();return users.value.filter(u=>!q||[u.name,u.email,u.debt,u.phone,u.mensualidad,u.status,u.expiredDate,String(u.id)].some(v=>v.toLocaleLowerCase().includes(q)));});
+// El watcher de totalPages debe registrarse DESPUÉS de declarar filteredUsers.
+watch(totalPages,n=>{if(page.value>n)page.value=n;});
+watch(searchQuery,()=>page.value=1);
+const stats=computed(()=>{const l=filteredUsers.value;return[{key:'statTotal' as const,value:String(l.length),tone:'total'},{key:'statExpired' as const,value:String(l.filter(u=>u.status==='Inactivo').length),tone:'red'},{key:'statPending' as const,value:String(l.filter(u=>u.status==='Eliminado temporal').length),tone:'orange'},{key:'statDebt' as const,value:money(l.reduce((a,u)=>a+u.debtValue,0)),tone:'red'}];});
+// Renovar conduce al módulo real de cobro; no registra pagos fingidos en un modal local.
+const handleOpenRenew=(user:User)=>{selectedRenewal.value=user;};
+const confirmDelete=(user:User)=>{selectedUser.value=user;showDelete.value=true;};
+const executeDelete=async():Promise<void>=>{
+ if(!selectedUser.value||deleting.value)return;deleting.value=true;
+ try{
+  const token=getToken();if(!token)throw new Error('Sesión caducada.');
+  const res=await fetch(`${API}/api/gym/reactivaciones/${selectedUser.value.id}?sede_id=${encodeURIComponent(sedeId())}`,{method:'DELETE',headers:{Accept:'application/json',Authorization:`Bearer ${token}`,'X-Confirmar-Eliminacion':'ELIMINAR'}});
+  if(!res.ok){const body=await res.json().catch(()=>({}));throw new Error(body?.message||`Error HTTP ${res.status}`);}
+  showDelete.value=false;selectedUser.value=null;toastRef.value?.notify?.(t('successDeleted'),'success');await loadUsers();
+ }catch(e){await loadUsers().catch(()=>{});notifyError(e instanceof Error?e.message:'No se pudo retirar al cliente.');}
+ finally{deleting.value=false;}
 };
-const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[id % avatarGradients.length] });
-
-const getDebtClass = (status: string): string => {
-  if (status === 'Pendiente') return 'debt-pending';
-  if (status === 'Inactivo') return 'debt-inactive';
-  return 'debt-default';
-};
-
-const handleOpenRenew = (user: User) => {
-  selectedUser.value = user;
-  activeModal.value = 'renovacion';
-};
-
-const confirmDelete = (user: User): void => {
-  selectedUser.value = user;
-  showDelete.value = true;
-};
-
-const executeDelete = (): void => {
-  if (!selectedUser.value) return;
-  users.value = users.value.filter(u => u.id !== selectedUser.value?.id);
-  showDelete.value = false;
-  selectedUser.value = null;
-  toastRef.value?.notify(t('successDeleted'), 'success');
-};
-
-const handleRenewSuccess = () => {
-  activeModal.value = null;
-  toastRef.value?.notify(t('successRenewed'), 'success');
-};
+onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange as EventListener);window.addEventListener('resize',updateWidth);window.addEventListener('factorfit:branch-changed',branchChange);window.addEventListener('focus',refreshFocus);document.addEventListener('visibilitychange',refreshVisible);void loadUsers();});
+onUnmounted(()=>{loadSequence++;window.removeEventListener('idioma-changed',handleLangChange as EventListener);window.removeEventListener('resize',updateWidth);window.removeEventListener('factorfit:branch-changed',branchChange);window.removeEventListener('focus',refreshFocus);document.removeEventListener('visibilitychange',refreshVisible);});
+watch(()=>route.query.sede_id,()=>{sedeEvento.value=0;void loadUsers();});
 </script>
-
 <style scoped>
+.renew-state{display:block;margin-top:5px;font-size:11px;opacity:.7}
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-
 .main-content,
 .modal-wrapper {
   --accent: var(--color-highlight, #3b82f6);
@@ -424,11 +252,9 @@ const handleRenewSuccess = () => {
   --line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent);
   --muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 68%, transparent);
 }
-
 .main-content *,
 .main-content *::before,
 .main-content *::after { box-sizing: border-box; }
-
 .main-content {
   width: 100%;
   max-width: 1500px;
@@ -438,7 +264,6 @@ const handleRenewSuccess = () => {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
 /* HEADER */
 .header-section { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
 .title-wrapper { min-width: 260px; display: flex; flex-direction: column; gap: 6px; }
@@ -454,7 +279,6 @@ const handleRenewSuccess = () => {
 }
 .title-underline { display: block; width: 58px; height: 3px; margin-top: 2px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), transparent); }
 .main-subtitle { max-width: 580px; margin: 1px 0 0; color: var(--muted); font-size: 0.82rem; font-weight: 500; line-height: 1.5; }
-
 /* BUSCADOR */
 .actions-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .search-wrapper { position: relative; display: flex; align-items: center; min-width: 250px; }
@@ -469,7 +293,6 @@ const handleRenewSuccess = () => {
 .search-input::placeholder { color: var(--muted); opacity: 0.68; }
 .search-input:hover { border-color: color-mix(in srgb, var(--color-texto-general, #ffffff) 25%, transparent); }
 .search-input:focus { width: 290px; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
-
 .search-clear {
   position: absolute; right: 10px; width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
@@ -478,7 +301,6 @@ const handleRenewSuccess = () => {
   color: var(--muted); cursor: pointer; transition: background 0.15s ease;
 }
 .search-clear:hover { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 20%, transparent); }
-
 /* RESUMEN */
 .stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .stat-card { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 3px; padding: 15px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); }
@@ -488,10 +310,8 @@ const handleRenewSuccess = () => {
 .stat-red { --tone: #f87171; }
 .stat-value { color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.5rem; font-weight: 600; line-height: 1.15; white-space: nowrap; }
 .stat-label { color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
-
 .desktop-only { display: block; }
 .mobile-only { display: none; }
-
 /* TABLA */
 .table-container { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18); }
 .table-container::before { content: ''; position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.7; pointer-events: none; }
@@ -501,13 +321,10 @@ const handleRenewSuccess = () => {
 .user-table td { padding: 13px 18px; border-top: 1px solid var(--line-soft); font-size: 0.82rem; vertical-align: middle; }
 .user-table tbody tr:first-child td { border-top: none; }
 .user-table tbody tr { transition: background 0.17s ease, box-shadow 0.17s ease; }
-
 @media (hover: hover) {
   .user-table tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 80%, transparent); }
 }
-
 .table-footer { padding: 11px 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.72rem; font-weight: 500; text-align: right; }
-
 /* AVATAR / TEXTO */
 .avatar-small {
   width: 41px; height: 41px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -517,23 +334,19 @@ const handleRenewSuccess = () => {
 }
 .text-bold { color: var(--color-titulos, #ffffff); font-weight: 600; }
 .text-muted { color: var(--muted); }
-
 .type-chip {
   display: inline-flex; align-items: center; min-height: 26px; padding: 3px 10px;
   border: 1px solid var(--line); border-radius: 8px;
   background: color-mix(in srgb, var(--color-texto-general, #ffffff) 4%, transparent);
   color: var(--color-texto-general, #e5e7eb); font-size: 0.7rem; font-weight: 600; white-space: nowrap;
 }
-
 /* ADEUDOS */
 .status-badge { width: fit-content; min-height: 27px; display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border: 1px solid transparent; border-radius: 999px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .status-badge::before { content: ''; width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 14%, transparent); }
 .debt-pending { color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); background: rgba(251, 191, 36, 0.08); }
 .debt-inactive { color: #f87171; border-color: rgba(248, 113, 113, 0.25); background: rgba(248, 113, 113, 0.08); }
 .debt-default { color: #34d399; border-color: rgba(52, 211, 153, 0.25); background: rgba(52, 211, 153, 0.08); }
-
 .badges-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-
 /* ACCIONES */
 .actions-cell { display: flex; align-items: center; gap: 7px; }
 .icon-btn {
@@ -547,12 +360,10 @@ const handleRenewSuccess = () => {
 .icon-btn:not(.delete-icon-btn):hover { color: #60a5fa; border-color: rgba(59, 130, 246, 0.42); background: rgba(59, 130, 246, 0.1); box-shadow: 0 5px 13px rgba(59, 130, 246, 0.08); transform: translateY(-1px); }
 .delete-icon-btn:hover { color: #f87171; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.09); box-shadow: 0 5px 13px rgba(239, 68, 68, 0.08); transform: translateY(-1px); }
 .icon-btn:active { transform: translateY(0); }
-
 /* EMPTY */
 .empty-state-cell { padding: 0 !important; border-top: none !important; }
 .empty-state, .empty-state-mobile { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 45px 20px; color: var(--muted); font-size: 0.82rem; font-weight: 500; text-align: center; }
 .empty-state svg, .empty-state-mobile svg { opacity: 0.4; }
-
 /* DATOS TARJETA */
 .card-meta { display: flex; flex-direction: column; gap: 7px; color: var(--muted); font-size: 0.78rem; }
 .meta-row { min-width: 0; display: flex; align-items: center; gap: 7px; }
@@ -562,7 +373,6 @@ const handleRenewSuccess = () => {
 .expiration-warning { font-weight: 500; }
 .vence-label { font-weight: 600; }
 .phone-text { color: var(--muted); }
-
 /* MODALES (sin backdrop-filter para evitar artefactos al hacer scroll) */
 .modal-wrapper { position: fixed; z-index: 9999; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, 0.78); }
 .modal-body-custom { padding: 10px 5px; color: var(--color-texto-general, #ffffff); text-align: center; }
@@ -577,13 +387,11 @@ const handleRenewSuccess = () => {
 .btn-modal.secondary:hover { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 8%, transparent); transform: translateY(-1px); }
 .btn-modal.danger { border: 1px solid rgba(239, 68, 68, 0.75); background: #dc2626; color: #ffffff; }
 .btn-modal.danger:hover { background: #ef4444; box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2); transform: translateY(-1px); }
-
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important; max-width: 480px !important; box-sizing: border-box !important;
   left: 50% !important; right: auto !important; margin: 0 auto !important; transform: translateX(-50%) !important;
 }
-
 /* PAGINACIÓN */
 .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-small, var(--r-sm, 10px)); background: var(--card-bg, var(--bg-cards, #121416)); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
@@ -592,13 +400,10 @@ const handleRenewSuccess = () => {
 .pager-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pager-info { min-width: 64px; color: var(--muted); font-size: 0.8rem; font-weight: 600; text-align: center; }
 .pager-info b { color: var(--color-titulos, #ffffff); font-weight: 700; }
-
 .pop-enter-active, .pop-leave-active { transition: opacity 0.2s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; }
-
 .search-input:focus-visible, .icon-btn:focus-visible, .action-chip:focus-visible,
 .btn-modal:focus-visible, .search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
 /* TABLET */
 @media (max-width: 1100px) {
   .main-content { padding: 30px 24px 48px; }
@@ -607,7 +412,6 @@ const handleRenewSuccess = () => {
   .search-wrapper { width: 100%; }
   .search-input, .search-input:focus { width: 100%; }
 }
-
 /* MÓVIL */
 @media (max-width: 900px) {
   .desktop-only { display: none !important; }
@@ -620,11 +424,9 @@ const handleRenewSuccess = () => {
   .actions-bar { width: 100%; }
   .search-wrapper { width: 100%; min-width: 0; }
   .search-input, .search-input:focus { width: 100%; max-width: 100%; }
-
   .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
   .stat-card { padding: 12px 14px; }
   .stat-value { font-size: 1.2rem; }
-
   .user-card { position: relative; width: 100%; overflow: hidden; margin-bottom: 11px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: 0 9px 28px rgba(0, 0, 0, 0.17); }
   .user-card::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--accent); }
   .user-card.card-debt-pending::before { background: #fbbf24; }
@@ -636,7 +438,6 @@ const handleRenewSuccess = () => {
   .name-text { width: 100%; overflow: hidden; color: var(--color-titulos, #ffffff); font-size: 0.88rem; font-weight: 600; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
   .card-meta { display: grid; gap: 8px; margin-bottom: 13px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 11px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 2%, transparent); font-size: 0.75rem; }
   .email-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
   .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
   .action-chip {
     min-width: 0; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px;
@@ -648,26 +449,23 @@ const handleRenewSuccess = () => {
   .btn-renew-chip:hover { color: #93c5fd; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.12); transform: translateY(-1px); }
   .btn-delete-chip { color: #f87171; border-color: rgba(239, 68, 68, 0.18); background: rgba(239, 68, 68, 0.05); }
   .btn-delete-chip:hover { color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.11); transform: translateY(-1px); }
-
   .empty-state-mobile { min-height: 240px; margin-top: 8px; border: 1px dashed var(--line); border-radius: var(--radius); background: var(--card-bg); }
 }
-
 /* TELÉFONOS */
 @media (max-width: 560px) {
   .main-content { padding: 17px 11px 30px; }
   .main-title { font-size: 1.7rem; }
   .user-card { padding: 15px; }
 }
-
 @media (max-width: 380px) {
   .main-content { padding-left: 9px; padding-right: 9px; }
   .main-title { font-size: 1.55rem; }
   .stat-value { font-size: 1.05rem; }
   .card-actions { grid-template-columns: 1fr; }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .search-input, .user-table tbody tr, .icon-btn, .action-chip, .btn-modal,
   .pop-enter-active, .pop-leave-active { transition: none !important; }
 }
+.data-message{padding:10px 14px;margin:8px 0 14px;border:1px solid rgba(96,165,250,.25);border-radius:10px;color:#93c5fd;background:rgba(96,165,250,.06);font-size:.82rem}.data-message.error{color:#fca5a5;border-color:rgba(248,113,113,.35)}.data-message button{margin-left:8px;cursor:pointer;color:inherit;border:0;background:transparent;text-decoration:underline}.avatar-small{overflow:hidden}.avatar-small img{width:100%;height:100%;object-fit:cover}.type-chip{font-weight:750;border-radius:8px}.type-mensual{color:#fda4af;border-color:rgba(251,113,133,.48);background:rgba(251,113,133,.17)}.type-quincenal{color:#93c5fd;border-color:rgba(96,165,250,.5);background:rgba(96,165,250,.17)}.type-other{color:#e9d5ff;border-color:rgba(192,132,252,.35);background:rgba(192,132,252,.12)}.debt-upcoming{color:#93c5fd;border-color:rgba(96,165,250,.3);background:rgba(96,165,250,.09)}.user-card.card-debt-upcoming::before{background:#60a5fa}
 </style>
