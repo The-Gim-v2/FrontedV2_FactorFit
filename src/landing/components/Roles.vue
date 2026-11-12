@@ -11,49 +11,18 @@ const DAYS = [
 ];
 
 /* classes: Lun a Vie. start/end en minutos desde medianoche (vienen del backend). */
-interface Row { time: string; period: 'am' | 'pm'; classes: (string | null)[]; start: number; end: number }
+interface Row { time: string; period: 'am' | 'pm'; classes: (string | null)[]; colors: (string | null)[]; start: number; end: number }
 interface Sede {
-  id: string; name: string; short: string; tagline: string;
-  address: string; phone: string; phoneLink: string; email: string;
-  accent: string; accent2: string; mapSrc: string;
-  /** Palabras (en minúsculas y sin acentos) para reconocer la sucursal en el backend por su nombre. */
-  match: string[];
-  /** Opcional: ID_Sede del backend. Si lo pones, se usa directo y no se busca por nombre. */
-  apiId?: number;
+  id: string; name: string; short: string; tagline: string; address: string;
+  accent: string; accent2: string; mapSrc: string; apiId: number;
 }
 type Bloque = { id: number; dia: string; titulo: string; color: string; inicio: string; fin: string };
-type Sucursal = { ID_Sede: number; ID_Gym: number; Nombre_Gym: string; Nombre_Sede: string };
-
-const SEDES: Sede[] = [
-  {
-    id: 'emiliano',
-    name: 'Sede Emiliano Zapata',
-    short: 'Emiliano',
-    tagline: 'Asesoría cercana a ti, con un ambiente increíble.',
-    address: 'Rosales #301 esq. con Álamo, Col. Emiliano Zapata, Cd. Valles',
-    phone: '+52 481 111 1030',
-    phoneLink: 'https://wa.me/524811111030',
-    email: 'g-nafc@hotmail.com',
-    accent: '#a78bfa',
-    accent2: '#7c3aed',
-    mapSrc: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3699.1108590337626!2d-99.0218956!3d22.007062899999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d612aa4818ecdf%3A0xa45c1ad4926a32c4!2sLos%20Delfines%20Sal%C3%B3n%20de%20Eventos!5e0!3m2!1ses!2smx!4v1767058530057!5m2!1ses!2smx',
-    match: ['emiliano', 'zapata'],
-  },
-  {
-    id: 'obrera',
-    name: 'Sede Obrera',
-    short: 'Obrera',
-    tagline: 'Entrenamiento intensivo en el corazón de la ciudad.',
-    address: 'Tampico – Cd. Valles esq. con Bocanegra, Col. Obrera, Cd. Valles',
-    phone: '+52 481 111 1030',
-    phoneLink: 'https://wa.me/524811111030',
-    email: 'g-nafc@hotmail.com',
-    accent: '#ff8a9b',
-    accent2: '#e6397b',
-    mapSrc: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3699.7266367143366!2d-99.00868919999999!3d21.9834523!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d66d99c8e6a805%3A0x7a04e0cfe709160!2sOFICINA%20MUNICIPAL%20DE%20ENLACE%20SECRETARIA%20DE%20RELACIONES%20EXTERIORES%20SRE!5e0!3m2!1ses!2smx!4v1767058431791!5m2!1ses!2smx',
-    match: ['obrera'],
-  },
-];
+type Sucursal = {
+  ID_Sede: number | string; ID_Gym: number | string; Nombre_Gym?: string; Nombre_Sede?: string;
+  Sede_Colonia?: string; Ciudad?: string; Municipio?: string; Estado?: string; Entidad?: string;
+  Direccion?: string; Calle?: string; Colonia?: string; Numero_Ext?: string;
+  Referencias?: string; Descripcion?: string;
+};
 
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 
@@ -82,7 +51,7 @@ const PARTICLES = Array.from({ length: 24 }, (_, i) => ({
 }));
 
 /* ================= ESTADO ================= */
-const sedeId = ref(SEDES[0]!.id);
+const sedeId = ref('');
 const day = ref(0);
 const todayIdx = ref(-1);
 const view = ref<'day' | 'week'>('week');
@@ -91,16 +60,45 @@ const copied = ref(false);
 
 /* Horario desde el backend */
 const sucursales = ref<Sucursal[]>([]);
+const cargandoSedes = ref(false);
+const errorSedes = ref('');
+const PALETA = [
+  ['#a78bfa', '#7c3aed'], ['#ff8a9b', '#e6397b'],
+  ['#60a5fa', '#2563eb'], ['#34d399', '#059669'],
+  ['#fbbf24', '#d97706'], ['#f472b6', '#db2777'],
+];
+const texto = (v: unknown) => String(v ?? '').trim();
+function direccionDe(x: Sucursal): string {
+  if (texto(x.Direccion)) return texto(x.Direccion);
+  const calle = [texto(x.Calle), texto(x.Numero_Ext)].filter(Boolean).join(' #');
+  const partes = [calle, texto(x.Colonia) ? `Col. ${texto(x.Colonia)}` : '',
+    texto(x.Ciudad || x.Municipio), texto(x.Estado || x.Entidad)].filter(Boolean);
+  return partes.join(', ') || texto(x.Referencias) || 'Dirección no disponible';
+}
+const SEDES = computed<Sede[]>(() => sucursales.value.map((x, i) => {
+  const nombre = texto(x.Nombre_Sede || x.Sede_Colonia) || `Sede ${x.ID_Sede}`;
+  const address = direccionDe(x);
+  const baseNombre = nombre.toLocaleLowerCase('es-MX');
+  const color = baseNombre.includes('emiliano zapata') ? PALETA[0]! :
+    baseNombre.includes('obrera') ? PALETA[1]! : PALETA[(i + 2) % PALETA.length]!;
+  return {
+    id: String(x.ID_Sede), apiId: Number(x.ID_Sede), name: nombre, short: nombre.replace(/^sede\s+/i, ''),
+    tagline: texto(x.Descripcion) || 'Conoce nuestras clases y horarios.', address,
+    accent: color[0]!, accent2: color[1]!,
+    mapSrc: `https://maps.google.com/maps?q=${encodeURIComponent(`${address}, México`)}&output=embed`,
+  };
+}));
 const rows = ref<Row[]>([]);
 const cargando = ref(false);
 const error = ref('');
 let solicitud = 0;
-let sucursalesListas: Promise<void> = Promise.resolve();
 
-const sede = computed(() => SEDES.find(s => s.id === sedeId.value) ?? SEDES[0]!);
+const sede = computed<Sede>(() => SEDES.value.find(s => s.id === sedeId.value) ?? SEDES.value[0] ?? {
+  id: '', apiId: 0, name: 'Sucursal', short: '', tagline: '', address: '',
+  accent: '#a78bfa', accent2: '#7c3aed', mapSrc: '',
+});
 
 /* ================= BACKEND ================= */
-const sinAcentos = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const aMinutos = (h: string) => {
   const [a = '0', b = '0'] = h.split(':');
   return Number(a) * 60 + Number(b);
@@ -125,48 +123,49 @@ function construirFilas(bloques: Bloque[]): Row[] {
         time: `${hora12(inicio)} – ${hora12(fin)}`,
         period: s >= 720 ? 'pm' : 'am',
         classes: DAYS.map(() => null),
+        colors: DAYS.map(() => null),
         start: s,
         end: e > s ? e : s + 60,
       };
       mapa.set(clave, fila);
     }
     const i = DAYS.findIndex(d => d.key === b.dia);
-    if (i >= 0) fila.classes[i] = b.titulo;
+    if (i >= 0) {
+      fila.classes[i] = b.titulo;
+      fila.colors[i] = hexValido(String(b.color || '')) || null;
+    }
   }
   return [...mapa.values()].sort((a, b) => a.start - b.start);
 }
 
 async function cargarSucursales() {
+  cargandoSedes.value = true;
+  errorSedes.value = '';
   try {
     const r = await fetch(`${API}/api/public/sucursales`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error('No se pudieron consultar las sucursales.');
-    const j = await r.json();
-    const lista = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : [];
-    sucursales.value = lista.filter((s: Sucursal) => Number(s.ID_Sede) > 0);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j?.message || `No se pudieron consultar las sedes (${r.status}).`);
+    const lista: Sucursal[] = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : [];
+    sucursales.value = lista.filter(x => Number(x.ID_Sede) > 0);
+    if (!sucursales.value.some(x => String(x.ID_Sede) === sedeId.value)) {
+      sedeId.value = sucursales.value.length ? String(sucursales.value[0]!.ID_Sede) : '';
+    }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Error al cargar sucursales.';
+    errorSedes.value = e instanceof Error ? e.message : 'Error al cargar sucursales.';
+  } finally {
+    cargandoSedes.value = false;
   }
 }
-
-/** ID_Sede del backend que corresponde a la sede de la página. */
-const apiIdDe = (s: Sede): number => {
-  if (s.apiId) return s.apiId;
-  const hit = sucursales.value.find(x =>
-    s.match.some(k => sinAcentos(`${x.Nombre_Sede} ${x.Nombre_Gym}`).includes(k)));
-  return hit ? Number(hit.ID_Sede) : 0;
-};
 
 async function cargarHorario() {
   const indice = ++solicitud;
   rows.value = [];
   error.value = '';
   cargando.value = true;
-  await sucursalesListas;
-  if (indice !== solicitud) return;
-  const id = apiIdDe(sede.value);
+  const id = sede.value.apiId;
   if (!id) {
     cargando.value = false;
-    error.value = error.value || `No encontramos "${sede.value.name}" en el sistema.`;
+    error.value = 'Selecciona una sucursal para consultar su horario.';
     return;
   }
   try {
@@ -234,7 +233,7 @@ const groups = computed(() => {
   const pick = (period: 'am' | 'pm') =>
     rows.value
       .filter(r => r.period === period && r.classes[day.value])
-      .map(r => ({ time: r.time, name: r.classes[day.value] as string, status: statusOf(r) }));
+      .map(r => ({ time: r.time, name: r.classes[day.value] as string, color: r.colors[day.value], status: statusOf(r) }));
   return [
     { label: 'Mañana', kind: 'am', items: pick('am') },
     { label: 'Tarde y noche', kind: 'pm', items: pick('pm') },
@@ -245,12 +244,12 @@ const banner = computed(() => {
   if (todayIdx.value < 0) return { kind: 'rest', title: 'Hoy descansamos', text: 'Nos vemos el lunes con toda la energía.', color: '' };
   const today = rows.value
     .filter(r => r.classes[todayIdx.value])
-    .map(r => ({ s: r.start, e: r.end, name: r.classes[todayIdx.value] as string }))
+    .map(r => ({ s: r.start, e: r.end, name: r.classes[todayIdx.value] as string, color: r.colors[todayIdx.value] }))
     .sort((a, b) => a.s - b.s);
   const live = today.find(c => nowMin.value >= c.s && nowMin.value < c.e);
-  if (live) return { kind: 'live', title: 'En curso ahora', text: `${live.name} · termina a las ${fmt(live.e)}`, color: colorOf(live.name) };
+  if (live) return { kind: 'live', title: 'En curso ahora', text: `${live.name} · termina a las ${fmt(live.e)}`, color: live.color || colorOf(live.name) };
   const next = today.find(c => c.s > nowMin.value);
-  if (next) return { kind: 'next', title: 'Siguiente clase hoy', text: `${next.name} · ${fmt(next.s)}`, color: colorOf(next.name) };
+  if (next) return { kind: 'next', title: 'Siguiente clase hoy', text: `${next.name} · ${fmt(next.s)}`, color: next.color || colorOf(next.name) };
   return { kind: 'rest', title: 'Por hoy terminamos', text: 'Mañana te esperamos con más ganas.', color: '' };
 });
 
@@ -275,7 +274,7 @@ const copyAddress = async () => {
 };
 
 /* Al cambiar de sede se vuelve a consultar el horario */
-watch(sedeId, () => { void cargarHorario(); });
+watch(sedeId, () => { if (sedeId.value) void cargarHorario(); });
 
 /* ---------- Aparición + reloj ---------- */
 const root = ref<HTMLElement | null>(null);
@@ -295,8 +294,7 @@ onMounted(() => {
   if (todayIdx.value >= 0) day.value = todayIdx.value;
   if (window.innerWidth < 900) view.value = 'day'; // en celular arranca por día
   timer = setInterval(tick, 30000);
-  sucursalesListas = cargarSucursales();
-  void cargarHorario();
+  void cargarSucursales();
   if (!('IntersectionObserver' in window) || !root.value) { revealed.value = true; return; }
   io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { revealed.value = true; io?.disconnect(); } }, { threshold: 0.04 });
   io.observe(root.value);
@@ -347,6 +345,9 @@ onUnmounted(() => {
       </header>
 
       <!-- ===== Selector de sede ===== -->
+      <div v-if="cargandoSedes" class="msg" role="status">Cargando sucursales...</div>
+      <div v-else-if="errorSedes" class="msg error" role="alert">{{ errorSedes }} <button type="button" @click="cargarSucursales">Reintentar</button></div>
+      <div v-else-if="!SEDES.length" class="msg">No hay sedes registradas.</div>
       <div class="sedes" role="tablist" aria-label="Sedes">
         <button
           v-for="s in SEDES"
@@ -362,7 +363,7 @@ onUnmounted(() => {
           </span>
           <span class="sede-txt">
             <strong>{{ s.name }}</strong>
-            <small>{{ s.address.split(',')[1]?.trim() || s.address }}</small>
+            <small>{{ s.short }}</small>
           </span>
           <span class="check" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>
@@ -392,20 +393,6 @@ onUnmounted(() => {
                 <button class="copy" type="button" aria-label="Copiar dirección" @click="copyAddress">{{ copied ? '¡Copiada!' : 'Copiar dirección' }}</button>
               </span>
             </li>
-            <li>
-              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
-              <span class="c-body">
-                <small>Teléfono / WhatsApp</small>
-                <a class="c-val" :href="sede.phoneLink" target="_blank" rel="noopener">{{ sede.phone }}</a>
-              </span>
-            </li>
-            <li>
-              <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
-              <span class="c-body">
-                <small>Correo</small>
-                <a class="c-val" :href="`mailto:${sede.email}`">{{ sede.email }}</a>
-              </span>
-            </li>
           </ul>
 
           <div class="btns">
@@ -413,15 +400,12 @@ onUnmounted(() => {
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
               Cómo llegar
             </a>
-            <a class="btn btn-ghost" :href="sede.phoneLink" target="_blank" rel="noopener">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>
-              WhatsApp
-            </a>
           </div>
         </article>
 
         <article class="card map">
           <iframe
+            v-if="sede.mapSrc"
             :key="sede.id"
             :src="sede.mapSrc"
             :title="`Mapa de ${sede.name}`"
@@ -483,7 +467,7 @@ onUnmounted(() => {
                   <tr v-else>
                     <th class="time">{{ e.row.time }}<small>{{ e.row.period }}</small></th>
                     <td v-for="(c, ci) in e.row.classes" :key="ci" :class="{ today: todayIdx === ci }">
-                      <span v-if="c" class="chip" :style="{ '--k': colorOf(c) }">{{ c }}</span>
+                      <span v-if="c" class="chip" :style="{ '--k': e.row.colors[ci] || colorOf(c) }">{{ c }}</span>
                       <span v-else class="dash">—</span>
                     </td>
                   </tr>
@@ -518,7 +502,7 @@ onUnmounted(() => {
                       v-for="(it, i) in g.items"
                       :key="i"
                       :class="[it.status]"
-                      :style="{ '--k': colorOf(it.name), '--i': i }"
+                      :style="{ '--k': it.color || colorOf(it.name), '--i': i }"
                     >
                       <span class="t">{{ it.time }}<small>{{ g.kind }}</small></span>
                       <span class="n">{{ it.name }}</span>
