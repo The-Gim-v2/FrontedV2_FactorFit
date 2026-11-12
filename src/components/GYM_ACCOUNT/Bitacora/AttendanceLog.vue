@@ -110,8 +110,11 @@
                 </td>
                 <td>
                   <div class="total-cell">
-                    <span class="total-num">{{ user.attendedSet.size }}<small> / {{ elapsedDays }}</small></span>
-                    <span class="total-bar"><span class="total-fill" :style="{ width: percent(user) + '%' }"></span></span>
+                    <span class="total-top">
+                      <span class="total-num">{{ user.attendedSet.size }}<small> / {{ elapsedDays }}</small></span>
+                      <span class="progress-pct" :class="levelClass(user)">{{ percent(user) }}%</span>
+                    </span>
+                    <span class="total-bar"><span class="total-fill" :class="levelClass(user)" :style="{ width: percent(user) + '%' }"></span></span>
                   </div>
                 </td>
                 <td><span :class="['status-badge', getStatusClass(user.status)]">{{ user.status }}</span></td>
@@ -137,11 +140,11 @@
 
       <!-- MÓVIL -->
       <div class="mobile-only">
-        <div
+        <article
           v-for="(user, index) in pagedUsers"
           :key="user.id"
           class="user-card"
-          :class="'card-' + getStatusClass(user.status)"
+          :class="['card-' + getStatusClass(user.status), { open: expanded.has(user.id) }]"
           :id="isMobile && index === 0 ? 'tutorial-step-1' : undefined"
         >
           <div class="card-top-section">
@@ -153,24 +156,33 @@
                 <span :class="['status-badge', getStatusClass(user.status)]">{{ user.status }}</span>
               </div>
             </div>
-            <span class="day-chip">{{ user.attendedSet.size }} / {{ elapsedDays }}</span>
+            <button class="card-toggle" type="button" :aria-expanded="expanded.has(user.id)" :aria-label="t('details')" @click="toggleCard(user.id)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           </div>
-          <div class="mini-cal">
-            <span v-for="(w, i) in weekInitials" :key="'w' + i" class="mini-head">{{ w }}</span>
-            <span v-for="b in firstOffset" :key="'b' + b" class="mini-blank"></span>
+
+          <div class="card-progress">
+            <span class="progress-num"><b>{{ user.attendedSet.size }}</b> / {{ elapsedDays }} <small>{{ t('visitsShort') }}</small></span>
+            <span class="progress-pct" :class="levelClass(user)">{{ percent(user) }}%</span>
+          </div>
+          <span class="total-bar"><span class="total-fill" :class="levelClass(user)" :style="{ width: percent(user) + '%' }"></span></span>
+
+          <div class="mini-strip">
             <span
               v-for="d in monthDays"
               :key="d.n"
               class="mini-day"
-              :class="{ on: user.attendedSet.has(d.n), today: d.isToday, future: d.future }"
+              :class="{ on: user.attendedSet.has(d.n), weekend: d.weekend, today: d.isToday, future: d.future }"
+              :title="d.label"
             >{{ d.n }}</span>
           </div>
-          <div class="card-meta">
-            <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="email-text">{{ user.email }}</span></span>
+
+          <div v-if="expanded.has(user.id)" class="card-meta">
+            <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="email-text">{{ user.email || '—' }}</span></span>
             <span class="meta-row expiration-warning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span class="vence-label">{{ t('expiresLabel') }}:</span> {{ user.expirationDate }}</span>
-            <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="phone-text">{{ user.phone }}</span></span>
+            <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="phone-text">{{ user.phone || '—' }}</span></span>
           </div>
-        </div>
+        </article>
         <div v-if="filteredUsers.length === 0" class="empty-state-mobile">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <span>{{ t('emptyState') }}</span>
@@ -265,7 +277,8 @@ const langData: Record<'es' | 'en', Record<string, string>> = {
     statInactive: 'Inactivos', statVisits: 'Asistencias del mes',
     loading: 'Cargando asistencias...', retry: 'Reintentar',
     today: 'Hoy', prevMonth: 'Mes anterior', nextMonth: 'Mes siguiente',
-    pickMonth: 'Elegir mes', attended: 'Asistió', noAttended: 'Sin asistencia'
+    pickMonth: 'Elegir mes', attended: 'Asistió', noAttended: 'Sin asistencia',
+    visitsShort: 'asistencias', details: 'Ver contacto'
   },
   en: {
     asistenciaTitle: 'Monthly', mensualHighlight: 'Attendance',
@@ -282,7 +295,8 @@ const langData: Record<'es' | 'en', Record<string, string>> = {
     statInactive: 'Inactive', statVisits: 'Visits this month',
     loading: 'Loading attendance...', retry: 'Retry',
     today: 'Today', prevMonth: 'Previous month', nextMonth: 'Next month',
-    pickMonth: 'Pick month', attended: 'Attended', noAttended: 'No visit'
+    pickMonth: 'Pick month', attended: 'Attended', noAttended: 'No visit',
+    visitsShort: 'visits', details: 'Show contact'
   }
 };
 
@@ -354,11 +368,6 @@ const rangeLabel = computed(() => {
 });
 const initialsByLang = computed<string[]>(() => currentLang.value === 'en'
   ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] : ['D', 'L', 'M', 'M', 'J', 'V', 'S']);
-const weekInitials = computed(() => [...initialsByLang.value.slice(1), initialsByLang.value[0] as string]);
-const firstOffset = computed(() => {
-  const dow = new Date(Date.UTC(viewYear.value, viewMonth.value - 1, 1)).getUTCDay();
-  return (dow + 6) % 7; // semana que empieza en lunes
-});
 const monthDays = computed<MonthDay[]>(() => {
   const p = dateParts();
   const isThisMonth = p[0] === viewYear.value && p[1] === viewMonth.value;
@@ -391,6 +400,17 @@ const stripStyle = computed(() => ({
 }));
 const percent = (user: User): number =>
   elapsedDays.value ? Math.min(100, Math.round((user.attendedSet.size / elapsedDays.value) * 100)) : 0;
+const levelClass = (user: User): string => {
+  const p = percent(user);
+  return p >= 60 ? 'lvl-high' : p >= 30 ? 'lvl-mid' : 'lvl-low';
+};
+// Tarjetas móviles: detalle de contacto plegable.
+const expanded = ref<Set<number>>(new Set());
+const toggleCard = (id: number): void => {
+  const next = new Set(expanded.value);
+  if (next.has(id)) next.delete(id); else next.add(id);
+  expanded.value = next;
+};
 
 const shiftMonth = (delta: number): void => {
   let y = viewYear.value;
@@ -631,7 +651,7 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
 .main-content, .modal-wrapper { --line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent); --line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent); --accent: var(--color-highlight, #3b82f6); --btn: var(--color-botones, #2563eb); --btn-text: var(--color-texto-botones, #ffffff); --r: var(--app-border-radius, 16px); --r-sm: 10px; --muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 72%, transparent); }
-.main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
+.main-content, .main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
 .main-content { width: 100%; max-width: 1500px; margin: 0 auto; padding: 36px 36px 56px; color: var(--color-texto-general, #e5e7eb); font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
 .header-section { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
 .title-wrapper { min-width: 250px; display: flex; flex-direction: column; gap: 7px; }
@@ -718,7 +738,7 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
 .head-day.weekend b, .head-day.weekend i { opacity: 0.55; }
 .head-day.today b { color: var(--accent); }
 .head-day.today i { color: var(--accent); }
-.day-dot { display: block; width: 100%; max-width: 22px; aspect-ratio: 1; margin: 0 auto; border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); transition: transform 0.15s ease; }
+.day-dot { display: block; width: 100%; max-width: 26px; aspect-ratio: 1; margin: 0 auto; border: 1px solid var(--line); border-radius: 6px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); transition: transform 0.15s ease; }
 .day-dot.weekend { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 6%, transparent); }
 .day-dot.future { opacity: 0.35; border-style: dashed; }
 .day-dot.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, #34d399, #059669); box-shadow: 0 0 10px rgba(52, 211, 153, 0.28); }
@@ -730,7 +750,19 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
 .total-num { color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.15rem; font-weight: 600; line-height: 1; }
 .total-num small { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 600; }
 .total-bar { display: block; width: 100%; height: 5px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 8%, transparent); }
-.total-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #34d399); transition: width 0.3s ease; }
+.total-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #34d399, #059669); transition: width 0.3s ease; }
+.total-fill.lvl-mid { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.total-fill.lvl-low { background: linear-gradient(90deg, #f87171, #dc2626); }
+.total-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.progress-pct { font-size: 0.7rem; font-weight: 700; color: #34d399; }
+.progress-pct.lvl-mid { color: #fbbf24; }
+.progress-pct.lvl-low { color: #f87171; }
+.head-day.today { padding: 3px 0; border-radius: 8px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* Columnas fijas al desplazar horizontalmente */
+.user-table th:nth-child(1), .user-table td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: var(--bg-cards, #121419); }
+.user-table th:nth-child(2), .user-table td:nth-child(2) { position: sticky; left: 70px; z-index: 2; background: var(--bg-cards, #121419); box-shadow: 1px 0 0 var(--line-soft); }
+.user-table thead th:nth-child(1), .user-table thead th:nth-child(2) { background: color-mix(in srgb, var(--bg-cards, #121419) 94%, var(--color-texto-general, #ffffff)); }
+.user-table td { padding-top: 14px; padding-bottom: 14px; }
 
 .table-footer { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 11px 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.72rem; font-weight: 500; }
 .legend { display: inline-flex; align-items: center; gap: 7px; }
@@ -799,8 +831,10 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
   .status-select { width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
   .btn-bulk { width: 100%; min-width: 0; grid-column: 2 / 3; justify-content: center; overflow: hidden; }
   .month-bar { gap: 12px; padding: 12px 14px; }
-  .month-label { order: -1; width: 100%; margin-right: 0; }
-  .month-picker { margin-left: auto; }
+  .month-label { order: 0; flex: 1; min-width: 0; margin-right: 0; }
+  .month-picker { order: 1; }
+  .month-picker input { max-width: 170px; }
+  .month-nav { order: 2; width: 100%; }
   .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
   .stat-card { padding: 12px 14px; }
   .stat-value { font-size: 1.35rem; }
@@ -815,13 +849,25 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
   .card-user-titles { min-width: 0; display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 7px; }
   .name-text { width: 100%; overflow: hidden; color: var(--color-titulos, #ffffff); font-size: 0.9rem; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
   .badges-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .mini-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 13px; padding: 10px; border: 1px solid var(--line-soft); border-radius: 11px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 2%, transparent); }
-  .mini-head { color: var(--muted); font-size: 0.6rem; font-weight: 700; text-align: center; }
-  .mini-day { display: grid; place-items: center; aspect-ratio: 1; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--muted); font-size: 0.68rem; font-weight: 600; }
+  .card-toggle { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 4%, transparent); color: var(--muted); cursor: pointer; transition: transform 0.2s ease, background 0.18s ease; }
+  .card-toggle:active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .user-card.open .card-toggle { transform: rotate(180deg); color: var(--accent); }
+  .card-progress { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; }
+  .progress-num { color: var(--muted); font-size: 0.72rem; font-weight: 600; }
+  .progress-num b { color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.2rem; font-weight: 600; }
+  .progress-num small { font-size: 0.68rem; }
+  .user-card .total-bar { margin-bottom: 13px; }
+  .mini-strip { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+  .mini-day { display: grid; place-items: center; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 7px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 3%, transparent); color: var(--muted); font-size: 0.62rem; font-weight: 600; }
+  .mini-day.weekend { background: color-mix(in srgb, var(--color-texto-general, #ffffff) 7%, transparent); }
   .mini-day.future { opacity: 0.35; border-style: dashed; }
-  .mini-day.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, #34d399, #059669); color: #04130d; font-weight: 700; }
+  .mini-day.on { border-color: rgba(52, 211, 153, 0.55); background: linear-gradient(135deg, #34d399, #059669); color: #04130d; font-weight: 800; }
   .mini-day.today { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent); }
-  .card-meta { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 11px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 2%, transparent); color: var(--muted); font-size: 0.75rem; }
+  .month-nav { flex: 1; }
+  .month-nav .nav-today { flex: 1; }
+  .stats-row .stat-card:last-child { grid-column: 1 / -1; }
+  .main-content { padding-bottom: 120px; }
+  .card-meta { display: grid; margin-top: 12px; gap: 7px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 11px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 2%, transparent); color: var(--muted); font-size: 0.75rem; }
   .meta-row { min-width: 0; display: flex; align-items: center; gap: 7px; }
   .meta-row svg { flex-shrink: 0; opacity: 0.68; }
   .email-text { overflow: hidden; color: #93c5fd; text-overflow: ellipsis; white-space: nowrap; }
@@ -831,7 +877,7 @@ watch(monthValue, () => { page.value = 1; void loadUsers(); });
   .empty-state-mobile { min-height: 250px; margin-top: 8px; border: 1px dashed var(--line); border-radius: var(--r); background: var(--bg-cards, #14161b); }
 }
 @media (max-width: 560px) {
-  .main-content { padding: 17px 11px 30px; }
+  .main-content { padding: 17px 11px 120px; }
   .main-title { font-size: 1.7rem; }
   .actions-bar { grid-template-columns: minmax(0, 1fr); }
   .search-wrapper { grid-column: 1; grid-row: auto; }
