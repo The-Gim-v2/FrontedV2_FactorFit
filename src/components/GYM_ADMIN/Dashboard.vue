@@ -421,15 +421,13 @@ const nowParts = () => {
   return { today: `${get('year')}-${get('month')}-${get('day')}`, month: `${get('year')}-${get('month')}` };
 };
 const formatMoney = (n) => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
-// Dirección de la sucursal (se muestra en la tarjeta de "Sucursales").
-const profileAddress = computed(() => [profile.value.calle, profile.value.numExt, profile.value.numInt && `Int. ${profile.value.numInt}`, profile.value.otrasCalles, profile.value.colonia, profile.value.municipio, profile.value.entidad].filter(Boolean).join(', '));
 let requestSeq = 0;
 const loadDashboard = async () => {
   const seq = ++requestSeq;
   profileError.value = ''; metricsError.value = '';
   const id = sedeId();
   const requests = await Promise.allSettled([
-    apiGet(`/api/gym/perfil?sede_id=${id}`),
+    apiGet('/api/personal/mi-perfil'),
     apiGet(`/api/gym/ingresos?sede_id=${id}`),
     apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
   ]);
@@ -437,19 +435,19 @@ const loadDashboard = async () => {
   const [perfilResult, ingresosResult, asistenciaResult] = requests;
   if (perfilResult.status === 'fulfilled') {
     const data = perfilResult.value;
-    profile.value = data.perfil || {};
+    profile.value = data.personal || {};
     gym.value = {
-      name: String(profile.value.nombreGimnasio || 'Mi gimnasio'),
-      logoUrl: data.logo_url || null,
-      coverUrl: data.portada_url || null,
-      description: String(profile.value.descripcionGimnasio || ''),
-      membershipEnd: null // La API no expone vencimiento de suscripción en esta respuesta.
+      name: String(data.gimnasio || 'Mi gimnasio'),
+      logoUrl: null,
+      coverUrl: null,
+      description: '',
+      membershipEnd: null
     };
-    branchName.value = String(data.sede_nombre || `Sede ${id}`);
-    billingStatus.value = profile.value.status === 'activo' ? 'active' : profile.value.status === 'pendiente' ? 'pending' : 'blocked';
+    branchName.value = `Sede ${id}`;
+    // El endpoint personal no publica el estado de facturación del propietario.
   } else {
     gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' };
-    profileError.value = `No se pudo cargar el perfil: ${perfilResult.reason?.message || 'Error de conexión'}`;
+    profileError.value = `No se pudo consultar el nombre del gimnasio desde el perfil de Admin: ${perfilResult.reason?.message || 'Error de conexión'}`;
   }
   if (ingresosResult.status === 'fulfilled' && Array.isArray(ingresosResult.value.inscripciones)) {
     inscripciones.value = ingresosResult.value.inscripciones;
