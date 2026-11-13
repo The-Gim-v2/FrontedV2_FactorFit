@@ -1,5 +1,5 @@
 <template>
-  <HeadingGYM_ADMIN>
+  <HeadingGYM_RECEPCIONIST>
     <main class="main-content">
       <div class="header-section">
         <div class="header-titles">
@@ -315,12 +315,12 @@
         </div>
       </transition>
     </main>
-  </HeadingGYM_ADMIN>
+  </HeadingGYM_RECEPCIONIST>
 </template>
 <script setup>
 import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
-import HeadingGYM_ADMIN from './HeadingGYM_ADMIN.vue';
+import HeadingGYM_RECEPCIONIST from './HeadingGYM_RECEPCIONIST.vue';
 const { setLang } = useLang();
 const guardandoConfig = ref(false);
 const exportandoExcel = ref(false);
@@ -374,7 +374,7 @@ const translations = {
     exportFormatDesc: "Descarga las bitácoras de esta sucursal en un archivo Excel con hojas, columnas y filtros.",
     toastColorsRestored: "Colores restaurados y guardados.",
     toastPresetApplied: "Tema combinado '{label}' aplicado y guardado.",
-    toastGYM_ADMINSaved: "Configuración de GYM_ADMIN guardada globalmente.",
+    toastGYM_RECEPCIONISTSaved: "Configuración de GYM_RECEPCIONIST guardada globalmente.",
     toastLocalSaved: "Configuración guardada localmente.",
     toastSaveError: "Error al guardar la configuración.",
     toastDownloading: "Descargando archivo {tipo}..."
@@ -427,7 +427,7 @@ const translations = {
     exportFormatDesc: "Download this branch’s logs as a formatted Excel workbook.",
     toastColorsRestored: "Colors restored and saved.",
     toastPresetApplied: "Combined theme '{label}' applied and saved.",
-    toastGYM_ADMINSaved: "GYM_ADMIN configuration saved globally.",
+    toastGYM_RECEPCIONISTSaved: "GYM_RECEPCIONIST configuration saved globally.",
     toastLocalSaved: "Configuration saved locally.",
     toastSaveError: "Error saving configuration.",
     toastDownloading: "Downloading {tipo} file..."
@@ -450,15 +450,15 @@ function safeJsonParse(raw, fallback = null) {
 }
 const ROLE_KEY = 'user_role';
 const claveColores = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_RECEPCIONIST').toLowerCase();
   return `app-colors-${rol}`;
 };
 const claveRadius = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_RECEPCIONIST').toLowerCase();
   return `app-radius-${rol}`;
 };
 const claveDensidad = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_RECEPCIONIST').toLowerCase();
   return `app-densidad-${rol}`;
 };
 const defaultColors = {
@@ -961,7 +961,7 @@ const settings = reactive({
   tutorial:
     localStorage.getItem('tutorialActivo') === 'true',
   idioma:
-    localStorage.getItem('GYM_ADMIN-idioma') || 'es',
+    localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es',
   densidad:
     localStorage.getItem(claveDensidad()) || 'normal',
   borderRadius:
@@ -987,11 +987,11 @@ const pushSede = () => {
 };
 const pushToken = () => {
   for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['auth_token','token','access_token','gym_token','GYM_ADMIN_token','gymAccountToken']) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_RECEPCIONIST_token','gymAccountToken']) {
       const value = store.getItem(key);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const key of ['auth','user','session','gymAccount','GYM_ADMIN']) {
+    for (const key of ['auth','user','session','gymAccount','GYM_RECEPCIONIST']) {
       try {
         const value = JSON.parse(store.getItem(key) || 'null');
         const token = value?.token || value?.access_token || value?.accessToken;
@@ -1167,10 +1167,10 @@ const guardarCambios = async () => {
     });
     guardarLocalApariencia();
     localStorage.setItem('tutorialActivo', String(settings.tutorial));
-    localStorage.setItem('GYM_ADMIN-idioma', settings.idioma);
+    localStorage.setItem('GYM_RECEPCIONIST-idioma', settings.idioma);
     window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
-    showToast(t('toastGYM_ADMINSaved'));
+    showToast(t('toastGYM_RECEPCIONISTSaved'));
   } catch(error) {
     console.error('Error al guardar apariencia en Railway:', error);
     showToast(error?.message || t('toastSaveError'));
