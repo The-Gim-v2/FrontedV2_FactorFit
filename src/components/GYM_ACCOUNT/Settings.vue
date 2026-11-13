@@ -309,7 +309,7 @@
         <div class="panel-header">
           <h2>{{ t('exportSectionTitle') }}</h2>
         </div>
-        <div class="config-row">
+        <div class="config-row export-row">
           <div class="config-info">
             <label>{{ t('exportFormatLabel') }}</label>
             <p>{{ t('exportFormatDesc') }}</p>
@@ -317,21 +317,42 @@
           <div class="export-actions">
             <button
               id="btn-export-excel"
+              type="button"
               class="btn-export excel"
-              @click="exportarExcel" :disabled="exportandoExcel"
+              :class="{ 'is-loading': exportandoExcel }"
+              :aria-busy="exportandoExcel"
+              @click="exportarExcel"
+              :disabled="exportandoExcel"
             >
               <svg
+                v-if="!exportandoExcel"
+                class="btn-export-icon"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
               >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="8" y1="13" x2="16" y2="13"></line>
                 <line x1="8" y1="17" x2="16" y2="17"></line>
               </svg>
-              {{ exportandoExcel ? 'Generando...' : 'Excel' }}
+              <svg
+                v-else
+                class="btn-export-icon btn-export-spinner"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12a9 9 0 1 1-6.2-8.55"></path>
+              </svg>
+              <span>{{ exportandoExcel ? 'Generando...' : 'Excel' }}</span>
             </button>
           </div>
         </div>
@@ -1663,6 +1684,7 @@ const exportarExcel = async () => {
 /* ---------- Exportación ---------- */
 .export-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .btn-export {
+  flex: 0 0 auto;
   min-width: 112px;
   height: 42px;
   display: inline-flex;
@@ -1675,13 +1697,18 @@ const exportarExcel = async () => {
   background: var(--surface-2);
   color: var(--color-etiquetas, #f5f5f4);
   font: 600 .84rem 'Inter', sans-serif;
+  line-height: 1;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: transform .15s, border-color .15s, background .15s, color .15s;
 }
-.btn-export svg { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-export-icon { width: 18px; height: 18px; flex-shrink: 0; }
 .btn-export:hover { transform: translateY(-1px); }
 .btn-export.excel:hover { border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.1); color: #86efac; }
 .btn-export.yml:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+.btn-export:disabled { opacity: .7; cursor: progress; transform: none; }
+.btn-export-spinner { animation: export-spin .8s linear infinite; }
+@keyframes export-spin { to { transform: rotate(360deg); } }
 /* ---------- Toast ---------- */
 .toast-notification {
   position: fixed;
@@ -1736,18 +1763,33 @@ const exportarExcel = async () => {
   .config-info { flex: 1 1 calc(100% - 70px); }
   .select-wrapper { flex: 1 1 100%; width: 100%; }
   .color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .export-actions { width: 100%; }
-  .btn-export { flex: 1; }
   .toast-notification { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+
+  /* Exportación: botón de ancho completo, alto fijo y legible con el pulgar */
+  .export-row .config-info { flex: 1 1 100%; }
+  .export-actions { flex: 1 1 100%; width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
+  .btn-export {
+    flex: 0 0 auto;        /* evita que el alto se colapse en columna */
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    gap: 10px;
+    font-size: .95rem;
+    border-color: rgba(34,197,94,.4);
+    background: rgba(34,197,94,.1);
+    color: #86efac;
+  }
+  .btn-export-icon { width: 20px; height: 20px; }
+  .btn-export:hover { transform: none; }
+  .btn-export:active:not(:disabled) { transform: scale(.98); background: rgba(34,197,94,.18); }
 }
 @media (max-width: 420px) {
   .panel-header { flex-direction: column; gap: 10px; }
   .btn-reset-colors { width: 100%; }
   .color-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .export-actions { flex-direction: column; }
-  .btn-export { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .main-content * { transition: none !important; }
+  .btn-export-spinner { animation-duration: 1.6s; }
 }
 </style>

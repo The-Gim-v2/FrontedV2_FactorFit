@@ -216,23 +216,31 @@ const confirmDelete = (user) => {
 };
 const deleting = ref(false);
 const executeDelete = async () => {
- if (!selectedUser.value || deleting.value) return;
- deleting.value = true;
- try {
-  const user = selectedUser.value;
-  const sedeId = await resolverSedeId(getToken());
-  if (!sedeId) throw new Error('Selecciona una sucursal para visualizar sus clientes.');
-  // El endpoint debe cambiar Estatus a "Eliminado temporal", SIN borrar filas.
-  await apiRequest(`/api/gym/clientes/${user.id}?sede_id=${encodeURIComponent(sedeId)}`, { method: 'DELETE' });
-  users.value = users.value.filter(u => u.id !== user.id);
-  showDelete.value = false;
-  selectedUser.value = null;
-  toastRef.value?.notify('Cliente retirado temporalmente. Sus datos y pagos se conservan.', 'success');
- } catch (error) {
-  toastRef.value?.notify(error.message || 'No se pudo retirar al cliente.', 'error');
- } finally {
-  deleting.value = false;
- }
+  if (!selectedUser.value || deleting.value) return;
+  deleting.value = true;
+  try {
+    const user = selectedUser.value;
+    const sedeId = await resolverSedeId(getToken());
+    if (!sedeId) throw new Error('Selecciona una sucursal antes de retirar al cliente.');
+    // El ID de la lista es ID_Inscripto, que espera ClienteGymController::destroy.
+    const resultado = await apiRequest(`/api/gym/clientes/${encodeURIComponent(user.id)}?sede_id=${encodeURIComponent(sedeId)}`, { method: 'DELETE' });
+    if (resultado?.Estatus !== 'Eliminado temporal') {
+      throw new Error('No se pudo confirmar el retiro en el servidor.');
+    }
+    users.value = users.value.filter(u => u.id !== user.id);
+    showDelete.value = false;
+    selectedUser.value = null;
+    if (resultado.aviso_encolado === true) {
+      toastRef.value?.notify('Cliente retirado temporalmente. Sus pagos se conservan y el aviso por correo quedó en cola para envío.', 'success');
+    } else {
+      toastRef.value?.notify('Cliente retirado temporalmente. Sus pagos se conservan. El aviso por correo no pudo confirmarse; revisa la cola de correos.', 'success');
+    }
+  } catch (error) {
+    toastRef.value?.notify(error instanceof Error && error.message !== 'Failed to fetch'
+      ? error.message : 'No se pudo completar el retiro. Comprueba la conexión con el servidor.', 'error');
+  } finally {
+    deleting.value = false;
+  }
 };
 const goToPayments = (id) => {
   const user = users.value.find(u => u.id === id);
@@ -419,7 +427,7 @@ watch(totalPages, (n) => { if (page.value > n) page.value = n; });
  </HeadingGYM_RECEPCIONIST>
 </template>
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
+@import url('https\://fonts.googleapis.com/css2?family=Anton&family=Inter:wght\@400;500;600;700&family=Oswald:wght\@500;600&display=swap');
 /* =========================================================
  PANEL DE PAGOS
  ========================================================= */

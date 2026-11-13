@@ -303,7 +303,7 @@ const editor = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 /* ---------- IDIOMA ---------- */
-const settings = reactive({ idioma: localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es' });
+const settings = reactive({ idioma: localStorage.getItem('GYM_ADMIN-idioma') || 'es' });
 
 const translations: Record<string, Record<string, string>> = {
   es: {
@@ -579,11 +579,11 @@ const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').repla
 
 const getAuthToken = (): string => {
   for (const s of [sessionStorage, localStorage]) {
-    for (const k of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_RECEPCIONIST_token', 'gymAccountToken']) {
+    for (const k of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_ADMIN_token', 'gymAccountToken']) {
       const v = s.getItem(k);
       if (v) return v.replace(/^Bearer\s+/i, '');
     }
-    for (const k of ['auth', 'user', 'session', 'gymAccount', 'GYM_RECEPCIONIST']) {
+    for (const k of ['auth', 'user', 'session', 'gymAccount', 'GYM_ADMIN']) {
       try {
         const d = JSON.parse(s.getItem(k) || 'null');
         const v = d?.token || d?.access_token || d?.accessToken;

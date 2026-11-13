@@ -6,11 +6,10 @@
           <h1 class="main-title">{{ t('configPageTitle') }} <span class="highlight">{{ t('configPageHighlight') }}</span></h1>
           <p class="subtitle">{{ t('configPageSubtitle') }}</p>
         </div>
-        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios">
+        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios" :disabled="guardandoConfig || cargandoConfig">
           <span>{{ t('saveChangesBtn') }}</span>
         </button>
       </div>
-
       <section class="form-panel" id="panel-temas">
         <div class="panel-header">
           <h2>{{ t('themesTitle') }}</h2>
@@ -18,7 +17,6 @@
             {{ t('resetColorsBtn') }}
           </button>
         </div>
-
         <div class="presets-grid">
           <button
             v-for="(preset, key) in colorPresets"
@@ -34,30 +32,25 @@
             @click="aplicarPreset(key)"
           >
             <span v-if="presetActivo === key" class="preset-check">✓</span>
-
             <span class="preset-swatches">
               <span class="swatch" :style="{ background: preset.colors.botones }"></span>
               <span class="swatch" :style="{ background: preset.colors.highlight }"></span>
               <span class="swatch" :style="{ background: preset.colors.tarjetas }"></span>
               <span class="swatch" :style="{ background: preset.colors.titulos }"></span>
             </span>
-
             <span class="preset-label">{{ preset.label }}</span>
           </button>
         </div>
       </section>
-
       <section class="form-panel" id="panel-general">
         <div class="panel-header">
           <h2>{{ t('generalSectionTitle') }}</h2>
         </div>
-
         <div class="config-row" id="row-notificaciones">
           <div class="config-info">
             <label for="input-notificaciones">{{ t('notificationsLabel') }}</label>
-            <p>{{ t('notificationsDesc') }}</p>
+            <p>{{ t('notificationsDesc') }} <span v-if="pushMessage" role="status">{{ pushMessage }}</span></p>
           </div>
-
           <label
             class="switch-container"
             :title="t('notificationsToggleTitle')"
@@ -67,18 +60,18 @@
               type="checkbox"
               id="input-notificaciones"
               v-model="settings.notificaciones"
+              :disabled="pushBusy || !pushSupported"
+              @change="cambiarNotificaciones"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
           </label>
         </div>
-
         <div class="config-row" id="row-tutorial">
           <div class="config-info">
             <label for="input-tutorial">{{ t('tutorialLabel') }}</label>
             <p>{{ t('tutorialDesc') }}</p>
           </div>
-
           <label
             class="switch-container"
             :title="t('tutorialToggleTitle')"
@@ -93,13 +86,11 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-
         <div class="config-row" id="row-idioma">
           <div class="config-info">
             <label for="select-idioma">{{ t('interfaceLanguageLabel') }}</label>
             <p>{{ t('interfaceLanguageDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-idioma"
@@ -113,18 +104,15 @@
           </div>
         </div>
       </section>
-
       <section class="form-panel" id="panel-apariencia-avanzada">
         <div class="panel-header">
           <h2>{{ t('advancedAppearanceTitle') }}</h2>
         </div>
-
         <div class="config-row column-mobile" id="row-paleta-colores">
           <div class="config-info">
             <label>{{ t('detailedPaletteLabel') }}</label>
             <p>{{ t('detailedPaletteDesc') }}</p>
           </div>
-
           <div class="color-grid">
             <div class="color-card" id="container-color-headingBg">
               <span class="color-label">{{ t('colorHeadingSup') }}</span>
@@ -140,7 +128,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-tablas">
               <span class="color-label">{{ t('colorTablas') }}</span>
               <div class="color-picker-wrapper">
@@ -155,7 +142,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-interfaz">
               <span class="color-label">{{ t('colorInterfaz') }}</span>
               <div class="color-picker-wrapper">
@@ -170,7 +156,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-botones">
               <span class="color-label">{{ t('colorBotones') }}</span>
               <div class="color-picker-wrapper">
@@ -185,7 +170,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-tarjetas">
               <span class="color-label">{{ t('colorTarjetas') }}</span>
               <div class="color-picker-wrapper">
@@ -200,7 +184,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-titulos">
               <span class="color-label">{{ t('colorTitulares') }}</span>
               <div class="color-picker-wrapper">
@@ -215,7 +198,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-highlight">
               <span class="color-label">{{ t('colorHighlight') }}</span>
               <div class="color-picker-wrapper">
@@ -230,7 +212,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-etiquetas">
               <span class="color-label">{{ t('colorEtiquetas') }}</span>
               <div class="color-picker-wrapper">
@@ -245,7 +226,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-textoGeneral">
               <span class="color-label">{{ t('colorTextoGeneral') }}</span>
               <div class="color-picker-wrapper">
@@ -260,7 +240,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-textoBotones">
               <span class="color-label">{{ t('colorTextoBotones') }}</span>
               <div class="color-picker-wrapper">
@@ -275,7 +254,6 @@
                 ></div>
               </div>
             </div>
-
             <div class="color-card" id="container-color-svgColor">
               <span class="color-label">{{ t('colorSvgIcons') }}</span>
               <div class="color-picker-wrapper">
@@ -292,13 +270,11 @@
             </div>
           </div>
         </div>
-
         <div class="config-row" id="row-densidad">
           <div class="config-info">
             <label for="select-densidad">{{ t('interfaceDensityLabel') }}</label>
             <p>{{ t('interfaceDensityDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-densidad"
@@ -311,13 +287,11 @@
             </select>
           </div>
         </div>
-
         <div class="config-row" id="row-border-radius">
           <div class="config-info">
             <label for="select-border-radius">{{ t('borderStyleLabel') }}</label>
             <p>{{ t('borderStyleDesc') }}</p>
           </div>
-
           <div class="select-wrapper">
             <select
               id="select-border-radius"
@@ -331,59 +305,58 @@
           </div>
         </div>
       </section>
-
       <section class="form-panel" id="panel-exportacion">
         <div class="panel-header">
           <h2>{{ t('exportSectionTitle') }}</h2>
         </div>
-
-        <div class="config-row">
+        <div class="config-row export-row">
           <div class="config-info">
             <label>{{ t('exportFormatLabel') }}</label>
             <p>{{ t('exportFormatDesc') }}</p>
           </div>
-
           <div class="export-actions">
             <button
               id="btn-export-excel"
+              type="button"
               class="btn-export excel"
-              @click="exportar('excel')"
+              :class="{ 'is-loading': exportandoExcel }"
+              :aria-busy="exportandoExcel"
+              @click="exportarExcel"
+              :disabled="exportandoExcel"
             >
               <svg
+                v-if="!exportandoExcel"
+                class="btn-export-icon"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
               >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="8" y1="13" x2="16" y2="13"></line>
                 <line x1="8" y1="17" x2="16" y2="17"></line>
               </svg>
-              Excel
-            </button>
-
-            <button
-              id="btn-export-yml"
-              class="btn-export yml"
-              @click="exportar('yml')"
-            >
               <svg
+                v-else
+                class="btn-export-icon btn-export-spinner"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                aria-hidden="true"
               >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
+                <path d="M21 12a9 9 0 1 1-6.2-8.55"></path>
               </svg>
-              YML
+              <span>{{ exportandoExcel ? 'Generando...' : 'Excel' }}</span>
             </button>
           </div>
         </div>
       </section>
-
       <transition name="fade">
         <div
           v-if="toast.visible"
@@ -396,18 +369,17 @@
     </main>
   </HeadingGYM_ADMIN>
 </template>
-
 <script setup>
-import { reactive, computed, onMounted } from 'vue';
+import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
 import HeadingGYM_ADMIN from './HeadingGYM_ADMIN.vue';
-
 const { setLang } = useLang();
-
+const guardandoConfig = ref(false);
+const exportandoExcel = ref(false);
+const cargandoConfig = ref(false);
 const translations = {
   es: {
     configPageTitle: "Configuración",
-
     configPageHighlight: "de la Página",
     configPageSubtitle: "Personaliza tu sitio web a tu manera.",
     saveChangesBtn: "Guardar Cambios",
@@ -451,7 +423,7 @@ const translations = {
     borderRounded: "Muy Redondeado",
     exportSectionTitle: "Exportación de datos",
     exportFormatLabel: "Formato de exportación",
-    exportFormatDesc: "Formato al descargar bitácoras y respaldos.",
+    exportFormatDesc: "Descarga las bitácoras de esta sucursal en un archivo Excel con hojas, columnas y filtros.",
     toastColorsRestored: "Colores restaurados y guardados.",
     toastPresetApplied: "Tema combinado '{label}' aplicado y guardado.",
     toastGYM_ADMINSaved: "Configuración de GYM_ADMIN guardada globalmente.",
@@ -459,7 +431,6 @@ const translations = {
     toastSaveError: "Error al guardar la configuración.",
     toastDownloading: "Descargando archivo {tipo}..."
   },
-
   en: {
     configPageTitle: "Page",
     configPageHighlight: "Configuration",
@@ -505,7 +476,7 @@ const translations = {
     borderRounded: "Fully Rounded",
     exportSectionTitle: "Data Export",
     exportFormatLabel: "Export Format",
-    exportFormatDesc: "Format when downloading logs and backups.",
+    exportFormatDesc: "Download this branch’s logs as a formatted Excel workbook.",
     toastColorsRestored: "Colors restored and saved.",
     toastPresetApplied: "Combined theme '{label}' applied and saved.",
     toastGYM_ADMINSaved: "GYM_ADMIN configuration saved globally.",
@@ -514,14 +485,11 @@ const translations = {
     toastDownloading: "Downloading {tipo} file..."
   }
 };
-
 const t = (key) => {
   return translations[settings.idioma]?.[key] || translations['es'][key] || key;
 };
-
 function safeJsonParse(raw, fallback = null) {
   if (!raw) return fallback;
-
   try {
     return JSON.parse(raw);
   } catch (e) {
@@ -532,33 +500,19 @@ function safeJsonParse(raw, fallback = null) {
     return fallback;
   }
 }
-
 const ROLE_KEY = 'user_role';
-
 const claveColores = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
-
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-colors-${rol}`;
 };
-
 const claveRadius = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
-
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-radius-${rol}`;
 };
-
 const claveDensidad = () => {
-  const rol = (
-    localStorage.getItem(ROLE_KEY) || ''
-  ).toLowerCase();
-
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-densidad-${rol}`;
 };
-
 const defaultColors = {
   headingBg:    '#161726',  // --color-heading-bg
   tablas:       '#25283d',  // --color-tablas
@@ -572,7 +526,6 @@ const defaultColors = {
   textoBotones: '#ffffff',  // --color-texto-botones
   svgColor:     '#ffc7a1'   // --color-svg
 };
-
 const colorPresets = {
   gymFemenino: {
     label: '🌸 Fit Femme (Gym)',
@@ -590,7 +543,6 @@ const colorPresets = {
       svgColor: '#f472b6'
     }
   },
-
   barbieVibe: {
     label: '💖 Barbie Power',
     colors: {
@@ -607,7 +559,6 @@ const colorPresets = {
       svgColor: '#f472b6'
     }
   },
-
   gymMasculino: {
     label: '🏋️‍♂️ Iron Masculino',
     colors: {
@@ -624,7 +575,6 @@ const colorPresets = {
       svgColor: '#3b82f6'
     }
   },
-
   cyberpunk: {
     label: '⚡ Cyberpunk Blue',
     colors: {
@@ -641,7 +591,6 @@ const colorPresets = {
       svgColor: '#f43f5e'
     }
   },
-
   emeraldMatrix: {
     label: '🟢 Emerald Matrix',
     colors: {
@@ -658,7 +607,6 @@ const colorPresets = {
       svgColor: '#34d399'
     }
   },
-
   sunsetOrange: {
     label: '🌅 Sunset Orange',
     colors: {
@@ -675,7 +623,6 @@ const colorPresets = {
       svgColor: '#fb923c'
     }
   },
-
   royalPurple: {
     label: '👑 Royal Purple',
     colors: {
@@ -692,7 +639,6 @@ const colorPresets = {
       svgColor: '#a78bfa'
     }
   },
-
   neonGlow: {
     label: '🧪 Neon Lime',
     colors: {
@@ -709,7 +655,6 @@ const colorPresets = {
       svgColor: '#a3e635'
     }
   },
-
   crimsonDark: {
     label: '🩸 Crimson Blood',
     colors: {
@@ -726,7 +671,6 @@ const colorPresets = {
       svgColor: '#f87171'
     }
   },
-
   arcticFrost: {
     label: '❄️ Arctic Frost',
     colors: {
@@ -743,7 +687,6 @@ const colorPresets = {
       svgColor: '#38bdf8'
     }
   },
-
   goldenLuxury: {
     label: '✨ Golden Luxury',
     colors: {
@@ -760,7 +703,6 @@ const colorPresets = {
       svgColor: '#fbbf24'
     }
   },
-
   midnightTeal: {
     label: '🌊 Midnight Teal',
     colors: {
@@ -777,7 +719,6 @@ const colorPresets = {
       svgColor: '#2dd4bf'
     }
   },
-
   cherryBlossom: {
     label: '🌸 Cherry Blossom',
     colors: {
@@ -794,7 +735,6 @@ const colorPresets = {
       svgColor: '#fb7185'
     }
   },
-
   coffeeLatte: {
     label: '☕ Coffee Latte',
     colors: {
@@ -811,7 +751,6 @@ const colorPresets = {
       svgColor: '#d97706'
     }
   },
-
   matrixHacker: {
     label: '💻 Matrix Hacker',
     colors: {
@@ -828,7 +767,6 @@ const colorPresets = {
       svgColor: '#22c55e'
     }
   },
-
   deepSpace: {
     label: '🌌 Deep Space',
     colors: {
@@ -845,7 +783,6 @@ const colorPresets = {
       svgColor: '#818cf8'
     }
   },
-
   neonPink: {
     label: '💖 Neon Synthwave',
     colors: {
@@ -862,7 +799,6 @@ const colorPresets = {
       svgColor: '#e879f9'
     }
   },
-
   toxicGreen: {
     label: '☢️ Toxic Hazard',
     colors: {
@@ -879,7 +815,6 @@ const colorPresets = {
       svgColor: '#84cc16'
     }
   },
-
   lavenderDream: {
     label: '💜 Lavender Dream',
     colors: {
@@ -896,7 +831,6 @@ const colorPresets = {
       svgColor: '#a78bfa'
     }
   },
-
   copperRust: {
     label: '🧱 Copper Rust',
     colors: {
@@ -913,7 +847,6 @@ const colorPresets = {
       svgColor: '#ea580c'
     }
   },
-
   electricAmber: {
     label: '⚡ Electric Amber',
     colors: {
@@ -930,7 +863,6 @@ const colorPresets = {
       svgColor: '#fbbf24'
     }
   },
-
   steelBlue: {
     label: '🛡️ Steel Blue',
     colors: {
@@ -947,7 +879,6 @@ const colorPresets = {
       svgColor: '#94a3b8'
     }
   },
-
   velvetRuby: {
     label: '🍷 Velvet Ruby',
     colors: {
@@ -964,7 +895,6 @@ const colorPresets = {
       svgColor: '#c084fc'
     }
   },
-
   mintFresh: {
     label: '🍃 Mint Fresh',
     colors: {
@@ -981,7 +911,6 @@ const colorPresets = {
       svgColor: '#34d399'
     }
   },
-
   slateMinimal: {
     label: '✒️ Slate Minimal',
     colors: {
@@ -998,7 +927,6 @@ const colorPresets = {
       svgColor: '#a1a1aa'
     }
   },
-
   neonCyan: {
     label: '🌐 Neon Cyan',
     colors: {
@@ -1015,7 +943,6 @@ const colorPresets = {
       svgColor: '#22d3ee'
     }
   },
-
   sunsetCoral: {
     label: '🍑 Sunset Coral',
     colors: {
@@ -1032,7 +959,6 @@ const colorPresets = {
       svgColor: '#fb7185'
     }
   },
-
   graphiteOrange: {
     label: '🏎️ Graphite Orange',
     colors: {
@@ -1049,7 +975,6 @@ const colorPresets = {
       svgColor: '#f97316'
     }
   },
-
   neonViolet: {
     label: '🔮 Neon Violet',
     colors: {
@@ -1066,7 +991,6 @@ const colorPresets = {
       svgColor: '#8b5cf6'
     }
   },
-
   solarFlare: {
     label: '☀️ Solar Flare',
     colors: {
@@ -1084,7 +1008,6 @@ const colorPresets = {
     }
   }
 };
-
 const settings = reactive({
   notificaciones: false,
   tutorial:
@@ -1100,283 +1023,266 @@ const settings = reactive({
       localStorage.getItem(claveColores())
     ) || { ...defaultColors }
 });
-
+// =========================================================
+// WEB PUSH — configuración por dispositivo, API real Laravel
+// =========================================================
+const pushBusy = ref(false);
+const pushMessage = ref('');
+const pushSupported = typeof window !== 'undefined' && window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const pushBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const pushSede = () => {
+  for (const store of [sessionStorage, localStorage]) for (const key of ['selected_sede_id','sede_id','ID_Sede','selectedSedeId']) {
+    const value = Number(store.getItem(key));
+    if (Number.isInteger(value) && value > 0) return value;
+  }
+  return 1;
+};
+const pushToken = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_ADMIN_token','gymAccountToken']) {
+      const value = store.getItem(key);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const key of ['auth','user','session','gymAccount','GYM_ADMIN']) {
+      try {
+        const value = JSON.parse(store.getItem(key) || 'null');
+        const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, '');
+      } catch { /* sesión no JSON */ }
+    }
+  }
+  return '';
+};
+const pushRequest = async (path, payload = null) => {
+  const token = pushToken();
+  if (!token) throw new Error('Sesión no disponible. Inicia sesión nuevamente.');
+  const response = await fetch(`${pushBase}/api/gym/push/${path}`, {
+    method: payload ? 'POST' : 'GET',
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+    ...(payload ? { body: JSON.stringify({ ...payload, sede_id: pushSede() }) } : {}),
+    cache: 'no-store'
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || `Error HTTP ${response.status}`);
+  return result;
+};
+const vapidBytes = (key) => {
+  const pad = '='.repeat((4 - key.length % 4) % 4);
+  const raw = atob((key + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes;
+};
+const pushRegistration = () => navigator.serviceWorker.register('/push-sw.js', { scope: '/' });
+const consultarNotificacionesDispositivo = async () => {
+  if (!pushSupported) {
+    settings.notificaciones = false;
+    pushMessage.value = 'Tu navegador no permite Web Push o falta una conexión HTTPS.';
+    return;
+  }
+  try {
+    const reg = await pushRegistration();
+    const subscription = await reg.pushManager.getSubscription();
+    if (!subscription) { settings.notificaciones = false; return; }
+    const data = await pushRequest('estado', { endpoint: subscription.endpoint });
+    settings.notificaciones = !!data.enabled;
+  } catch (error) {
+    settings.notificaciones = false;
+    pushMessage.value = error instanceof Error ? error.message : 'No se pudo consultar Web Push.';
+  }
+};
+const cambiarNotificaciones = async () => {
+  if (pushBusy.value) return;
+  const activar = settings.notificaciones;
+  if (!pushSupported) { settings.notificaciones = false; return; }
+  pushBusy.value = true;
+  pushMessage.value = '';
+  try {
+    // Se solicita inmediatamente desde el evento real del interruptor.
+    const permiso = activar && Notification.permission !== 'granted' ? Notification.requestPermission() : null;
+    const reg = await pushRegistration();
+    let subscription = await reg.pushManager.getSubscription();
+    if (activar) {
+      if (permiso && await permiso !== 'granted') throw new Error('No se autorizó recibir notificaciones.');
+      const config = await pushRequest(`config?sede_id=${pushSede()}`);
+      if (!config.configured || !config.publicKey) throw new Error('Configura primero las claves VAPID en Railway.');
+      // Evita mandar el historial anterior al registrar un dispositivo nuevo.
+      await fetch(`${pushBase}/api/gym/notificaciones/sincronizar`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${pushToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sede_id: pushSede() })
+      }).then(async r => { if (!r.ok) throw new Error('No se pudo sincronizar el historial de notificaciones.'); });
+      if (!subscription) subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes(config.publicKey) });
+      const json = subscription.toJSON();
+      if (!json.keys?.p256dh || !json.keys?.auth) throw new Error('No se pudo obtener la suscripción del dispositivo.');
+      await pushRequest('suscribir', { endpoint: subscription.endpoint, keys: json.keys });
+      pushMessage.value = 'Notificaciones activadas en este dispositivo.';
+    } else {
+      if (subscription) {
+        await pushRequest('desuscribir', { endpoint: subscription.endpoint });
+        await subscription.unsubscribe();
+      }
+      pushMessage.value = 'Notificaciones desactivadas en este dispositivo.';
+    }
+    window.dispatchEvent(new CustomEvent('factorfit:push-changed', { detail: { enabled: activar } }));
+  } catch (error) {
+    settings.notificaciones = !activar;
+    pushMessage.value = error instanceof Error ? error.message : 'No se pudo modificar la suscripción.';
+  } finally {
+    pushBusy.value = false;
+  }
+};
 const presetActivo = computed(() => {
   const actual = JSON.stringify(settings.colors);
-
   const key = Object.keys(colorPresets).find(
     (k) =>
       JSON.stringify(colorPresets[k].colors) ===
       actual
   );
-
   return key || null;
 });
-
 const cambiarIdioma = (event) => {
-  const nuevoIdioma = event.target.value === 'en' ? 'en' : 'es';
+  const nuevoIdioma = event.target.value;
   settings.idioma = nuevoIdioma;
-  localStorage.setItem('GYM_ADMIN-idioma', nuevoIdioma);
   setLang(nuevoIdioma);
-  window.dispatchEvent(new CustomEvent('idioma-changed', { detail: { idioma: nuevoIdioma } }));
 };
-
 const toast = reactive({
   visible: false,
   message: ''
 });
-
 const showToast = (msg) => {
   toast.message = msg;
   toast.visible = true;
-
   setTimeout(() => {
     toast.visible = false;
   }, 3000);
 };
-
-const restaurarColoresPorDefecto = () => {
-  settings.colors = {
-    ...defaultColors
-  };
-
-  guardarCambios();
-
-  showToast(
-    t('toastColorsRestored')
-  );
+// Apariencia compartida por gimnasio/sucursal, preferencias individuales permanecen locales.
+const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const apiApariencia = async (method = 'GET', datos = null) => {
+  const token = pushToken();
+  if (!token) throw new Error('No hay sesión activa. Inicia sesión nuevamente.');
+  const sede = pushSede();
+  const response = await fetch(`${configBase}/api/gym/configuracion-apariencia${method === 'GET' ? `?sede_id=${sede}` : ''}`, {
+    method,
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(datos ? {'Content-Type':'application/json'} : {}) },
+    ...(datos ? {body:JSON.stringify({sede_id:sede, ...datos})} : {}), cache:'no-store'
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(json.message || `Error HTTP ${response.status}`);
+  return json;
 };
-
-const aplicarPreset = (tipoPreset) => {
-  if (colorPresets[tipoPreset]) {
-    settings.colors = {
-      ...colorPresets[tipoPreset].colors
-    };
-
-    localStorage.setItem(
-      claveColores(),
-      JSON.stringify(settings.colors)
-    );
-
-    aplicarEstilos();
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'app-settings-updated',
-        {
-          detail: settings
-        }
-      )
-    );
-
-    showToast(
-      t('toastPresetApplied').replace(
-        '{label}',
-        colorPresets[tipoPreset].label
-      )
-    );
-  }
+const guardarLocalApariencia = () => {
+  localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
+  localStorage.setItem(claveDensidad(), settings.densidad);
+  localStorage.setItem(claveRadius(), settings.borderRadius);
+  aplicarEstilos();
+  window.dispatchEvent(new CustomEvent('app-settings-updated', {detail: settings}));
 };
-
-const guardarCambios = async () => {
+const cargarAparienciaRemota = async () => {
+  cargandoConfig.value = true;
   try {
-    const userRole =
-      localStorage.getItem(ROLE_KEY) ||
-      'GYM_ADMIN';
-
-    localStorage.setItem(
-      'tutorialActivo',
-      settings.tutorial
-    );
-
-    localStorage.setItem(
-      'GYM_ADMIN-idioma',
-      settings.idioma
-    );
-
-    localStorage.setItem(
-      claveColores(),
-      JSON.stringify(settings.colors)
-    );
-
-    localStorage.setItem(
-      claveDensidad(),
-      settings.densidad
-    );
-
-    localStorage.setItem(
-      claveRadius(),
-      settings.borderRadius
-    );
-
-    aplicarEstilos();
-
-    window.dispatchEvent(
-      new Event('tutorial-updated')
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'app-settings-updated',
-        {
-          detail: settings
-        }
-      )
-    );
-
-    window.dispatchEvent(
-      new CustomEvent(
-        'idioma-changed',
-        {
-          detail: {
-            idioma: settings.idioma
-          }
-        }
-      )
-    );
-
-    if (settings.notificaciones) {
-      await fetch(
-        '/api/notificaciones/activar',
-        {
-          method: 'POST'
-        }
-      ).catch(() => {});
-    }
-
-    if (userRole === 'GYM_ADMIN') {
-      try {
-        await fetch(
-          '/api/GYM_ADMIN/configuracion',
-          {
-            method: 'POST',
-
-            headers: {
-              'Content-Type':
-                'application/json',
-
-              'Authorization':
-                `Bearer ${
-                  localStorage.getItem(
-                    'token'
-                  ) || ''
-                }`
-            },
-
-            body: JSON.stringify({
-              idioma:
-                settings.idioma,
-
-              densidad:
-                settings.densidad,
-
-              borderRadius:
-                settings.borderRadius,
-
-              colors:
-                settings.colors,
-
-              tutorial:
-                settings.tutorial
-            })
-          }
-        );
-      } catch (backendError) {
-        console.warn(
-          'Sincronización en la nube omitida temporalmente:',
-          backendError
-        );
+    const respuesta = await apiApariencia();
+    const apariencia = respuesta.apariencia;
+    if (apariencia && typeof apariencia === 'object') {
+      if (apariencia.colors && typeof apariencia.colors === 'object') {
+        settings.colors = {...defaultColors, ...apariencia.colors};
       }
-
-      showToast(
-        t('toastGYM_ADMINSaved')
-      );
-    } else {
-      showToast(
-        t('toastLocalSaved')
-      );
+      if (['normal','compacto','espacioso'].includes(apariencia.densidad)) settings.densidad = apariencia.densidad;
+      if (['8px','16px','24px'].includes(apariencia.borderRadius)) settings.borderRadius = apariencia.borderRadius;
+      guardarLocalApariencia();
     }
   } catch (error) {
-    console.error(
-      'Error al guardar:',
-      error
-    );
-
-    showToast(
-      t('toastSaveError')
-    );
-  }
+    console.warn('No se pudo consultar la apariencia guardada:', error);
+    showToast(error?.message || 'No se pudo cargar la configuración de Railway.');
+  } finally { cargandoConfig.value = false; }
 };
-
+const restaurarColoresPorDefecto = async () => {
+  settings.colors = { ...defaultColors };
+  guardarLocalApariencia();
+  await guardarCambios();
+};
+const aplicarPreset = async (tipoPreset) => {
+  if (!colorPresets[tipoPreset]) return;
+  settings.colors = { ...colorPresets[tipoPreset].colors };
+  guardarLocalApariencia();
+  // Los presets también se guardan automáticamente, igual que en el componente original.
+  await guardarCambios();
+};
+const guardarCambios = async () => {
+  if (guardandoConfig.value || cargandoConfig.value) return;
+  guardandoConfig.value = true;
+  try {
+    // Guardar primero en Railway; solo confirmar éxito si la API responde correctamente.
+    await apiApariencia('PUT', {
+      apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}
+    });
+    guardarLocalApariencia();
+    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    localStorage.setItem('GYM_ADMIN-idioma', settings.idioma);
+    window.dispatchEvent(new Event('tutorial-updated'));
+    window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
+    showToast(t('toastGYM_ADMINSaved'));
+  } catch(error) {
+    console.error('Error al guardar apariencia en Railway:', error);
+    showToast(error?.message || t('toastSaveError'));
+  } finally { guardandoConfig.value = false; }
+};
 const aplicarEstilos = () => {
   const root =
     document.documentElement;
-
   root.style.setProperty(
     '--color-heading-bg',
     settings.colors.headingBg
   );
-
   root.style.setProperty(
     '--color-tablas',
     settings.colors.tablas
   );
-
   root.style.setProperty(
     '--color-interfaz',
     settings.colors.interfaz
   );
-
   root.style.setProperty(
     '--color-botones',
     settings.colors.botones
   );
-
   root.style.setProperty(
     '--bg-cards',
     settings.colors.tarjetas
   );
-
   root.style.setProperty(
     '--bg-custom',
     settings.colors.interfaz
   );
-
   root.style.setProperty(
     '--app-border-radius',
     settings.borderRadius
   );
-
   root.style.setProperty(
     '--color-titulos',
     settings.colors.titulos
   );
-
   root.style.setProperty(
     '--color-highlight',
     settings.colors.highlight
   );
-
   root.style.setProperty(
     '--color-etiquetas',
     settings.colors.etiquetas
   );
-
   root.style.setProperty(
     '--color-texto-general',
     settings.colors.textoGeneral
   );
-
   root.style.setProperty(
     '--color-texto-botones',
     settings.colors.textoBotones
   );
-
   root.style.setProperty(
     '--color-svg',
     settings.colors.svgColor
   );
-
   if (
     settings.densidad ===
     'compacto'
@@ -1385,7 +1291,6 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '16px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '10px 0'
@@ -1398,7 +1303,6 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '38px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '22px 0'
@@ -1408,134 +1312,52 @@ const aplicarEstilos = () => {
       '--panel-padding',
       '30px'
     );
-
     root.style.setProperty(
       '--row-padding',
       '16px 0'
     );
   }
 };
-
 onMounted(async () => {
   aplicarEstilos();
-
-  window.addEventListener(
-    'idioma-changed',
-    (e) => {
-      if (
-        e.detail &&
-        e.detail.idioma
-      ) {
-        settings.idioma =
-          e.detail.idioma;
-      }
-    }
-  );
-
-  const userRole =
-    localStorage.getItem(ROLE_KEY) ||
-    'GYM_ADMIN';
-
-  if (userRole === 'GYM_ADMIN') {
-    try {
-      const res = await fetch(
-        '/api/GYM_ADMIN/configuracion',
-        {
-          headers: {
-            'Authorization':
-              `Bearer ${
-                localStorage.getItem(
-                  'token'
-                ) || ''
-              }`
-          }
-        }
-      );
-
-      if (res.ok) {
-        const data =
-          await res.json();
-
-        if (
-          data &&
-          data.idioma
-        ) {
-          settings.idioma =
-            data.idioma;
-
-          localStorage.setItem(
-            'GYM_ADMIN-idioma',
-            data.idioma
-          );
-        }
-      }
-    } catch (e) {
-      // Ignorar si no hay red
-    }
-  }
+  void consultarNotificacionesDispositivo();
+  await cargarAparienciaRemota();
+  // Idioma y tutorial son preferencias de este navegador, no cambian para todo el gimnasio.
+  window.addEventListener('idioma-changed', (e) => {if(e.detail?.idioma) settings.idioma = e.detail.idioma;});
 });
-
-const exportar = async (tipo) => {
+const exportarExcel = async () => {
+  if (exportandoExcel.value) return;
+  exportandoExcel.value = true;
   try {
-    const endpoint =
-      tipo === 'excel'
-        ? '/api/exportar/bitacoras'
-        : '/api/exportar/basedatos';
-
-    const response =
-      await fetch(endpoint);
-
-    const blob =
-      await response.blob();
-
-    const url =
-      window.URL.createObjectURL(
-        blob
-      );
-
-    const a =
-      document.createElement('a');
-
-    a.href = url;
-
-    a.download =
-      tipo === 'excel'
-        ? 'bitacora_completa.xlsx'
-        : 'backup_db.yml';
-
-    document.body.appendChild(a);
-
-    a.click();
-
-    a.remove();
-
-    window.URL.revokeObjectURL(url);
-
-    showToast(
-      t('toastDownloading').replace(
-        '{tipo}',
-        tipo.toUpperCase()
-      )
-    );
+    const token = pushToken();
+    if (!token) throw new Error('Tu sesión no está disponible. Inicia sesión nuevamente.');
+    const sede = pushSede();
+    const respuesta = await fetch(`${configBase}/api/gym/exportar/bitacoras/excel?sede_id=${encodeURIComponent(sede)}`, {
+      method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, cache: 'no-store'
+    });
+    if (!respuesta.ok) {
+      const error = await respuesta.json().catch(() => ({}));
+      if (respuesta.status === 429) throw new Error('Límite temporal de descargas del servidor. Intenta de nuevo dentro de un minuto.');
+      throw new Error(error.message || `No se pudo descargar el Excel (HTTP ${respuesta.status}).`);
+    }
+    const archivo = await respuesta.blob();
+    if (!archivo.size) throw new Error('El servidor devolvió un archivo vacío.');
+    const url = URL.createObjectURL(archivo);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = `FactorFit_Bitacoras_Sede_${sede}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(enlace);
+    enlace.click(); enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    showToast('Excel de bitácoras descargado correctamente.');
   } catch (error) {
-    console.error(
-      `Error al descargar ${tipo}:`,
-      error
-    );
-
-    showToast(
-      t('toastDownloading').replace(
-        '{tipo}',
-        tipo.toUpperCase()
-      ) + ' (Simulado)'
-    );
-  }
+    console.error('Exportación de bitácoras:', error);
+    showToast(error?.message || 'No se pudo descargar el Excel.');
+  } finally { exportandoExcel.value = false; }
 };
 </script>
-
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap');
-
 /* ---------- Tokens locales (derivados de tus variables de tema) ---------- */
 .main-content {
   --line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent);
@@ -1544,7 +1366,6 @@ const exportar = async (tipo) => {
   --accent: var(--color-highlight, #3b82f6);
   --r: var(--app-border-radius, 16px);
   --r-sm: calc(var(--app-border-radius, 16px) * 0.55);
-
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
@@ -1554,7 +1375,6 @@ const exportar = async (tipo) => {
   -webkit-font-smoothing: antialiased;
 }
 .main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
-
 /* ---------- Encabezado ---------- */
 .header-section {
   position: relative;
@@ -1590,7 +1410,6 @@ const exportar = async (tipo) => {
   line-height: 1.55;
   opacity: 0.8;
 }
-
 /* ---------- Botón principal ---------- */
 .btn-primary {
   flex-shrink: 0;
@@ -1612,7 +1431,6 @@ const exportar = async (tipo) => {
 }
 .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0) scale(.98); }
-
 /* ---------- Paneles ---------- */
 .form-panel {
   width: 100%;
@@ -1638,7 +1456,6 @@ const exportar = async (tipo) => {
   font-weight: 500;
   letter-spacing: .02em;
 }
-
 /* ---------- Restaurar ---------- */
 .btn-reset-colors {
   flex-shrink: 0;
@@ -1657,7 +1474,6 @@ const exportar = async (tipo) => {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--color-titulos, #fff);
 }
-
 /* ---------- Temas ---------- */
 .presets-grid {
   display: grid;
@@ -1737,7 +1553,6 @@ const exportar = async (tipo) => {
   white-space: nowrap;
   text-shadow: 0 1px 3px rgba(0,0,0,.55);
 }
-
 /* ---------- Filas ---------- */
 .config-row {
   display: flex;
@@ -1766,7 +1581,6 @@ const exportar = async (tipo) => {
   line-height: 1.5;
   opacity: .78;
 }
-
 /* ---------- Switch ---------- */
 .switch-container { position: relative; flex: 0 0 auto; width: 48px; height: 28px; display: inline-block; cursor: pointer; }
 .toggle-input { position: absolute; width: 0; height: 0; opacity: 0; }
@@ -1790,7 +1604,6 @@ const exportar = async (tipo) => {
 .toggle-input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
 .toggle-input:checked + .toggle-slider::before { transform: translateX(20px); }
 .toggle-input:focus-visible + .toggle-slider { outline: 2px solid var(--accent); outline-offset: 3px; }
-
 /* ---------- Selects ---------- */
 .select-wrapper { position: relative; flex: 0 0 auto; width: min(250px, 100%); }
 .select-wrapper::after {
@@ -1821,7 +1634,6 @@ const exportar = async (tipo) => {
 .font-select:hover { border-color: color-mix(in srgb, var(--color-texto-general, #94a3b8) 35%, transparent); }
 .font-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 .font-select option { background: #151515; color: #fff; }
-
 /* ---------- Paleta detallada ---------- */
 .column-mobile { align-items: flex-start; flex-direction: column; gap: 20px; }
 .column-mobile .config-info { width: 100%; }
@@ -1869,10 +1681,10 @@ const exportar = async (tipo) => {
   padding: 0; border: 0; opacity: 0; cursor: pointer;
 }
 .color-preview { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
-
 /* ---------- Exportación ---------- */
 .export-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .btn-export {
+  flex: 0 0 auto;
   min-width: 112px;
   height: 42px;
   display: inline-flex;
@@ -1885,14 +1697,18 @@ const exportar = async (tipo) => {
   background: var(--surface-2);
   color: var(--color-etiquetas, #f5f5f4);
   font: 600 .84rem 'Inter', sans-serif;
+  line-height: 1;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: transform .15s, border-color .15s, background .15s, color .15s;
 }
-.btn-export svg { width: 16px; height: 16px; flex-shrink: 0; }
+.btn-export-icon { width: 18px; height: 18px; flex-shrink: 0; }
 .btn-export:hover { transform: translateY(-1px); }
 .btn-export.excel:hover { border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.1); color: #86efac; }
 .btn-export.yml:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
-
+.btn-export:disabled { opacity: .7; cursor: progress; transform: none; }
+.btn-export-spinner { animation: export-spin .8s linear infinite; }
+@keyframes export-spin { to { transform: rotate(360deg); } }
 /* ---------- Toast ---------- */
 .toast-notification {
   position: fixed;
@@ -1923,13 +1739,11 @@ const exportar = async (tipo) => {
 }
 .fade-enter-active, .fade-leave-active { transition: opacity .2s ease, transform .2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(8px); }
-
 /* ---------- Foco ---------- */
 .preset-card:focus-visible,
 .btn-primary:focus-visible,
 .btn-reset-colors:focus-visible,
 .btn-export:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .presets-grid, .color-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -1949,18 +1763,33 @@ const exportar = async (tipo) => {
   .config-info { flex: 1 1 calc(100% - 70px); }
   .select-wrapper { flex: 1 1 100%; width: 100%; }
   .color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .export-actions { width: 100%; }
-  .btn-export { flex: 1; }
   .toast-notification { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+
+  /* Exportación: botón de ancho completo, alto fijo y legible con el pulgar */
+  .export-row .config-info { flex: 1 1 100%; }
+  .export-actions { flex: 1 1 100%; width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
+  .btn-export {
+    flex: 0 0 auto;        /* evita que el alto se colapse en columna */
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    gap: 10px;
+    font-size: .95rem;
+    border-color: rgba(34,197,94,.4);
+    background: rgba(34,197,94,.1);
+    color: #86efac;
+  }
+  .btn-export-icon { width: 20px; height: 20px; }
+  .btn-export:hover { transform: none; }
+  .btn-export:active:not(:disabled) { transform: scale(.98); background: rgba(34,197,94,.18); }
 }
 @media (max-width: 420px) {
   .panel-header { flex-direction: column; gap: 10px; }
   .btn-reset-colors { width: 100%; }
   .color-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .export-actions { flex-direction: column; }
-  .btn-export { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .main-content * { transition: none !important; }
+  .btn-export-spinner { animation-duration: 1.6s; }
 }
 </style>

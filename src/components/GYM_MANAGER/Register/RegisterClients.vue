@@ -1,843 +1,510 @@
 <template>
   <HeadingGYM_MANAGER>
     <NotificationSystem ref="toastRef" />
-
-    <main class="main-content">
-      <div class="profile-card">
+    <!-- =====================================================
+         MODAL: QR DE ACCESO (tras registrar)
+    ====================================================== -->
+    <div v-if="qrModal" class="overlay" @click.self="cerrarQR">
+      <section class="dialog qr-dialog">
+        <button type="button" class="dialog-close" @click="cerrarQR" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        <span class="dialog-icon" :class="qrPagoConfirmado ? 'ok' : 'warn'">
+          <i class="bi" :class="qrPagoConfirmado ? 'bi-check-circle-fill' : 'bi-hourglass-split'"></i>
+        </span>
+        <h2>{{ txt('Inscripción registrada', 'Enrollment registered') }}</h2>
+        <p class="dialog-sub">{{ txt('Cliente', 'Client') }} #{{ qrModal.ID_Cliente }} · {{ txt('Inscripción', 'Enrollment') }} #{{ qrModal.ID_Inscripto }}</p>
+        <p v-if="qrFolio" class="dialog-folio">{{ txt('Folio', 'Reference') }}: <strong>{{ qrFolio }}</strong></p>
+        <p class="dialog-status" :class="{ ok: qrPagoConfirmado }">
+          {{ qrPagoConfirmado
+            ? txt('Pago confirmado · Membresía activa.', 'Payment confirmed · Membership active.')
+            : txt('Pendiente de pago · El QR no habilita el acceso hasta activar la membresía.', 'Payment pending · The QR will not grant access until the membership is active.') }}
+        </p>
+        <p v-if="qrCargando" class="dialog-muted">{{ txt('Cargando código QR...', 'Loading QR code...') }}</p>
+        <p v-else-if="qrError" class="dialog-error">{{ qrError }}</p>
+        <img v-else-if="qrUrl" :src="qrUrl" :alt="txt('Código QR de inscripción', 'Enrollment QR code')" class="qr-image" />
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-primary" @click="descargarQR" :disabled="!qrModal || qrCargando">
+            <i class="bi bi-download"></i> {{ txt('Descargar PNG', 'Download PNG') }}
+          </button>
+          <button v-if="qrPagoConfirmado && ultimoPago" type="button" class="btn btn-soft" @click="verReciboDesdeQR">
+            <i class="bi bi-receipt"></i> {{ txt('Ver recibo', 'View receipt') }}
+          </button>
+          <button type="button" class="btn btn-ghost" @click="cerrarQR">{{ txt('Cerrar', 'Close') }}</button>
+        </div>
+      </section>
+    </div>
+    <!-- =====================================================
+         MODAL: COBRO CON STRIPE (QR de pago)
+    ====================================================== -->
+    <div v-if="stripeQR" class="overlay" @click.self="ocultarStripe">
+      <section class="dialog stripe-dialog">
+        <button type="button" class="dialog-close" @click="ocultarStripe" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        <span class="dialog-icon stripe"><i class="bi bi-credit-card-2-front-fill"></i></span>
+        <h2>{{ txt('Cobro con tarjeta', 'Card payment') }}</h2>
+        <p class="dialog-sub">{{ stripeQR.cliente }} · {{ stripeQR.plan }}</p>
+        <div class="stripe-qr-frame"><img :src="stripeQR.qr_data_url" :alt="txt('QR de pago Stripe', 'Stripe payment QR')" /></div>
+        <p class="scan-hint"><i class="bi bi-qr-code-scan"></i> {{ txt('Pídele al cliente que escanee el código', 'Ask the client to scan the code') }}</p>
+        <div class="stripe-amount">
+          <span>{{ txt('MONTO A COBRAR', 'AMOUNT DUE') }}</span>
+          <strong>${{ formatoMoneda(stripeQR.monto) }} <small>MXN</small></strong>
+        </div>
+        <span class="state-pill" :class="{ paid: String(stripeEstado).startsWith('Pagado') }">
+          <i></i>{{ txt('Estado del pago:', 'Payment status:') }} {{ stripeEstado }}
+        </span>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-primary" @click="consultarEstadoStripe(false)">
+            <i class="bi bi-arrow-repeat"></i> {{ txt('Comprobar pago', 'Check payment') }}
+          </button>
+          <a class="btn btn-soft" :href="stripeQR.checkout_url" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-box-arrow-up-right"></i> {{ txt('Abrir enlace de pago', 'Open payment link') }}
+          </a>
+        </div>
+        <button type="button" class="link-btn" @click="ocultarStripe">{{ txt('Ocultar QR (no cancela el pago)', 'Hide QR (does not cancel payment)') }}</button>
+      </section>
+    </div>
+    <main class="reg-page">
+      <div class="reg-layout">
         <!-- =====================================================
              PERFIL
         ====================================================== -->
-        <aside class="profile-section" id="tutorial-step-0">
-          <div class="profile-content">
-            <span class="profile-label">{{ t('personalData') }}</span>
-
-            <h1 class="main-title">
-              {{ t('title1') }}<br />
-              <span class="highlight">{{ t('title2') }}</span>
-            </h1>
-
-            <!-- FOTO -->
-            <div class="avatar-wrapper">
-              <div class="avatar-ring">
-                <div
-                  class="avatar-circle"
-                  role="button"
-                  tabindex="0"
-                  @click="openPhotoOptions"
-                  @keydown.enter="openPhotoOptions"
-                  @keydown.space.prevent="openPhotoOptions"
-                >
-                  <img
-                    v-if="avatarPreview"
-                    :src="avatarPreview"
-                    :alt="t('altPreview')"
-                    class="avatar-img"
-                  />
-
-                  <svg
-                    v-else
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    class="default-avatar"
-                  >
-                    <path
-                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                    />
-                  </svg>
-
-                  <div class="avatar-overlay">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                      />
-                      <circle cx="12" cy="13" r="4" />
-                    </svg>
-
-                    <span>
-                      {{ currentLang === 'en' ? 'Change photo' : 'Cambiar foto' }}
-                    </span>
-                  </div>
+        <aside class="profile-card" id="tutorial-step-0">
+          <span class="chip-label">{{ t('personalData') }}</span>
+          <h1 class="main-title">
+            {{ t('title1') }}<br />
+            <span class="highlight">{{ t('title2') }}</span>
+          </h1>
+          <div class="avatar-wrap">
+            <div class="avatar-ring">
+              <div class="avatar-circle" role="button" tabindex="0"
+                @click="openPhotoOptions" @keydown.enter="openPhotoOptions" @keydown.space.prevent="openPhotoOptions">
+                <img v-if="avatarPreview" :src="avatarPreview" :alt="t('altPreview')" class="avatar-img" />
+                <i v-else class="bi bi-person-fill avatar-default"></i>
+                <div class="avatar-overlay">
+                  <i class="bi bi-camera-fill"></i>
+                  <span>{{ txt('Cambiar foto', 'Change photo') }}</span>
                 </div>
               </div>
-
-              <button
-                type="button"
-                class="avatar-action"
-                @click="openPhotoOptions"
-                :title="t('titleAvatar')"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                  />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              </button>
-
-              <!-- ÚNICAMENTE PARA GALERÍA/ARCHIVOS -->
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                class="hidden-input"
-                @change="handleFileChange"
-              />
             </div>
-
-            <p class="profile-hint">
-              {{
-                currentLang === 'en'
-                  ? 'Take a photo or select one from your device.'
-                  : 'Toma una foto o selecciona una desde tu dispositivo.'
-              }}
-            </p>
-
-            <dl class="profile-summary">
-              <div class="summary-item">
-                <dt>{{ currentLang === 'en' ? 'Client' : 'Cliente' }}</dt>
-                <dd :class="{ empty: !clientName }">
-                  {{
-                    clientName ||
-                    (currentLang === 'en' ? 'New client' : 'Nuevo cliente')
-                  }}
-                </dd>
-              </div>
-
-              <div class="summary-item">
-                <dt>{{ t('membershipData') }}</dt>
-                <dd>
-                  <span class="plan-chip">
-                    {{
-                      form.tipoMembresia === 'mes'
-                        ? t('month')
-                        : t('week')
-                    }}
-                  </span>
-                </dd>
-              </div>
-
-              <div class="summary-item">
-                <dt>{{ t('enrollmentDate') }}</dt>
-                <dd :class="{ empty: !form.fechaInscripcion }">
-                  {{ form.fechaInscripcion || '—' }}
-                </dd>
-              </div>
-
-              <div class="summary-item">
-                <dt>{{ t('dueDate') }}</dt>
-                <dd :class="{ empty: !form.fechaCorte }">
-                  {{ form.fechaCorte || '—' }}
-                </dd>
-              </div>
-            </dl>
+            <button type="button" class="avatar-action" @click="openPhotoOptions" :title="t('titleAvatar')">
+              <i class="bi bi-camera-fill"></i>
+            </button>
+            <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden-input" @change="handleFileChange" />
           </div>
+          <p class="profile-hint">{{ txt('Toma una foto o selecciona una desde tu dispositivo.', 'Take a photo or select one from your device.') }}</p>
+          <ul class="profile-summary">
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-person"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ txt('Cliente', 'Client') }}</span>
+                <strong class="summary-value" :class="{ empty: !clientName }">{{ clientName || txt('Nuevo cliente', 'New client') }}</strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-tag"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ txt('Membresía', 'Membership') }}</span>
+                <strong class="summary-value">
+                  <span class="plan-chip">{{ periodoLabel }}</span>
+                  <span v-if="tarifaSeleccionada" class="summary-price">{{ formatoPrecio(tarifaSeleccionada.Precio) }}</span>
+                </strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico"><i class="bi bi-calendar-event"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ t('enrollmentDate') }}</span>
+                <strong class="summary-value" :class="{ empty: !form.fechaInscripcion }">{{ fechaVista(form.fechaInscripcion) }}</strong>
+              </span>
+            </li>
+            <li class="summary-row">
+              <span class="summary-ico ok"><i class="bi bi-calendar-check"></i></span>
+              <span class="summary-body">
+                <span class="summary-label">{{ t('dueDate') }}</span>
+                <strong class="summary-value" :class="{ empty: !form.fechaCorte }">{{ fechaVista(form.fechaCorte) }}</strong>
+              </span>
+            </li>
+          </ul>
         </aside>
-
         <!-- =====================================================
              FORMULARIOS
         ====================================================== -->
-        <div class="forms-wrapper">
+        <div class="forms-col">
           <!-- DATOS PERSONALES -->
-          <section class="login-card" id="tutorial-step-1">
-            <header class="card-header">
-              <div class="card-header-text">
-                <h3 class="section-title">{{ t('personalData') }}</h3>
-
-                <p class="section-description">
-                  {{
-                    currentLang === 'en'
-                      ? 'Basic client information'
-                      : 'Información básica del cliente'
-                  }}
-                </p>
+          <section class="card" id="tutorial-step-1">
+            <header class="card-head">
+              <span class="card-icon"><i class="bi bi-person-vcard"></i></span>
+              <div>
+                <h3 class="card-title">{{ t('personalData') }}</h3>
+                <p class="card-desc">{{ txt('Información básica del cliente', 'Basic client information') }}</p>
               </div>
             </header>
-
-            <div class="form-grid form-grid-3">
-              <div class="input-group">
-                <label>
-                  {{ t('names') }}
-                  <span class="required">*</span>
-                </label>
-
-                <input
-                  type="text"
-                  v-model="form.nombres"
-                  :placeholder="t('placeholderName')"
-                  autocomplete="given-name"
-                />
+            <div class="grid grid-3">
+              <div class="field">
+                <label>{{ t('names') }} <span class="req">*</span></label>
+                <input type="text" v-model="form.nombres" @input="normalizarCampo('nombres')" :placeholder="t('placeholderName')" autocomplete="given-name" />
               </div>
-
-              <div class="input-group">
-                <label>
-                  {{ t('lastNameP') }}
-                  <span class="required">*</span>
-                </label>
-
-                <input
-                  type="text"
-                  v-model="form.apellidoP"
-                  :placeholder="t('placeholderLastNameP')"
-                  autocomplete="family-name"
-                />
+              <div class="field">
+                <label>{{ t('lastNameP') }} <span class="req">*</span></label>
+                <input type="text" v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" :placeholder="t('placeholderLastNameP')" autocomplete="family-name" />
               </div>
-
-              <div class="input-group">
-                <label>
-                  {{ t('lastNameM') }}
-                  <span class="required">*</span>
-                </label>
-
-                <input
-                  type="text"
-                  v-model="form.apellidoM"
-                  :placeholder="t('placeholderLastNameM')"
-                />
+              <div class="field">
+                <label>{{ t('lastNameM') }} <span class="req">*</span></label>
+                <input type="text" v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" :placeholder="t('placeholderLastNameM')" />
               </div>
-
-              <div class="input-group">
-                <label>
-                  {{ t('birthDate') }}
-                  <span class="required">*</span>
-                </label>
-
-                <input
-                  type="date"
-                  v-model="form.fechaNacimiento"
-                />
+              <div class="field">
+                <label for="cliente-curp">{{ txt('CURP', 'CURP') }} <span class="req">*</span></label>
+                <div class="control has-icon" :class="{ ok: form.curp && curpValidation.valid, bad: form.curp && !curpValidation.valid }">
+                  <i class="bi control-icon" :class="curpValidation.valid && form.curp ? 'bi-patch-check' : 'bi-person-vcard'"></i>
+                  <input id="cliente-curp" type="text" v-model="form.curp" @input="form.curp = String($event.target.value || '').toUpperCase()" placeholder="ABCD010101HDFXXX00" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" required :aria-invalid="!!form.curp && !curpValidation.valid" />
+                </div>
+                <small v-if="form.curp && !curpValidation.valid" class="curp-feedback">{{ curpValidation.message }}</small>
+                <small v-if="form.curp && curpValidation.valid" class="curp-feedback curp-valid">{{ txt('CURP con formato y dígito verificador válidos.', 'CURP format and check digit are valid.') }}</small>
+                <a class="curp-lookup" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right"></i> {{ txt('¿No sabes tu CURP? Búscala aquí', 'Don’t know your CURP? Look it up here') }}</a>
               </div>
-
-              <div class="input-group">
+              <div class="field">
+                <label>{{ t('birthDate') }} <span class="req">*</span></label>
+                <input type="date" v-model="form.fechaNacimiento" />
+              </div>
+              <div class="field">
                 <label>{{ t('cellphone') }}</label>
-
-                <div class="input-with-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"
-                    />
-                  </svg>
-
-                  <input
-                    type="tel"
-                    v-model="form.celular"
-                    placeholder="+52 000 000 0000"
-                    autocomplete="tel"
-                  />
+                <div class="control has-icon">
+                  <i class="bi bi-telephone control-icon"></i>
+                  <input type="tel" :value="form.celular" @input="actualizarCelular" @paste="pegarCelular" @keydown="bloquearPrefijoCelular"
+                    placeholder="481 111 1231" inputmode="numeric" autocomplete="tel-national" maxlength="12" />
                 </div>
               </div>
-
-              <div class="input-group">
+              <div class="field">
                 <label>{{ t('email') }}</label>
-
-                <div class="input-with-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                    />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-
-                  <input
-                    type="email"
-                    v-model="form.email"
-                    placeholder="ejemplo@correo.com"
-                    autocomplete="email"
-                  />
+                <div class="control has-icon">
+                  <i class="bi bi-envelope control-icon"></i>
+                  <input type="email" v-model="form.email" @blur="normalizarCorreo" placeholder="ejemplo@gmail.com" autocomplete="email" />
                 </div>
               </div>
             </div>
           </section>
-
           <!-- REGISTRO FÍSICO -->
-          <section
-            class="login-card physical-card"
-            id="tutorial-step-2"
-          >
-            <header class="card-header">
-              <div class="card-header-text">
-                <h3 class="section-title">{{ t('physicalRecord') }}</h3>
-
-                <p class="section-description">
-                  {{
-                    currentLang === 'en'
-                      ? 'Initial physical measurements'
-                      : 'Medidas físicas iniciales'
-                  }}
-                </p>
+          <section class="card" id="tutorial-step-2">
+            <header class="card-head">
+              <span class="card-icon"><i class="bi bi-activity"></i></span>
+              <div>
+                <h3 class="card-title">{{ t('physicalRecord') }}</h3>
+                <p class="card-desc">{{ txt('Medidas físicas iniciales', 'Initial physical measurements') }}</p>
               </div>
             </header>
-
-            <div class="physical-grid">
-              <div class="measurement-field">
-                <div class="measurement-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M6 3h12l3 18H3L6 3z" />
-                    <path d="M9 8a3 3 0 0 1 6 0" />
-                  </svg>
-                </div>
-
-                <div class="measurement-content">
-                  <label>{{ t('weight') }}</label>
-
-                  <div class="measurement-input">
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      v-model="form.peso"
-                      placeholder="70"
-                    />
-                    <span>kg</span>
-                  </div>
+            <div class="grid grid-2">
+              <div class="field">
+                <label>{{ t('weight') }}</label>
+                <div class="control has-icon has-suffix">
+                  <i class="bi bi-speedometer2 control-icon"></i>
+                  <input type="text" inputmode="decimal" maxlength="5" v-model="form.peso" @input="form.peso = limitarMedidaRegistro($event.target.value, true)" placeholder="70" />
+                  <span class="control-suffix">kg</span>
                 </div>
               </div>
-
-              <div class="measurement-field">
-                <div class="measurement-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M6 2v20" />
-                    <path d="M6 4h5" />
-                    <path d="M6 8h3" />
-                    <path d="M6 12h5" />
-                    <path d="M6 16h3" />
-                    <path d="M6 20h5" />
-                    <path d="M15 4v16" />
-                    <path d="m12 7 3-3 3 3" />
-                    <path d="m12 17 3 3 3-3" />
-                  </svg>
-                </div>
-
-                <div class="measurement-content">
-                  <label>{{ t('height') }}</label>
-
-                  <div class="measurement-input">
-                    <input
-                      type="number"
-                      min="0"
-                      v-model="form.altura"
-                      placeholder="175"
-                    />
-                    <span>cm</span>
-                  </div>
+              <div class="field">
+                <label>{{ t('height') }}</label>
+                <div class="control has-icon has-suffix">
+                  <i class="bi bi-rulers control-icon"></i>
+                  <input type="text" inputmode="numeric" maxlength="3" v-model="form.altura" @input="form.altura = limitarMedidaRegistro($event.target.value)" placeholder="175" />
+                  <span class="control-suffix">cm</span>
                 </div>
               </div>
             </div>
           </section>
-
-          <!-- MEMBRESÍA -->
-          <section class="login-card" id="tutorial-step-3">
-            <header class="card-header membership-header">
-              <div class="card-header-text">
-                <h3 class="section-title">{{ t('membershipData') }}</h3>
-
-                <p class="section-description">
-                  {{
-                    currentLang === 'en'
-                      ? 'Select the membership period and registration dates.'
-                      : 'Selecciona el periodo de membresía y las fechas del cliente.'
-                  }}
-                </p>
+          <!-- =====================================================
+               MEMBRESÍA + PAGO INICIAL
+          ====================================================== -->
+          <section class="card membership-card" id="tutorial-step-3">
+            <header class="card-head">
+              <span class="card-icon"><i class="bi bi-award"></i></span>
+              <div class="grow">
+                <h3 class="card-title">{{ t('membershipData') }}</h3>
+                <p class="card-desc">{{ txt('Selecciona el periodo, las fechas y el pago inicial del cliente.', 'Select the membership period, dates and initial payment.') }}</p>
               </div>
-
-              <div class="membership-actions-row">
-                <div
-                  class="toggle-group-small"
-                  :data-active="form.tipoMembresia"
-                >
-                  <button
-                    type="button"
-                    class="btn-toggle-small"
-                    :class="{ active: form.tipoMembresia === 'mes' }"
-                    @click="form.tipoMembresia = 'mes'"
-                  >
-                    {{ t('month') }}
-                  </button>
-
-                  <button
-                    type="button"
-                    class="btn-toggle-small"
-                    :class="{ active: form.tipoMembresia === 'semana' }"
-                    @click="form.tipoMembresia = 'semana'"
-                  >
-                    {{ t('week') }}
-                  </button>
-                </div>
-
-                <div class="actions-group">
-                  <button
-                    type="button"
-                    class="action-btn"
-                    :title="t('titleCut')"
-                    @click="activeModal = 'corte'"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.2"
-                    >
-                      <path
-                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                      />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                    </svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="action-btn"
-                    :title="t('titleHelp')"
-                    @click="activeModal = 'help'"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2.2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path
-                        d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
-                      />
-                      <line x1="12" y1="17" x2="12.01" y2="17" />
-                    </svg>
-                  </button>
-                </div>
+              <div class="head-actions">
+                <button type="button" class="icon-btn" :title="t('titleCut')" @click="activeModal = 'corte'"><i class="bi bi-file-earmark-text"></i></button>
+                <button type="button" class="icon-btn" :title="t('titleHelp')" @click="activeModal = 'help'"><i class="bi bi-question-circle"></i></button>
               </div>
             </header>
-
-            <div class="membership-date-grid">
-              <div class="date-field">
-                <div class="date-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-
-                <div class="date-content">
-                  <label>{{ t('enrollmentDate') }}</label>
-                  <input
-                    type="date"
-                    v-model="form.fechaInscripcion"
-                  />
+            <!-- PERIODO -->
+            <div class="field">
+              <label>{{ txt('Periodo de membresía', 'Membership period') }}</label>
+              <div class="segmented" role="radiogroup" :style="{ '--i': periodoIndex, '--n': periodos.length }">
+                <span class="segmented-thumb"></span>
+                <button v-for="p in periodos" :key="p.key" type="button" role="radio" class="segment"
+                  :class="{ active: form.tipoMembresia === p.key }" :aria-checked="form.tipoMembresia === p.key"
+                  @click="form.tipoMembresia = p.key">
+                  <i class="bi" :class="p.icon"></i><span>{{ p.label }}</span>
+                </button>
+              </div>
+            </div>
+            <!-- TARIFA -->
+            <div class="field">
+              <label id="tarifa-label">{{ txt('Tarifa de inscripción', 'Enrollment rate') }} <span class="req">*</span></label>
+              <div class="ff-select" :class="{ open: openSelect === 'tarifa' }">
+                <button type="button" class="ff-trigger" aria-haspopup="listbox" aria-labelledby="tarifa-label"
+                  :aria-expanded="openSelect === 'tarifa'" @click="toggleSelect('tarifa')" @keydown.esc="openSelect = ''">
+                  <span class="ff-trigger-icon"><i class="bi bi-credit-card-2-front"></i></span>
+                  <span class="ff-trigger-value" :class="{ placeholder: !tarifaSeleccionada }">
+                    <template v-if="tarifaSeleccionada">
+                      <strong>{{ tarifaSeleccionada.Nombre_Paquete }}</strong>
+                      <em>{{ formatoPrecio(tarifaSeleccionada.Precio) }}</em>
+                    </template>
+                    <template v-else>{{ txt('Selecciona una tarifa', 'Select a rate') }}</template>
+                  </span>
+                  <i class="bi bi-chevron-down ff-chevron"></i>
+                </button>
+                <transition name="dd">
+                  <ul v-if="openSelect === 'tarifa'" class="ff-menu" role="listbox" aria-labelledby="tarifa-label">
+                    <li v-if="!tarifasFiltradas.length" class="ff-empty">
+                      <i class="bi bi-inbox"></i>
+                      {{ txt('No hay tarifas disponibles para este periodo.', 'No rates available for this period.') }}
+                    </li>
+                    <li v-for="p in tarifasFiltradas" :key="p.ID_Precio" role="option"
+                      :aria-selected="String(p.ID_Precio) === String(idPrecio)"
+                      :class="{ selected: String(p.ID_Precio) === String(idPrecio) }" @click="elegirTarifa(p)">
+                      <span class="opt-name">{{ p.Nombre_Paquete }}</span>
+                      <span class="opt-price">{{ formatoPrecio(p.Precio) }}</span>
+                      <i v-if="String(p.ID_Precio) === String(idPrecio)" class="bi bi-check-lg opt-check"></i>
+                    </li>
+                  </ul>
+                </transition>
+              </div>
+            </div>
+            <!-- FECHAS -->
+            <div class="grid grid-2">
+              <div class="field">
+                <label>{{ t('enrollmentDate') }}</label>
+                <div class="control has-icon">
+                  <i class="bi bi-calendar-event control-icon"></i>
+                  <input type="date" v-model="form.fechaInscripcion" :max="fechaLocal()" />
                 </div>
               </div>
-
-              <div class="date-field">
-                <div class="date-icon">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-
-                <div class="date-content">
-                  <label>{{ t('dueDate') }}</label>
-                  <input
-                    type="date"
-                    v-model="form.fechaCorte"
-                  />
+              <div class="field">
+                <label>{{ t('dueDate') }} <span class="badge auto">{{ txt('AUTOMÁTICA', 'AUTOMATIC') }}</span></label>
+                <div class="control has-icon locked ok">
+                  <i class="bi bi-calendar-check control-icon"></i>
+                  <input type="date" v-model="form.fechaCorte" readonly />
                 </div>
               </div>
             </div>
+            <!-- DÍA DE CORTE FIJO -->
+            <div v-if="diasCorteDisponibles.length > 1" class="field">
+              <label id="corte-label">{{ txt('Día de corte fijo', 'Fixed billing day') }}</label>
+              <div class="ff-select" :class="{ open: openSelect === 'corte' }">
+                <button type="button" class="ff-trigger" aria-haspopup="listbox" aria-labelledby="corte-label"
+                  :aria-expanded="openSelect === 'corte'" @click="toggleSelect('corte')" @keydown.esc="openSelect = ''">
+                  <span class="ff-trigger-icon"><i class="bi bi-scissors"></i></span>
+                  <span class="ff-trigger-value">
+                    <strong>{{ txt('Día', 'Day') }} {{ diaCorteElegido }}</strong>
+                    <em class="plain">{{ txt('mes siguiente', 'next month') }}</em>
+                  </span>
+                  <i class="bi bi-chevron-down ff-chevron"></i>
+                </button>
+                <transition name="dd">
+                  <ul v-if="openSelect === 'corte'" class="ff-menu" role="listbox" aria-labelledby="corte-label">
+                    <li v-for="d in diasCorteDisponibles" :key="d" role="option" :aria-selected="d === diaCorteElegido"
+                      :class="{ selected: d === diaCorteElegido }" @click="elegirDiaCorte(d)">
+                      <span class="opt-name">{{ txt('Día', 'Day') }} {{ d }}</span>
+                      <span class="opt-hint">{{ txt('mes siguiente', 'next month') }}</span>
+                      <i v-if="d === diaCorteElegido" class="bi bi-check-lg opt-check"></i>
+                    </li>
+                  </ul>
+                </transition>
+              </div>
+            </div>
+            <p v-if="!permitePendiente" class="note warn">
+              <i class="bi bi-exclamation-triangle"></i>
+              {{ txt('El corte de este mes ya pasó. Es obligatorio cobrar ahora.', 'This month\'s billing date has passed. Payment is required now.') }}
+            </p>
+            <!-- ---------------- PAGO INICIAL ---------------- -->
+            <div class="payment-block">
+              <div class="block-head">
+                <span class="block-icon"><i class="bi bi-wallet2"></i></span>
+                <div>
+                  <h4>{{ txt('Pago inicial', 'Initial payment') }}</h4>
+                  <p>{{ txt('Cobra la primera membresía o déjala pendiente.', 'Charge the first membership or leave it pending.') }}</p>
+                </div>
+              </div>
+              <div class="total-box">
+                <span>{{ txt('Total de membresía', 'Membership total') }}</span>
+                <strong>{{ formatoPrecio(tarifaSeleccionada?.Precio) }}</strong>
+              </div>
+              <div class="choice-grid" role="radiogroup">
+                <label class="choice" :class="{ selected: cobrarAhora }">
+                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="true" />
+                  <span class="choice-dot"></span>
+                  <span class="choice-text">
+                    <strong>{{ txt('Registrar y cobrar ahora', 'Register and charge now') }}</strong>
+                    <small>{{ txt('Activa la membresía', 'Activates the membership') }}</small>
+                  </span>
+                  <i class="bi bi-lightning-charge choice-icon"></i>
+                </label>
+                <label class="choice" :class="{ selected: !cobrarAhora, disabled: !permitePendiente }">
+                  <input v-model="cobrarAhora" type="radio" name="cobro-inicial" :value="false" :disabled="!permitePendiente" />
+                  <span class="choice-dot"></span>
+                  <span class="choice-text">
+                    <strong>{{ txt('Registrar pendiente de pago', 'Register as pending') }}</strong>
+                    <small>{{ txt('Se cobra después', 'Charge it later') }}</small>
+                  </span>
+                  <i class="bi bi-hourglass-split choice-icon"></i>
+                </label>
+              </div>
+              <!-- MÉTODO DE PAGO (igual que en Pagos) -->
+              <template v-if="cobrarAhora">
+                <div class="field">
+                  <label>{{ txt('Método de pago', 'Payment method') }} <span class="req">*</span></label>
+                  <div class="method-grid" role="radiogroup" :aria-label="txt('Método de pago', 'Payment method')">
+                    <button v-for="m in metodos" :key="m.value" type="button" role="radio" class="method-tile"
+                      :class="{ active: metodoPagoRegistro === m.value }" :aria-checked="metodoPagoRegistro === m.value"
+                      @click="metodoPagoRegistro = m.value">
+                      <span class="method-icon"><i class="bi" :class="m.icon"></i></span>
+                      <span class="method-text"><strong>{{ m.label }}</strong><small>{{ m.hint }}</small></span>
+                      <span class="method-check"><i class="bi bi-check-lg"></i></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="folio-registro">
+                    {{ txt('Folio / referencia', 'Reference / folio') }}
+                    <span v-if="metodoPagoRegistro" class="badge" :class="folioAutomatico ? 'auto' : 'required'">
+                      {{ folioAutomatico ? txt('AUTOMÁTICO', 'AUTOMATIC') : txt('OBLIGATORIO', 'REQUIRED') }}
+                    </span>
+                  </label>
+                  <div class="control has-icon" :class="{ locked: folioAutomatico || !metodoPagoRegistro }">
+                    <i class="bi control-icon" :class="folioAutomatico || !metodoPagoRegistro ? 'bi-lock' : 'bi-hash'"></i>
+                    <input id="folio-registro" v-model.trim="referenciaPagoRegistro" maxlength="120"
+                      :disabled="folioAutomatico || !metodoPagoRegistro" :placeholder="folioPlaceholder" />
+                  </div>
+                  <p v-if="folioAyuda" class="note info"><i class="bi bi-info-circle"></i><span>{{ folioAyuda }}</span></p>
+                </div>
+                <!-- STRIPE -->
+                <div v-if="metodoPagoRegistro === 'Tarjeta'" class="stripe-box">
+                  <div class="stripe-head">
+                    <span class="stripe-icon"><i class="bi bi-credit-card-2-front-fill"></i></span>
+                    <div class="stripe-head-text">
+                      <strong>{{ txt('Cobro con tarjeta mediante Stripe', 'Card payment via Stripe') }}</strong>
+                      <span class="stripe-status" :class="stripeCuenta?.charges_enabled ? 'ok' : 'warn'">
+                        <i></i>{{ stripeCuenta?.charges_enabled ? txt('Cuenta lista para cobrar.', 'Account ready for payments.') : txt('Cuenta no habilitada', 'Account not enabled') }}
+                      </span>
+                    </div>
+                    <button type="button" class="btn btn-ghost sm" @click="consultarStripeCuenta(false)">
+                      <i class="bi bi-arrow-repeat"></i> {{ txt('Actualizar estado de cuenta', 'Refresh account status') }}
+                    </button>
+                  </div>
+                  <template v-if="!stripeCuenta?.charges_enabled">
+                    <p class="stripe-hint">{{ txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar.', 'Connect and enable the gym Stripe account before charging.') }}</p>
+                    <button type="button" class="btn btn-primary sm" :disabled="stripeLoading" @click="conectarStripe">
+                      <i class="bi bi-link-45deg"></i> {{ txt('Conectar cuenta Stripe', 'Connect Stripe account') }}
+                    </button>
+                  </template>
+                  <p v-else class="stripe-hint">
+                    <i class="bi bi-qr-code"></i>
+                    {{ txt('Al registrar se generará un QR de cobro para que el cliente pague con su tarjeta.', 'When you register, a payment QR will be generated for the client to pay by card.') }}
+                  </p>
+                </div>
+              </template>
+              <p class="note muted">
+                <i class="bi bi-shield-check"></i>
+                <span v-if="cobrarAhora">{{ txt('El acceso solo se habilitará cuando el servidor confirme el pago.', 'Access will only be enabled after the server confirms payment.') }}</span>
+                <span v-else>{{ txt('El QR no dará acceso hasta que se confirme el pago.', 'The QR will not grant access until payment is confirmed.') }}</span>
+              </p>
+            </div>
           </section>
-
           <!-- GUARDAR -->
-          <div class="registration-footer">
-            <div class="required-hint">
-              <span class="required">*</span>
-              {{
-                currentLang === 'en'
-                  ? 'Required fields'
-                  : 'Campos obligatorios'
-              }}
+          <div class="reg-footer">
+            <div class="req-hint"><span class="req">*</span> {{ txt('Campos obligatorios', 'Required fields') }}</div>
+            <div class="footer-actions">
+              <button type="button" class="btn btn-soft receipt-btn" :class="{ ready: ultimoPago }" @click="downloadReceipt">
+                <i class="bi bi-receipt"></i>
+                <span>{{ txt('Recibo del último pago', 'Last payment receipt') }}</span>
+                <em v-if="ultimoPago"><i></i>{{ txt('Disponible', 'Ready') }}</em>
+              </button>
+              <button type="button" class="btn btn-primary save-btn" @click="saveRegistration" :disabled="guardando || stripeLoading">
+                <i class="bi" :class="guardando || stripeLoading ? 'bi-arrow-repeat spin' : (usaStripe ? 'bi-qr-code' : 'bi-floppy')"></i>
+                {{ textoGuardar }}
+              </button>
             </div>
-
-            <button
-              type="button"
-              class="btn-primary"
-              @click="saveRegistration"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-
-              {{ t('finishButton') }}
-            </button>
           </div>
         </div>
       </div>
     </main>
-
     <!-- =====================================================
          MODALES EXISTENTES
     ====================================================== -->
     <transition name="pop">
-      <div
-        v-if="activeModal === 'corte'"
-        class="modal-wrapper"
-        @click.self="activeModal = null"
-      >
+      <div v-if="activeModal === 'corte'" class="modal-wrapper" @click.self="activeModal = null">
         <AddCorteComponent @close="activeModal = null" />
       </div>
     </transition>
-
     <transition name="pop">
-      <div
-        v-if="activeModal === 'help'"
-        class="modal-wrapper"
-        @click.self="activeModal = null"
-      >
+      <div v-if="activeModal === 'help'" class="modal-wrapper" @click.self="activeModal = null">
         <Help @close="activeModal = null" />
       </div>
     </transition>
-
+    <!-- RECIBO -->
+    <ReciboPago :visible="reciboVisible" :pago="ultimoPago" :locale="reciboLocale" @close="reciboVisible = false" @notify="handleReciboNotify" />
     <!-- =====================================================
-         SELECCIONAR CÁMARA O GALERÍA
+         CÁMARA O GALERÍA
     ====================================================== -->
     <transition name="photo-menu">
-      <div
-        v-if="showPhotoOptions"
-        class="photo-options-overlay"
-        @click.self="closePhotoOptions"
-      >
-        <div class="photo-options-modal">
-          <div class="photo-options-handle"></div>
-
-          <div class="photo-options-header">
+      <div v-if="showPhotoOptions" class="overlay sheet" @click.self="closePhotoOptions">
+        <div class="dialog photo-dialog">
+          <div class="sheet-handle"></div>
+          <div class="dialog-head">
             <div>
-              <span class="photo-options-eyebrow">
-                {{ currentLang === 'en' ? 'PROFILE PHOTO' : 'FOTO DE PERFIL' }}
-              </span>
-
-              <h3>
-                {{
-                  currentLang === 'en'
-                    ? 'Add client photo'
-                    : 'Agregar foto del cliente'
-                }}
-              </h3>
-
-              <p>
-                {{
-                  currentLang === 'en'
-                    ? 'Choose how you want to add the image.'
-                    : 'Selecciona cómo quieres agregar la imagen.'
-                }}
-              </p>
+              <span class="eyebrow">{{ txt('FOTO DE PERFIL', 'PROFILE PHOTO') }}</span>
+              <h3>{{ txt('Agregar foto del cliente', 'Add client photo') }}</h3>
+              <p>{{ txt('Selecciona cómo quieres agregar la imagen.', 'Choose how you want to add the image.') }}</p>
             </div>
-
-            <button
-              type="button"
-              class="modal-close-btn"
-              @click="closePhotoOptions"
-            >
-              ×
+            <button type="button" class="dialog-x" @click="closePhotoOptions" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+          </div>
+          <div class="photo-options">
+            <button type="button" class="photo-option" @click="takePhoto">
+              <span class="photo-option-icon"><i class="bi bi-camera"></i></span>
+              <span class="photo-option-text">
+                <strong>{{ txt('Tomar foto', 'Take photo') }}</strong>
+                <small>{{ txt('Abrir la cámara del dispositivo', 'Open your device camera') }}</small>
+              </span>
+              <i class="bi bi-chevron-right"></i>
+            </button>
+            <button type="button" class="photo-option" @click="selectPhoto">
+              <span class="photo-option-icon"><i class="bi bi-images"></i></span>
+              <span class="photo-option-text">
+                <strong>{{ txt('Subir desde galería', 'Choose image') }}</strong>
+                <small>{{ txt('Seleccionar una imagen existente', 'Select an existing image') }}</small>
+              </span>
+              <i class="bi bi-chevron-right"></i>
             </button>
           </div>
-
-          <div class="photo-options-grid">
-            <!-- CÁMARA -->
-            <button
-              type="button"
-              class="photo-option"
-              @click="takePhoto"
-            >
-              <div class="photo-option-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                  />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              </div>
-
-              <div class="photo-option-text">
-                <strong>
-                  {{ currentLang === 'en' ? 'Take photo' : 'Tomar foto' }}
-                </strong>
-
-                <span>
-                  {{
-                    currentLang === 'en'
-                      ? 'Open your device camera'
-                      : 'Abrir la cámara del dispositivo'
-                  }}
-                </span>
-              </div>
-
-              <svg
-                class="photo-option-arrow"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-
-            <!-- GALERÍA -->
-            <button
-              type="button"
-              class="photo-option"
-              @click="selectPhoto"
-            >
-              <div class="photo-option-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-              </div>
-
-              <div class="photo-option-text">
-                <strong>
-                  {{
-                    currentLang === 'en'
-                      ? 'Choose image'
-                      : 'Subir desde galería'
-                  }}
-                </strong>
-
-                <span>
-                  {{
-                    currentLang === 'en'
-                      ? 'Select an existing image'
-                      : 'Seleccionar una imagen existente'
-                  }}
-                </span>
-              </div>
-
-              <svg
-                class="photo-option-arrow"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            class="photo-cancel"
-            @click="closePhotoOptions"
-          >
-            {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
-          </button>
+          <button type="button" class="btn btn-ghost block" @click="closePhotoOptions">{{ txt('Cancelar', 'Cancel') }}</button>
         </div>
       </div>
     </transition>
-
-    <!-- =====================================================
-         CÁMARA REAL
-    ====================================================== -->
     <transition name="photo-menu">
-      <div
-        v-if="showCamera"
-        class="camera-overlay"
-        @click.self="closeCamera"
-      >
-        <div class="camera-modal">
-          <div class="camera-header">
+      <div v-if="showCamera" class="overlay sheet dark" @click.self="closeCamera">
+        <div class="dialog camera-dialog">
+          <div class="dialog-head">
             <div>
-              <span class="camera-eyebrow">
-                {{ currentLang === 'en' ? 'CAMERA' : 'CÁMARA' }}
-              </span>
-
-              <h3>
-                {{
-                  currentLang === 'en'
-                    ? 'Take client photo'
-                    : 'Tomar foto del cliente'
-                }}
-              </h3>
-
-              <p>
-                {{
-                  cameraFacingMode === 'user'
-                    ? (
-                      currentLang === 'en'
-                        ? 'Front camera'
-                        : 'Cámara frontal'
-                    )
-                    : (
-                      currentLang === 'en'
-                        ? 'Rear camera'
-                        : 'Cámara trasera'
-                    )
-                }}
-              </p>
+              <span class="eyebrow">{{ txt('CÁMARA', 'CAMERA') }}</span>
+              <h3>{{ txt('Tomar foto del cliente', 'Take client photo') }}</h3>
+              <p>{{ cameraFacingMode === 'user' ? txt('Cámara frontal', 'Front camera') : txt('Cámara trasera', 'Rear camera') }}</p>
             </div>
-
-            <button
-              type="button"
-              class="modal-close-btn"
-              @click="closeCamera"
-            >
-              ×
-            </button>
+            <button type="button" class="dialog-x" @click="closeCamera" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
           </div>
-
-          <!-- VISOR -->
           <div class="camera-preview">
-            <video
-              ref="videoRef"
-              autoplay
-              playsinline
-              muted
-              :class="{
-                'camera-mirrored': cameraFacingMode === 'user'
-              }"
-            ></video>
-
-            <!-- CAMBIAR CÁMARA -->
-            <button
-              type="button"
-              class="switch-camera-btn"
-              :disabled="switchingCamera"
-              @click.stop="switchCamera"
-            >
-              <svg
-                :class="{ rotating: switchingCamera }"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
-                <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
-              </svg>
-
-              <span>
-                {{
-                  cameraFacingMode === 'user'
-                    ? (
-                      currentLang === 'en'
-                        ? 'Rear'
-                        : 'Trasera'
-                    )
-                    : (
-                      currentLang === 'en'
-                        ? 'Front'
-                        : 'Frontal'
-                    )
-                }}
-              </span>
+            <video ref="videoRef" autoplay playsinline muted :class="{ mirrored: cameraFacingMode === 'user' }"></video>
+            <button type="button" class="switch-camera" :disabled="switchingCamera" @click.stop="switchCamera">
+              <i class="bi bi-arrow-repeat" :class="{ spin: switchingCamera }"></i>
+              <span>{{ cameraFacingMode === 'user' ? txt('Trasera', 'Rear') : txt('Frontal', 'Front') }}</span>
             </button>
-
-            <div class="camera-guide">
-              <div class="face-guide"></div>
-            </div>
-
-            <div
-              v-if="switchingCamera"
-              class="camera-switching"
-            >
-              <span class="camera-loader"></span>
-            </div>
+            <div class="camera-guide"><div class="face-guide"></div></div>
+            <div v-if="switchingCamera" class="camera-switching"><span class="loader"></span></div>
           </div>
-
-          <canvas
-            ref="canvasRef"
-            class="hidden-canvas"
-          ></canvas>
-
+          <canvas ref="canvasRef" class="hidden-canvas"></canvas>
           <div class="camera-actions">
-            <button
-              type="button"
-              class="camera-cancel-btn"
-              @click="closeCamera"
-            >
-              {{ currentLang === 'en' ? 'Cancel' : 'Cancelar' }}
-            </button>
-
-            <button
-              type="button"
-              class="capture-btn"
-              :disabled="switchingCamera"
-              @click="capturePhoto"
-            >
-              <span class="capture-circle">
-                <span></span>
-              </span>
-
-              {{
-                currentLang === 'en'
-                  ? 'Take photo'
-                  : 'Tomar foto'
-              }}
+            <button type="button" class="btn btn-ghost" @click="closeCamera">{{ txt('Cancelar', 'Cancel') }}</button>
+            <button type="button" class="capture-btn" :disabled="switchingCamera" @click="capturePhoto">
+              <span class="capture-circle"><span></span></span>
+              {{ txt('Tomar foto', 'Take photo') }}
             </button>
           </div>
         </div>
@@ -845,53 +512,80 @@
     </transition>
   </HeadingGYM_MANAGER>
 </template>
-
 <script setup>
-import {
-  ref,
-  reactive,
-  computed,
-  nextTick,
-  onMounted,
-  onUnmounted
-} from 'vue';
-
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_MANAGER from '../HeadingGYM_MANAGER.vue';
 import AddCorteComponent from '../Componets/Cut.vue';
 import Help from '../Componets/Help.vue';
+import ReciboPago from '../Payments/ReciboPago.vue'; // ⚠ Ajusta la ruta si ReciboPago.vue está en otra carpeta
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
-
+/* =========================================================
+   IDIOMA
+========================================================= */
+const currentLang = ref(localStorage.getItem('GYM_MANAGER-idioma') || 'es');
+const t = (key) => {
+  const langTable = traducciones[currentLang.value] || traducciones.es;
+  return langTable[key] || traducciones.es[key] || key;
+};
+const txt = (es, en) => (currentLang.value === 'en' ? en : es);
+const handleLangChange = (event) => {
+  if (event.detail?.idioma) currentLang.value = event.detail.idioma;
+};
 /* =========================================================
    ESTADO GENERAL
 ========================================================= */
-
-const activeModal = ref(null);
 const toastRef = ref(null);
-
-const currentLang = ref(
-  localStorage.getItem('GYM_MANAGER-idioma') || 'es'
-);
-
-const t = (key) => {
-  const langTable =
-    traducciones[currentLang.value] || traducciones.es;
-
-  return langTable[key] || traducciones.es[key] || key;
+const fechaLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-
-const handleLangChange = (event) => {
-  if (event.detail?.idioma) {
-    currentLang.value = event.detail.idioma;
+const fechaSolo = (v) => String(v || '').slice(0, 10);
+/* Normalización visible de nombres, CURP y correo; validación al guardar. */
+const nombreTitulo = (valor) => String(valor ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es-MX'));
+const limitarMedidaRegistro = (value, decimal = false) => {
+  const partes = String(value??'').replace(',', '.').replace(/[^0-9.]/g,'').split('.');
+  const entero = partes[0].slice(0,3);
+  return decimal && partes.length>1 ? entero+'.'+(partes[1]??'').slice(0,1):entero;
+};
+const medidaRegistroValida = (value,tipo) => {
+  if(value===''||value===null||value===undefined)return true;
+  const v=String(value);return /^\d{1,3}(?:\.\d)?$/.test(v)&&Number(v)>0&&Number(v)<=(tipo==='altura'?300:999.9);
+};
+const correoNormal = (valor) => String(valor ?? '').trim().toLowerCase();
+const validarCorreo = (valor) => { const correo = correoNormal(valor); if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(correo)) return false; const partes = correo.split('@'); const dominio = partes[1]; const errores = ['gmail.con','gmial.com','gmal.com','gmai.com','gmail.co','gmail.comm','hotmail.con','hotmial.com','hotmail.co','outlook.con','outlok.com','yahoo.con','yaho.com','icloud.con']; if (errores.includes(dominio)) return false; const tld = dominio.split('.').at(-1); return tld.length >= 2 && tld.length <= 24; };
+const normalizarCampo = (clave) => { form[clave] = nombreTitulo(form[clave]); };
+const normalizarCorreo = () => { form.email = correoNormal(form.email); };
+const validarCURP = (entrada) => {
+  const curp = String(entrada || '').trim().toUpperCase();
+  if (!curp) return { valid: false, message: 'La CURP es obligatoria.' };
+  if (curp.length !== 18) return { valid: false, message: 'La CURP debe tener exactamente 18 caracteres.' };
+  const patron = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
+  if (!patron.test(curp)) return { valid: false, message: 'La estructura de la CURP no es válida.' };
+  const yy = Number(curp.slice(4, 6));
+  const mm = Number(curp.slice(6, 8));
+  const dd = Number(curp.slice(8, 10));
+  const year = (/[0-9]/.test(curp[16]) ? 1900 : 2000) + yy;
+  const fecha = new Date(Date.UTC(year, mm - 1, dd));
+  const hoy = new Date();
+  if (fecha.getUTCFullYear() !== year || fecha.getUTCMonth() !== mm - 1 || fecha.getUTCDate() !== dd || fecha.getTime() > hoy.getTime()) {
+    return { valid: false, message: 'La fecha de nacimiento dentro de la CURP es inválida.' };
   }
+  const alfabeto = '0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ';
+  let suma = 0;
+  for (let i = 0; i < 17; i++) {
+    const valor = alfabeto.indexOf(curp[i]);
+    if (valor < 0) return { valid: false, message: 'La CURP contiene caracteres no permitidos.' };
+    suma += valor * (18 - i);
+  }
+  const digito = (10 - (suma % 10)) % 10;
+  if (digito !== Number(curp[17])) return { valid: false, message: 'El dígito verificador de la CURP es incorrecto.' };
+  return { valid: true, message: '' };
 };
-
-/* =========================================================
-   FORMULARIO
-========================================================= */
-
+const curpValidation = computed(() => validarCURP(form.curp));
 const form = reactive({
   nombres: '',
+  curp: '',
   apellidoP: '',
   apellidoM: '',
   fechaNacimiento: '',
@@ -900,1661 +594,1114 @@ const form = reactive({
   peso: '',
   altura: '',
   tipoMembresia: 'mes',
-  fechaInscripcion: '',
+  fechaInscripcion: fechaLocal(),
   fechaCorte: ''
 });
-
+const activeModal = ref(null);
+const guardando = ref(false);
+const cobrarAhora = ref(true);
+const metodoPagoRegistro = ref('');
+const referenciaPagoRegistro = ref('');
+const qrPagoConfirmado = ref(false);
+const qrFolio = ref('');
+const tarifas = ref([]);
+const idPrecio = ref('');
+const diasCorteDisponibles = ref([]);
+const diaCorteElegido = ref(null);
+const permitePendiente = ref(true);
 const clientName = computed(() =>
-  [
-    form.nombres,
-    form.apellidoP,
-    form.apellidoM
-  ]
-    .filter(Boolean)
-    .join(' ')
+  [form.nombres, form.apellidoP, form.apellidoM].filter(Boolean).join(' ')
 );
-
+/* =========================================================
+   API
+========================================================= */
+const base = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
+const gymApi = `${base}/api/gym`;
+const clientesApi = `${gymApi}/clientes`;
+const sedeActual = () => Number(sessionStorage.getItem('selected_sede_id') || 0);
+const authHeaders = () => ({
+  Accept: 'application/json',
+  Authorization: `Bearer ${sessionStorage.getItem('auth_token') || ''}`
+});
+// Petición JSON genérica sobre /api/gym
+const apiRequest = async (path, options = {}) => {
+  let response;
+  try {
+    response = await fetch(`${gymApi}${path}`, {
+      ...options,
+      headers: { ...authHeaders(), ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) }
+    });
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Comprueba la conexión.');
+  }
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const details = body?.errors ? Object.values(body.errors).flat().join(' ') : '';
+    const message = details || body?.message;
+    throw new Error(message && message !== 'Server Error' ? message : `Error HTTP ${response.status}. Intenta de nuevo o contacta a soporte.`);
+  }
+  return body;
+};
+/* =========================================================
+   CELULAR (10 dígitos, formato 000 000 0000, sin +52)
+========================================================= */
+const soloDigitosCelular = (valor) => String(valor ?? '').replace(/\D/g, '');
+const formatearCelular = (valor) => {
+  const n = soloDigitosCelular(valor).slice(0, 10);
+  if (n.length <= 3) return n;
+  if (n.length <= 6) return `${n.slice(0, 3)} ${n.slice(3)}`;
+  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+};
+const errorPrefijoCelular = () =>
+  toastRef.value?.notify('No incluyas +52. Ingresa solamente los 10 dígitos de tu celular.', 'warning');
+const actualizarCelular = (event) => {
+  const texto = String(event.target.value ?? '');
+  const numeros = soloDigitosCelular(texto);
+  if (texto.includes('+') || numeros.length > 10) {
+    errorPrefijoCelular();
+    event.target.value = form.celular;
+    return;
+  }
+  form.celular = formatearCelular(texto);
+  event.target.value = form.celular;
+};
+const pegarCelular = (event) => {
+  const texto = event.clipboardData?.getData('text') || '';
+  if (texto.includes('+') || soloDigitosCelular(texto).length > 10) {
+    event.preventDefault();
+    errorPrefijoCelular();
+  }
+};
+const bloquearPrefijoCelular = (event) => {
+  if (event.key === '+') { event.preventDefault(); errorPrefijoCelular(); }
+};
+const celularParaGuardar = () => soloDigitosCelular(form.celular);
+const celularValido = () => /^\d{10}$/.test(celularParaGuardar());
+/* =========================================================
+   PERIODOS / MÉTODOS DE PAGO
+========================================================= */
+const periodos = computed(() => [
+  { key: 'mes', label: t('month'), icon: 'bi-calendar-month' },
+  { key: 'semana', label: t('week'), icon: 'bi-calendar-week' },
+  { key: 'quincena', label: txt('Quincena', 'Fortnight'), icon: 'bi-calendar2-range' },
+  { key: 'visita', label: txt('Visita', 'Day visit'), icon: 'bi-door-open' }
+]);
+const periodoIndex = computed(() => Math.max(0, periodos.value.findIndex((p) => p.key === form.tipoMembresia)));
+const periodoLabel = computed(() => periodos.value[periodoIndex.value]?.label || '');
+const metodos = computed(() => [
+  { value: 'Efectivo', label: txt('Efectivo', 'Cash'), hint: txt('Folio automático', 'Automatic reference'), icon: 'bi-cash-coin' },
+  { value: 'Transferencia', label: txt('Transferencia', 'Bank transfer'), hint: txt('Requiere folio', 'Reference required'), icon: 'bi-bank' },
+  { value: 'Tarjeta', label: txt('Tarjeta', 'Card'), hint: txt('QR de Stripe', 'Stripe QR'), icon: 'bi-credit-card-2-front' }
+]);
+const esEfectivo = computed(() => metodoPagoRegistro.value === 'Efectivo');
+const folioAutomatico = computed(() => metodoPagoRegistro.value === 'Efectivo' || metodoPagoRegistro.value === 'Tarjeta');
+const usaStripe = computed(() => cobrarAhora.value && metodoPagoRegistro.value === 'Tarjeta');
+const folioPlaceholder = computed(() => {
+  if (metodoPagoRegistro.value === 'Efectivo') return txt('Se asigna al confirmar el pago', 'Assigned when you confirm');
+  if (metodoPagoRegistro.value === 'Tarjeta') return txt('Lo asigna Stripe al cobrar', 'Assigned by Stripe on charge');
+  if (metodoPagoRegistro.value === 'Transferencia') return txt('Folio o referencia del comprobante', 'Reference from the transfer receipt');
+  return txt('Elige primero un método de pago', 'Choose a payment method first');
+});
+const folioAyuda = computed(() => ({
+  Efectivo: txt('El folio real se genera al confirmar el pago y aparecerá en el recibo.', 'The real reference is generated when you confirm the payment and will appear on the receipt.'),
+  Tarjeta: txt('El folio se asigna cuando Stripe confirma el cobro y aparecerá en el recibo.', 'The reference is assigned once Stripe confirms the charge and will appear on the receipt.'),
+  Transferencia: txt('Captura el folio o número de referencia que aparece en el comprobante de la transferencia.', 'Enter the reference number shown on the transfer receipt.')
+})[metodoPagoRegistro.value] || '');
+const textoGuardar = computed(() => {
+  if (guardando.value || stripeLoading.value) return txt('Guardando...', 'Saving...');
+  if (usaStripe.value) return txt('Registrar y generar QR', 'Register and generate QR');
+  return cobrarAhora.value ? txt('Registrar y cobrar', 'Register and charge') : txt('Registrar pendiente', 'Register as pending');
+});
+watch(metodoPagoRegistro, (metodo) => {
+  if (metodo === 'Efectivo' || referenciaPagoRegistro.value.startsWith('OP-')) referenciaPagoRegistro.value = '';
+  if (metodo === 'Tarjeta') consultarStripeCuenta();
+});
+watch(cobrarAhora, (activo) => {
+  if (!activo) {
+    metodoPagoRegistro.value = '';
+    referenciaPagoRegistro.value = '';
+  }
+});
+/* =========================================================
+   TARIFAS Y VENCIMIENTO
+========================================================= */
+const tarifasFiltradas = computed(() => {
+  const periodosMap = { mes: 'mensual', semana: 'semanal', quincena: 'quincenal', visita: 'diario' };
+  return tarifas.value.filter((p) => String(p.Periodo || '').trim().toLowerCase() === periodosMap[form.tipoMembresia]);
+});
+const cargarTarifas = async () => {
+  idPrecio.value = '';
+  tarifas.value = [];
+  const sede = sedeActual();
+  if (!sede) return;
+  try {
+    const res = await fetch(`${clientesApi}/tarifas?sede_id=${sede}`, { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `Error HTTP ${res.status} al consultar tarifas`);
+    tarifas.value = Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []);
+    if (tarifasFiltradas.value.length === 1) idPrecio.value = String(tarifasFiltradas.value[0].ID_Precio);
+  } catch (e) {
+    toastRef.value?.notify(e.message, 'error');
+  }
+};
+let versionCalculo = 0;
+const calcularVencimiento = async () => {
+  const version = ++versionCalculo;
+  form.fechaCorte = '';
+  diasCorteDisponibles.value = [];
+  permitePendiente.value = true;
+  if (!idPrecio.value || !sedeActual() || !form.fechaInscripcion) return;
+  try {
+    const q = new URLSearchParams({
+      sede_id: String(sedeActual()),
+      id_precio: String(idPrecio.value),
+      fechaInscripcion: form.fechaInscripcion
+    });
+    if (diaCorteElegido.value) q.set('dia_corte_elegido', String(diaCorteElegido.value));
+    const res = await fetch(`${clientesApi}/vencimiento?${q}`, { headers: authHeaders() });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.message || `HTTP ${res.status}`);
+    if (version !== versionCalculo) return;
+    form.fechaCorte = d.fecha_vencimiento || '';
+    diasCorteDisponibles.value = Array.isArray(d.dias_corte) ? d.dias_corte.map(Number) : [];
+    if (diasCorteDisponibles.value.length && !diasCorteDisponibles.value.includes(Number(diaCorteElegido.value))) {
+      diaCorteElegido.value = Number(d.dia_corte_elegido || diasCorteDisponibles.value[0]);
+    }
+    permitePendiente.value = d.permite_pendiente !== false;
+    if (!permitePendiente.value) cobrarAhora.value = true;
+  } catch (e) {
+    if (version === versionCalculo) toastRef.value?.notify(e.message, 'error');
+  }
+};
+watch([idPrecio, () => form.fechaInscripcion, diaCorteElegido], calcularVencimiento);
+watch(() => form.tipoMembresia, () => { diaCorteElegido.value = null; });
+watch(() => form.fechaInscripcion, () => { diaCorteElegido.value = null; });
+watch(() => form.tipoMembresia, () => {
+  openSelect.value = '';
+  if (!tarifasFiltradas.value.some((p) => String(p.ID_Precio) === idPrecio.value)) idPrecio.value = '';
+});
+/* =========================================================
+   SELECTS PERSONALIZADOS
+========================================================= */
+const openSelect = ref('');
+const toggleSelect = (name) => { openSelect.value = openSelect.value === name ? '' : name; };
+const tarifaSeleccionada = computed(
+  () => tarifasFiltradas.value.find((p) => String(p.ID_Precio) === String(idPrecio.value)) || null
+);
+const elegirTarifa = (p) => {
+  idPrecio.value = String(p.ID_Precio);
+  openSelect.value = '';
+};
+const elegirDiaCorte = (d) => {
+  diaCorteElegido.value = d;
+  openSelect.value = '';
+};
+const formatoPrecio = (value) =>
+  new Intl.NumberFormat(currentLang.value === 'en' ? 'en-US' : 'es-MX', {
+    style: 'currency', currency: 'MXN', maximumFractionDigits: 2
+  }).format(Number(value || 0));
+const formatoMoneda = (n) =>
+  new Intl.NumberFormat(currentLang.value === 'en' ? 'en-US' : 'es-MX', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  }).format(Number(n) || 0);
+const cerrarSelectsAlClickFuera = (event) => {
+  if (!event.target?.closest?.('.ff-select')) openSelect.value = '';
+};
+/* =========================================================
+   QR DE ACCESO
+========================================================= */
+const qrModal = ref(null);
+const qrUrl = ref('');
+const qrError = ref('');
+const qrCargando = ref(false);
+let qrVersion = 0;
+const cerrarQR = () => {
+  qrPagoConfirmado.value = false;
+  qrFolio.value = '';
+  qrVersion++;
+  qrModal.value = null;
+  qrUrl.value = '';
+  qrError.value = '';
+  qrCargando.value = false;
+};
+const mostrarQR = async (registro) => {
+  const version = ++qrVersion;
+  qrModal.value = registro;
+  qrUrl.value = '';
+  qrError.value = '';
+  qrCargando.value = true;
+  try {
+    const res = await fetch(`${clientesApi}/${registro.ID_Inscripto}/qr`, { headers: authHeaders() });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `Error ${res.status}`);
+    if (version === qrVersion) {
+      if (!data.qr_url) throw new Error('El servidor no devolvió la imagen QR.');
+      qrUrl.value = data.qr_url;
+    }
+  } catch (e) {
+    if (version === qrVersion) qrError.value = e.message || 'No se pudo consultar el QR.';
+  } finally {
+    if (version === qrVersion) qrCargando.value = false;
+  }
+};
+const descargarQR = async () => {
+  if (!qrModal.value) return;
+  try {
+    const res = await fetch(`${clientesApi}/${qrModal.value.ID_Inscripto}/qr/descargar`, { headers: authHeaders() });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.message || `Error ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `factorfit-qr-${qrModal.value.ID_Inscripto}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) {
+    toastRef.value?.notify(e.message || 'No se pudo descargar el QR.', 'error');
+  }
+};
+/* =========================================================
+   STRIPE (mismo flujo que la pantalla de Pagos)
+========================================================= */
+const stripeCuenta = ref(null);
+const stripeQR = ref(null);
+const stripeEstado = ref('');
+const stripeLoading = ref(false);
+let stripeTimer = null;
+const nuevaOperacionId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ff${Date.now()}_${Math.random().toString(36).slice(2)}`;
+const consultarStripeCuenta = async (silent = true) => {
+  try {
+    stripeCuenta.value = await apiRequest('/stripe/cuenta');
+    return stripeCuenta.value;
+  } catch (e) {
+    stripeCuenta.value = null;
+    if (!silent) toastRef.value?.notify(e.message, 'error');
+    return null;
+  }
+};
+const conectarStripe = async () => {
+  if (stripeLoading.value) return;
+  // Abrir antes del await evita que el navegador bloquee la pestaña emergente.
+  const tab = window.open('about:blank', '_blank');
+  stripeLoading.value = true;
+  try {
+    const data = await apiRequest('/stripe/conectar', { method: 'POST' });
+    if (!data?.url || !/^https:\/\//i.test(data.url)) throw new Error('Stripe no devolvió un enlace seguro de conexión.');
+    if (tab) { tab.opener = null; tab.location.replace(data.url); } else window.location.assign(data.url);
+    toastRef.value?.notify(txt('Completa la conexión en Stripe y luego actualiza el estado.', 'Finish setup in Stripe and refresh account status.'), 'success');
+  } catch (e) {
+    if (tab && !tab.closed) tab.close();
+    toastRef.value?.notify(e.message, 'error');
+  } finally {
+    stripeLoading.value = false;
+  }
+};
+const detenerStripe = () => {
+  if (stripeTimer) { clearInterval(stripeTimer); stripeTimer = null; }
+};
+// Crea el cobro Stripe para la inscripción recién registrada (queda pendiente hasta que Stripe confirme).
+const crearStripeQR = async (registro, tarifa, nombre) => {
+  stripeLoading.value = true;
+  try {
+    const monto = Number(tarifa?.Precio);
+    const data = await apiRequest(`/clientes/${registro.ID_Inscripto}/stripe/checkout`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sede_id: sedeActual(),
+        monto,
+        id_precio: null,
+        participantes: [registro.ID_Inscripto],
+        personas: 1,
+        operacion_id: nuevaOperacionId()
+      })
+    });
+    if (!data?.session_id || !data?.qr_data_url || !data?.checkout_url) {
+      throw new Error('Stripe no devolvió todos los datos del cobro.');
+    }
+    ultimoPago.value = null;
+    stripeQR.value = {
+      ...data,
+      monto,
+      inscripcionId: registro.ID_Inscripto,
+      sedeId: sedeActual(),
+      cliente: nombre,
+      plan: tarifa?.Nombre_Paquete || '',
+      registro
+    };
+    stripeEstado.value = 'Pendiente';
+    detenerStripe();
+    stripeTimer = setInterval(() => { void consultarEstadoStripe(true); }, 5000);
+    toastRef.value?.notify(txt('QR generado. Esperando la confirmación de Stripe.', 'QR generated. Waiting for Stripe confirmation.'), 'success');
+    return true;
+  } catch (e) {
+    toastRef.value?.notify(e.message, 'error');
+    return false;
+  } finally {
+    stripeLoading.value = false;
+  }
+};
+let consultandoEstado = false;
+const consultarEstadoStripe = async (silent = false) => {
+  if (!stripeQR.value || consultandoEstado) return;
+  consultandoEstado = true;
+  try {
+    const qr = stripeQR.value;
+    const data = await apiRequest(`/stripe/checkout/${encodeURIComponent(qr.session_id)}/estado`);
+    if (stripeQR.value?.session_id !== qr.session_id) return;
+    stripeEstado.value = data.estado || 'Pendiente';
+    if (data.estado === 'Pagado') {
+      // El registro real debe existir antes de emitir un recibo.
+      const pagoData = await apiRequest(`/clientes/${qr.inscripcionId}/pagos?sede_id=${encodeURIComponent(qr.sedeId)}`);
+      const pago = (Array.isArray(pagoData.pagos) ? pagoData.pagos : []).find((p) => String(p.ID_Pago) === String(data.ID_Pago));
+      const folio = pago?.Folio_Referencia || pago?.folio || data.folio || data.Folio_Referencia;
+      if (!folio) { stripeEstado.value = 'Pagado · esperando folio'; return; }
+      detenerStripe();
+      ultimoPago.value = {
+        folio,
+        fecha: fechaSolo(pago?.Fecha_Pagada || data.fecha || new Date().toISOString()),
+        cliente: qr.cliente,
+        metodo: 'Stripe',
+        monto: Number(pago?.Monto ?? qr.monto),
+        concepto: 'monthly',
+        plan: qr.plan,
+        participantes: [qr.cliente],
+        gimnasio: pagoData.gimnasio
+      };
+      const registro = qr.registro;
+      stripeQR.value = null;
+      stripeEstado.value = '';
+      qrPagoConfirmado.value = true;
+      qrFolio.value = folio;
+      toastRef.value?.notify(txt('Pago confirmado. Folio y recibo disponibles.', 'Payment confirmed. Receipt ready.'), 'success');
+      window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', { detail: { sede_id: sedeActual() } }));
+      await mostrarQR(registro);
+    } else if (['Fallido', 'Cancelado', 'Expirado'].includes(data.estado)) {
+      detenerStripe();
+      toastRef.value?.notify(txt('El pago no se completó.', 'Payment was not completed.'), 'error');
+    }
+  } catch (e) {
+    if (!silent) toastRef.value?.notify(e.message, 'error');
+  } finally {
+    consultandoEstado = false;
+  }
+};
+// Cierra el QR de cobro sin cancelar el pago: la inscripción queda pendiente.
+const ocultarStripe = async () => {
+  const registro = stripeQR.value?.registro;
+  detenerStripe();
+  stripeQR.value = null;
+  stripeEstado.value = '';
+  toastRef.value?.notify(txt('Inscripción pendiente de pago. Puedes confirmarla desde Pagos.', 'Enrollment pending payment. You can confirm it from Payments.'), 'info');
+  if (registro?.ID_Inscripto) await mostrarQR(registro);
+};
+/* =========================================================
+   RECIBO
+========================================================= */
+const ultimoPago = ref(null);
+const reciboVisible = ref(false);
+const reciboLocale = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
+const downloadReceipt = () => {
+  if (!ultimoPago.value) {
+    toastRef.value?.notify(txt('Primero registra y confirma un pago para generar el recibo.', 'Register and confirm a payment first to generate the receipt.'), 'warning');
+    return;
+  }
+  reciboVisible.value = true;
+};
+const verReciboDesdeQR = () => {
+  cerrarQR();
+  reciboVisible.value = true;
+};
+const handleReciboNotify = (payload) => {
+  if (payload) toastRef.value?.notify(payload.message, payload.type);
+};
 /* =========================================================
    FOTO / GALERÍA
 ========================================================= */
-
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const isValidImage = (file) => !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
+const notifyInvalidImage = () => {
+  toastRef.value?.notify(txt('Selecciona una imagen de máximo 4 MB.', 'Select an image of up to 4 MB.'), 'warning');
+};
 const fileInput = ref(null);
 const avatarPreview = ref(null);
 const avatarFile = ref(null);
-
 const showPhotoOptions = ref(false);
-
-const openPhotoOptions = () => {
-  showPhotoOptions.value = true;
-};
-
-const closePhotoOptions = () => {
-  showPhotoOptions.value = false;
-};
-
+const openPhotoOptions = () => { showPhotoOptions.value = true; };
+const closePhotoOptions = () => { showPhotoOptions.value = false; };
 const selectPhoto = () => {
   showPhotoOptions.value = false;
-
   if (!fileInput.value) return;
-
   fileInput.value.value = '';
   fileInput.value.click();
 };
-
 const setAvatarFile = (file) => {
   if (!file) return;
-
-  if (
-    avatarPreview.value &&
-    avatarPreview.value.startsWith('blob:')
-  ) {
-    URL.revokeObjectURL(avatarPreview.value);
-  }
-
+  if (avatarPreview.value && avatarPreview.value.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
   avatarFile.value = file;
   avatarPreview.value = URL.createObjectURL(file);
 };
-
 const handleFileChange = (event) => {
   const file = event.target.files?.[0];
-
   if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'Select a valid image.'
-        : 'Selecciona una imagen válida.',
-      'warning'
-    );
-
+  if (!isValidImage(file)) {
+    notifyInvalidImage();
     event.target.value = '';
     return;
   }
-
   setAvatarFile(file);
-
-  toastRef.value?.notify(
-    currentLang.value === 'en'
-      ? 'Photo added successfully.'
-      : 'Foto agregada correctamente.',
-    'success'
-  );
-
+  toastRef.value?.notify(txt('Foto agregada correctamente.', 'Photo added successfully.'), 'success');
   event.target.value = '';
 };
-
 /* =========================================================
    CÁMARA
 ========================================================= */
-
 const showCamera = ref(false);
 const videoRef = ref(null);
 const canvasRef = ref(null);
-
 const cameraStream = ref(null);
-
-/*
-  user        = frontal
-  environment = trasera
-*/
-const cameraFacingMode = ref('user');
-
+const cameraFacingMode = ref('user'); // user = frontal, environment = trasera
 const switchingCamera = ref(false);
-
-/*
-  Detiene todos los tracks activos.
-*/
 const stopCamera = () => {
   if (cameraStream.value) {
-    cameraStream.value
-      .getTracks()
-      .forEach((track) => {
-        track.stop();
-      });
-
+    cameraStream.value.getTracks().forEach((track) => track.stop());
     cameraStream.value = null;
   }
-
-  if (videoRef.value) {
-    videoRef.value.srcObject = null;
-  }
+  if (videoRef.value) videoRef.value.srcObject = null;
 };
-
-/*
-  Inicia la cámara correspondiente.
-*/
 const startCamera = async () => {
   stopCamera();
-
-  const constraints = {
+  const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
-    video: {
-      facingMode: {
-        ideal: cameraFacingMode.value
-      },
-      width: {
-        ideal: 1280
-      },
-      height: {
-        ideal: 720
-      }
-    }
-  };
-
-  const stream =
-    await navigator.mediaDevices.getUserMedia(
-      constraints
-    );
-
+    video: { facingMode: { ideal: cameraFacingMode.value }, width: { ideal: 1280 }, height: { ideal: 720 } }
+  });
   cameraStream.value = stream;
-
   await nextTick();
-
-  if (!videoRef.value) {
-    throw new Error(
-      'No se encontró el elemento de video.'
-    );
-  }
-
+  if (!videoRef.value) throw new Error('No se encontró el elemento de video.');
   videoRef.value.srcObject = stream;
-
   await videoRef.value.play();
 };
-
-/*
-  Abre el modal y solicita permiso de cámara.
-*/
 const takePhoto = async () => {
   showPhotoOptions.value = false;
-
-  if (
-    !navigator.mediaDevices ||
-    !navigator.mediaDevices.getUserMedia
-  ) {
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'Camera is not supported by this browser.'
-        : 'Este navegador no permite utilizar la cámara.',
-      'warning'
-    );
-
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    toastRef.value?.notify(txt('Este navegador no permite utilizar la cámara.', 'Camera is not supported by this browser.'), 'warning');
     return;
   }
-
   cameraFacingMode.value = 'user';
   showCamera.value = true;
-
   await nextTick();
-
   try {
     await startCamera();
   } catch (error) {
-    console.error(
-      'No se pudo abrir la cámara:',
-      error
-    );
-
+    console.error('No se pudo abrir la cámara:', error);
     stopCamera();
     showCamera.value = false;
-
-    let message =
-      currentLang.value === 'en'
-        ? 'Could not access the camera.'
-        : 'No se pudo acceder a la cámara.';
-
-    if (error?.name === 'NotAllowedError') {
-      message =
-        currentLang.value === 'en'
-          ? 'Camera permission was denied. Enable camera permission in your browser.'
-          : 'El permiso de cámara fue rechazado. Activa el permiso de cámara en tu navegador.';
-    }
-
-    if (error?.name === 'NotFoundError') {
-      message =
-        currentLang.value === 'en'
-          ? 'No camera was found on this device.'
-          : 'No se encontró una cámara en este dispositivo.';
-    }
-
-    if (error?.name === 'NotReadableError') {
-      message =
-        currentLang.value === 'en'
-          ? 'The camera is being used by another application.'
-          : 'La cámara está siendo utilizada por otra aplicación.';
-    }
-
-    toastRef.value?.notify(
-      message,
-      'warning'
-    );
+    let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
+    if (error?.name === 'NotAllowedError') message = txt('El permiso de cámara fue rechazado. Activa el permiso de cámara en tu navegador.', 'Camera permission was denied. Enable camera permission in your browser.');
+    if (error?.name === 'NotFoundError') message = txt('No se encontró una cámara en este dispositivo.', 'No camera was found on this device.');
+    if (error?.name === 'NotReadableError') message = txt('La cámara está siendo utilizada por otra aplicación.', 'The camera is being used by another application.');
+    toastRef.value?.notify(message, 'warning');
   }
 };
-
-/*
-  Cambia entre frontal y trasera.
-*/
 const switchCamera = async () => {
   if (switchingCamera.value) return;
-
   switchingCamera.value = true;
-
-  const previousMode =
-    cameraFacingMode.value;
-
-  const nextMode =
-    previousMode === 'user'
-      ? 'environment'
-      : 'user';
-
-  cameraFacingMode.value = nextMode;
-
+  const previousMode = cameraFacingMode.value;
+  cameraFacingMode.value = previousMode === 'user' ? 'environment' : 'user';
   try {
     await startCamera();
   } catch (error) {
-    console.error(
-      'No se pudo cambiar de cámara:',
-      error
-    );
-
-    /*
-      Regresamos a la cámara anterior.
-    */
-    cameraFacingMode.value =
-      previousMode;
-
+    console.error('No se pudo cambiar de cámara:', error);
+    cameraFacingMode.value = previousMode;
     try {
       await startCamera();
     } catch (restoreError) {
-      console.error(
-        'No se pudo restaurar la cámara:',
-        restoreError
-      );
-
+      console.error('No se pudo restaurar la cámara:', restoreError);
       closeCamera();
     }
-
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'The selected camera is not available.'
-        : 'La cámara seleccionada no está disponible.',
-      'warning'
-    );
+    toastRef.value?.notify(txt('La cámara seleccionada no está disponible.', 'The selected camera is not available.'), 'warning');
   } finally {
     switchingCamera.value = false;
   }
 };
-
-/*
-  Cierra modal y apaga cámara.
-*/
 const closeCamera = () => {
   stopCamera();
   showCamera.value = false;
   switchingCamera.value = false;
 };
-
-/*
-  Captura el frame actual.
-*/
 const capturePhoto = () => {
   if (switchingCamera.value) return;
-
   const video = videoRef.value;
   const canvas = canvasRef.value;
-
   if (!video || !canvas) return;
-
-  if (
-    !video.videoWidth ||
-    !video.videoHeight
-  ) {
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'The camera is not ready yet.'
-        : 'La cámara todavía no está lista.',
-      'warning'
-    );
-
+  if (!video.videoWidth || !video.videoHeight) {
+    toastRef.value?.notify(txt('La cámara todavía no está lista.', 'The camera is not ready yet.'), 'warning');
     return;
   }
-
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
-
-  const context =
-    canvas.getContext('2d');
-
+  const context = canvas.getContext('2d');
   if (!context) {
-    toastRef.value?.notify(
-      currentLang.value === 'en'
-        ? 'Could not process the photo.'
-        : 'No se pudo procesar la fotografía.',
-      'error'
-    );
-
+    toastRef.value?.notify(txt('No se pudo procesar la fotografía.', 'Could not process the photo.'), 'error');
     return;
   }
-
-  context.clearRect(
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  /*
-    Frontal:
-    guardamos la imagen como se ve
-    en la vista previa (espejo).
-  */
+  context.clearRect(0, 0, canvas.width, canvas.height);
   if (cameraFacingMode.value === 'user') {
+    // Frontal: se guarda como se ve en la vista previa (espejo).
     context.save();
-
-    context.translate(
-      canvas.width,
-      0
-    );
-
+    context.translate(canvas.width, 0);
     context.scale(-1, 1);
-
-    context.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
     context.restore();
   } else {
-    /*
-      Trasera:
-      orientación normal.
-    */
-    context.drawImage(
-      video,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
-
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) {
-        toastRef.value?.notify(
-          currentLang.value === 'en'
-            ? 'Could not capture the photo.'
-            : 'No se pudo capturar la fotografía.',
-          'error'
-        );
-
-        return;
-      }
-
-      const file = new File(
-        [blob],
-        `cliente-${Date.now()}.jpg`,
-        {
-          type: 'image/jpeg'
-        }
-      );
-
-      setAvatarFile(file);
-
-      closeCamera();
-
-      toastRef.value?.notify(
-        currentLang.value === 'en'
-          ? 'Photo captured successfully.'
-          : 'Foto tomada correctamente.',
-        'success'
-      );
-    },
-    'image/jpeg',
-    0.92
-  );
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      toastRef.value?.notify(txt('No se pudo capturar la fotografía.', 'Could not capture the photo.'), 'error');
+      return;
+    }
+    const file = new File([blob], `cliente-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    if (!isValidImage(file)) { notifyInvalidImage(); return; }
+    setAvatarFile(file);
+    closeCamera();
+    toastRef.value?.notify(txt('Foto tomada correctamente.', 'Photo captured successfully.'), 'success');
+  }, 'image/jpeg', 0.92);
 };
-
+// Convierte respuestas de validación del servidor en mensajes claros para el cliente.
+const mensajeErrorRegistro = (resultado, status) => {
+  const errores = resultado?.errors && typeof resultado.errors === 'object' ? resultado.errors : {};
+  const mensajes = Object.values(errores).flat().filter(x => typeof x === 'string');
+  if (mensajes.length) return [...new Set(mensajes)].join(' ');
+  const servidor = String(resultado?.message || '').trim();
+  const ingles = /already been taken|validation failed|server error|SQLSTATE|exception/i;
+  if (ingles.test(servidor)) return 'No se pudo registrar: revisa el correo y la CURP, o intenta de nuevo.';
+  if (servidor) return servidor;
+  if (status === 422) return 'Revisa los datos del formulario. Puede haber información ya registrada.';
+  if (status >= 500) return 'Ocurrió un problema en el servidor. Inténtalo de nuevo más tarde.';
+  return 'No se pudo completar el registro. Verifica los datos e inténtalo nuevamente.';
+};
 /* =========================================================
    REGISTRO
 ========================================================= */
-
-const saveRegistration = () => {
-  if (
-    !form.nombres ||
-    !form.apellidoP ||
-    !form.apellidoM ||
-    !form.fechaNacimiento
-  ) {
-    toastRef.value?.notify(
-      t('msgWarning'),
-      'warning'
-    );
-
+const saveRegistration = async () => {
+  if (guardando.value) return;
+  const avisar = (mensaje, tipo = 'warning') => toastRef.value?.notify(mensaje, tipo);
+  if (!form.nombres.trim() || !form.apellidoP.trim() || !idPrecio.value) {
+    avisar('Nombre, apellido paterno y tarifa son obligatorios.');
     return;
   }
-
+  if (!curpValidation.value.valid) { avisar(curpValidation.value.message); return; }
+  if(!medidaRegistroValida(form.peso,'peso')||!medidaRegistroValida(form.altura,'altura')){avisar('Peso: máximo 999.9 kg y altura: máximo 300 cm, con 3 dígitos enteros.');return;}
+  if (!validarCorreo(form.email)) { avisar(txt('Ingresa un correo válido y verifica su dominio, como gmail.com, hotmail.com u outlook.com.', 'Enter a valid email and check its domain.')); return; }
+  if (form.celular && !celularValido()) { avisar('El celular debe tener exactamente 10 dígitos, sin +52.'); return; }
+  if (!sedeActual()) { avisar('Selecciona una sucursal.'); return; }
+  if (!permitePendiente.value && !cobrarAhora.value) { avisar('El corte de este mes pasó. Cobra ahora.'); return; }
+  if (!tarifaSeleccionada.value) { avisar('La tarifa no coincide con la membresía.'); return; }
+  if (!form.fechaInscripcion || !form.fechaCorte) { avisar('Espera a que se calcule la fecha de vencimiento.'); return; }
+  if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
+  if (cobrarAhora.value) {
+    if (!metodoPagoRegistro.value) { avisar('Selecciona el método de pago.'); return; }
+    if (!(Number(tarifaSeleccionada.value.Precio) > 0)) { avisar('La tarifa debe tener un precio válido.'); return; }
+    if (metodoPagoRegistro.value === 'Transferencia' && !referenciaPagoRegistro.value.trim()) {
+      avisar('Ingresa la referencia del pago.');
+      return;
+    }
+    if (usaStripe.value) {
+      const cuenta = stripeCuenta.value || (await consultarStripeCuenta());
+      if (!cuenta?.charges_enabled) {
+        avisar(txt('Conecta y habilita la cuenta Stripe del gimnasio antes de cobrar con tarjeta.', 'Connect and enable the gym Stripe account before charging by card.'));
+        return;
+      }
+    }
+  }
+  guardando.value = true;
   try {
-    const data = {
-      nombres: form.nombres.trim(),
-      apellidoP: form.apellidoP.trim(),
-      apellidoM: form.apellidoM.trim(),
+    // Se capturan antes de limpiar el formulario.
+    const nombreCliente = clientName.value;
+    const tarifa = tarifaSeleccionada.value;
+    const metodo = metodoPagoRegistro.value;
+    const viaStripe = usaStripe.value;
+    // Con tarjeta, la inscripción se registra pendiente y el cobro lo confirma Stripe.
+    const cobrar = cobrarAhora.value && !viaStripe;
+    const data = new FormData();
+    const values = {
+      sede_id: sedeActual(),
+      id_precio: idPrecio.value,
+      nombres: nombreTitulo(form.nombres.trim()),
+      curp: form.curp.trim().toUpperCase(),
+      apellidoP: nombreTitulo(form.apellidoP.trim()),
+      apellidoM: nombreTitulo(form.apellidoM.trim()),
       fechaNacimiento: form.fechaNacimiento,
-      celular: form.celular.trim(),
-      email: form.email.trim(),
-      peso: form.peso
-        ? Number(form.peso)
-        : null,
-      altura: form.altura
-        ? Number(form.altura)
-        : null,
-      tipoMembresia: form.tipoMembresia,
-      fechaInscripcion: form.fechaInscripcion,
-      fechaCorte: form.fechaCorte,
-
-      /*
-        Tanto la foto subida como la tomada
-        terminan aquí como File.
-      */
-      foto: avatarFile.value
+      celular: celularParaGuardar(),
+      email: correoNormal(form.email),
+      peso: form.peso,
+      altura: form.altura,
+      fechaInscripcion: form.fechaInscripcion
     };
-
-    console.log(
-      'Datos a guardar:',
-      data
-    );
-
-    toastRef.value?.notify(
-      t('msgSuccess'),
-      'success'
-    );
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== '' && value !== null && value !== undefined) data.append(key, String(value));
+    });
+    if (avatarFile.value) data.append('foto', avatarFile.value);
+    if (diaCorteElegido.value) data.append('dia_corte_elegido', String(diaCorteElegido.value));
+    data.append('cobrar_ahora', cobrar ? '1' : '0');
+    if (cobrar) {
+      data.append('metodo_pago', metodo);
+      // Se envía siempre el folio: vacío (efectivo, lo genera el servidor) o la referencia capturada.
+      data.append('referencia_pago', referenciaPagoRegistro.value.trim());
+    }
+    const res = await fetch(clientesApi, { method: 'POST', headers: authHeaders(), body: data });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(mensajeErrorRegistro(result, res.status));
+    }
+    // Nunca inferir pago exitoso de HTTP 200/201: el servidor debe confirmarlo.
+    const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;
+    qrPagoConfirmado.value = cobrar && pagoConfirmado;
+    qrFolio.value = result.folio || '';
+    if (cobrar && !pagoConfirmado) {
+      avisar('Registro recibido, pero el pago y la activación NO están confirmados. Revisa el cliente en cobros antes de intentar otra vez.', 'warning');
+    } else if (viaStripe) {
+      avisar(txt('Cliente registrado. Escanea el QR para cobrar con tarjeta.', 'Client registered. Scan the QR to charge by card.'), 'success');
+    } else {
+      avisar(result.message || (pagoConfirmado ? 'Cliente registrado y pago confirmado.' : 'Cliente registrado pendiente de pago.'), 'success');
+    }
+    // Recibo del pago (efectivo / transferencia)
+    if (cobrar && pagoConfirmado) {
+      ultimoPago.value = {
+        folio: result.folio || result.Folio_Referencia || '',
+        fecha: fechaSolo(result.fecha || new Date().toISOString()),
+        cliente: nombreCliente,
+        metodo,
+        monto: Number(result.monto ?? tarifa.Precio),
+        concepto: 'monthly',
+        plan: result.plan || tarifa.Nombre_Paquete,
+        participantes: [nombreCliente],
+        gimnasio: result.gimnasio
+      };
+    }
+    // Limpiar formulario
+    Object.assign(form, {
+      nombres: '', curp: '', apellidoP: '', apellidoM: '', fechaNacimiento: '', celular: '', email: '',
+      peso: '', altura: '', tipoMembresia: 'mes', fechaInscripcion: fechaLocal(), fechaCorte: ''
+    });
+    if (avatarPreview.value?.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
+    avatarPreview.value = null;
+    avatarFile.value = null;
+    idPrecio.value = '';
+    metodoPagoRegistro.value = '';
+    referenciaPagoRegistro.value = '';
+    cobrarAhora.value = true;
+    openSelect.value = '';
+    window.dispatchEvent(new CustomEvent('factorfit:clientes-changed', { detail: { sede_id: sedeActual() } }));
+    if (result.ID_Inscripto) {
+      if (viaStripe) {
+        const ok = await crearStripeQR(result, tarifa, nombreCliente);
+        if (!ok) await mostrarQR(result); // Quedó pendiente: muestra el QR de acceso.
+      } else {
+        await mostrarQR(result);
+      }
+    }
   } catch (error) {
-    console.error(
-      'Error al registrar cliente:',
-      error
-    );
-
-    toastRef.value?.notify(
-      t('msgError'),
-      'error'
-    );
+    avisar(error.message || 'No se pudo registrar el cliente.', 'error');
+  } finally {
+    guardando.value = false;
   }
 };
-
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
-
 onMounted(() => {
-  window.addEventListener(
-    'idioma-changed',
-    handleLangChange
-  );
+  if (!form.fechaInscripcion) form.fechaInscripcion = fechaLocal();
+  window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('factorfit:branch-changed', cargarTarifas);
+  document.addEventListener('click', cerrarSelectsAlClickFuera);
+  cargarTarifas();
 });
-
 onUnmounted(() => {
-  window.removeEventListener(
-    'idioma-changed',
-    handleLangChange
-  );
-
+  window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('factorfit:branch-changed', cargarTarifas);
+  document.removeEventListener('click', cerrarSelectsAlClickFuera);
+  detenerStripe();
   stopCamera();
-
-  if (
-    avatarPreview.value &&
-    avatarPreview.value.startsWith('blob:')
-  ) {
-    URL.revokeObjectURL(
-      avatarPreview.value
-    );
-  }
+  cerrarQR();
+  if (avatarPreview.value && avatarPreview.value.startsWith('blob:')) URL.revokeObjectURL(avatarPreview.value);
 });
+// Fecha legible (dd/mm/aaaa) para el resumen del perfil
+const fechaVista = (v) => {
+  if (!v) return '—';
+  const [y, m, d] = String(v).slice(0, 10).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : String(v);
+};
 </script>
-
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
-
-* {
-  box-sizing: border-box;
-}
-
-.hidden-input,
-.hidden-canvas {
-  display: none;
-}
-
-.main-content {
-  display: flex;
-  justify-content: center;
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&family=Oswald:wght@400;500;600;700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+* { box-sizing: border-box; }
+i.bi { display: inline-block; line-height: 1; }
+.hidden-input, .hidden-canvas { display: none; }
+/* =========================================================
+   BASE
+========================================================= */
+.reg-page {
+  --accent: var(--color-highlight, #3b82f6);
+  --card: var(--bg-cards, #14161c);
+  --text: var(--color-texto-general, #e5e7eb);
+  --title: var(--color-titulos, #ffffff);
+  --button: var(--color-botones, #2563eb);
+  --button-text: var(--color-texto-botones, #ffffff);
+  --muted: color-mix(in srgb, var(--text) 66%, transparent);
+  --muted-2: color-mix(in srgb, var(--text) 44%, transparent);
+  --line: color-mix(in srgb, var(--text) 11%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 20%, transparent);
+  --input-bg: color-mix(in srgb, var(--card) 84%, black);
+  --radius: var(--app-border-radius, 16px);
+  --ok: #34d399;
+  --ok-text: #6ee7b7;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --warn-text: #fcd34d;
   width: 100%;
-  padding: 36px clamp(16px, 3vw, 40px) 56px;
-  color: var(--color-texto-general, #e5e5e5);
+  padding: 34px clamp(14px, 3vw, 40px) 60px;
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-
-.highlight {
-  color: var(--color-highlight, #3b82f6);
-}
-
-.profile-card {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 24px;
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  align-items: start;
-}
-
+.reg-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; width: 100%; max-width: 1200px; margin: 0 auto; align-items: start; }
+.highlight { color: var(--accent); }
+.req { color: var(--accent); }
 /* =========================================================
    PERFIL
 ========================================================= */
-
-.profile-section {
-  position: relative;
-  align-self: start;
-  overflow: hidden;
-  padding: 34px 24px 26px;
-  text-align: center;
-  border: 1px solid var(--border-cards, rgba(255, 255, 255, .1));
-  border-radius: var(--app-border-radius, 24px);
-  background: var(--bg-cards, rgba(18, 18, 18, .75));
+.profile-card {
+  position: sticky; top: 16px; min-width: 0; overflow: hidden; padding: 32px 22px 22px; text-align: center;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
 }
-
-.profile-section::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 210px;
-  background:
-    radial-gradient(
-      ellipse 70% 100% at 50% 0%,
-      color-mix(
-        in srgb,
-        var(--color-botones, #1c4fd6) 32%,
-        transparent
-      ),
-      transparent 75%
-    );
-  pointer-events: none;
-}
-
-.profile-content {
-  position: relative;
-  width: 100%;
-}
-
-.profile-label {
-  display: inline-block;
-  margin-bottom: 12px;
-  padding: 4px 11px;
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--color-highlight, #3b82f6) 35%,
-      transparent
-    );
-  border-radius: 999px;
-  background:
-    color-mix(
-      in srgb,
-      var(--color-highlight, #3b82f6) 10%,
-      transparent
-    );
-  color: var(--color-highlight, #60a5fa);
-  font: 600 .66rem 'Inter', sans-serif;
-  letter-spacing: .3px;
-}
-
-.main-title {
-  margin: 0 0 26px;
-  color: var(--color-titulos, #fff);
-  font-family: 'Anton', sans-serif;
-  font-size: 1.85rem;
-  font-weight: 400;
-  line-height: 1.08;
-  letter-spacing: .4px;
-  text-transform: uppercase;
-}
-
+.profile-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 200px; pointer-events: none; background: radial-gradient(ellipse 70% 100% at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 75%); }
+.profile-card > * { position: relative; }
+.chip-label { display: inline-block; margin-bottom: 12px; padding: 4px 12px; color: var(--accent); font-size: 0.68rem; font-weight: 600; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.main-title { margin: 0 0 24px; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.85rem; font-weight: 400; line-height: 1.08; letter-spacing: 0.4px; text-transform: uppercase; }
+.avatar-wrap { position: relative; width: 140px; margin: 0 auto 14px; }
+.avatar-ring { padding: 4px; border-radius: 50%; background: conic-gradient(from 210deg, var(--button), var(--accent), var(--button)); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
+.avatar-circle { position: relative; width: 132px; height: 132px; display: grid; place-items: center; overflow: hidden; cursor: pointer; outline: none; border: 4px solid var(--card); border-radius: 50%; background: var(--input-bg); }
+.avatar-default { color: #fff; font-size: 3.4rem; opacity: 0.45; }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: #fff; font-size: 0.64rem; font-weight: 600; background: rgba(0, 0, 0, 0.58); opacity: 0; transition: opacity 0.2s ease; }
+.avatar-overlay i { font-size: 1.3rem; }
+.avatar-circle:hover .avatar-overlay, .avatar-circle:focus-visible .avatar-overlay { opacity: 1; }
+.avatar-circle:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.avatar-action { position: absolute; z-index: 3; right: 2px; bottom: 4px; width: 38px; height: 38px; display: grid; place-items: center; padding: 0; cursor: pointer; color: #fff; font-size: 0.95rem; border: 3px solid var(--card); border-radius: 50%; background: var(--accent); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35); transition: transform 0.2s ease, filter 0.2s ease; }
+.avatar-action:hover { transform: scale(1.08); filter: brightness(1.08); }
+.profile-hint { max-width: 230px; margin: 0 auto; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
 /* =========================================================
-   AVATAR
+   TARJETAS
 ========================================================= */
-
-.avatar-wrapper {
-  position: relative;
-  width: 140px;
-  margin: 0 auto 14px;
-}
-
-.avatar-ring {
-  padding: 4px;
-  border-radius: 50%;
-  background:
-    conic-gradient(
-      from 210deg,
-      var(--color-botones, #1c4fd6),
-      var(--color-highlight, #60a5fa),
-      var(--color-botones, #1c4fd6)
-    );
-  box-shadow: 0 12px 30px rgba(0, 0, 0, .4);
-}
-
-.avatar-circle {
-  position: relative;
-  width: 132px;
-  height: 132px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-  border: 4px solid var(--bg-cards, #121212);
-  border-radius: 50%;
-  outline: none;
-  background: #17191f;
-}
-
-.default-avatar {
-  width: 52px;
-  height: 52px;
-  color: #fff;
-  opacity: .55;
-}
-
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, .58);
-  color: #fff;
-  opacity: 0;
-  transition: opacity .2s ease;
-}
-
-.avatar-overlay svg {
-  width: 23px;
-  height: 23px;
-}
-
-.avatar-overlay span {
-  font: 600 .6rem 'Inter', sans-serif;
-}
-
-.avatar-circle:hover .avatar-overlay,
-.avatar-circle:focus-visible .avatar-overlay {
-  opacity: 1;
-}
-
-.avatar-circle:focus-visible {
-  box-shadow: 0 0 0 3px var(--color-highlight, #3b82f6);
-}
-
-.avatar-action {
-  position: absolute;
-  z-index: 3;
-  right: 2px;
-  bottom: 4px;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  cursor: pointer;
-  border: 3px solid var(--bg-cards, #121212);
-  border-radius: 50%;
-  background: var(--color-highlight, #3b82f6);
-  color: #fff;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, .35);
-  transition:
-    transform .2s ease,
-    filter .2s ease;
-}
-
-.avatar-action:hover {
-  transform: scale(1.08);
-  filter: brightness(1.08);
-}
-
-.avatar-action svg {
-  width: 17px;
-  height: 17px;
-}
-
-.profile-hint {
-  max-width: 230px;
-  margin: 0 auto;
-  color: var(--color-texto-general, #94a3b8);
-  font: 400 .76rem/1.5 'Inter', sans-serif;
-  opacity: .7;
-}
-
+.profile-summary { display: grid; gap: 0; margin: 24px 0 0; padding: 6px; list-style: none; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+.summary-row { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 11px 10px; }
+.summary-row + .summary-row { border-top: 1px solid var(--line); }
+.summary-ico { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 0.95rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.summary-ico.ok { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+.summary-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.summary-label { color: var(--muted); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+.summary-value { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; overflow: hidden; color: var(--title); font-size: 0.92rem; font-weight: 600; line-height: 1.25; text-overflow: ellipsis; }
+.summary-value.empty { color: var(--muted-2); font-weight: 500; }
+.plan-chip { display: inline-block; padding: 3px 11px; color: var(--accent); font-size: 0.8rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.summary-price { color: var(--ok); font: 600 0.95rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
+.forms-col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.card { position: relative; min-width: 0; padding: 26px 28px 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.membership-card { z-index: 2; display: flex; flex-direction: column; gap: 22px; }
+.card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.membership-card .card-head { margin-bottom: 2px; }
+.card-head .grow { flex: 1; min-width: 0; }
+.card-icon { width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.2rem; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.card-title { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.15rem; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
+.card-desc { margin: 3px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.head-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; color: var(--text); font-size: 1rem; border: 1px solid var(--line-strong); border-radius: 11px; background: color-mix(in srgb, var(--text) 4%, transparent); transition: all 0.16s ease; }
+.icon-btn:hover { color: var(--button-text); border-color: var(--accent); background: var(--accent); }
+.grid { display: grid; gap: 18px; }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 /* =========================================================
-   RESUMEN
+   CAMPOS
 ========================================================= */
-
-.profile-summary {
-  display: grid;
-  gap: 2px;
-  margin: 26px 0 0;
-  padding: 6px;
-  text-align: left;
-  border: 1px solid rgba(255, 255, 255, .07);
-  border-radius: var(--app-border-radius, 14px);
-  background: rgba(255, 255, 255, .025);
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; }
+input:not([type='radio']):not([type='file']) {
+  width: 100%; height: 48px; min-width: 0; padding: 0 14px; outline: none;
+  color: var(--color-texto-input, var(--text)); color-scheme: dark; font-family: 'Inter', sans-serif; font-size: 0.9rem;
+  border: 1.5px solid var(--line-strong); border-radius: 12px; background: var(--input-bg);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-}
-
-.summary-item + .summary-item {
-  border-top: 1px solid rgba(255, 255, 255, .05);
-}
-
-.summary-item dt {
-  color: var(--color-texto-general, #94a3b8);
-  font: 500 .7rem 'Inter', sans-serif;
-  opacity: .7;
-}
-
-.summary-item dd {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--color-titulos, #fff);
-  font: 600 .78rem 'Inter', sans-serif;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.summary-item dd.empty {
-  opacity: .4;
-}
-
-.plan-chip {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background:
-    color-mix(
-      in srgb,
-      var(--color-highlight, #3b82f6) 18%,
-      transparent
-    );
-  color: var(--color-highlight, #60a5fa);
-}
-
+input::placeholder { color: var(--muted-2); }
+input:not([type='radio']):hover { border-color: color-mix(in srgb, var(--text) 32%, transparent); }
+input:not([type='radio']):focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+input[readonly] { cursor: default; }
+input:disabled { cursor: not-allowed; }
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button, input[type='number']::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+.control { position: relative; display: flex; align-items: center; min-width: 0; }
+.control-icon { position: absolute; left: 14px; z-index: 2; color: var(--muted-2); font-size: 0.95rem; pointer-events: none; }
+.control.has-icon input { padding-left: 42px; }
+.control-suffix { position: absolute; right: 14px; color: var(--muted); font-size: 0.74rem; font-weight: 600; pointer-events: none; }
+.control.has-suffix input { padding-right: 48px; }
+.control.locked input { border-style: dashed; background: color-mix(in srgb, var(--text) 3%, var(--input-bg)); }
+.control.ok .control-icon { color: var(--ok); }
+.control.locked.ok input { border-color: color-mix(in srgb, var(--ok) 38%, var(--line-strong)); }
+.control.locked input::placeholder { color: var(--muted); font-style: italic; }
+.badge { padding: 2px 8px; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.6px; border-radius: 999px; }
+.badge.auto { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
+.badge.required { color: var(--warn-text); background: rgba(251, 191, 36, 0.12); }
+.note { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 0.78rem; line-height: 1.5; }
+.note i { flex-shrink: 0; margin-top: 2px; }
+.note.info { padding: 10px 12px; color: var(--muted); border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.note.info i { color: var(--accent); }
+.note.warn { padding: 10px 12px; color: var(--warn-text); border: 1px solid rgba(251, 191, 36, 0.28); border-radius: 10px; background: rgba(251, 191, 36, 0.07); }
+.note.muted { color: var(--muted); }
+.note.muted i { color: var(--ok); }
 /* =========================================================
-   FORMULARIOS
+   PERIODO (control segmentado de 4 opciones)
 ========================================================= */
-
-.forms-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  width: 100%;
-  min-width: 0;
-}
-
-.login-card {
-  width: 100%;
-  padding: 26px 28px 28px;
-  border: 1px solid var(--border-cards, rgba(255, 255, 255, .12));
-  border-radius: var(--app-border-radius, 24px);
-  background: var(--bg-cards, rgba(18, 18, 18, .75));
-  backdrop-filter: blur(12px);
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, .07);
-}
-
-.card-header-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-  color: var(--color-titulos, #fff);
-  font-family: 'Anton', sans-serif;
-  font-size: 1.2rem;
-  font-weight: 400;
-  letter-spacing: .5px;
-  text-transform: uppercase;
-}
-
-.section-title::before {
-  content: '';
-  width: 4px;
-  height: 20px;
-  border-radius: 4px;
-  background: var(--color-highlight, #3b82f6);
-}
-
-.section-description {
-  margin: 3px 0 0;
-  color: var(--color-texto-general, #94a3b8);
-  font: 400 .74rem/1.4 'Inter', sans-serif;
-  opacity: .6;
-}
-
-.form-grid {
-  display: grid;
-  gap: 18px;
-}
-
-.form-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-}
-
-label {
-  color: var(--color-texto-general, #f5f5f4);
-  font: 600 .78rem 'Oswald', sans-serif;
-  letter-spacing: .4px;
-}
-
-.required {
-  color: var(--color-highlight, #3b82f6);
-}
-
-input {
-  width: 100%;
-  height: 46px;
-  padding: 0 14px;
-  border: 1.5px solid var(--border-input, rgba(255, 255, 255, .12));
-  border-radius: var(--app-border-radius, 12px);
-  outline: none;
-  background: var(--bg-input, rgba(255, 255, 255, .03));
-  color: var(--color-texto-input, var(--color-texto-general, #fff));
-  color-scheme: var(--color-scheme, dark);
-  font: 400 .88rem 'Inter', sans-serif;
-}
-
-input:focus {
-  border-color: var(--color-highlight, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, .18);
-}
-
-.input-with-icon {
-  position: relative;
-}
-
-.input-with-icon > svg {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  left: 14px;
-  width: 16px;
-  height: 16px;
-  transform: translateY(-50%);
-  color: var(--color-texto-general, #94a3b8);
-  opacity: .55;
-}
-
-.input-with-icon input {
-  padding-left: 40px;
-}
-
+.segmented { position: relative; display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); padding: 4px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); }
+.segmented-thumb { position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--n, 4)); border-radius: 10px; background: var(--accent); box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent) 70%, transparent); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+.segment { position: relative; z-index: 1; min-width: 0; height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; cursor: pointer; color: var(--muted); font-family: inherit; font-size: 0.86rem; font-weight: 600; white-space: nowrap; border: 0; border-radius: 10px; background: transparent; transition: color 0.2s ease; }
+.segment:hover:not(.active) { color: var(--text); }
+.segment.active { color: var(--button-text, #fff); }
+.segment i { font-size: 1rem; }
+.segment:focus-visible { outline: 2px solid var(--title); outline-offset: -3px; }
 /* =========================================================
-   MEDIDAS
+   SELECT PERSONALIZADO
 ========================================================= */
-
-.physical-grid,
-.membership-date-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.measurement-field,
-.date-field {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: var(--app-border-radius, 14px);
-  background: rgba(255, 255, 255, .02);
-}
-
-.measurement-icon,
-.date-icon {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background:
-    color-mix(
-      in srgb,
-      var(--color-highlight, #3b82f6) 14%,
-      transparent
-    );
-  color: var(--color-highlight, #60a5fa);
-}
-
-.measurement-icon svg,
-.date-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.measurement-content,
-.date-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.measurement-content label,
-.date-content label {
-  display: block;
-  margin-bottom: 7px;
-}
-
-.measurement-input {
-  position: relative;
-}
-
-.measurement-input input {
-  padding-right: 46px;
-}
-
-.measurement-input span {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  transform: translateY(-50%);
-  color: var(--color-texto-general, #94a3b8);
-  font: 600 .74rem 'Inter', sans-serif;
-}
-
+.ff-select { position: relative; }
+.ff-select.open { z-index: 60; }
+.ff-trigger { width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 10px; cursor: pointer; text-align: left; color: var(--text); font-family: inherit; font-size: 0.9rem; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.ff-trigger:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.ff-select.open .ff-trigger, .ff-trigger:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.ff-trigger-icon { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ff-trigger-value { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ff-trigger-value.placeholder { justify-content: flex-start; color: var(--muted-2); }
+.ff-trigger-value strong { min-width: 0; overflow: hidden; color: var(--title); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.ff-trigger-value em { flex-shrink: 0; color: var(--ok); font: 600 1rem 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.3px; }
+.ff-trigger-value em.plain { color: var(--muted); font: 500 0.8rem 'Inter', sans-serif; letter-spacing: 0; }
+.ff-chevron { flex-shrink: 0; color: var(--muted); font-size: 0.85rem; transition: transform 0.2s ease; }
+.ff-select.open .ff-chevron { transform: rotate(180deg); }
+.ff-menu { position: absolute; z-index: 70; top: calc(100% + 8px); left: 0; right: 0; max-height: 280px; margin: 0; padding: 6px; overflow-y: auto; list-style: none; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--card); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55); scrollbar-width: thin; }
+.ff-menu li { display: flex; align-items: center; gap: 10px; padding: 12px 12px; cursor: pointer; color: var(--text); font-size: 0.88rem; font-weight: 500; border-radius: 10px; transition: background 0.14s ease; }
+.ff-menu li + li { margin-top: 2px; }
+.ff-menu li:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.ff-menu li.selected { color: var(--title); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.opt-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-price { flex-shrink: 0; color: var(--ok); font: 600 0.95rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
+.opt-hint { flex-shrink: 0; color: var(--muted); font-size: 0.76rem; }
+.opt-check { flex-shrink: 0; color: var(--accent); font-size: 1rem; }
+.ff-menu li.ff-empty { justify-content: center; gap: 8px; padding: 18px 12px; color: var(--muted); font-size: 0.8rem; cursor: default; }
+.ff-menu li.ff-empty:hover { background: transparent; }
+.dd-enter-active, .dd-leave-active { transition: opacity 0.16s ease, transform 0.16s ease; }
+.dd-enter-from, .dd-leave-to { opacity: 0; transform: translateY(-6px); }
 /* =========================================================
-   MEMBRESÍA
+   PAGO INICIAL
 ========================================================= */
-
-.membership-header {
-  flex-wrap: wrap;
-}
-
-.membership-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.toggle-group-small {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, .07);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .05);
-}
-
-.toggle-group-small::before {
-  content: '';
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  border-radius: 9px;
-  background: var(--color-highlight, #3b82f6);
-  transition: transform .25s ease;
-}
-
-.toggle-group-small[data-active='semana']::before {
-  transform: translateX(100%);
-}
-
-.btn-toggle-small {
-  position: relative;
-  z-index: 1;
-  min-width: 84px;
-  padding: 8px 16px;
-  border: none;
-  background: transparent;
-  color: #a1a1aa;
-  cursor: pointer;
-}
-
-.btn-toggle-small.active {
-  color: #fff;
-}
-
-.actions-group {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .05);
-  color: var(--color-texto-general, #cbd5e1);
-  cursor: pointer;
-}
-
-.action-btn:hover {
-  background: var(--color-highlight, #3b82f6);
-  color: #fff;
-}
-
-.action-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
+.payment-block { display: flex; flex-direction: column; gap: 18px; margin-top: 4px; padding-top: 24px; border-top: 1px solid var(--line); }
+.block-head { display: flex; align-items: center; gap: 12px; }
+.block-icon { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.05rem; border-radius: 11px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.block-head h4 { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.02rem; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
+.block-head p { margin: 2px 0 0; color: var(--muted); font-size: 0.76rem; }
+.total-box { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--input-bg)), var(--input-bg) 65%); }
+.total-box span { color: var(--muted); font-size: 0.86rem; font-weight: 500; }
+.total-box strong { color: var(--ok); font: 700 1.7rem 'Oswald', sans-serif; letter-spacing: 0.3px; }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.choice { position: relative; min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 14px; padding: 12px 16px; cursor: pointer; border: 1.5px solid var(--line-strong); border-radius: 14px; background: color-mix(in srgb, var(--text) 2%, transparent); transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease; }
+.choice:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.choice.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.choice.disabled { opacity: 0.45; cursor: not-allowed; }
+.choice input { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; opacity: 0; pointer-events: none; }
+.choice:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.choice-dot { position: relative; width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--line-strong); border-radius: 50%; transition: border-color 0.18s ease; }
+.choice-dot::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); transform: scale(0); transition: transform 0.18s ease; }
+.choice.selected .choice-dot { border-color: var(--accent); }
+.choice.selected .choice-dot::after { transform: scale(1); }
+.choice-text { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.choice-text strong { color: var(--title); font-size: 0.86rem; font-weight: 600; line-height: 1.25; }
+.choice-text small { color: var(--muted); font-size: 0.72rem; }
+.choice-icon { flex-shrink: 0; color: var(--muted-2); font-size: 1.15rem; }
+.choice.selected .choice-icon { color: var(--accent); }
+/* Método de pago (igual que en Pagos) */
+.method-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.method-tile { position: relative; min-width: 0; min-height: 66px; display: flex; align-items: center; gap: 12px; padding: 13px 14px; cursor: pointer; text-align: left; color: var(--text); font-family: inherit; border: 1.5px solid var(--line-strong); border-radius: 14px; background: var(--input-bg); transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
+.method-tile:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong)); transform: translateY(-1px); }
+.method-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.method-tile.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--input-bg)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.method-icon { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; color: var(--muted); font-size: 1.15rem; border-radius: 11px; background: color-mix(in srgb, var(--text) 7%, transparent); transition: all 0.18s ease; }
+.method-tile.active .method-icon { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.method-text { min-width: 0; }
+.method-text strong { display: block; color: var(--title); font-size: 0.88rem; font-weight: 600; line-height: 1.25; }
+.method-text small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.72rem; line-height: 1.3; }
+.method-check { position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; display: grid; place-items: center; color: var(--card); font-size: 0.7rem; border-radius: 50%; background: var(--accent); opacity: 0; transform: scale(0.6); transition: opacity 0.18s ease, transform 0.18s ease; }
+.method-tile.active .method-check { opacity: 1; transform: scale(1); }
+/* Stripe */
+.stripe-box { display: flex; flex-direction: column; gap: 14px; padding: 18px; border: 1px solid color-mix(in srgb, #635bff 38%, var(--line)); border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, #635bff 9%, var(--input-bg)), var(--input-bg)); }
+.stripe-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.stripe-icon { width: 42px; height: 42px; flex-shrink: 0; display: grid; place-items: center; color: #b4afff; font-size: 1.2rem; border-radius: 11px; background: rgba(99, 91, 255, 0.18); }
+.stripe-head-text { min-width: 0; flex: 1 1 200px; }
+.stripe-head-text strong { display: block; color: var(--title); font-size: 0.92rem; }
+.stripe-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 0.8rem; font-weight: 600; }
+.stripe-status i { width: 7px; height: 7px; border-radius: 50%; }
+.stripe-status.ok { color: var(--ok-text); }
+.stripe-status.ok i { background: var(--ok); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18); }
+.stripe-status.warn { color: var(--warn-text); }
+.stripe-status.warn i { background: var(--warn); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18); }
+.stripe-hint { display: flex; align-items: flex-start; gap: 9px; margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.stripe-hint i { margin-top: 2px; color: var(--accent); }
 /* =========================================================
-   GUARDAR
+   BOTONES
 ========================================================= */
-
-.registration-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.required-hint {
-  color: var(--color-texto-general, #94a3b8);
-  font: 500 .74rem 'Inter', sans-serif;
-}
-
-.btn-primary {
-  min-width: 240px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 14px 30px;
-  border: none;
-  border-radius: 12px;
-  background: var(--color-botones, #1c4fd6);
-  color: var(--color-texto-botones, #fff);
-  cursor: pointer;
-  font: 700 .95rem 'Oswald', sans-serif;
-}
-
-.btn-primary svg {
-  width: 17px;
-  height: 17px;
-}
-
+.btn { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 20px; cursor: pointer; text-decoration: none; white-space: nowrap; font-family: 'Inter', sans-serif; font-size: 0.86rem; font-weight: 700; border: 1px solid transparent; border-radius: 12px; transition: filter 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease; }
+.btn i { font-size: 1rem; }
+.btn.sm { min-height: 38px; padding: 0 14px; font-size: 0.78rem; }
+.btn.block { width: 100%; }
+.btn-primary { color: var(--button-text); background: linear-gradient(135deg, var(--button), color-mix(in srgb, var(--button) 76%, black)); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--button) 65%, transparent); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-primary:disabled { cursor: wait; opacity: 0.55; box-shadow: none; }
+.btn-soft { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.btn-soft:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.btn-ghost { color: var(--muted); border-color: var(--line-strong); background: transparent; }
+.btn-ghost:hover { color: var(--text); border-color: var(--text); }
+.link-btn { padding: 8px; cursor: pointer; color: var(--muted); font-family: inherit; font-size: 0.8rem; text-decoration: underline; text-underline-offset: 3px; border: 0; background: transparent; }
+.link-btn:hover { color: var(--text); }
+.btn:focus-visible, .icon-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reg-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 2px 0; }
+.req-hint { color: var(--muted); font-size: 0.78rem; font-weight: 500; }
+.footer-actions { display: flex; align-items: center; gap: 12px; }
+.receipt-btn { min-height: 52px; }
+.receipt-btn em { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; color: var(--ok-text); font-size: 0.68rem; font-style: normal; font-weight: 700; border-radius: 999px; background: rgba(52, 211, 153, 0.12); }
+.receipt-btn em i { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+.receipt-btn.ready { color: var(--ok-text); border-color: rgba(52, 211, 153, 0.4); background: rgba(52, 211, 153, 0.07); }
+.save-btn { min-width: 250px; min-height: 52px; font-family: 'Oswald', sans-serif; font-size: 0.98rem; letter-spacing: 0.3px; }
+.spin { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 /* =========================================================
-   MODALES
+   DIÁLOGOS (QR, Stripe, foto, cámara)
 ========================================================= */
-
-.modal-wrapper,
-.photo-options-overlay,
-.camera-overlay {
-  position: fixed;
-  z-index: 3000;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: rgba(0, 0, 0, .78);
-}
-
-.camera-overlay {
-  z-index: 4000;
-  background: rgba(0, 0, 0, .9);
-}
-
-.photo-options-modal,
-.camera-modal {
-  width: 100%;
-  max-width: 440px;
-  padding: 24px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 20px;
-  background: var(--bg-cards, #151515);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
-}
-
-.camera-modal {
-  max-width: 620px;
-}
-
-.photo-options-handle {
-  display: none;
-}
-
-.photo-options-header,
-.camera-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 20px;
-}
-
-.photo-options-eyebrow,
-.camera-eyebrow {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--color-highlight, #3b82f6);
-  font: 700 .6rem 'Inter', sans-serif;
-  letter-spacing: 1px;
-}
-
-.photo-options-header h3,
-.camera-header h3 {
-  margin: 0;
-  color: var(--color-titulos, #fff);
-  font: 400 1.25rem 'Anton', sans-serif;
-  text-transform: uppercase;
-}
-
-.photo-options-header p,
-.camera-header p {
-  margin: 5px 0 0;
-  color: var(--color-texto-general, #94a3b8);
-  font: 400 .74rem/1.5 'Inter', sans-serif;
-  opacity: .7;
-}
-
-.modal-close-btn {
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .04);
-  color: #fff;
-  cursor: pointer;
-  font-size: 1.3rem;
-}
-
-/* =========================================================
-   OPCIONES FOTO
-========================================================= */
-
-.photo-options-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-.photo-option {
-  width: 100%;
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 11px 13px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 13px;
-  background: rgba(255, 255, 255, .025);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.photo-option:hover {
-  border-color: var(--color-highlight, #3b82f6);
-}
-
-.photo-option-icon {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 11px;
-  background:
-    color-mix(
-      in srgb,
-      var(--color-highlight, #3b82f6) 13%,
-      transparent
-    );
-  color: var(--color-highlight, #60a5fa);
-}
-
-.photo-option-icon svg {
-  width: 20px;
-  height: 20px;
-}
-
-.photo-option-text {
-  flex: 1;
-}
-
-.photo-option-text strong {
-  display: block;
-  color: var(--color-titulos, #fff);
-  font: 600 .8rem 'Inter', sans-serif;
-}
-
-.photo-option-text span {
-  display: block;
-  margin-top: 3px;
-  color: var(--color-texto-general, #94a3b8);
-  font: 400 .68rem 'Inter', sans-serif;
-}
-
-.photo-option-arrow {
-  width: 16px;
-  color: var(--color-texto-general, #94a3b8);
-}
-
-.photo-cancel {
-  width: 100%;
-  height: 40px;
-  margin-top: 13px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--color-texto-general, #94a3b8);
-  cursor: pointer;
-}
-
-/* =========================================================
-   CÁMARA
-========================================================= */
-
-.camera-preview {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 18px;
-  background: #000;
-}
-
-.camera-preview video {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.camera-preview video.camera-mirrored {
-  transform: scaleX(-1);
-}
-
-/* GUÍA DEL ROSTRO */
-
-.camera-guide {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.face-guide {
-  width: 47%;
-  height: 70%;
-  border: 2px dashed rgba(255, 255, 255, .45);
-  border-radius: 50%;
-}
-
-/* =========================================================
-   CAMBIAR CÁMARA
-========================================================= */
-
-.switch-camera-btn {
-  position: absolute;
-  z-index: 10;
-  top: 14px;
-  right: 14px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 38px;
-  padding: 0 13px;
-  border: 1px solid rgba(255, 255, 255, .25);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, .62);
-  color: #fff;
-  font: 600 .7rem 'Inter', sans-serif;
-  cursor: pointer;
-  box-shadow: 0 5px 16px rgba(0, 0, 0, .3);
-}
-
-.switch-camera-btn:hover {
-  background: rgba(0, 0, 0, .8);
-}
-
-.switch-camera-btn:disabled {
-  cursor: wait;
-  opacity: .65;
-}
-
-.switch-camera-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.switch-camera-btn svg.rotating {
-  animation: cameraRotate .7s linear infinite;
-}
-
-@keyframes cameraRotate {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* LOADER AL CAMBIAR */
-
-.camera-switching {
-  position: absolute;
-  z-index: 8;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, .28);
-  pointer-events: none;
-}
-
-.camera-loader {
-  width: 38px;
-  height: 38px;
-  border: 3px solid rgba(255, 255, 255, .25);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: cameraRotate .7s linear infinite;
-}
-
-/* =========================================================
-   CAPTURAR
-========================================================= */
-
-.camera-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.camera-cancel-btn {
-  min-width: 110px;
-  padding: 11px 18px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, .04);
-  color: var(--color-texto-general, #cbd5e1);
-  cursor: pointer;
-}
-
-.capture-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 18px 8px 8px;
-  border: none;
-  border-radius: 999px;
-  background: var(--color-botones, #1c4fd6);
-  color: var(--color-texto-botones, #fff);
-  font: 700 .78rem 'Inter', sans-serif;
-  cursor: pointer;
-}
-
-.capture-btn:disabled {
-  cursor: wait;
-  opacity: .6;
-}
-
-.capture-circle {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border: 2px solid #fff;
-  border-radius: 50%;
-}
-
-.capture-circle span {
-  width: 27px;
-  height: 27px;
-  display: block;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform .15s ease;
-}
-
-.capture-btn:hover:not(:disabled) .capture-circle span {
-  transform: scale(.85);
-}
-
-/* =========================================================
-   ANIMACIONES
-========================================================= */
-
-.photo-menu-enter-active,
-.photo-menu-leave-active {
-  transition: opacity .2s ease;
-}
-
-.photo-menu-enter-active .photo-options-modal,
-.photo-menu-leave-active .photo-options-modal,
-.photo-menu-enter-active .camera-modal,
-.photo-menu-leave-active .camera-modal {
-  transition:
-    opacity .2s ease,
-    transform .22s ease;
-}
-
-.photo-menu-enter-from,
-.photo-menu-leave-to {
-  opacity: 0;
-}
-
-.photo-menu-enter-from .photo-options-modal,
-.photo-menu-leave-to .photo-options-modal,
-.photo-menu-enter-from .camera-modal,
-.photo-menu-leave-to .camera-modal {
-  opacity: 0;
-  transform: translateY(10px) scale(.97);
-}
-
-.pop-enter-active,
-.pop-leave-active {
-  transition: all .25s ease;
-}
-
-.pop-enter-from,
-.pop-leave-to {
-  opacity: 0;
-  transform: scale(.95);
-}
-
+.modal-wrapper { position: fixed; z-index: 3000; inset: 0; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(0, 0, 0, 0.78); }
+.overlay { position: fixed; z-index: 3500; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(5px); }
+.overlay.dark { background: rgba(0, 0, 0, 0.9); }
+.dialog { position: relative; width: min(440px, 100%); max-height: 94vh; overflow-y: auto; padding: 30px 24px 24px; text-align: center; color: var(--text); border: 1px solid var(--line-strong); border-radius: 22px; background: var(--card); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); font-family: 'Inter', sans-serif; }
+.dialog h2 { margin: 12px 0 6px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 1.5rem; font-weight: 600; letter-spacing: 0.3px; }
+.dialog-sub { margin: 0; color: var(--muted); font-size: 0.86rem; }
+.dialog-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; background: transparent; }
+.dialog-close:hover { color: var(--text); border-color: var(--line-strong); }
+.dialog-icon { width: 58px; height: 58px; display: inline-grid; place-items: center; font-size: 1.7rem; border-radius: 18px; }
+.dialog-icon.ok { color: var(--ok); background: rgba(52, 211, 153, 0.12); }
+.dialog-icon.warn { color: var(--warn); background: rgba(251, 191, 36, 0.12); }
+.dialog-icon.stripe { color: #b4afff; background: rgba(99, 91, 255, 0.18); }
+.dialog-folio { margin: 10px 0 0; color: var(--muted); font-size: 0.84rem; }
+.dialog-folio strong { color: var(--title); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.5px; }
+.dialog-status { margin: 14px 0 0; padding: 10px 14px; color: var(--warn-text); font-size: 0.8rem; line-height: 1.45; border-radius: 10px; background: rgba(251, 191, 36, 0.09); }
+.dialog-status.ok { color: var(--ok-text); background: rgba(52, 211, 153, 0.09); }
+.dialog-muted { margin: 16px 0 0; color: var(--muted); font-size: 0.86rem; }
+.dialog-error { margin: 16px 0 0; color: #fca5a5; font-size: 0.86rem; }
+.qr-image { width: min(270px, 100%); aspect-ratio: 1; margin: 16px auto 0; padding: 12px; object-fit: contain; border-radius: 16px; background: #fff; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+.stripe-qr-frame { width: fit-content; margin: 18px auto 0; padding: 14px; border-radius: 18px; background: #fff; box-shadow: 0 16px 32px -10px rgba(0, 0, 0, 0.6); }
+.stripe-qr-frame img { width: 216px; max-width: 100%; display: block; }
+.scan-hint { display: inline-flex; align-items: center; gap: 7px; margin: 12px 0 0; color: var(--muted); font-size: 0.78rem; }
+.scan-hint i { color: var(--accent); }
+.stripe-amount { display: flex; flex-direction: column; gap: 2px; margin-top: 16px; }
+.stripe-amount span { color: var(--muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.8px; }
+.stripe-amount strong { color: var(--title); font-family: 'IBM Plex Mono', monospace; font-size: 2.1rem; font-weight: 700; letter-spacing: -0.5px; }
+.stripe-amount small { color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; }
+.state-pill { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 5px 13px; color: var(--warn-text); font-size: 0.76rem; font-weight: 700; border-radius: 999px; background: rgba(251, 191, 36, 0.12); }
+.state-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); animation: pulse 1.6s ease-in-out infinite; }
+.state-pill.paid { color: var(--ok-text); background: rgba(52, 211, 153, 0.12); }
+.state-pill.paid i { background: var(--ok); animation: none; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); } }
+.dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; text-align: left; }
+.eyebrow { display: block; margin-bottom: 5px; color: var(--accent); font-size: 0.62rem; font-weight: 700; letter-spacing: 1px; }
+.dialog-head h3 { margin: 0; color: var(--title); font-family: 'Anton', sans-serif; font-size: 1.25rem; font-weight: 400; text-transform: uppercase; }
+.dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.5; }
+.dialog-x { width: 36px; height: 36px; flex-shrink: 0; display: grid; place-items: center; cursor: pointer; color: var(--text); border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.photo-dialog { text-align: left; }
+.sheet-handle { display: none; }
+.photo-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.photo-option { width: 100%; min-height: 72px; display: flex; align-items: center; gap: 14px; padding: 12px 14px; cursor: pointer; text-align: left; color: var(--muted); font-family: inherit; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--text) 2.5%, transparent); transition: border-color 0.16s ease, background 0.16s ease; }
+.photo-option:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.photo-option-icon { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; color: var(--accent); font-size: 1.25rem; border-radius: 12px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.photo-option-text { flex: 1; min-width: 0; }
+.photo-option-text strong { display: block; color: var(--title); font-size: 0.88rem; font-weight: 600; }
+.photo-option-text small { display: block; margin-top: 3px; color: var(--muted); font-size: 0.72rem; }
+.camera-dialog { width: min(620px, 100%); text-align: left; }
+.camera-preview { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #000; }
+.camera-preview video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.camera-preview video.mirrored { transform: scaleX(-1); }
+.camera-guide { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.face-guide { width: 47%; height: 70%; border: 2px dashed rgba(255, 255, 255, 0.45); border-radius: 50%; }
+.switch-camera { position: absolute; z-index: 10; top: 14px; right: 14px; min-height: 38px; display: flex; align-items: center; gap: 7px; padding: 0 13px; cursor: pointer; color: #fff; font: 600 0.72rem 'Inter', sans-serif; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 999px; background: rgba(0, 0, 0, 0.62); }
+.switch-camera:hover { background: rgba(0, 0, 0, 0.8); }
+.switch-camera:disabled { cursor: wait; opacity: 0.65; }
+.camera-switching { position: absolute; z-index: 8; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.28); pointer-events: none; }
+.loader { width: 38px; height: 38px; border: 3px solid rgba(255, 255, 255, 0.25); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+.camera-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 18px; }
+.capture-btn { display: flex; align-items: center; gap: 10px; padding: 8px 20px 8px 8px; cursor: pointer; color: var(--button-text); font: 700 0.8rem 'Inter', sans-serif; border: 0; border-radius: 999px; background: var(--button); }
+.capture-btn:disabled { cursor: wait; opacity: 0.6; }
+.capture-circle { width: 38px; height: 38px; display: grid; place-items: center; border: 2px solid #fff; border-radius: 50%; }
+.capture-circle span { width: 27px; height: 27px; display: block; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+.capture-btn:hover:not(:disabled) .capture-circle span { transform: scale(0.85); }
+.photo-menu-enter-active, .photo-menu-leave-active { transition: opacity 0.2s ease; }
+.photo-menu-enter-active .dialog, .photo-menu-leave-active .dialog { transition: opacity 0.2s ease, transform 0.22s ease; }
+.photo-menu-enter-from, .photo-menu-leave-to { opacity: 0; }
+.photo-menu-enter-from .dialog, .photo-menu-leave-to .dialog { opacity: 0; transform: translateY(10px) scale(0.97); }
+.pop-enter-active, .pop-leave-active { transition: all 0.25s ease; }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.95); }
 /* =========================================================
    RESPONSIVE
 ========================================================= */
-
 @media (max-width: 1050px) {
-  .profile-card {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-
-  .form-grid-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .reg-layout { grid-template-columns: 260px minmax(0, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
 @media (max-width: 850px) {
-  .profile-card {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-content {
-    max-width: 420px;
-    margin: 0 auto;
-  }
+  .reg-layout { grid-template-columns: minmax(0, 1fr); }
+  .profile-card { position: relative; top: 0; max-width: 460px; width: 100%; margin: 0 auto; }
 }
-
 @media (max-width: 650px) {
-  .main-content {
-    padding: 14px 12px 30px;
-  }
-
-  .login-card {
-    padding: 20px 17px 22px;
-  }
-
-  .form-grid-3,
-  .physical-grid,
-  .membership-date-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .membership-actions-row {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .registration-footer {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .btn-primary {
-    width: 100%;
-    min-width: 0;
-  }
-
-  /* MODAL OPCIONES */
-  .photo-options-overlay {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .photo-options-modal {
-    max-width: none;
-    padding: 12px 17px 20px;
-    border-radius: 22px 22px 0 0;
-  }
-
-  .photo-options-handle {
-    width: 38px;
-    height: 4px;
-    display: block;
-    margin: 0 auto 17px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .16);
-  }
-
-  /* CÁMARA PANTALLA INFERIOR */
-  .camera-overlay {
-    align-items: flex-end;
-    padding: 0;
-  }
-
-  .camera-modal {
-    max-width: none;
-    padding:
-      17px
-      14px
-      calc(18px + env(safe-area-inset-bottom));
-    border-radius: 24px 24px 0 0;
-  }
-
-  .camera-preview {
-    aspect-ratio: 3 / 4;
-  }
-
-  .switch-camera-btn {
-    top: 11px;
-    right: 11px;
-    min-height: 38px;
-    padding: 0 12px;
-  }
-
-  .camera-actions {
-    flex-direction: column-reverse;
-  }
-
-  .camera-cancel-btn,
-  .capture-btn {
-    width: 100%;
-    justify-content: center;
-  }
+  .reg-page { padding: 14px 12px calc(34px + env(safe-area-inset-bottom, 0px)); }
+  .card { padding: 20px 16px 22px; }
+  .card-head { flex-wrap: wrap; }
+  .membership-card .card-head .grow { flex-basis: calc(100% - 70px); }
+  .head-actions { margin-left: auto; }
+  .grid-3, .grid-2, .choice-grid { grid-template-columns: minmax(0, 1fr); }
+  .segment { flex-direction: column; gap: 3px; height: 54px; font-size: 0.72rem; }
+  .segment i { font-size: 1.05rem; }
+  .total-box strong { font-size: 1.45rem; }
+  .ff-trigger-value { flex-direction: column; align-items: flex-start; gap: 1px; }
+  input:not([type='radio']):not([type='file']) { font-size: 1rem; } /* evita el zoom de iOS */
+  .reg-footer { flex-direction: column-reverse; align-items: stretch; }
+  .footer-actions { flex-direction: column-reverse; align-items: stretch; }
+  .save-btn { min-width: 0; width: 100%; }
+  .receipt-btn { width: 100%; }
+  /* Hojas inferiores */
+  .overlay.sheet { align-items: end; padding: 0; }
+  .overlay.sheet .dialog { width: 100%; max-width: none; padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 22px 22px 0 0; }
+  .sheet-handle { display: block; width: 38px; height: 4px; margin: 0 auto 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+  .camera-preview { aspect-ratio: 3 / 4; }
+  .camera-actions { flex-direction: column-reverse; }
+  .camera-actions .btn, .capture-btn { width: 100%; justify-content: center; }
 }
-
 @media (max-width: 420px) {
-  .profile-section {
-    padding: 28px 16px 22px;
-  }
-
-  .main-title {
-    font-size: 1.6rem;
-  }
-
-  .measurement-field,
-  .date-field {
-    padding: 13px;
-  }
-
-  .camera-header h3 {
-    font-size: 1.05rem;
-  }
-
-  .switch-camera-btn span {
-    display: none;
-  }
-
-  .switch-camera-btn {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    justify-content: center;
-  }
-
-  .switch-camera-btn svg {
-    width: 19px;
-    height: 19px;
-  }
+  .profile-card { padding: 28px 16px 20px; }
+  .main-title { font-size: 1.6rem; }
+  .switch-camera span { display: none; }
+  .switch-camera { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .dialog-actions .btn { width: 100%; }
 }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+.curp-lookup{display:inline-flex;gap:6px;align-items:center;margin-top:7px;font-size:12px;color:var(--color-highlight,#60a5fa);text-decoration:underline;text-underline-offset:3px}.curp-feedback{display:block;margin-top:5px;font-size:11px;color:#fca5a5}.curp-feedback.curp-valid{color:#34d399}
 </style>

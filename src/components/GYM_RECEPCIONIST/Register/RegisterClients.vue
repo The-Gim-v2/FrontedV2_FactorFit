@@ -1174,6 +1174,19 @@ const capturePhoto = () => {
     toastRef.value?.notify(txt('Foto tomada correctamente.', 'Photo captured successfully.'), 'success');
   }, 'image/jpeg', 0.92);
 };
+// Convierte respuestas de validación del servidor en mensajes claros para el cliente.
+const mensajeErrorRegistro = (resultado, status) => {
+  const errores = resultado?.errors && typeof resultado.errors === 'object' ? resultado.errors : {};
+  const mensajes = Object.values(errores).flat().filter(x => typeof x === 'string');
+  if (mensajes.length) return [...new Set(mensajes)].join(' ');
+  const servidor = String(resultado?.message || '').trim();
+  const ingles = /already been taken|validation failed|server error|SQLSTATE|exception/i;
+  if (ingles.test(servidor)) return 'No se pudo registrar: revisa el correo y la CURP, o intenta de nuevo.';
+  if (servidor) return servidor;
+  if (status === 422) return 'Revisa los datos del formulario. Puede haber información ya registrada.';
+  if (status >= 500) return 'Ocurrió un problema en el servidor. Inténtalo de nuevo más tarde.';
+  return 'No se pudo completar el registro. Verifica los datos e inténtalo nuevamente.';
+};
 /* =========================================================
    REGISTRO
 ========================================================= */
@@ -1246,12 +1259,7 @@ const saveRegistration = async () => {
     const res = await fetch(clientesApi, { method: 'POST', headers: authHeaders(), body: data });
     const result = await res.json().catch(() => ({}));
     if (!res.ok) {
-      console.error('Error API registro de cliente', { status: res.status, response: result });
-      throw new Error(
-        Object.values(result.errors || {}).flat().join(' ') ||
-        (result.message && result.message !== 'Server Error' ? result.message : '') ||
-        `Error HTTP ${res.status}: revisa los logs de Laravel.`
-      );
+      throw new Error(mensajeErrorRegistro(result, res.status));
     }
     // Nunca inferir pago exitoso de HTTP 200/201: el servidor debe confirmarlo.
     const pagoConfirmado = result.pago_confirmado === true && result.membresia_activa === true;

@@ -1,318 +1,65 @@
 <script setup>
-import { reactive, ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { reactive, ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import HeadingGYM_RECEPCIONIST from '../HeadingGYM_RECEPCIONIST.vue';
 import { traducciones } from '../i18n.js';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-/* ============================ GENERAL ============================ */
-const route = useRoute();
 const router = useRouter();
+const route = useRoute();
+const clienteId=ref(null), clienteSedeId=ref(null), clientesBusqueda=ref([]), showSuggestions=ref(false), loadingProfile=ref(false), saving=ref(false);
+const API=String(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'').replace(/\/api$/i,'');
+const sedeId=()=>{const keys=['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id'];for(const storage of [sessionStorage,localStorage])for(const key of keys){const raw=storage.getItem(key);if(!raw)continue;let value=raw;try{const obj=JSON.parse(raw);value=typeof obj==='object'?(obj?.ID_Sede??obj?.sede_id??obj?.id??obj?.value):obj;}catch{}const id=Number(value);if(Number.isInteger(id)&&id>0)return id;}return 0;};
+const token=()=>{for(const storage of [sessionStorage,localStorage]){for(const key of ['token','auth_token','access_token','gym_token','GYM_RECEPCIONIST_token','gymAccountToken']){const t=storage.getItem(key);if(t)return t.replace(/^Bearer\s+/i,'');}for(const key of ['auth','user','session','gymAccount','GYM_RECEPCIONIST']){try{const v=JSON.parse(storage.getItem(key)||'null');if(v?.token||v?.access_token||v?.accessToken)return v.token||v.access_token||v.accessToken;}catch{}}}return '';};
+const request=async(path,options={})=>{const response=await fetch(`${API}${path}`,{...options,headers:{Accept:'application/json',Authorization:`Bearer ${token()}`,...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok){const errors=data?.errors?Object.values(data.errors).flat().join(' '):'';throw new Error(response.status===403?'No tienes autorización para modificar clientes de esta sucursal. Verifica que la sede seleccionada pertenezca a tu gimnasio.':errors||data?.message||`Error HTTP ${response.status}`);}return data;};
+const suggestions=computed(()=>{const q=searchQuery.value.trim().toLocaleLowerCase();if(!q)return [];return clientesBusqueda.value.filter(c=>[c.Nombre,c.Apellido_P,c.Apellido_M,c.Celular,c.Correo_Electronico,c.ID_Cliente].some(v=>String(v??'').toLocaleLowerCase().includes(q))).slice(0,8);});
+const loadSearch=async()=>{if(!sedeId()){clientesBusqueda.value=[];return;}try{const data=await request(`/api/gym/clientes?sede_id=${sedeId()}`);clientesBusqueda.value=Array.isArray(data)?data:(data?.data||[]);}catch(e){console.error(e);}};
+const loadClient=async(id)=>{if(!id||!sedeId()){toastRef.value?.notify('Selecciona una sucursal para consultar el cliente.','warning');return;}loadingProfile.value=true;try{const c=await request(`/api/gym/clientes/${id}?sede_id=${sedeId()}`);clienteId.value=Number(c.ID_Cliente);clienteSedeId.value=Number(c.ID_Sede);Object.assign(form,{nombres:c.Nombre||'',apellidoPaterno:c.Apellido_P||'',apellidoMaterno:c.Apellido_M||'',curp:String(c.Curp??c.curp??'').toUpperCase(),fechaNacimiento:String(c.Fecha_Nacimiento||'').slice(0,10),celular:formatoCelularEdicion(c.Celular||''),correo:correoNormalEdicion(c.Correo_Electronico||''),peso:c.Peso??'',altura:c.Altura??'',sede:c.Nombre_Sede||clientesBusqueda.value.find(x=>Number(x.ID_Sede)===Number(c.ID_Sede))?.Nombre_Sede||'Sucursal sin nombre',status:c.Estatus||'Pendiente'});if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value=c.foto_url||'';avatarFile.value=null;searchQuery.value='';showSuggestions.value=false;}catch(e){toastRef.value?.notify(e.message,'error');}finally{loadingProfile.value=false;}};
+const chooseClient=async(c)=>{showSuggestions.value=false;searchQuery.value='';const id=String(c.ID_Cliente);if(String(route.params.id)===id)await loadClient(id);else await router.push(`/GYM_RECEPCIONIST/editar-usuario/${id}`);};
 const toastRef = ref(null);
 const searchQuery = ref('');
-const showSuggestions = ref(false);
 const currentLang = ref(localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es');
 const t = (key) => {
   const langTable = traducciones[currentLang.value] || traducciones.es;
   return langTable?.[key] || traducciones.es?.[key] || key;
 };
 const txt = (es, en) => (currentLang.value === 'en' ? en : es);
-/* Texto en 4 idiomas para las cadenas nuevas. Si falta fr/pt se usa el inglés. */
-const L = (es, en, fr, pt) => {
-  const texts = { es, en, fr: fr ?? en, pt: pt ?? en };
-  return texts[currentLang.value] ?? es;
-};
 const handleLangChange = (event) => {
   if (event.detail?.idioma) currentLang.value = event.detail.idioma;
 };
-const warn = (message) => {
-  toastRef.value?.notify(message, 'warning');
-  return false;
-};
-/* ============================ SEDES ============================ */
-const listaSedes = ref([]);
-const ALL_SEDES = computed(() => listaSedes.value.map(s => s.id));
-const staffDB = ref([]);
-const loadingProfile = ref(false);
-const saving = ref(false);
-const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const token = () => {
-  for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['token','auth_token','access_token','gym_token','GYM_RECEPCIONIST_token','gymAccountToken']) {
-      const value = store.getItem(key);
-      if (value) return value.replace(/^Bearer\s+/i, '');
-    }
-    for (const key of ['auth','user','session','gymAccount','GYM_RECEPCIONIST']) {
-      try {
-        const value = JSON.parse(store.getItem(key) || 'null');
-        if (value?.token || value?.access_token || value?.accessToken)
-          return value.token || value.access_token || value.accessToken;
-      } catch {}
-    }
-  }
-  return '';
-};
-const request = async (path, options = {}) => {
-  const auth = token();
-  if (!auth) throw new Error('Tu sesión ha expirado. Inicia sesión nuevamente.');
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: { Accept: 'application/json', Authorization: `Bearer ${auth}`, ...(options.headers || {}) }
-  });
-  const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    const errors = Object.values(data?.errors || {}).flat().filter(Boolean).join(' ');
-    throw new Error(errors || data?.message || `Error HTTP ${response.status}`);
-  }
-  return data;
-};
-const fetchSedes = async () => {
-  const data = await request('/api/personal/sedes');
-  const rows = Array.isArray(data) ? data : (data?.data || data?.sedes || []);
-  listaSedes.value = rows.map(x => ({
-    id: Number(x.ID_Sede ?? x.id),
-    nombre: x.Sede_Colonia ?? x.Nombre_Sede ?? x.nombre ?? `Sede ${x.ID_Sede ?? x.id}`
-  })).filter(x => x.id > 0);
-};
-const fetchStaffSearch = async () => {
-  const data = await request('/api/personal');
-  staffDB.value = Array.isArray(data) ? data : (data?.data || []);
-};
 /* ============================ FORMULARIO ============================ */
-const emptyForm = () => ({
-  /* comunes */
-  rol: '',
-  correo: '',
-  sedes: [],
-  curp: '',
+const form = reactive({
   nombres: '',
   apellidoPaterno: '',
   apellidoMaterno: '',
+  curp: '',
   fechaNacimiento: '',
   celular: '',
-  /* propietario, gerente, recepción */
-  password: '',
-  confirmPassword: '',
-  /* entrenador */
-  especialidad: '',
-  facebook: '',
-  instagram: '',
-  tiktok: '',
-  otrasApp: '',
-  /* horario */
-  tieneHorario: false,
-  entrada: '',
-  salida: ''
+  correo: '',
+  peso: '',
+  altura: '',
+  sede: '',
+  status: ''
 });
-const form = reactive(emptyForm());
-const currentStaffId = ref(null);
-const loaded = computed(() => currentStaffId.value !== null);
-const staffCode = computed(() =>
-  loaded.value ? `GymPer${String(currentStaffId.value).padStart(3, '0')}` : '—'
-);
-const initials = computed(() =>
-  [form.nombres, form.apellidoPaterno]
-    .filter(Boolean)
-    .map((value) => value.trim().charAt(0))
-    .join('')
-    .toUpperCase()
-);
-/* ============================ REGLAS POR ROL ============================
-   propietario : todas las sedes · sin horario · con contraseña
-   gerente     : una, varias o todas · sin horario · con contraseña
-   recepcion   : UNA sola sede · horario obligatorio · con contraseña
-   entrenador  : varias sedes · especialidad y redes · horario opcional · sin contraseña
-================================================================== */
-const isOwner = computed(() => form.rol === 'propietario');
-const isManager = computed(() => form.rol === 'gerente');
-const isTrainer = computed(() => form.rol === 'entrenador');
-const isReception = computed(() => form.rol === 'recepcion');
-const needsPassword = computed(
-  () => isOwner.value || isManager.value || isReception.value
-);
-const multiSedes = computed(() => isManager.value || isTrainer.value);
-/* Solo recepción y entrenador tienen horario */
-const showScheduleCard = computed(() => isReception.value || isTrainer.value);
-const scheduleMode = computed(() => {
-  if (isReception.value) return 'required';
-  if (isTrainer.value) return 'optional';
-  return 'none';
-});
-const showTimes = computed(
-  () =>
-    scheduleMode.value === 'required' ||
-    (scheduleMode.value === 'optional' && form.tieneHorario)
-);
-const roleLabel = computed(() => {
-  if (isOwner.value) return L('Propietario', 'Owner', 'Propriétaire', 'Proprietário');
-  if (isManager.value) return L('Gerente', 'Manager', 'Gérant', 'Gerente');
-  if (isTrainer.value) return t('roleTrainer');
-  if (isReception.value) return t('roleReception');
-  return '';
-});
-const sedesHint = computed(() => {
-  if (isReception.value) {
-    return L(
-      'Recepción solo puede tener una sede.',
-      'Reception can only have one location.',
-      'La réception ne peut avoir qu’un seul site.',
-      'A recepção só pode ter uma unidade.'
-    );
-  }
-  if (multiSedes.value) {
-    return L(
-      'Puede tener una, varias o todas las sedes.',
-      'Can have one, several or all locations.',
-      'Peut avoir un, plusieurs ou tous les sites.',
-      'Pode ter uma, várias ou todas as unidades.'
-    );
-  }
-  return '';
-});
-/* ============================ CARGAR USUARIO ============================ */
-const resetAvatar = () => {
-  if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
-    URL.revokeObjectURL(avatarSrc.value);
-  }
-  avatarFile.value = null;
-  avatarSrc.value = '';
+const handleSearch=()=>{if(suggestions.value.length===1)chooseClient(suggestions.value[0]);else showSuggestions.value=true;};
+const goToStatistics = () => {
+  if(!clienteId.value)return;
+  router.push({ path: `/GYM_RECEPCIONIST/statistics/${clienteId.value}`, query: { sede_id: clienteSedeId.value || sedeId() } });
 };
-const loadUser = async (id) => {
-  if (!id) return;
-  loadingProfile.value = true;
-  try {
-    const data = await request(`/api/personal/${encodeURIComponent(id)}`);
-    const user = data?.data || data;
-    const roleMap = { GYM_RECEPCIONIST: 'propietario', GYM_MANAGER: 'gerente', GYM_COACH: 'entrenador', GYM_RECEPCIONIST: 'recepcion' };
-    const assigned = user.sedes_asignadas || user.sedes || [];
-    const sedes = assigned.map(x => Number(typeof x === 'object' ? (x.ID_Sede ?? x.id) : x)).filter(x => x > 0);
-    const horario = user.horario || {};
-    Object.assign(form, emptyForm(), {
-      rol: roleMap[user.Nombre_Rol ?? user.rol?.Nombre_Rol] || '',
-      correo: correoNormalEdicion(user.Correo_Electronico || ''),
-      sedes: sedes.length ? sedes : [Number(user.ID_Sede)].filter(Boolean),
-      curp: user.Curp || '',
-      nombres: user.Nombre || '',
-      apellidoPaterno: user.Apellido_P || '',
-      apellidoMaterno: user.Apellido_M || '',
-      fechaNacimiento: String(user.Fecha_Nacimiento || '').slice(0, 10),
-      celular: formatoCelularEdicion(user.Celular || ''),
-      especialidad: user.Especialidad || user.datos_extras?.Especialidad || '',
-      facebook: user.Facebook || user.datos_extras?.Facebook || '',
-      instagram: user.Instagram || user.datos_extras?.Instagram || '',
-      tiktok: user.TikTok || user.datos_extras?.TikTok || '',
-      otrasApp: user.Otras_App || user.datos_extras?.Otras_App || '',
-      entrada: horario.entrada || user.Horario_Entrada || '',
-      salida: horario.salida || user.Horario_Salida || '',
-      tieneHorario: Boolean(horario.entrada || user.Horario_Entrada)
-    });
-    if (form.rol === 'recepcion') form.sedes = form.sedes.slice(0, 1);
-    currentStaffId.value = Number(user.ID_Personal);
-    isDropdownOpen.value = false;
-    resetAvatar();
-    avatarSrc.value = user.foto_url || '';
-  } catch (error) {
-    currentStaffId.value = null;
-    toastRef.value?.notify(error.message, 'error');
-  } finally {
-    loadingProfile.value = false;
-  }
-};
-/* ============================ BÚSQUEDA (CON SUGERENCIAS) ============================ */
-const suggestions = computed(() => {
-  const q = searchQuery.value.trim().toLocaleLowerCase();
-  if (!q) return [];
-  return staffDB.value
-    .filter(u =>
-      [u.Nombre, u.Apellido_P, u.Apellido_M, u.Celular, u.Correo_Electronico, u.ID_Personal]
-        .some(v => String(v ?? '').toLocaleLowerCase().includes(q))
-    )
-    .slice(0, 8);
-});
-const chooseStaff = async (u) => {
-  showSuggestions.value = false;
-  searchQuery.value = '';
-  const id = String(u.ID_Personal);
-  if (String(route.params.id) === id) await loadUser(id);
-  else await router.push(`/GYM_RECEPCIONIST/editar-staff/${id}`);
-};
-const handleSearch = () => {
-  if (suggestions.value.length === 1) chooseStaff(suggestions.value[0]);
-  else showSuggestions.value = true;
-};
-/* ============================ SEDES (SELECTOR) ============================ */
-const isDropdownOpen = ref(false);
-const dropdownRef = ref(null);
-const allSedesSelected = computed(
-  () =>
-    listaSedes.value.length > 0 &&
-    form.sedes.length === listaSedes.value.length
-);
-const toggleDropdown = () => {
-  isDropdownOpen.value = !isDropdownOpen.value;
-};
-/* Recepción: una sola sede (se reemplaza y se cierra). Resto: agrega o quita. */
-const toggleSede = (id) => {
-  if (isReception.value) {
-    form.sedes = [id];
-    isDropdownOpen.value = false;
-    return;
-  }
-  const index = form.sedes.indexOf(id);
-  if (index > -1) form.sedes.splice(index, 1);
-  else form.sedes.push(id);
-};
-const toggleAllSedes = () => {
-  form.sedes = allSedesSelected.value ? [] : [...ALL_SEDES.value];
-};
-const getSedesDisplayText = () => {
-  if (form.sedes.length === 0) {
-    return L(
-      isReception.value ? 'Seleccionar sede' : 'Seleccionar sedes',
-      isReception.value ? 'Select location' : 'Select locations',
-      isReception.value ? 'Sélectionner le site' : 'Sélectionner les sites',
-      isReception.value ? 'Selecionar unidade' : 'Selecionar unidades'
-    );
-  }
-  if (allSedesSelected.value && multiSedes.value) {
-    return L('Todas las sedes', 'All locations', 'Tous les sites', 'Todas as unidades');
-  }
-  return listaSedes.value
-    .filter((sede) => form.sedes.includes(sede.id))
-    .map((sede) => sede.nombre)
-    .join(', ');
-};
-const handleClickOutside = (event) => {
-  if (!event.target.closest?.('.search-small')) showSuggestions.value = false;
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-    isDropdownOpen.value = false;
-  }
-};
-const handleKeydown = (event) => {
-  if (event.key === 'Escape') {
-    isDropdownOpen.value = false;
-    showSuggestions.value = false;
-  }
-};
-/* Si el entrenador desactiva el horario, se limpian las horas */
-watch(
-  () => form.tieneHorario,
-  (active) => {
-    if (!active && isTrainer.value) {
-      form.entrada = '';
-      form.salida = '';
-    }
-  }
-);
-/* ============================ FOTO ============================ */
-const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+/* ============================ FOTO / GALERÍA ============================ */
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024; // 4 MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const isValidImage = file => !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
-const notifyInvalidImage = () => toastRef.value?.notify('Selecciona una imagen JPG, PNG o WebP de máximo 4 MB.', 'warning');
+const isValidImage = (file) =>
+  !!file && ALLOWED_IMAGE_TYPES.includes(file.type) && file.size <= MAX_IMAGE_SIZE;
+const notifyInvalidImage = () =>
+  toastRef.value?.notify(
+    txt('Selecciona una imagen de máximo 4 MB.', 'Select an image of up to 4 MB.'),
+    'warning'
+  );
 const fileInput = ref(null);
 const avatarFile = ref(null);
 const avatarSrc = ref('');
 const showPhotoOptions = ref(false);
-const openPhotoOptions = () => (showPhotoOptions.value = true);
+const openPhotoOptions = () => {if(clienteId.value)showPhotoOptions.value = true;};
 const closePhotoOptions = () => (showPhotoOptions.value = false);
 const selectPhoto = () => {
   showPhotoOptions.value = false;
@@ -370,7 +117,7 @@ const startCamera = async () => {
   cameraStream.value = stream;
   await nextTick();
   if (!videoRef.value) {
-    throw new Error('No se encontró el visor de cámara.');
+    throw new Error('No se encontró el elemento de video.');
   }
   videoRef.value.srcObject = stream;
   await videoRef.value.play();
@@ -399,7 +146,7 @@ const takePhoto = async () => {
     let message = txt('No se pudo acceder a la cámara.', 'Could not access the camera.');
     if (error?.name === 'NotAllowedError') {
       message = txt(
-        'Permiso de cámara rechazado. Actívalo desde el navegador.',
+        'Permiso de cámara rechazado. Actívalo en el navegador.',
         'Camera permission was denied. Enable it in your browser.'
       );
     }
@@ -461,6 +208,7 @@ const capturePhoto = () => {
   canvas.height = video.videoHeight;
   const context = canvas.getContext('2d');
   if (!context) return;
+  /* Cámara frontal: se refleja la foto final para que coincida con el visor */
   if (cameraFacingMode.value === 'user') {
     context.save();
     context.translate(canvas.width, 0);
@@ -473,10 +221,13 @@ const capturePhoto = () => {
   canvas.toBlob(
     (blob) => {
       if (!blob) return;
-      const file = new File([blob], `personal-${Date.now()}.jpg`, {
+      const file = new File([blob], `cliente-${Date.now()}.jpg`, {
         type: 'image/jpeg'
       });
-      if (!isValidImage(file)) { notifyInvalidImage(); return; }
+      if (!isValidImage(file)) {
+        notifyInvalidImage();
+        return;
+      }
       setAvatarFile(file);
       closeCamera();
       toastRef.value?.notify(
@@ -517,148 +268,50 @@ const medidaValidaEdicion = (value, tipo) => {
   const n=Number(txt);return n>0 && n<=(tipo==='altura'?300:999.9);
 };
 
-/* ============================ VALIDACIÓN ============================ */
-const validateForm = () => {
-  if (!form.nombres.trim() || !form.apellidoPaterno.trim()) {
-    return warn(
-      L(
-        'Completa los datos personales obligatorios.',
-        'Complete the required personal information.',
-        'Complétez les informations personnelles obligatoires.',
-        'Preencha as informações pessoais obrigatórias.'
-      )
-    );
-  }
-  if (!form.correo.trim()) {
-    return warn(
-      L(
-        'Ingresa un correo electrónico.',
-        'Enter an email address.',
-        'Entrez une adresse e-mail.',
-        'Digite um endereço de e-mail.'
-      )
-    );
-  }
-  if(!validarCorreoEdicion(form.correo))return warn('Revisa el correo y su dominio (gmail.com, hotmail.com, outlook.com, etc.).');
-  if(!/^\d{10}$/.test(digitosCelularEdicion(form.celular)))return warn('El celular debe tener 10 dígitos nacionales, sin +52.');
-  if(form.curp && (!/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/.test(form.curp)))return warn('Revisa la CURP: debe contener 18 caracteres.');
-  /* Contraseña: opcional al editar, pero si se escribe debe coincidir */
-  if (needsPassword.value && (form.password || form.confirmPassword)) {
-    if (form.password !== form.confirmPassword) {
-      return warn(
-        L(
-          'Las contraseñas no coinciden.',
-          'Passwords do not match.',
-          'Les mots de passe ne correspondent pas.',
-          'As senhas não coincidem.'
-        )
-      );
-    }
-  }
-  if (isTrainer.value && !form.especialidad.trim()) {
-    return warn(
-      L(
-        'Ingresa la especialidad del entrenador.',
-        'Enter the trainer specialty.',
-        'Entrez la spécialité de l’entraîneur.',
-        'Digite a especialidade do treinador.'
-      )
-    );
-  }
-  if (!isOwner.value && form.sedes.length === 0) {
-    return warn(
-      L(
-        isReception.value
-          ? 'Selecciona la sede de recepción.'
-          : 'Selecciona al menos una sede.',
-        isReception.value
-          ? 'Select the reception location.'
-          : 'Select at least one location.',
-        isReception.value
-          ? 'Sélectionnez le site de la réception.'
-          : 'Sélectionnez au moins un site.',
-        isReception.value
-          ? 'Selecione a unidade da recepção.'
-          : 'Selecione pelo menos uma unidade.'
-      )
-    );
-  }
-  if (showTimes.value && (!form.entrada || !form.salida)) {
-    return warn(
-      L(
-        'Ingresa la hora de entrada y de salida.',
-        'Enter the entry and exit time.',
-        'Entrez l’heure d’entrée et de sortie.',
-        'Informe o horário de entrada e de saída.'
-      )
-    );
-  }
-  return true;
-};
 /* ============================ GUARDAR ============================ */
-const saveChanges = async () => {
-  if (!loaded.value || saving.value || !validateForm()) return;
-  if (avatarFile.value && !isValidImage(avatarFile.value)) { notifyInvalidImage(); return; }
-  saving.value = true;
-  try {
-    const fd = new FormData();
-    const values = {
-      rol: form.rol,
-      correo: correoNormalEdicion(form.correo),
-      curp: form.curp.trim().toUpperCase(),
-      nombres: nombreTituloEdicion(form.nombres.trim()),
-      apellidoPaterno: nombreTituloEdicion(form.apellidoPaterno.trim()),
-      apellidoMaterno: nombreTituloEdicion(form.apellidoMaterno.trim()),
-      fechaNacimiento: form.fechaNacimiento,
-      celular: digitosCelularEdicion(form.celular),
-      especialidad: form.especialidad.trim(),
-      facebook: form.facebook.trim(),
-      instagram: form.instagram.trim(),
-      tiktok: form.tiktok.trim(),
-      otrasApp: form.otrasApp.trim()
-    };
-    if (showTimes.value) values.horario = JSON.stringify({ entrada: form.entrada, salida: form.salida });
-    if (form.password) values.password = form.password;
-    for (const [key, value] of Object.entries(values)) fd.append(key, value ?? '');
-    const selected = isOwner.value ? ALL_SEDES.value : form.sedes;
-    selected.forEach(id => fd.append('sedes[]', String(id)));
-    if (avatarFile.value) fd.append('foto', avatarFile.value);
-    await request(`/api/personal/${currentStaffId.value}`, { method: 'POST', body: fd });
-    await loadUser(currentStaffId.value);
-    await fetchStaffSearch();
-    toastRef.value?.notify('Cambios guardados correctamente.', 'success');
-  } catch (error) {
-    toastRef.value?.notify(error.message || 'No se pudieron guardar los cambios.', 'error');
-  } finally {
-    saving.value = false;
-  }
+const normalizarCurp = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
+const curpEstructura = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/;
+const curpValida = (value) => {
+  const c = normalizarCurp(value);
+  if (!curpEstructura.test(c)) return false;
+  const yy = Number(c.slice(4, 6));
+  const mm = Number(c.slice(6, 8));
+  const dd = Number(c.slice(8, 10));
+  const year = (/[0-9]/.test(c[16]) ? 1900 : 2000) + yy;
+  const fecha = new Date(Date.UTC(year, mm - 1, dd));
+  return fecha.getUTCFullYear() === year && fecha.getUTCMonth() === mm - 1 && fecha.getUTCDate() === dd;
 };
-/* ============================ CICLO DE VIDA ============================ */
-/* Carga el usuario según el id de la ruta: /GYM_RECEPCIONIST/editar-staff/:id */
-watch(
-  () => route.params.id,
-  (id) => {
-    if (id === undefined || id === null || id === '') {
-      currentStaffId.value = null;
-      return;
-    }
-    loadUser(id);
-  },
-  { immediate: true }
-);
-onMounted(async () => {
-  try { await Promise.all([fetchSedes(), fetchStaffSearch()]); }
-  catch (error) { toastRef.value?.notify(error.message, 'error'); }
+watch(() => form.curp, (v) => { const limpio = normalizarCurp(v); if (v !== limpio) form.curp = limpio; });
+const saveChanges=async()=>{
+  if(saving.value)return;
+  if(!clienteId.value)return toastRef.value?.notify('Selecciona un cliente primero.','warning');
+  if(!form.nombres.trim()||!form.apellidoPaterno.trim())return toastRef.value?.notify('Nombre y apellido paterno son obligatorios.','warning');
+  if(!curpValida(form.curp))return toastRef.value?.notify('La CURP debe tener 18 caracteres y fecha válida.','warning');
+  if(form.celular && !/^\d{10}$/.test(digitosCelularEdicion(form.celular)))return toastRef.value?.notify('El celular debe tener 10 dígitos, sin +52.','warning');
+  if(!validarCorreoEdicion(form.correo))return toastRef.value?.notify('Corrige el correo electrónico y su dominio (gmail.com, hotmail.com, outlook.com, etc.).','warning');
+  if(!medidaValidaEdicion(form.peso,'peso')||!medidaValidaEdicion(form.altura,'altura'))return toastRef.value?.notify('Peso: máximo 3 enteros y 1 decimal (999.9 kg). Altura: máximo 3 dígitos (300 cm).','warning');
+  if(avatarFile.value&&!isValidImage(avatarFile.value)){notifyInvalidImage();return;}
+  saving.value=true;
+  try{
+    const fd=new FormData();
+    const values={sede_id:clienteSedeId.value||sedeId(),nombres:nombreTituloEdicion(form.nombres.trim()),apellidoP:nombreTituloEdicion(form.apellidoPaterno.trim()),apellidoM:nombreTituloEdicion(form.apellidoMaterno.trim()),curp:normalizarCurp(form.curp),fechaNacimiento:form.fechaNacimiento,celular:digitosCelularEdicion(form.celular),email:correoNormalEdicion(form.correo),peso:form.peso,altura:form.altura};
+    Object.entries(values).forEach(([k,v])=>{if(v!==''&&v!==null&&v!==undefined)fd.append(k,String(v));});
+    if(avatarFile.value)fd.append('foto',avatarFile.value);
+    await request(`/api/gym/clientes/${clienteId.value}`,{method:'POST',body:fd});
+    await loadClient(clienteId.value);await loadSearch();toastRef.value?.notify('Cambios guardados correctamente','success');
+  }catch(e){toastRef.value?.notify(e.message,'error');}finally{saving.value=false;}
+};
+watch(()=>route.params.id,id=>{if(id)loadClient(id);});
+const handleBranchChange=()=>{clienteId.value=null;clienteSedeId.value=null;clientesBusqueda.value=[];Object.keys(form).forEach(k=>form[k]='');if(avatarSrc.value?.startsWith('blob:'))URL.revokeObjectURL(avatarSrc.value);avatarSrc.value='';avatarFile.value=null;loadSearch();if(route.params.id)loadClient(route.params.id);};
+onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
-  window.addEventListener('factorfit:branch-changed', fetchStaffSearch);
-  document.addEventListener('click', handleClickOutside);
-  document.addEventListener('keydown', handleKeydown);
+  window.addEventListener('factorfit:branch-changed', handleBranchChange);
+  loadSearch();
+  if(route.params.id)loadClient(route.params.id);
 });
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
-  window.removeEventListener('factorfit:branch-changed', fetchStaffSearch);
-  document.removeEventListener('click', handleClickOutside);
-  document.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('factorfit:branch-changed', handleBranchChange);
   stopCamera();
   if (avatarSrc.value && avatarSrc.value.startsWith('blob:')) {
     URL.revokeObjectURL(avatarSrc.value);
@@ -673,24 +326,26 @@ onUnmounted(() => {
       <header class="page-header">
         <div class="page-heading">
           <span class="eyebrow">
-            {{ txt('GESTIÓN DE PERSONAL', 'STAFF MANAGEMENT') }}
+            {{ txt('GESTIÓN DE CLIENTE', 'CLIENT MANAGEMENT') }}
           </span>
           <h1>
-            {{ txt('Perfil del', 'Staff') }}
-            <span>{{ txt('personal', 'profile') }}</span>
+            {{ txt('Perfil del', 'Client') }}
+            <span>{{ txt('cliente', 'profile') }}</span>
           </h1>
           <p>
             {{
               txt(
-                'Consulta y actualiza la información, permisos, sedes y horarios del personal registrado en el sistema.',
-                'Review and update the information, permissions, locations and schedules of staff registered in the system.'
+                'Consulta y actualiza la información personal, física y de membresía.',
+                'Review and update personal, physical and membership information.'
               )
             }}
           </p>
         </div>
-        <!-- TUTOR 0: BUSCAR PERSONAL -->
-        <div id="tutor-0" class="input-group search-small">
-          <label for="staff-search">{{ t('searchStaffLabel') }}</label>
+        <!-- TUTOR 0: BUSCAR CLIENTE -->
+        <div id="tutor-0" class="search-small input-group">
+          <label for="client-search">
+            {{ t('searchClientLabel') }}
+          </label>
           <div class="search-input-wrapper">
             <svg
               viewBox="0 0 24 24"
@@ -702,81 +357,32 @@ onUnmounted(() => {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
-              id="staff-search"
+              id="client-search"
               v-model="searchQuery"
               type="text"
-              autocomplete="off"
               :placeholder="t('searchPlaceholder')"
-              @focus="showSuggestions = true"
-              @input="showSuggestions = true"
-              @keyup.enter="handleSearch"
+              @focus="showSuggestions=true" @input="showSuggestions=true" @keyup.enter="handleSearch"
             />
           </div>
-          <div
-            v-if="showSuggestions && searchQuery.trim()"
-            class="client-suggestions"
-            role="listbox"
-          >
-            <button
-              v-for="u in suggestions"
-              :key="u.ID_Personal"
-              type="button"
-              class="client-suggestion"
-              role="option"
-              @click="chooseStaff(u)"
-            >
-              <span class="suggestion-avatar">{{ String(u.Nombre || '?').charAt(0).toUpperCase() }}</span>
-              <span class="suggestion-info">
-                <strong>{{ [u.Nombre, u.Apellido_P, u.Apellido_M].filter(Boolean).join(' ') }}</strong>
-                <small>{{ u.Correo_Electronico || u.Celular || 'Personal registrado' }}</small>
-              </span>
-              <span class="suggestion-id">#{{ u.ID_Personal }}</span>
-            </button>
-            <p v-if="!suggestions.length" class="suggestion-empty">
-              No se encontró personal en esta sucursal.
-            </p>
-          </div>
+          <div v-if="showSuggestions && searchQuery.trim()" class="client-suggestions" role="listbox">
+              <button v-for="c in suggestions" :key="c.ID_Cliente" type="button" class="client-suggestion" role="option" @click="chooseClient(c)">
+                <span class="suggestion-avatar">{{ String(c.Nombre||'?').charAt(0).toUpperCase() }}</span>
+                <span class="suggestion-info"><strong>{{ [c.Nombre,c.Apellido_P,c.Apellido_M].filter(Boolean).join(' ') }}</strong><small>{{ c.Correo_Electronico || c.Celular || 'Cliente registrado' }}</small></span>
+                <span class="suggestion-id">#{{ c.ID_Cliente }}</span>
+              </button>
+              <p v-if="!suggestions.length" class="suggestion-empty">No se encontraron clientes en esta sucursal.</p>
+            </div>
         </div>
       </header>
-      <div v-if="loadingProfile" class="login-card">Cargando información del personal...</div>
-      <!-- ==================== SIN PERSONAL SELECCIONADO ==================== -->
-      <section v-if="!loaded" class="login-card empty-staff">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        >
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-        <h3>
-          {{
-            L(
-              'Selecciona a un miembro del personal',
-              'Select a staff member',
-              'Sélectionnez un membre du personnel',
-              'Selecione um funcionário'
-            )
-          }}
-        </h3>
-        <p>
-          {{
-            L(
-              'Elige a alguien desde la tabla de personal o búscalo por nombre, correo o ID.',
-              'Pick someone from the staff table or search by name, email or ID.',
-              'Choisissez quelqu’un dans le tableau ou cherchez par nom, e-mail ou ID.',
-              'Escolha alguém na tabela ou busque por nome, e-mail ou ID.'
-            )
-          }}
-        </p>
-      </section>
-      <!-- ==================== PERSONAL SELECCIONADO ==================== -->
-      <div v-else class="profile-card">
-        <!-- ==================== PERFIL LATERAL ==================== -->
-        <!-- TUTOR 1: PERFIL -->
+      <!-- ==================== PERFIL COMPLETO ==================== -->
+      <div class="profile-card">
+        <!-- ================================================== -->
+        <!-- TUTOR 1: PERFIL DEL CLIENTE -->
+        <!-- ================================================== -->
         <aside id="tutor-1" class="profile-section">
-          <!-- TUTOR 2: FOTO -->
+          <!-- ================================================== -->
+          <!-- TUTOR 2: FOTOGRAFÍA -->
+          <!-- ================================================== -->
           <div id="tutor-2" class="avatar-wrapper">
             <button
               type="button"
@@ -784,15 +390,11 @@ onUnmounted(() => {
               :aria-label="txt('Cambiar foto', 'Change photo')"
               @click="openPhotoOptions"
             >
-              <img
-                v-if="avatarSrc"
-                :src="avatarSrc"
+              <img v-if="avatarSrc"
+                :src="avatarSrc" @error="avatarSrc=''"
                 :alt="t('avatarAlt')"
-                class="user-avatar-img"
               />
-              <span v-else class="avatar-initials">
-                {{ initials }}
-              </span>
+              <span v-if="!avatarSrc" class="avatar-fallback">{{ (form.nombres?.[0]||'?').toUpperCase() }}</span>
               <span class="avatar-overlay">
                 <svg
                   viewBox="0 0 24 24"
@@ -808,9 +410,29 @@ onUnmounted(() => {
                 {{ txt('Cambiar foto', 'Change photo') }}
               </span>
             </button>
-            <!-- TUTOR 3: BOTÓN CAMBIAR FOTO -->
+            <!-- TUTOR 3: VER ESTADÍSTICAS -->
             <button
               id="tutor-3"
+              type="button"
+              class="avatar-action btn-stats"
+              :title="t('viewStatsTitle')"
+              :aria-label="t('viewStatsTitle')"
+              @click="goToStatistics"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            </button>
+            <!-- TUTOR 4: CAMBIAR FOTO -->
+            <button
+              id="tutor-4"
               type="button"
               class="avatar-action btn-camera"
               :title="t('changePhotoTitle')"
@@ -832,20 +454,20 @@ onUnmounted(() => {
             <input
               ref="fileInput"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               class="hidden-input"
               @change="handleFileChange"
             />
           </div>
-          <!-- NOMBRE -->
+          <!-- ==================== NOMBRE ==================== -->
           <h2 class="main-title">
             {{ form.nombres || '—' }}
             <span>{{ form.apellidoPaterno || '—' }}</span>
           </h2>
-          <!-- ESTADO -->
+          <!-- ==================== ESTADO ==================== -->
           <span class="status-badge">
             <i></i>
-            {{ t('statusActive') }}
+            {{ form.status || '—' }}
           </span>
           <p class="photo-hint">
             {{
@@ -855,55 +477,22 @@ onUnmounted(() => {
               )
             }}
           </p>
-          <!-- INFORMACIÓN RESUMIDA -->
+          <!-- ==================== RESUMEN ==================== -->
           <dl class="profile-meta">
-            <!-- TUTOR 4: ID -->
-            <div id="tutor-4">
+            <!-- TUTOR 5: INFORMACIÓN DEL CLIENTE -->
+            <div id="tutor-5">
               <dt>ID</dt>
-              <dd>{{ staffCode }}</dd>
+              <dd>{{ clienteId || "—" }}</dd>
             </div>
             <div>
-              <dt>{{ txt('Rol', 'Role') }}</dt>
-              <dd>{{ roleLabel }}</dd>
+              <dt>{{ txt('Sede', 'Location') }}</dt>
+              <dd>{{ form.sede || '—' }}</dd>
             </div>
             <div>
-              <dt>{{ txt('Sedes', 'Locations') }}</dt>
-              <dd>
-                {{
-                  isOwner
-                    ? L('Todas', 'All', 'Tous', 'Todas')
-                    : form.sedes.length
-                }}
-              </dd>
-            </div>
-            <div v-if="showScheduleCard">
-              <dt>{{ t('workScheduleTitle') }}</dt>
-              <dd>
-                {{
-                  showTimes && form.entrada && form.salida
-                    ? `${form.entrada} – ${form.salida}`
-                    : '—'
-                }}
-              </dd>
+              <dt>{{ txt('Estado', 'Status') }}</dt>
+              <dd>{{ form.status || '—' }}</dd>
             </div>
           </dl>
-          <!-- TUTOR 5: ESTADO -->
-          <div id="tutor-5" class="profile-status-info">
-            <span class="status-dot"></span>
-            <div>
-              <strong>
-                {{ txt('Empleado activo', 'Active employee') }}
-              </strong>
-              <small>
-                {{
-                  txt(
-                    'Registro habilitado en el sistema',
-                    'Record enabled in the system'
-                  )
-                }}
-              </small>
-            </div>
-          </div>
         </aside>
         <!-- ==================== FORMULARIOS ==================== -->
         <div class="forms-wrapper">
@@ -920,59 +509,41 @@ onUnmounted(() => {
                     stroke="currentColor"
                     stroke-width="2"
                   >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <path
+                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    />
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                 </span>
-                <div>
-                  <h3 class="section-title">
-                    {{ t('personalDataTitle') }}
-                  </h3>
-                  <p>
-                    {{
-                      txt(
-                        'Información personal e identificación del empleado registrado en el sistema',
-                        'Personal and identification information of the registered employee'
-                      )
-                    }}
-                  </p>
-                </div>
+                <h3 class="section-title">
+                  {{ t('personalDataTitle') }}
+                </h3>
               </div>
+              <span class="card-subtitle">
+                {{ t('clientDataSubtitle') }}
+              </span>
             </div>
             <div class="form-grid-3">
-              <!-- CURP -->
-              <div class="input-group">
-                <label for="p-curp">CURP</label>
-                <input
-                  id="p-curp"
-                  v-model="form.curp" @input="form.curp = String($event.target.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0,18)"
-                  type="text"
-                  maxlength="18"
-                  placeholder="ABCD010101HDFXXX00"
-                />
-              </div>
               <!-- NOMBRES -->
               <div class="input-group">
-                <label for="p-nombres">
+                <label for="f-nombres">
                   {{ t('namesLabel') }}
-                  <span class="required">*</span>
                 </label>
                 <input
-                  id="p-nombres"
+                  id="f-nombres"
                   v-model="form.nombres" @input="form.nombres = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="given-name"
-                  placeholder="Carlos Luis"
+                  placeholder="José Luis"
                 />
               </div>
               <!-- APELLIDO PATERNO -->
               <div class="input-group">
-                <label for="p-paterno">
+                <label for="f-paterno">
                   {{ t('lastNamePaternalLabel') }}
-                  <span class="required">*</span>
                 </label>
                 <input
-                  id="p-paterno"
+                  id="f-paterno"
                   v-model="form.apellidoPaterno" @input="form.apellidoPaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   autocomplete="family-name"
@@ -981,30 +552,37 @@ onUnmounted(() => {
               </div>
               <!-- APELLIDO MATERNO -->
               <div class="input-group">
-                <label for="p-materno">
+                <label for="f-materno">
                   {{ t('lastNameMaternalLabel') }}
                 </label>
                 <input
-                  id="p-materno"
+                  id="f-materno"
                   v-model="form.apellidoMaterno" @input="form.apellidoMaterno = nombreTituloEdicion($event.target.value)"
                   type="text"
                   placeholder="García"
                 />
               </div>
-              <!-- FECHA NACIMIENTO -->
+              <!-- CURP OBLIGATORIA -->
               <div class="input-group">
-                <label for="p-fecha">
+                <label for="f-curp">CURP <span aria-hidden="true">*</span></label>
+                <input id="f-curp" v-model="form.curp" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="18" placeholder="ABCD010101HDFXXX00" aria-required="true" :aria-invalid="form.curp.length > 0 && !curpValida(form.curp)" style="text-transform:uppercase" />
+                <small class="curp-helper" :class="{ 'curp-error': form.curp.length > 0 && !curpValida(form.curp) }">{{ form.curp.length }}/18 caracteres · Campo obligatorio</small>
+                <a class="curp-link" href="https://www.gob.mx/curp/" target="_blank" rel="noopener noreferrer">¿No conoces tu CURP? Consultarla aquí</a>
+              </div>
+              <!-- FECHA DE NACIMIENTO -->
+              <div class="input-group">
+                <label for="f-fecha">
                   {{ t('birthDateLabel') }}
                 </label>
                 <input
-                  id="p-fecha"
+                  id="f-fecha"
                   v-model="form.fechaNacimiento"
                   type="date"
                 />
               </div>
               <!-- CELULAR -->
               <div class="input-group">
-                <label for="p-celular">
+                <label for="f-celular">
                   {{ t('phoneLabel') }}
                 </label>
                 <div class="input-with-icon">
@@ -1019,7 +597,7 @@ onUnmounted(() => {
                     />
                   </svg>
                   <input
-                    id="p-celular"
+                    id="f-celular"
                      :value="form.celular" @input="inputCelularEdicion($event, form)" @paste="pasteCelularEdicion"
                     type="tel"
                     autocomplete="tel-national"
@@ -1027,131 +605,94 @@ onUnmounted(() => {
                   />
                 </div>
               </div>
-            </div>
-          </section>
-          <!-- ================================================== -->
-          <!-- TUTOR 7: REDES SOCIALES -->
-          <!-- SOLO ENTRENADOR -->
-          <!-- ================================================== -->
-          <section
-            v-if="isTrainer"
-            id="tutor-7"
-            class="login-card"
-          >
-            <div class="card-header-flex">
-              <div class="card-title-group">
-                <span class="card-icon">
+              <!-- CORREO -->
+              <div class="input-group">
+                <label for="f-correo">
+                  {{ t('emailLabel') }}
+                </label>
+                <div class="input-with-icon">
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     stroke-width="2"
                   >
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                    />
+                    <polyline points="22,6 12,13 2,6" />
                   </svg>
-                </span>
-                <div>
-                  <h3 class="section-title">
-                    {{
-                      L(
-                        'Redes sociales',
-                        'Social networks',
-                        'Réseaux sociaux',
-                        'Redes sociais'
-                      )
-                    }}
-                  </h3>
-                  <p>
-                    {{
-                      txt(
-                        'Información profesional y redes sociales del entrenador',
-                        'Trainer professional information and social media'
-                      )
-                    }}
-                  </p>
-                </div>
-              </div>
-              <span class="card-badge">
-                {{
-                  L(
-                    'Opcional',
-                    'Optional',
-                    'Facultatif',
-                    'Opcional'
-                  )
-                }}
-              </span>
-            </div>
-            <div class="form-grid-2">
-              <!-- FACEBOOK -->
-              <div class="input-group">
-                <label for="p-facebook">Facebook</label>
-                <div class="social-input">
-                  <span>f</span>
                   <input
-                    id="p-facebook"
-                    v-model="form.facebook"
-                    type="text"
-                    placeholder="@usuario"
+                    id="f-correo"
+                    v-model="form.correo" @blur="form.correo = correoNormalEdicion(form.correo)"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="ejemplo@correo.com"
                   />
                 </div>
-              </div>
-              <!-- INSTAGRAM -->
-              <div class="input-group">
-                <label for="p-instagram">Instagram</label>
-                <div class="social-input">
-                  <span>◎</span>
-                  <input
-                    id="p-instagram"
-                    v-model="form.instagram"
-                    type="text"
-                    placeholder="@usuario"
-                  />
-                </div>
-              </div>
-              <!-- TIKTOK -->
-              <div class="input-group">
-                <label for="p-tiktok">TikTok</label>
-                <div class="social-input">
-                  <span>♪</span>
-                  <input
-                    id="p-tiktok"
-                    v-model="form.tiktok"
-                    type="text"
-                    placeholder="@usuario"
-                  />
-                </div>
-              </div>
-              <!-- OTRAS REDES -->
-              <div class="input-group">
-                <label for="p-otras">
-                  {{ t('otherAppsLabel') }}
-                </label>
-                <input
-                  id="p-otras"
-                  v-model="form.otrasApp"
-                  type="text"
-                  :placeholder="
-                    txt(
-                      'LinkedIn, sitio web, otras redes...',
-                      'LinkedIn, website, other social networks...'
-                    )
-                  "
-                />
               </div>
             </div>
           </section>
           <!-- ==================== BLOQUE INFERIOR ==================== -->
-          <div
-            class="lower-grid"
-            :class="{ single: !showScheduleCard }"
-          >
+          <div class="lower-grid">
             <!-- ================================================== -->
-            <!-- TUTOR 8: CREDENCIALES -->
+            <!-- TUTOR 7: SEGUIMIENTO FÍSICO -->
+            <!-- ================================================== -->
+            <section id="tutor-7" class="login-card">
+              <div class="card-header-flex">
+                <div class="card-title-group">
+                  <span class="card-icon">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline
+                        points="22 12 18 12 15 21 9 3 6 12 2 12"
+                      />
+                    </svg>
+                  </span>
+                  <h3 class="section-title">
+                    {{ t('physicalTrackingTitle') }}
+                  </h3>
+                </div>
+              </div>
+              <div class="measurement-grid">
+                <!-- PESO -->
+                <div class="input-group">
+                  <label for="f-peso">
+                    {{ t('initialWeightLabel') }}
+                  </label>
+                  <div class="unit-input">
+                    <input
+                      id="f-peso"
+                      v-model="form.peso" @input="form.peso = medidaEdicion($event.target.value, true)"
+                      type="text" inputmode="decimal" maxlength="5"
+                      placeholder="70"
+                    />
+                    <span>kg</span>
+                  </div>
+                </div>
+                <!-- ALTURA -->
+                <div class="input-group">
+                  <label for="f-altura">
+                    {{ t('initialHeightLabel') }}
+                  </label>
+                  <div class="unit-input">
+                    <input
+                      id="f-altura"
+                      v-model="form.altura" @input="form.altura = medidaEdicion($event.target.value)"
+                      type="text" inputmode="numeric" maxlength="3"
+                      placeholder="175"
+                    />
+                    <span>cm</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <!-- ================================================== -->
+            <!-- TUTOR 8: MEMBRESÍA -->
             <!-- ================================================== -->
             <section id="tutor-8" class="login-card">
               <div class="card-header-flex">
@@ -1164,512 +705,57 @@ onUnmounted(() => {
                       stroke-width="2"
                     >
                       <rect
-                        x="3"
-                        y="11"
-                        width="18"
-                        height="11"
+                        x="2"
+                        y="5"
+                        width="20"
+                        height="14"
                         rx="2"
                       />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
                     </svg>
                   </span>
-                  <div>
-                    <h3 class="section-title">
-                      {{ t('credentialsTitle') }}
-                    </h3>
-                    <p>
-                      {{
-                        txt(
-                          'Rol, cuenta de acceso, contraseña y sedes autorizadas',
-                          'Role, login account, password and authorized locations'
-                        )
-                      }}
-                    </p>
-                  </div>
+                  <h3 class="section-title">
+                    {{ t('membershipTitle') }}
+                  </h3>
                 </div>
               </div>
               <div class="form-grid-2">
-                <!-- ROL -->
+                <!-- SEDE -->
                 <div class="input-group">
-                  <label>{{ t('systemRoleLabel') }}</label>
-                  <div class="readonly-field">
-                    <span class="role-chip">
-                      {{ roleLabel }}
-                    </span>
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <rect
-                        x="3"
-                        y="11"
-                        width="18"
-                        height="11"
-                        rx="2"
-                      />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                </div>
-                <!-- CORREO -->
-                <div class="input-group">
-                  <label for="p-correo">
-                    {{ t('emailLabel') }}
-                    <span class="required">*</span>
-                  </label>
-                  <div class="input-with-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                      />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                    <input
-                      id="p-correo"
-                      v-model="form.correo" @blur="form.correo = correoNormalEdicion(form.correo)"
-                      type="email"
-                      autocomplete="email"
-                      placeholder="personal@gimnasio.com"
-                    />
-                  </div>
-                </div>
-                <!-- CONTRASEÑA -->
-                <template v-if="needsPassword">
-                  <div class="input-group">
-                    <label for="p-password">
-                      {{
-                        L(
-                          'Nueva contraseña',
-                          'New password',
-                          'Nouveau mot de passe',
-                          'Nova senha'
-                        )
-                      }}
-                    </label>
-                    <input
-                      id="p-password"
-                      v-model="form.password"
-                      type="password"
-                      autocomplete="new-password"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div class="input-group">
-                    <label for="p-confirm">
-                      {{
-                        L(
-                          'Confirmar contraseña',
-                          'Confirm password',
-                          'Confirmer le mot de passe',
-                          'Confirmar senha'
-                        )
-                      }}
-                    </label>
-                    <input
-                      id="p-confirm"
-                      v-model="form.confirmPassword"
-                      type="password"
-                      autocomplete="new-password"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <p class="field-hint span-full">
-                    {{
-                      L(
-                        'Déjalo en blanco para conservar la contraseña actual.',
-                        'Leave blank to keep the current password.',
-                        'Laissez vide pour conserver le mot de passe actuel.',
-                        'Deixe em branco para manter a senha atual.'
-                      )
-                    }}
-                  </p>
-                </template>
-                <!-- ESPECIALIDAD -->
-                <div
-                  v-if="isTrainer"
-                  class="input-group span-full"
-                >
-                  <label for="p-especialidad">
-                    {{ t('specialtyLabel') }}
-                    <span class="required">*</span>
-                  </label>
-                  <input
-                    id="p-especialidad"
-                    v-model="form.especialidad"
-                    type="text"
-                    :placeholder="txt('Musculación', 'Strength training')"
-                  />
-                </div>
-                <!-- ==================== SEDES ==================== -->
-                <div class="input-group span-full">
-                  <label>
+                  <label for="f-sede">
                     {{ t('locationLabel') }}
-                    <span
-                      v-if="!isOwner"
-                      class="required"
-                    >
-                      *
-                    </span>
                   </label>
-                  <!-- PROPIETARIO -->
-                  <div
-                    v-if="isOwner"
-                    class="sedes-static"
-                  >
-                    <span class="sedes-static-icon">
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <rect
-                          x="3"
-                          y="11"
-                          width="18"
-                          height="11"
-                          rx="2"
-                        />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </span>
-                    <span class="sedes-static-text">
-                      <strong>
-                        {{
-                          L(
-                            'Todas las sucursales',
-                            'All locations',
-                            'Tous les sites',
-                            'Todas as unidades'
-                          )
-                        }}
-                      </strong>
-                      <small>
-                        {{ listaSedes.length }}
-                        {{
-                          L(
-                            'sedes, incluidas las futuras',
-                            'locations, including future ones',
-                            'sites, y compris les futurs',
-                            'unidades, incluindo as futuras'
-                          )
-                        }}
-                      </small>
-                    </span>
-                  </div>
-                  <!-- OTROS ROLES -->
-                  <div
-                    v-else
-                    ref="dropdownRef"
-                    class="custom-multiselect"
-                  >
-                    <button
-                      type="button"
-                      class="select-box-trigger"
-                      :class="{ open: isDropdownOpen }"
-                      :aria-expanded="isDropdownOpen"
-                      aria-haspopup="listbox"
-                      @click.stop="toggleDropdown"
-                    >
-                      <span
-                        :class="{
-                          'placeholder-text': form.sedes.length === 0
-                        }"
-                      >
-                        {{ getSedesDisplayText() }}
-                      </span>
-                      <svg
-                        class="dropdown-arrow"
-                        :class="{ rotate: isDropdownOpen }"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-                    <transition name="dropdown">
-                      <div
-                        v-if="isDropdownOpen"
-                        class="dropdown-options-list"
-                        @click.stop
-                      >
-                        <!-- TODAS LAS SEDES -->
-                        <button
-                          v-if="multiSedes"
-                          type="button"
-                          class="dropdown-option-item select-all"
-                          :class="{ selected: allSedesSelected }"
-                          @click="toggleAllSedes"
-                        >
-                          <span class="option-checkbox">
-                            <svg
-                              v-if="allSedesSelected"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="3"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </span>
-                          <span>
-                            {{
-                              L(
-                                'Todas las sedes',
-                                'All locations',
-                                'Tous les sites',
-                                'Todas as unidades'
-                              )
-                            }}
-                          </span>
-                        </button>
-                        <!-- SEDES -->
-                        <button
-                          v-for="sede in listaSedes"
-                          :key="sede.id"
-                          type="button"
-                          class="dropdown-option-item"
-                          :class="{
-                            selected: form.sedes.includes(sede.id)
-                          }"
-                          @click="toggleSede(sede.id)"
-                        >
-                          <span
-                            class="option-checkbox"
-                            :class="{ radio: isReception }"
-                          >
-                            <svg
-                              v-if="
-                                form.sedes.includes(sede.id) &&
-                                !isReception
-                              "
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="3"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                            <span
-                              v-else-if="
-                                form.sedes.includes(sede.id) &&
-                                isReception
-                              "
-                              class="radio-dot"
-                            ></span>
-                          </span>
-                          <span>{{ sede.nombre }}</span>
-                        </button>
-                      </div>
-                    </transition>
-                  </div>
-                  <p
-                    v-if="sedesHint"
-                    class="field-hint"
-                  >
-                    {{ sedesHint }}
-                  </p>
-                </div>
-              </div>
-            </section>
-            <!-- ================================================== -->
-            <!-- TUTOR 9: HORARIO -->
-            <!-- ================================================== -->
-            <section
-              v-if="showScheduleCard"
-              id="tutor-9"
-              class="login-card"
-            >
-              <div class="card-header-flex">
-                <div class="card-title-group">
-                  <span class="card-icon">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="12" cy="12" r="9" />
-                      <polyline points="12 7 12 12 15 14" />
-                    </svg>
-                  </span>
-                  <div>
-                    <h3 class="section-title">
-                      {{ t('workScheduleTitle') }}
-                    </h3>
-                    <p>
-                      {{
-                        txt(
-                          'Horario de entrada y salida asignado al empleado',
-                          'Employee assigned check-in and check-out schedule'
-                        )
-                      }}
-                    </p>
-                  </div>
-                </div>
-                <span
-                  class="card-badge"
-                  :class="{
-                    'required-badge':
-                      scheduleMode === 'required'
-                  }"
-                >
-                  {{
-                    scheduleMode === 'required'
-                      ? L(
-                          'Obligatorio',
-                          'Required',
-                          'Obligatoire',
-                          'Obrigatório'
-                        )
-                      : L(
-                          'Opcional',
-                          'Optional',
-                          'Facultatif',
-                          'Opcional'
-                        )
-                  }}
-                </span>
-              </div>
-              <!-- INTERRUPTOR ENTRENADOR -->
-              <label
-                v-if="scheduleMode === 'optional'"
-                class="switch-row"
-              >
-                <span class="switch-toggle">
                   <input
-                    v-model="form.tieneHorario"
-                    type="checkbox"
+                    id="f-sede"
+                    v-model="form.sede"
+                    type="text" readonly
+                    placeholder="Matriz"
                   />
-                  <span class="slider-round"></span>
-                </span>
-                <span class="switch-copy">
-                  <strong>
-                    {{
-                      L(
-                        'Asignar horario de trabajo',
-                        'Assign work schedule',
-                        'Attribuer un horaire de travail',
-                        'Atribuir horário de trabalho'
-                      )
-                    }}
-                  </strong>
-                  <small>
-                    {{
-                      L(
-                        'Actívalo solo si este entrenador tiene un horario fijo.',
-                        'Turn it on only if this trainer has a fixed schedule.',
-                        'Activez-le uniquement si cet entraîneur a un horaire fixe.',
-                        'Ative apenas se este treinador tiver horário fixo.'
-                      )
-                    }}
-                  </small>
-                </span>
-              </label>
-              <!-- HORAS -->
-              <div
-                v-if="showTimes"
-                class="form-grid-2"
-                :class="{
-                  'with-gap':
-                    scheduleMode === 'optional'
-                }"
-              >
+                </div>
+                <!-- ESTADO -->
                 <div class="input-group">
-                  <label for="p-entrada">
-                    {{ t('entryTimeLabel') }}
-                    <span
-                      v-if="scheduleMode === 'required'"
-                      class="required"
-                    >
-                      *
-                    </span>
+                  <label for="f-status">
+                    {{ t('statusLabel') }}
                   </label>
                   <input
-                    id="p-entrada"
-                    v-model="form.entrada"
-                    type="time"
+                    id="f-status"
+                    v-model="form.status"
+                    type="text" readonly
+                    placeholder="Activo"
                   />
                 </div>
-                <div class="input-group">
-                  <label for="p-salida">
-                    {{ t('exitTimeLabel') }}
-                    <span
-                      v-if="scheduleMode === 'required'"
-                      class="required"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <input
-                    id="p-salida"
-                    v-model="form.salida"
-                    type="time"
-                  />
-                </div>
-              </div>
-              <p
-                v-if="showTimes"
-                class="schedule-help"
-              >
-                {{
-                  txt(
-                    'Define la hora de entrada y salida del personal.',
-                    'Set the staff check-in and check-out times.'
-                  )
-                }}
-              </p>
-              <div
-                v-if="
-                  showTimes &&
-                  form.entrada &&
-                  form.salida
-                "
-                class="schedule-summary"
-              >
-                <span>
-                  {{
-                    txt(
-                      'Jornada configurada',
-                      'Schedule configured'
-                    )
-                  }}
-                </span>
-                <strong>
-                  {{ form.entrada }} — {{ form.salida }}
-                </strong>
               </div>
             </section>
           </div>
           <!-- ================================================== -->
-          <!-- TUTOR 10: GUARDAR CAMBIOS -->
+          <!-- TUTOR 9: GUARDAR CAMBIOS -->
           <!-- ================================================== -->
           <footer class="action-footer">
-            <span class="required-hint">
-              <span class="required">*</span>
-              {{
-                L(
-                  'Campos obligatorios',
-                  'Required fields',
-                  'Champs obligatoires',
-                  'Campos obrigatórios'
-                )
-              }}
-            </span>
             <button
-              id="tutor-10"
+              id="tutor-9"
               type="button"
               class="btn-primary"
-              :disabled="saving || loadingProfile"
+              :disabled="saving || loadingProfile || !clienteId"
               @click="saveChanges"
             >
               <span v-if="saving" class="btn-spinner"></span>
@@ -1688,12 +774,7 @@ onUnmounted(() => {
               </svg>
               {{
                 saving
-                  ? L(
-                      'Procesando cambios...',
-                      'Processing changes...',
-                      'Traitement en cours...',
-                      'Processando alterações...'
-                    )
+                  ? txt('Procesando cambios...', 'Processing changes...')
                   : t('saveChangesBtn')
               }}
             </button>
@@ -1704,7 +785,7 @@ onUnmounted(() => {
     <!-- ====================================================== -->
     <!-- MODAL: OPCIONES DE FOTO -->
     <!-- ====================================================== -->
-    <transition name="modal">
+    <transition name="photo-menu">
       <div
         v-if="showPhotoOptions"
         class="modal-overlay"
@@ -1715,7 +796,7 @@ onUnmounted(() => {
           role="dialog"
           aria-modal="true"
         >
-          <header class="modal-header">
+          <div class="modal-header">
             <div>
               <h3>
                 {{
@@ -1728,8 +809,8 @@ onUnmounted(() => {
               <p>
                 {{
                   txt(
-                    'Selecciona cómo quieres agregar la fotografía.',
-                    'Choose how you want to add the photo.'
+                    'Selecciona cómo quieres agregar la fotografía del cliente.',
+                    'Choose how you want to add the client photo.'
                   )
                 }}
               </p>
@@ -1742,7 +823,7 @@ onUnmounted(() => {
             >
               ×
             </button>
-          </header>
+          </div>
           <div class="photo-options">
             <!-- TOMAR FOTO -->
             <button
@@ -1778,7 +859,7 @@ onUnmounted(() => {
               </span>
               <b>›</b>
             </button>
-            <!-- GALERÍA -->
+            <!-- SELECCIONAR GALERÍA -->
             <button
               type="button"
               class="photo-option"
@@ -1836,7 +917,7 @@ onUnmounted(() => {
     <!-- ====================================================== -->
     <!-- MODAL: CÁMARA -->
     <!-- ====================================================== -->
-    <transition name="modal">
+    <transition name="photo-menu">
       <div
         v-if="showCamera"
         class="modal-overlay camera-overlay"
@@ -1847,7 +928,7 @@ onUnmounted(() => {
           role="dialog"
           aria-modal="true"
         >
-          <header class="modal-header">
+          <div class="modal-header">
             <div>
               <h3>
                 {{ txt('Tomar fotografía', 'Take photo') }}
@@ -1855,14 +936,8 @@ onUnmounted(() => {
               <p>
                 {{
                   cameraFacingMode === 'user'
-                    ? txt(
-                        'Cámara frontal',
-                        'Front camera'
-                      )
-                    : txt(
-                        'Cámara trasera',
-                        'Rear camera'
-                      )
+                    ? txt('Cámara frontal', 'Front camera')
+                    : txt('Cámara trasera', 'Rear camera')
                 }}
               </p>
             </div>
@@ -1874,7 +949,8 @@ onUnmounted(() => {
             >
               ×
             </button>
-          </header>
+          </div>
+          <!-- ==================== VISTA DE CÁMARA ==================== -->
           <div class="camera-preview">
             <video
               ref="videoRef"
@@ -1886,6 +962,7 @@ onUnmounted(() => {
                   cameraFacingMode === 'user'
               }"
             ></video>
+            <!-- CAMBIAR CÁMARA -->
             <button
               type="button"
               class="switch-camera-btn"
@@ -1912,6 +989,7 @@ onUnmounted(() => {
               }}
             </button>
             <div class="face-guide"></div>
+            <!-- CARGANDO CÁMARA -->
             <div
               v-if="switchingCamera"
               class="camera-loading"
@@ -1923,6 +1001,7 @@ onUnmounted(() => {
             ref="canvasRef"
             class="hidden-canvas"
           ></canvas>
+          <!-- ==================== ACCIONES CÁMARA ==================== -->
           <div class="camera-actions">
             <button
               type="button"
@@ -1950,7 +1029,7 @@ onUnmounted(() => {
 </template>
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
-/* ============================ BUSCADOR CON SUGERENCIAS ============================ */
+/* Buscador de clientes: panel alineado con el campo, sin estilos inline */
 .page-header{position:relative;z-index:20;isolation:isolate}
 .search-small{position:relative;z-index:21}
 .client-suggestions{position:absolute;top:calc(100% + 8px);right:0;left:0;z-index:50;max-height:310px;overflow-y:auto;border:1px solid #39394e;border-radius:12px;background:#1b1b2b;box-shadow:0 18px 42px rgba(0,0,0,.45);padding:5px;box-sizing:border-box}
@@ -1963,6 +1042,8 @@ onUnmounted(() => {
 .suggestion-id{flex-shrink:0;color:#a8a9c2;font-size:11px}
 .suggestion-empty{margin:0;padding:12px;color:#b6b7c9;font-size:12px}
 @media(max-width:640px){.client-suggestions{right:0;left:0;max-height:240px}}
+.avatar-fallback{display:grid;place-items:center;width:100%;height:100%;font-size:3rem;font-weight:700;color:var(--color-texto-general,#fff)}
+.search-small{position:relative}
 .main-content {
   --accent: var(--color-highlight, #3b82f6);
   --card: var(--bg-cards, #121416);
@@ -1999,6 +1080,9 @@ onUnmounted(() => {
   font-weight: 700;
   letter-spacing: 0.12em;
 }
+.page-header h1 span {
+  color: var(--accent);
+}
 .page-header h1 {
   margin: 0;
   color: var(--title);
@@ -2009,17 +1093,14 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
   text-transform: uppercase;
 }
-.page-header h1 span {
-  color: var(--accent);
-}
 .page-header p {
-  max-width: 600px;
+  max-width: 560px;
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 0.8rem;
   line-height: 1.55;
 }
-/* ============================ INPUTS ============================ */
+/* ============================ BÚSQUEDA / INPUTS ============================ */
 .search-small {
   width: min(100%, 320px);
   flex-shrink: 0;
@@ -2036,8 +1117,26 @@ onUnmounted(() => {
   font-weight: 500;
   line-height: 1.2;
 }
-.required {
-  color: #ef4444;
+.search-input-wrapper,
+.input-with-icon,
+.unit-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-input-wrapper svg,
+.input-with-icon svg {
+  position: absolute;
+  z-index: 2;
+  left: 13px;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.search-input-wrapper input,
+.input-with-icon input {
+  padding-left: 38px !important;
 }
 .input-group input {
   width: 100%;
@@ -2066,87 +1165,12 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--input) 90%, var(--accent));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
-.input-group input[type='date'],
-.input-group input[type='time'] {
+.input-group input[type='date'] {
   color-scheme: dark;
 }
-.input-group input[type='date']::-webkit-calendar-picker-indicator,
-.input-group input[type='time']::-webkit-calendar-picker-indicator {
+.input-group input[type='date']::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0.7;
-}
-.field-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.45;
-}
-.search-input-wrapper,
-.input-with-icon,
-.social-input {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.search-input-wrapper svg,
-.input-with-icon svg {
-  position: absolute;
-  z-index: 2;
-  left: 13px;
-  width: 16px;
-  height: 16px;
-  color: var(--muted);
-  pointer-events: none;
-}
-.search-input-wrapper input,
-.input-with-icon input {
-  padding-left: 38px;
-}
-.social-input > span {
-  position: absolute;
-  z-index: 2;
-  left: 13px;
-  width: 18px;
-  color: var(--accent);
-  font-size: 0.84rem;
-  font-weight: 700;
-  text-align: center;
-  pointer-events: none;
-}
-.social-input input {
-  padding-left: 40px;
-}
-/* ============================ ROL (SOLO LECTURA) ============================ */
-.readonly-field {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  box-sizing: border-box;
-  padding: 0 13px;
-  border: 1px dashed var(--line);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--card) 96%, #ffffff);
-}
-.readonly-field svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-  color: var(--muted);
-  opacity: 0.7;
-}
-.role-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 25px;
-  padding: 4px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--accent) 11%, transparent);
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 700;
 }
 /* ============================ ESTRUCTURA ============================ */
 .profile-card {
@@ -2162,39 +1186,6 @@ onUnmounted(() => {
   border-radius: var(--radius);
   background: var(--card);
 }
-/* ============================ SIN SELECCIÓN ============================ */
-.empty-staff {
-  min-height: 320px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 48px 24px;
-  border-style: dashed;
-  text-align: center;
-}
-.empty-staff svg {
-  width: 42px;
-  height: 42px;
-  color: var(--muted);
-  opacity: 0.55;
-}
-.empty-staff h3 {
-  margin: 6px 0 0;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.empty-staff p {
-  max-width: 380px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.55;
-}
 /* ============================ PERFIL ============================ */
 .profile-section {
   position: sticky;
@@ -2203,16 +1194,6 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   padding: 28px 22px 22px;
-  overflow: hidden;
-}
-.profile-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: 3px;
-  background: var(--accent);
 }
 .avatar-wrapper {
   position: relative;
@@ -2232,20 +1213,11 @@ onUnmounted(() => {
   cursor: pointer;
   box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent);
 }
-.user-avatar-img {
+.avatar-circle img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.avatar-initials {
-  width: 100%;
-  height: 100%;
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  font-family: 'Oswald', sans-serif;
-  font-size: 2.5rem;
 }
 .avatar-overlay {
   position: absolute;
@@ -2274,8 +1246,6 @@ onUnmounted(() => {
 }
 .avatar-action {
   position: absolute;
-  right: -6px;
-  bottom: 4px;
   width: 36px;
   height: 36px;
   display: grid;
@@ -2296,6 +1266,14 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
 }
+.btn-stats {
+  top: 4px;
+  left: -6px;
+}
+.btn-camera {
+  right: -6px;
+  bottom: 4px;
+}
 .hidden-input,
 .hidden-canvas {
   display: none;
@@ -2313,6 +1291,18 @@ onUnmounted(() => {
 .main-title span {
   display: block;
   color: var(--accent);
+}
+.profile-section {
+  overflow: hidden;
+}
+.profile-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
 }
 .status-badge {
   display: inline-flex;
@@ -2370,29 +1360,6 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* ============================ ESTADO DEL EMPLEADO ============================ */
-.profile-status-info {
-  width: 100%;
-  margin-top: 18px;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(52, 211, 153, 0.22);
-  border-radius: 12px;
-  background: rgba(52, 211, 153, 0.07);
-}
-.profile-status-info > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.profile-status-info strong { color: var(--title); font-size: 0.78rem; font-weight: 600; }
-.profile-status-info small { color: var(--muted); font-size: 0.68rem; line-height: 1.4; }
-.status-dot {
-  width: 9px;
-  height: 9px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18), 0 0 10px #34d399;
-}
 /* ============================ FORMULARIOS ============================ */
 .forms-wrapper {
   display: flex;
@@ -2402,58 +1369,32 @@ onUnmounted(() => {
 }
 .login-card {
   padding: 24px;
-  overflow: visible;
 }
 .card-header-flex {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 20px;
 }
 .card-title-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
 }
 .card-icon {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
 .card-icon svg {
-  width: 17px;
-  height: 17px;
-}
-.card-title-group p {
-  margin: 3px 0 0;
-  color: var(--muted);
-  font-size: 0.7rem;
-}
-.card-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 3px 10px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text) 4%, transparent);
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.card-badge.required-badge {
-  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
-  background: color-mix(in srgb, var(--accent) 11%, transparent);
-  color: var(--accent);
+  width: 16px;
+  height: 16px;
 }
 .section-title {
   margin: 0;
@@ -2464,311 +1405,40 @@ onUnmounted(() => {
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
+.card-subtitle {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
 .form-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
-.form-grid-2 {
+.form-grid-2,
+.measurement-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
-}
-.form-grid-2.with-gap {
-  margin-top: 16px;
-}
-.form-grid-3 .span-full,
-.form-grid-2 .span-full {
-  grid-column: 1 / -1;
 }
 .lower-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
-  align-items: start;
 }
-.lower-grid.single {
-  grid-template-columns: 1fr;
+.unit-input input {
+  padding-right: 44px;
 }
-/* ============================ MULTISELECT ============================ */
-.custom-multiselect {
-  position: relative;
-  width: 100%;
-}
-.select-box-trigger {
-  width: 100%;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  box-sizing: border-box;
-  padding: 0 13px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--input);
-  color: var(--text);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-.select-box-trigger > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.select-box-trigger:hover {
-  border-color: color-mix(in srgb, var(--text) 24%, transparent);
-}
-.select-box-trigger.open {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
-}
-.placeholder-text {
-  color: var(--muted);
-  font-weight: 400;
-}
-.dropdown-arrow {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--muted);
-  transition: transform 0.18s ease;
-}
-.dropdown-arrow.rotate {
-  transform: rotate(180deg);
-}
-.dropdown-options-list {
+.unit-input span {
   position: absolute;
-  z-index: 200;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
-  max-height: 240px;
-  overflow-y: auto;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-cards, #121416);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-}
-.dropdown-option-item {
-  width: 100%;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
+  right: 13px;
   color: var(--muted);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.76rem;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.dropdown-option-item:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  color: var(--text);
-}
-.dropdown-option-item.selected {
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
-  color: #93c5fd;
-}
-.dropdown-option-item.select-all {
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--line);
-  border-radius: 8px 8px 0 0;
-  color: var(--text);
-  font-weight: 600;
-}
-.option-checkbox {
-  width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
-  border-radius: 4px;
-}
-.option-checkbox.radio {
-  border-radius: 50%;
-}
-.radio-dot {
-  width: 7px;
-  height: 7px;
-  display: block;
-  border-radius: 50%;
-  background: #ffffff;
-}
-.dropdown-option-item.selected .option-checkbox {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-.option-checkbox svg {
-  width: 10px;
-  height: 10px;
-}
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: opacity 0.14s ease, transform 0.14s ease;
-  transform-origin: top;
-}
-.dropdown-enter-from,
-.dropdown-leave-to {
-  opacity: 0;
-  transform: translateY(-4px) scale(0.985);
-}
-/* ============================ PROPIETARIO: TODAS LAS SEDES ============================ */
-.sedes-static {
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 13px;
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 7%, transparent);
-}
-.sedes-static-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
-}
-.sedes-static-icon svg {
-  width: 16px;
-  height: 16px;
-}
-.sedes-static-text {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.sedes-static-text strong {
-  color: var(--title);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.sedes-static-text small {
-  color: var(--muted);
-  font-size: 0.68rem;
-}
-/* ============================ HORARIO ============================ */
-.switch-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--text) 2.5%, transparent);
-  cursor: pointer;
-  transition: border-color 0.18s ease;
-}
-.switch-row:hover {
-  border-color: color-mix(in srgb, var(--text) 24%, transparent);
-}
-.switch-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.switch-copy strong {
-  color: var(--title);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.switch-copy small {
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.4;
-}
-.switch-toggle {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-  flex-shrink: 0;
-}
-.switch-toggle input {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-}
-.slider-round {
-  position: absolute;
-  inset: 0;
-  border-radius: 22px;
-  background: #2a2e39;
-  transition: background 0.2s ease;
-}
-.slider-round::before {
-  content: '';
-  position: absolute;
-  bottom: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #ffffff;
-  transition: transform 0.2s ease;
-}
-.switch-toggle input:checked + .slider-round {
-  background: var(--accent);
-}
-.switch-toggle input:checked + .slider-round::before {
-  transform: translateX(18px);
-}
-.switch-toggle input:focus-visible + .slider-round {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
-}
-.schedule-help {
-  margin: 14px 0 0;
-  color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-.schedule-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 11px 13px;
-  border: 1px solid rgba(52, 211, 153, 0.2);
-  border-radius: 10px;
-  background: rgba(52, 211, 153, 0.07);
-  color: #34d399;
-  font-size: 0.72rem;
-}
-.schedule-summary strong {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
+  pointer-events: none;
 }
 /* ============================ GUARDAR ============================ */
 .action-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.required-hint {
-  color: var(--muted);
-  font-size: 0.7rem;
+  justify-content: flex-end;
 }
 .btn-primary {
   min-height: 46px;
@@ -2817,8 +1487,6 @@ onUnmounted(() => {
 .avatar-circle:focus-visible,
 .avatar-action:focus-visible,
 .btn-primary:focus-visible,
-.select-box-trigger:focus-visible,
-.dropdown-option-item:focus-visible,
 .photo-option:focus-visible,
 .modal-close:focus-visible,
 .cancel-btn:focus-visible,
@@ -3089,12 +1757,12 @@ onUnmounted(() => {
   background: #ffffff;
 }
 /* ============================ TRANSICIONES ============================ */
-.modal-enter-active,
-.modal-leave-active {
+.photo-menu-enter-active,
+.photo-menu-leave-active {
   transition: opacity 0.18s ease;
 }
-.modal-enter-from,
-.modal-leave-to {
+.photo-menu-enter-from,
+.photo-menu-leave-to {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3103,7 +1771,7 @@ onUnmounted(() => {
     transition-duration: 0.01ms !important;
   }
 }
-/* ============================ TOAST ============================ */
+/* ============================ NOTIFICACIONES ============================ */
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important;
@@ -3166,20 +1834,18 @@ onUnmounted(() => {
   .login-card {
     padding: 18px 16px;
   }
-  .card-header-flex {
-    align-items: flex-start;
-  }
   .form-grid-3,
-  .form-grid-2 {
+  .form-grid-2,
+  .measurement-grid {
     grid-template-columns: 1fr;
   }
-  .form-grid-3 .span-full,
-  .form-grid-2 .span-full {
-    grid-column: auto;
+  .card-header-flex {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
   .action-footer {
-    align-items: stretch;
-    flex-direction: column-reverse;
+    justify-content: stretch;
   }
   .btn-primary {
     width: 100%;
@@ -3209,9 +1875,6 @@ onUnmounted(() => {
     width: 52%;
     height: 68%;
   }
-  .dropdown-options-list {
-    max-height: 200px;
-  }
 }
 @media (max-width: 380px) {
   .main-content {
@@ -3219,4 +1882,7 @@ onUnmounted(() => {
     padding-left: 8px;
   }
 }
+.curp-helper{font-size:11px;color:var(--muted,#9ca3af)}
+.curp-error{color:#fb7185}
+.curp-link{font-size:11px;color:var(--accent,#60a5fa);text-decoration:underline;text-underline-offset:2px}
 </style>
