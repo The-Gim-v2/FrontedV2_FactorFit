@@ -289,34 +289,6 @@
                 </button>
               </div>
             </div>
-            <div class="module-section">
-              <div class="section-header">
-                <span class="section-eyebrow">{{ ui.expansion }}</span>
-                <h2>{{ ui.branches }}</h2>
-              </div>
-              <div class="action-list">
-                <button type="button" class="action-card" @click="go('/GYM_ADMIN/settings')">
-                  <div class="action-icon accent">
-                    <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
-                  </div>
-                  <div class="action-info">
-                    <strong>{{ branchName || ui.mainBranch }}</strong>
-                    <span><i class="online-dot"></i>{{ profileAddress || ui.addressNotSet }}</span>
-                  </div>
-                  <ArrowIcon />
-                </button>
-                <button type="button" class="action-card add-branch" @click="openBranchModal">
-                  <div class="action-icon accent">
-                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                  </div>
-                  <div class="action-info">
-                    <strong>{{ ui.addBranch }}</strong>
-                    <span>{{ ui.addBranchDescription }}</span>
-                  </div>
-                  <ArrowIcon />
-                </button>
-              </div>
-            </div>
           </div>
         </section>
       </main>
@@ -328,25 +300,6 @@
           <CorreoMasivo v-if="activeModal === 'enviomasivo'" @close="closeModal" />
           <AddCorteComponent v-if="activeModal === 'corte'" @close="closeModal" />
           <AccessAttendanceModal v-if="activeModal === 'scanner'" mode="scanner" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
-        </div>
-      </transition>
-      <transition name="pop">
-        <div v-if="showBranchModal" class="branch-modal-overlay" @click.self="closeBranchModal">
-          <div class="branch-modal">
-            <header class="branch-modal-header">
-              <div class="branch-modal-title">
-                <div class="branch-modal-icon">+</div>
-                <div>
-                  <span>{{ ui.branchManagement }}</span>
-                  <h2>{{ ui.registerBranch }}</h2>
-                </div>
-              </div>
-              <button type="button" class="branch-modal-close" @click="closeBranchModal">&times;</button>
-            </header>
-            <div class="branch-modal-body">
-              <RegisterGymModal @close="closeBranchModal" />
-            </div>
-          </div>
         </div>
       </transition>
       <!-- CONFIRMAR CAMBIO DE ESTADO DEL GIMNASIO -->
@@ -382,7 +335,6 @@ import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
 import AddScheduleModal from '../Modals/GymOpeningHours.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
-import RegisterGymModal from '../Record/Record-Gym.vue';
 import CorreoMasivo from '../GYM_ADMIN/Componets/Bulk-Email.vue';
 import AddCorteComponent from '../GYM_ADMIN/Componets/Cut.vue';
 import HeadingAdmin from './HeadingGYM_ADMIN.vue';
@@ -391,7 +343,6 @@ const router = useRouter();
 const route = useRoute();
 const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
 const activeModal = ref(null);
-const showBranchModal = ref(false);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);const gymStatus=ref(null);const gymStatusError=ref('');let statusTimer=null;
 const billingStatus = ref('active');
@@ -871,14 +822,6 @@ const handleLangChange = (event) => {
 /* =========================================================
    MODALES
 ========================================================= */
-const openBranchModal = () => {
-  showBranchModal.value = true;
-  document.body.style.overflow = 'hidden';
-};
-const closeBranchModal = () => {
-  showBranchModal.value = false;
-  document.body.style.overflow = '';
-};
 const stopStream = () => {
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
@@ -900,10 +843,6 @@ const closeModal = () => {
 /* Cerrar modales con Escape */
 const handleKeydown = (event) => {
   if (event.key !== 'Escape') return;
-  if (showBranchModal.value) {
-    closeBranchModal();
-    return;
-  }
   if (activeModal.value) {
     closeModal();
   }
@@ -932,7 +871,6 @@ onUnmounted(() => {
   window.removeEventListener('focus', onFocus);
   document.removeEventListener('visibilitychange', onVisible);
   window.removeEventListener('keydown', handleKeydown);
-  document.body.style.overflow = '';
 });
 onBeforeUnmount(stopStream);
 </script>
@@ -1909,7 +1847,7 @@ button {
 }
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   align-items: stretch;
 }
