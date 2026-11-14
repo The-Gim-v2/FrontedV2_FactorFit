@@ -34,7 +34,8 @@
                 type="button"
                 class="status-pill"
                 :class="isGymOpen ? 'open' : 'closed'"
-                @click="toggleGymStatus"
+                disabled
+                title="Estado del gimnasio: solo consulta"
               >
                 <span class="status-dot"></span>
                 {{ isGymOpen ? t.gymAbierto : t.gymCerrado }}
@@ -52,7 +53,7 @@
               <div class="kpi-icon">
                 <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>
-              <strong>142</strong>
+              <strong>{{ todayEntries }}</strong>
               <span>{{ t.entradasHoy }}</span>
             </div>
 
@@ -60,7 +61,7 @@
               <div class="kpi-icon accent">
                 <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
               </div>
-              <strong class="highlight">28</strong>
+              <strong class="highlight">{{ insideCount }}</strong>
               <span>{{ t.enInstalaciones }}</span>
             </div>
 
@@ -68,7 +69,7 @@
               <div class="kpi-icon warning">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
               </div>
-              <strong>{{ expiring.length }}</strong>
+              <strong>{{ metricasCargadas ? expiring.length : '—' }}</strong>
               <span>{{ t.porVencer }}</span>
             </div>
           </div>
@@ -82,7 +83,7 @@
           </div>
 
           <div class="access-grid">
-            <button type="button" class="access-card" disabled title="Próximamente: reconocimiento facial">
+            <button type="button" class="access-card" disabled aria-disabled="true" title="Próximamente: reconocimiento facial">
               <span class="access-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
               </span>
@@ -232,7 +233,7 @@
                 {{ ui.openInMaps }}
               </a>
 
-              <button type="button" class="copy-btn" :class="{ done: addressCopied }" @click="copyAddress">
+              <button type="button" class="copy-btn" :disabled="!hasLocation" :class="{ done: addressCopied }" @click="copyAddress">
                 <svg v-if="!addressCopied" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
                 <svg v-else viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
                 {{ addressCopied ? ui.copied : ui.copyAddress }}
@@ -334,7 +335,7 @@ const identityError = ref('');
 let identityRequest = 0;
 const getToken = () => {
   for (const storage of [sessionStorage, localStorage]) {
-    for (const name of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
+    for (const name of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
       const value = storage.getItem(name);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
@@ -352,11 +353,11 @@ const sessionSedes = () => {
   for (const storage of [sessionStorage, localStorage]) {
     for (const key of ['gym_account', 'user', 'auth', 'session']) {
       try {
-        const parsed = JSON.parse(storage.getItem(key) || 'null');
-        const candidates = [parsed?.usuario?.sedes, parsed?.sedes, parsed?.user?.sedes, parsed?.data?.usuario?.sedes];
-        const found = candidates.find(Array.isArray);
-        if (found?.length) return found;
-      } catch { /* Sesión no disponible en esa clave. */ }
+        const data = JSON.parse(storage.getItem(key) || 'null');
+        const listas = [data?.usuario?.sedes, data?.sedes, data?.user?.sedes, data?.data?.usuario?.sedes];
+        const sedes = listas.find(list => Array.isArray(list) && list.length);
+        if (sedes) return sedes;
+      } catch { /* La sesión de esta clave no está disponible. */ }
     }
   }
   return [];
@@ -365,45 +366,58 @@ const sessionBranchId = () => {
   for (const storage of [sessionStorage, localStorage]) {
     for (const key of ['gym_account', 'user', 'auth', 'session']) {
       try {
-        const parsed = JSON.parse(storage.getItem(key) || 'null');
-        const value = parsed?.usuario?.ID_Sede ?? parsed?.usuario?.sede_id ?? parsed?.ID_Sede ?? parsed?.sede_id ?? parsed?.user?.ID_Sede;
-        const id = Number(value);
+        const data = JSON.parse(storage.getItem(key) || 'null');
+        const id = Number(data?.usuario?.sede_id ?? data?.usuario?.ID_Sede ?? data?.sede_id ?? data?.ID_Sede ?? data?.user?.sede_id);
         if (Number.isInteger(id) && id > 0) return id;
       } catch { /* Ignorar. */ }
     }
   }
-  return Number(sessionSedes()[0]?.ID_Sede || sessionSedes()[0]?.id || 0);
+  return 0;
 };
+const authorizedIds = () => sessionSedes().map(s => Number(s.ID_Sede ?? s.id ?? s.sede_id)).filter(id => Number.isInteger(id) && id > 0);
+const permitted = (id) => Number.isInteger(id) && id > 0 && (!authorizedIds().length || authorizedIds().includes(id));
 const storedSede = () => {
-  const authorized = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(id => Number.isInteger(id) && id > 0);
-  const usable = (id) => Number.isInteger(id) && id > 0 && (!authorized.length || authorized.includes(id));
+  const assigned = sessionBranchId();
+  if (permitted(assigned)) return assigned;
   for (const storage of [sessionStorage, localStorage]) {
-    for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
+    for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'selectedSedeId']) {
       const raw = storage.getItem(key);
-      if (!raw) continue;
-      let value = raw;
-      try {
-        const parsed = JSON.parse(raw);
-        value = parsed && typeof parsed === 'object' ? (parsed.ID_Sede ?? parsed.sede_id ?? parsed.id ?? parsed.value) : parsed;
-      } catch { /* ID simple. */ }
-      const id = Number(value);
-      if (usable(id)) return id;
+      const id = Number(raw);
+      if (permitted(id)) return id;
     }
   }
-  const preferred = sessionBranchId();
-  if (usable(preferred)) return preferred;
-  return authorized[0] || 0;
+  return authorizedIds()[0] || 0;
 };
 const sedeId = () => {
-  const assigned = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(id => Number.isInteger(id) && id > 0);
-  const allowed = (id) => Number.isInteger(id) && id > 0 && (!assigned.length || assigned.includes(id));
-  if (allowed(activeSede.value)) return activeSede.value;
-  const queryId = Number(route.query.sede_id);
-  return allowed(queryId) ? queryId : storedSede();
+  if (permitted(activeSede.value)) return activeSede.value;
+  const query = Number(route.query.sede_id);
+  return permitted(query) ? query : storedSede();
+};
+const persistBranchId = (id) => {
+  if (!permitted(id)) return;
+  activeSede.value = id;
+  sessionStorage.setItem('selected_sede_id', String(id));
+};
+const resolveBranchFromApi = async () => {
+  if (sedeId()) return sedeId();
+  const token = getToken();
+  if (!token) return 0;
+  try {
+    const response = await fetch(`${API}/api/auth/me`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    if (!response.ok) return 0;
+    const data = await response.json();
+    const sedes = data.sedes || data.usuario?.sedes || [];
+    const asignada = Number(data.sede_id ?? data.ID_Sede ?? data.usuario?.sede_id ?? sedes[0]?.ID_Sede ?? 0);
+    if (Number.isInteger(asignada) && asignada > 0 && (!sedes.length || sedes.some(s => Number(s.ID_Sede) === asignada))) {
+      persistBranchId(asignada);
+      return asignada;
+    }
+  } catch (error) { console.warn('No se pudo recuperar la sede de la sesión:', error); }
+  return 0;
 };
 const loadGymIdentity = async () => {
   const seq = ++identityRequest;
-  const id = sedeId();
+  const id = sedeId() || await resolveBranchFromApi();
   loadingIdentity.value = true;
   identityError.value = '';
   if (!id) {
@@ -443,16 +457,16 @@ const onBranchChanged = (event) => {
   const detail = event.detail || {};
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? detail.sede?.id ?? storedSede());
-  const authorized = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(n => n > 0);
-  activeSede.value = Number.isInteger(id) && id > 0 && (!authorized.length || authorized.includes(id)) ? id : storedSede();
+  if (permitted(id)) persistBranchId(id);
   void loadGymIdentity();
+  void loadMetrics();
 };
 const onGymProfileUpdated = (event) => {
   const id = Number(event.detail?.sede_id || 0);
   if (!id || id === sedeId()) void loadGymIdentity();
 };
-const onTabVisible = () => { if (document.visibilityState === 'visible') void loadGymIdentity(); };
-watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); });
+const onTabVisible = () => { if (document.visibilityState === 'visible') { void loadGymIdentity(); void loadMetrics(); } };
+watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); void loadMetrics(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -557,36 +571,48 @@ const ui = computed(
    DATOS (de prueba)
 ========================================================= */
 
-const recentAccess = computed(() =>
-  currentLang.value === 'es'
-    ? [
-        { initials: 'AL', name: 'Andrea López', text: 'Entrada · Reconocimiento facial', time: 'Hace 3 min', method: 'facial' },
-        { initials: 'JR', name: 'José Ramírez', text: 'Entrada · Código QR', time: 'Hace 8 min', method: 'qr' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Entrada · Reconocimiento facial', time: 'Hace 15 min', method: 'facial' },
-        { initials: 'MG', name: 'Mariana García', text: 'Entrada · Código QR', time: 'Hace 22 min', method: 'qr' }
-      ]
-    : [
-        { initials: 'AL', name: 'Andrea López', text: 'Check-in · Facial recognition', time: '3 min ago', method: 'facial' },
-        { initials: 'JR', name: 'José Ramírez', text: 'Check-in · QR code', time: '8 min ago', method: 'qr' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Check-in · Facial recognition', time: '15 min ago', method: 'facial' },
-        { initials: 'MG', name: 'Mariana García', text: 'Check-in · QR code', time: '22 min ago', method: 'qr' }
-      ]
-);
-
-const expiring = computed(() =>
-  currentLang.value === 'es'
-    ? [
-        { id: 1, initials: 'LP', name: 'Luis Pérez', plan: 'Mensual', due: 'Vence hoy', level: 'danger' },
-        { id: 2, initials: 'SM', name: 'Sofía Martínez', plan: 'Quincenal', due: 'Vence mañana', level: 'warning' },
-        { id: 3, initials: 'DT', name: 'Diego Torres', plan: 'Mensual', due: 'Vence en 2 días', level: 'warning' }
-      ]
-    : [
-        { id: 1, initials: 'LP', name: 'Luis Pérez', plan: 'Monthly', due: 'Expires today', level: 'danger' },
-        { id: 2, initials: 'SM', name: 'Sofía Martínez', plan: 'Biweekly', due: 'Expires tomorrow', level: 'warning' },
-        { id: 3, initials: 'DT', name: 'Diego Torres', plan: 'Monthly', due: 'Expires in 2 days', level: 'warning' }
-      ]
-);
-
+const inscripciones = ref([]);
+const asistencias = ref([]);
+const metricasCargadas = ref(false);
+const accesosCargados = ref(false);
+const alertasControl = ref([]);
+const currentDateMX = () => { const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Monterrey', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const part = name => parts.find(p => p.type === name)?.value || ''; return `${part('year')}-${part('month')}-${part('day')}`; };
+const todayEntries = computed(() => accesosCargados.value ? new Set(asistencias.value.filter(a => String(a.fecha || '').slice(0, 10) === currentDateMX()).map(a => Number(a.ID_Inscripto))).size : '—');
+// La API de asistencia semanal NO indica quién sigue dentro del gimnasio.
+const insideCount = computed(() => '—');
+const expiring = computed(() => !metricasCargadas.value ? [] : inscripciones.value.filter(r => r.estatus_inscripcion === 'Próximo a vencer').slice(0, 8).map(r => {
+  const nombre = String(r.nombre || 'Cliente');
+  const initials = nombre.trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase();
+  return { id: Number(r.ID_Inscripto), initials, name: nombre, plan: r.paquete || r.Nombre_Paquete || 'Membresía', due: r.fecha_vencimiento || 'Próximo a vencer', level: 'warning' };
+}));
+const recentAccess = computed(() => !accesosCargados.value ? [] : [...asistencias.value].filter(r => r.fecha).reverse().slice(0, 6).map(r => {
+  const ins = inscripciones.value.find(i => Number(i.ID_Inscripto) === Number(r.ID_Inscripto));
+  const name = String(ins?.nombre || 'Cliente');
+  return { initials: name.trim().split(/\s+/).slice(0, 2).map(w => w.charAt(0)).join('').toUpperCase(), name, text: currentLang.value === 'en' ? 'Registered attendance' : 'Asistencia registrada', time: String(r.fecha), method: 'qr' };
+}));
+const loadMetrics = async () => {
+  const id = sedeId() || await resolveBranchFromApi();
+  if (!id) return;
+  const token = getToken();
+  if (!token) return;
+  const headers = { Accept: 'application/json', Authorization: `Bearer ${token}` };
+  const endpoints = [`/api/gym/ingresos?sede_id=${id}`, `/api/gym/asistencias-semana?sede_id=${id}`];
+  const results = await Promise.allSettled(endpoints.map(async path => {
+    const response = await fetch(`${API}${path}`, { headers, cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || `HTTP ${response.status}`);
+    return data;
+  }));
+  if (id !== sedeId()) return;
+  if (results[0].status === 'fulfilled' && Array.isArray(results[0].value.inscripciones)) {
+    inscripciones.value = results[0].value.inscripciones;
+    metricasCargadas.value = true;
+  } else { inscripciones.value = []; metricasCargadas.value = false; }
+  if (results[1].status === 'fulfilled' && Array.isArray(results[1].value.asistencias)) {
+    asistencias.value = results[1].value.asistencias;
+    accesosCargados.value = true;
+  } else { asistencias.value = []; accesosCargados.value = false; }
+};
 /* icon = path de un SVG de 24x24 */
 const quickActions = computed(() => {
   const icons = {
@@ -655,7 +681,7 @@ const copyAddress = async () => {
     copyTimer = setTimeout(() => { addressCopied.value = false; }, 2000);
   } catch (error) { console.warn('No se pudo copiar la dirección.', error); }
 };
-const onAttendanceRegistered = () => { void loadGymIdentity(); };
+const onAttendanceRegistered = () => { void loadGymIdentity(); void loadMetrics(); };
 
 /* =========================================================
    IDIOMA
@@ -685,6 +711,7 @@ onMounted(() => {
   window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.addEventListener('visibilitychange', onTabVisible);
   void loadGymIdentity();
+  void loadMetrics();
 });
 onUnmounted(() => {
   identityRequest++;
@@ -2382,7 +2409,6 @@ button {
     grid-template-columns: 1fr;
   }
 }
-
 
 /* =========================================================
    AJUSTE FINO DEL HERO EN MÓVIL
