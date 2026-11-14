@@ -8,7 +8,7 @@
           <div class="hero-main">
             <!-- Logo: fuera del panel, al lado, con la misma altura que el panel -->
             <div v-if="gym.logoUrl" class="hero-logo">
-              <img :src="gym.logoUrl" :alt="gym.name" />
+              <img :src="gym.logoUrl" :alt="gym.name" @error="gym.logoUrl = null" />
             </div>
 
             <!-- Panel de texto -->
@@ -28,7 +28,7 @@
               type="button"
               class="status-pill"
               :class="isGymOpen ? 'open' : 'closed'"
-              @click="toggleGymStatus"
+
             >
               <span class="status-dot"></span>
               {{ isGymOpen ? t.gymAbierto : t.gymCerrado }}
@@ -51,6 +51,7 @@
           </div>
         </section>
 
+        <p v-if="identityError" class="identity-error">{{ identityError }}</p>
         <!-- 2. INDICADORES CLAVE -->
         <section class="kpi-grid">
           <article class="kpi-card">
@@ -235,7 +236,7 @@
         </section>
 
         <!-- 6. UBICACIÓN DE LA SUCURSAL (MAPA) -->
-        <section v-if="hasLocation" class="panel map-panel">
+        <section class="panel map-panel">
           <div class="panel-header">
             <div>
               <span class="section-eyebrow">{{ ui.location }}</span>
@@ -279,48 +280,16 @@
                 </div>
               </div>
 
-              <a class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
+              <a v-if="hasLocation" class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
                 <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                 {{ ui.openInMaps }}
               </a>
             </div>
 
-            <!-- Mapa -->
+            <!-- Google Maps de la sede seleccionada (ubicación guardada en PostgreSQL) -->
             <div class="map-stage">
-              <div ref="mapContainer" class="leaflet-map"></div>
-
-              <div class="map-style-switch">
-                <button
-                  type="button"
-                  :class="{ active: mapStyle === 'calles' }"
-                  @click="changeMapStyle('calles')"
-                >
-                  {{ ui.mapStreets }}
-                </button>
-                <button
-                  type="button"
-                  :class="{ active: mapStyle === 'satelite' }"
-                  @click="changeMapStyle('satelite')"
-                >
-                  {{ ui.mapSatellite }}
-                </button>
-              </div>
-
-              <div class="map-tools">
-                <button type="button" :title="ui.zoomIn" @click="zoomInMap">+</button>
-                <button type="button" :title="ui.zoomOut" @click="zoomOutMap">−</button>
-                <button type="button" :title="ui.centerMap" @click="centerMap">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
-                  </svg>
-                </button>
-              </div>
-
-              <div v-if="mapLoading" class="map-loading">
-                <span class="map-spinner"></span>
-                {{ ui.mapLoading }}
-              </div>
+              <iframe v-if="googleMapEmbedUrl" :key="`${sedeId()}-${googleMapEmbedUrl}`" class="google-map-frame" :src="googleMapEmbedUrl" :title="`Mapa de ${gym.location.branchName}`" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <div v-else class="map-loading">{{ loadingIdentity ? ui.mapLoading : 'Ubicación no registrada para esta sede.' }}</div>
             </div>
           </div>
         </section>
@@ -340,7 +309,7 @@
               </div>
 
               <div class="action-list">
-                <button type="button" class="action-card" @click="openCamera('facial')">
+                <button type="button" class="action-card" disabled title="Próximamente: reconocimiento facial">
                   <div class="action-icon">
                     <svg viewBox="0 0 24 24"><circle cx="9" cy="10" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M17 8a3 3 0 0 1 0 6M21 21v-2a5 5 0 0 0-3-4.58"/></svg>
                   </div>
@@ -351,7 +320,7 @@
                   <ArrowIcon />
                 </button>
 
-                <button type="button" class="action-card" @click="openCamera('scanner')">
+                <button type="button" class="action-card" @click="activeModal = 'scanner'">
                   <div class="action-icon">
                     <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h3v2h-3zM18 13h2v2h-2zM13 17h2v3h-2zM17 17h3v3h-3z"/></svg>
                   </div>
@@ -407,7 +376,8 @@
           <CorreoMasivo v-if="activeModal === 'enviomasivo'" @close="closeModal" />
           <AddCorteComponent v-if="activeModal === 'corte'" @close="closeModal" />
 
-          <div v-if="activeModal === 'facial' || activeModal === 'scanner'" class="camera-panel">
+          <AccessAttendanceModal v-if="activeModal === 'scanner'" mode="scanner" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
+          <div v-if="activeModal === 'facial'" class="camera-panel">
             <div class="camera-header">
               <div>
                 <span>{{ ui.accessControl }}</span>
@@ -436,23 +406,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, h } from 'vue';
-import { useRouter } from 'vue-router';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { ref, computed, onMounted, onUnmounted, watch, h } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
-import AddScheduleModal from '../Modals/AddScheduleModal.vue';
+import AddScheduleModal from '../Modals/GymOpeningHours.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
 import CorreoMasivo from './Componets/Bulk-Email.vue';
 import AddCorteComponent from './Componets/Cut.vue';
 import HeadingAdmin from './HeadingGYM_MANAGER.vue';
+import AccessAttendanceModal from '../Modals/AccessAttendanceModal.vue';
 
 const router = useRouter();
 
 const currentLang = ref(localStorage.getItem('GYM_MANAGER-idioma') || 'es');
 const activeModal = ref(null);
 const videoPlayer = ref(null);
-const isGymOpen = ref(true);
+const isGymOpen = ref(false);
 const billingStatus = ref('active');
 
 let stream = null;
@@ -467,22 +436,89 @@ let stream = null;
 ========================================================= */
 
 const gym = ref({
-  name: 'Ultra Fitness Center',
-  logoUrl: 'https://marketplace.canva.com/EAFxdcos7WU/1/0/1600w/canva-dark-blue-and-brown-illustrative-fitness-gym-logo-oqe3ybeEcQQ.jpg',
-  coverUrl: 'https://static.vecteezy.com/system/resources/thumbnails/037/228/850/small_2x/ai-generated-exercise-machines-in-a-gym-free-photo.jpg',
-  membershipEnd: '2027-05-26',
-  location: {
-    branchName: 'Sede Principal',
-    street: 'Av. Universitaria',
-    number: '420',
-    neighborhood: 'Zona Centro',
-    city: 'Ciudad Valles',
-    state: 'San Luis Potosí',
-    zip: '79000',
-    lat: '21.9903',
-    lng: '-99.0152'
-  }
+  name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null,
+  location: { branchName: '', street: '', number: '', neighborhood: '', city: '', state: '', zip: '', lat: null, lng: null }
 });
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const route = useRoute();
+const activeSede = ref(0);
+const loadingIdentity = ref(false);
+const identityError = ref('');
+let identityRequest = 0;
+const getToken = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const name of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
+      const value = storage.getItem(name);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const name of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
+      try { const value = JSON.parse(storage.getItem(name) || 'null'); const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, ''); } catch { /* No es JSON */ }
+    }
+  }
+  return '';
+};
+const storedSede = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      let val = raw;
+      try { const obj = JSON.parse(raw); val = obj && typeof obj === 'object' ? (obj.ID_Sede ?? obj.sede_id ?? obj.id ?? obj.value) : obj; } catch { /* ID simple */ }
+      const id = Number(val);
+      if (Number.isInteger(id) && id > 0) return id;
+    }
+  }
+  return 0;
+};
+const sedeId = () => {
+  if (activeSede.value > 0) return activeSede.value;
+  const queryId = Number(route.query.sede_id);
+  if (Number.isInteger(queryId) && queryId > 0) return queryId;
+  return storedSede();
+};
+const loadGymIdentity = async () => {
+  const seq = ++identityRequest;
+  const id = sedeId();
+  loadingIdentity.value = true;
+  identityError.value = '';
+  gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, location: { branchName: '', street: '', number: '', neighborhood: '', city: '', state: '', zip: '', lat: null, lng: null } };
+  if (!id) { identityError.value = 'Selecciona una sede para ver su ubicación.'; loadingIdentity.value = false; return; }
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No se encontró la sesión del gerente.');
+    const response = await fetch(`${API}/api/gym/identidad-visual?sede_id=${id}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || `Error HTTP ${response.status}`);
+    if (seq !== identityRequest) return;
+    const info = data.gimnasio || {};
+    const branch = data.sede || {};
+    gym.value = {
+      name: String(info.nombre || 'Mi gimnasio'), logoUrl: info.logo_url || null, coverUrl: info.portada_url || null,
+      membershipEnd: null,
+      location: {
+        branchName: String(branch.nombre || `Sede ${id}`), street: String(branch.calle || ''), number: String(branch.numero_ext || ''),
+        neighborhood: String(branch.colonia || ''), city: String(branch.municipio || ''), state: String(branch.entidad || ''),
+        zip: String(branch.codigo_postal || ''), lat: branch.latitud ?? null, lng: branch.longitud ?? null
+      }
+    };
+  } catch (error) {
+    if (seq === identityRequest) identityError.value = error?.message || 'No se pudo consultar la identidad de esta sede.';
+  } finally { if (seq === identityRequest) loadingIdentity.value = false; }
+};
+const onBranchChanged = (event) => {
+  const detail = event.detail || {};
+  const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
+  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
+  activeSede.value = Number.isInteger(id) && id > 0 ? id : 0;
+  void loadGymIdentity();
+};
+const onGymProfileUpdated = (event) => {
+  const id = Number(event.detail?.sede_id || 0);
+  if (!id || id === sedeId()) void loadGymIdentity();
+};
+const onTabVisible = () => { if (document.visibilityState === 'visible') void loadGymIdentity(); };
+watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -768,150 +804,26 @@ const billingStatusText = computed(() => {
   return t.value.bloqueadoPago;
 });
 
-const toggleGymStatus = () => {
-  isGymOpen.value = !isGymOpen.value;
-  localStorage.setItem('isGymOpen', JSON.stringify(isGymOpen.value));
-};
+
 
 /* =========================================================
-   MAPA DE LA SUCURSAL (Leaflet + OpenStreetMap)
-   Solo lectura: el gerente ve la ubicación de su sucursal asignada.
-   La ubicación no se modifica desde este dashboard.
+   GOOGLE MAPS: coordenadas de la sede o dirección de PostgreSQL
 ========================================================= */
-
-const mapContainer = ref(null);
-const mapLoading = ref(true);
-const mapStyle = ref('calles');
-
-let mapInstance = null;
-let marker = null;
-let baseLayer = null;
-let resizeObserver = null;
-
-const TILE_LAYERS = {
-  calles: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
-    subdomains: 'abc',
-    maxZoom: 19
-  },
-  satelite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
-  }
-};
-
-const coords = computed(() => ({
-  lat: parseFloat(gym.value.location.lat),
-  lng: parseFloat(gym.value.location.lng)
-}));
-
-const hasLocation = computed(
-  () => Number.isFinite(coords.value.lat) && Number.isFinite(coords.value.lng)
-);
-
-const addressStreet = computed(() => {
-  const { street, number } = gym.value.location;
-  return [street, number && `#${number}`].filter(Boolean).join(' ');
+const coords = computed(() => {
+  const latValue = gym.value.location.lat, lngValue = gym.value.location.lng;
+  const lat = latValue === null || latValue === '' ? NaN : Number(latValue);
+  const lng = lngValue === null || lngValue === '' ? NaN : Number(lngValue);
+  return { lat, lng };
 });
-
-const coordsText = computed(() => `${coords.value.lat.toFixed(5)}, ${coords.value.lng.toFixed(5)}`);
-
-const directionsUrl = computed(
-  () => `https://www.google.com/maps/search/?api=1&query=${coords.value.lat},${coords.value.lng}`
-);
-
-const escapeHtml = (s) =>
-  String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-const applyBaseLayer = () => {
-  if (!mapInstance) return;
-  if (baseLayer) mapInstance.removeLayer(baseLayer);
-
-  const cfg = TILE_LAYERS[mapStyle.value];
-  baseLayer = L.tileLayer(cfg.url, {
-    attribution: cfg.attribution,
-    maxZoom: cfg.maxZoom,
-    ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
-  }).addTo(mapInstance);
-  baseLayer.bringToBack();
-};
-
-const changeMapStyle = (id) => {
-  if (mapStyle.value === id) return;
-  mapStyle.value = id;
-  applyBaseLayer();
-};
-
-const zoomInMap = () => mapInstance?.zoomIn();
-const zoomOutMap = () => mapInstance?.zoomOut();
-
-const centerMap = () => {
-  if (!mapInstance || !marker) return;
-  mapInstance.setView(marker.getLatLng(), Math.max(mapInstance.getZoom(), 16));
-  marker.openPopup();
-};
-
-const initMap = () => {
-  if (!mapContainer.value || !hasLocation.value) return;
-
-  const { lat, lng } = coords.value;
-
-  mapInstance = L.map(mapContainer.value, {
-    center: [lat, lng],
-    zoom: 16,
-    zoomControl: false,
-    attributionControl: false,
-    scrollWheelZoom: false,           /* no secuestra el scroll de la página */
-    dragging: !L.Browser.mobile       /* en móvil el dedo sigue haciendo scroll */
-  });
-
-  L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(mapInstance);
-  applyBaseLayer();
-
-  const pinIcon = L.divIcon({
-    className: 'gym-pin',
-    html: '<span class="gym-pin-body"><span class="gym-pin-dot"></span></span>',
-    iconSize: [36, 42],
-    iconAnchor: [18, 40],
-    popupAnchor: [0, -38]
-  });
-
-  const loc = gym.value.location;
-  const line = [addressStreet.value, loc.neighborhood].filter(Boolean).join(', ');
-
-  marker = L.marker([lat, lng], { icon: pinIcon, draggable: false })
-    .addTo(mapInstance)
-    .bindPopup(`<strong>${escapeHtml(gym.value.name)}</strong>${line ? '<br>' + escapeHtml(line) : ''}`);
-
-  marker.openPopup();
-
-  /* Espera a que el contenedor tenga su tamaño final antes de quitar el cargando */
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        mapInstance?.invalidateSize();
-        mapLoading.value = false;
-      }, 250)
-    )
-  );
-
-  if ('ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => mapInstance?.invalidateSize());
-    resizeObserver.observe(mapContainer.value);
-  }
-};
-
-const destroyMap = () => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
-
-  mapInstance?.remove();
-  mapInstance = null;
-  marker = null;
-  baseLayer = null;
-};
+const validCoords = computed(() => Number.isFinite(coords.value.lat) && Number.isFinite(coords.value.lng) && Math.abs(coords.value.lat) <= 90 && Math.abs(coords.value.lng) <= 180 && !(coords.value.lat === 0 && coords.value.lng === 0));
+const addressStreet = computed(() => [gym.value.location.street, gym.value.location.number && `#${gym.value.location.number}`].filter(Boolean).join(' '));
+const addressFull = computed(() => [addressStreet.value, gym.value.location.neighborhood, gym.value.location.city, gym.value.location.state, gym.value.location.zip, 'México'].filter(Boolean).join(', '));
+const mapQuery = computed(() => validCoords.value ? `${coords.value.lat},${coords.value.lng}` : (gym.value.location.city || gym.value.location.street ? addressFull.value : ''));
+const hasLocation = computed(() => !!mapQuery.value);
+const coordsText = computed(() => validCoords.value ? `${coords.value.lat.toFixed(6)}, ${coords.value.lng.toFixed(6)}` : 'No registradas');
+const googleMapEmbedUrl = computed(() => mapQuery.value ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery.value)}&z=16&output=embed` : '');
+const directionsUrl = computed(() => mapQuery.value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.value)}` : '#');
+const onAttendanceRegistered = () => { void loadGymIdentity(); };
 
 /* =========================================================
    IDIOMA
@@ -928,50 +840,7 @@ const handleLangChange = (event) => {
    MODALES
 ========================================================= */
 
-const stopStream = () => {
-  if (stream) {
-    stream.getTracks().forEach((track) => track.stop());
-    stream = null;
-  }
-};
-
-const openCamera = async (type) => {
-  activeModal.value = type;
-
-  setTimeout(async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('getUserMedia no disponible');
-      }
-
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: type === 'scanner' ? 'environment' : 'user' }
-      });
-
-      /* Si el usuario cerró el modal mientras se pedía el permiso,
-         se apaga la cámara para que no quede encendida en segundo plano */
-      if (activeModal.value !== type) {
-        newStream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      stream = newStream;
-
-      if (videoPlayer.value) {
-        videoPlayer.value.srcObject = stream;
-      }
-    } catch (err) {
-      console.error(err);
-      alert(ui.value.cameraError);
-      activeModal.value = null;
-    }
-  }, 100);
-};
-
-const closeModal = () => {
-  stopStream();
-  activeModal.value = null;
-};
+const closeModal = () => { activeModal.value = null; };
 
 /* Cerrar modales con Escape */
 const handleKeydown = (event) => {
@@ -987,30 +856,21 @@ const handleKeydown = (event) => {
 ========================================================= */
 
 onMounted(() => {
-  const saved = localStorage.getItem('isGymOpen');
-
-  if (saved !== null) {
-    try {
-      isGymOpen.value = JSON.parse(saved);
-    } catch {
-      /* valor inválido: se queda el predeterminado */
-    }
-  }
-
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
-
-  initMap();
+  window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
+  document.addEventListener('visibilitychange', onTabVisible);
+  void loadGymIdentity();
 });
-
 onUnmounted(() => {
+  identityRequest++;
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
-  document.body.style.overflow = '';
-  destroyMap();
+  window.removeEventListener('factorfit:branch-changed', onBranchChanged);
+  window.removeEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
+  document.removeEventListener('visibilitychange', onTabVisible);
 });
-
-onBeforeUnmount(stopStream);
 </script>
 
 <style scoped>
@@ -3170,4 +3030,9 @@ button {
     animation-duration: 0.01ms !important;
   }
 }
+</style>
+<style scoped>
+.map-stage .google-map-frame { display: block; width: 100%; height: 100%; min-height: 340px; border: 1px solid var(--line2); border-radius: 16px; background: #161616; }
+.identity-error { margin: 0; padding: 10px 16px; border-radius: 10px; color: #fca5a5; background: rgba(127,29,29,.16); font-size: 12px; }
+.action-card:disabled { opacity: .6; cursor: not-allowed; }
 </style>

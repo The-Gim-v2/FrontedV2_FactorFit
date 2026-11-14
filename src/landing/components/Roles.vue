@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-
 /* ================= DATOS ================= */
 const DAYS = [
   { key: 'monday', short: 'LUN', long: 'Lunes' },
@@ -9,23 +8,21 @@ const DAYS = [
   { key: 'thursday', short: 'JUE', long: 'Jueves' },
   { key: 'friday', short: 'VIE', long: 'Viernes' },
 ];
-
 /* classes: Lun a Vie. start/end en minutos desde medianoche (vienen del backend). */
 interface Row { time: string; period: 'am' | 'pm'; classes: (string | null)[]; colors: (string | null)[]; start: number; end: number }
 interface Sede {
   id: string; name: string; short: string; tagline: string; address: string;
-  accent: string; accent2: string; mapSrc: string; apiId: number;
+  accent: string; accent2: string; mapSrc: string; apiId: number; mapQuery: string;
 }
 type Bloque = { id: number; dia: string; titulo: string; color: string; inicio: string; fin: string };
 type Sucursal = {
   ID_Sede: number | string; ID_Gym: number | string; Nombre_Gym?: string; Nombre_Sede?: string;
   Sede_Colonia?: string; Ciudad?: string; Municipio?: string; Estado?: string; Entidad?: string;
   Direccion?: string; Calle?: string; Colonia?: string; Numero_Ext?: string;
-  Referencias?: string; Descripcion?: string;
+  Referencias?: string; Descripcion?: string; CP?: string; cp?: string; Codigo_Postal?: string;
+  Latitud?: string | number | null; Longitud?: string | number | null; latitud?: string | number | null; longitud?: string | number | null;
 };
-
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-
 /* Colores de respaldo por nombre; si el backend manda color, ese tiene prioridad. */
 const COLORS: Record<string, string> = {
   'entrenamiento funcional': '#c9a7ff', 'gap': '#7cc4ff', 'glute bands': '#7ee8b0',
@@ -38,7 +35,6 @@ const colorOf = (name: string) => {
   const k = name.toLowerCase();
   return colorMap.value[k] ?? COLORS[k] ?? '#f5d0fe';
 };
-
 /* Figuras que flotan en el fondo */
 const KINDS = ['heart', 'dot', 'star', 'dot', 'heart', 'dot', 'star'] as const;
 const PARTICLES = Array.from({ length: 24 }, (_, i) => ({
@@ -49,7 +45,6 @@ const PARTICLES = Array.from({ length: 24 }, (_, i) => ({
   drift: ((i * 13) % 80) - 40,
   kind: KINDS[i % KINDS.length]!,
 }));
-
 /* ================= ESTADO ================= */
 const sedeId = ref('');
 const day = ref(0);
@@ -57,7 +52,6 @@ const todayIdx = ref(-1);
 const view = ref<'day' | 'week'>('week');
 const nowMin = ref(-1);
 const copied = ref(false);
-
 /* Horario desde el backend */
 const sucursales = ref<Sucursal[]>([]);
 const cargandoSedes = ref(false);
@@ -69,15 +63,24 @@ const PALETA = [
 ];
 const texto = (v: unknown) => String(v ?? '').trim();
 function direccionDe(x: Sucursal): string {
-  if (texto(x.Direccion)) return texto(x.Direccion);
-  const calle = [texto(x.Calle), texto(x.Numero_Ext)].filter(Boolean).join(' #');
-  const partes = [calle, texto(x.Colonia) ? `Col. ${texto(x.Colonia)}` : '',
-    texto(x.Ciudad || x.Municipio), texto(x.Estado || x.Entidad)].filter(Boolean);
-  return partes.join(', ') || texto(x.Referencias) || 'Dirección no disponible';
+  const calle = [texto(x.Calle), texto(x.Numero_Ext) ? `#${texto(x.Numero_Ext)}` : ''].filter(Boolean).join(' ');
+  const direccion = [calle || texto(x.Direccion), texto(x.Colonia) ? `Col. ${texto(x.Colonia)}` : '',
+    texto(x.Ciudad || x.Municipio), texto(x.Estado || x.Entidad), texto(x.CP || x.cp || x.Codigo_Postal), 'México'].filter(Boolean).join(', ');
+  return direccion || 'Dirección no registrada';
+}
+function mapaConsulta(x: Sucursal): string {
+  const latRaw = x.Latitud ?? x.latitud;
+  const lngRaw = x.Longitud ?? x.longitud;
+  const lat = Number(latRaw), lng = Number(lngRaw);
+  if (latRaw !== null && latRaw !== undefined && texto(latRaw) && lngRaw !== null && lngRaw !== undefined && texto(lngRaw)
+    && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)) return `${lat},${lng}`;
+  const address = direccionDe(x);
+  return address === 'Dirección no registrada' ? '' : address;
 }
 const SEDES = computed<Sede[]>(() => sucursales.value.map((x, i) => {
   const nombre = texto(x.Nombre_Sede || x.Sede_Colonia) || `Sede ${x.ID_Sede}`;
   const address = direccionDe(x);
+  const mapQuery = mapaConsulta(x);
   const baseNombre = nombre.toLocaleLowerCase('es-MX');
   const color = baseNombre.includes('emiliano zapata') ? PALETA[0]! :
     baseNombre.includes('obrera') ? PALETA[1]! : PALETA[(i + 2) % PALETA.length]!;
@@ -85,19 +88,17 @@ const SEDES = computed<Sede[]>(() => sucursales.value.map((x, i) => {
     id: String(x.ID_Sede), apiId: Number(x.ID_Sede), name: nombre, short: nombre.replace(/^sede\s+/i, ''),
     tagline: texto(x.Descripcion) || 'Conoce nuestras clases y horarios.', address,
     accent: color[0]!, accent2: color[1]!,
-    mapSrc: `https://maps.google.com/maps?q=${encodeURIComponent(`${address}, México`)}&output=embed`,
+    mapQuery, mapSrc: mapQuery ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed` : '',
   };
 }));
 const rows = ref<Row[]>([]);
 const cargando = ref(false);
 const error = ref('');
 let solicitud = 0;
-
 const sede = computed<Sede>(() => SEDES.value.find(s => s.id === sedeId.value) ?? SEDES.value[0] ?? {
   id: '', apiId: 0, name: 'Sucursal', short: '', tagline: '', address: '',
-  accent: '#a78bfa', accent2: '#7c3aed', mapSrc: '',
+  accent: '#a78bfa', accent2: '#7c3aed', mapQuery: '', mapSrc: '',
 });
-
 /* ================= BACKEND ================= */
 const aMinutos = (h: string) => {
   const [a = '0', b = '0'] = h.split(':');
@@ -107,7 +108,6 @@ const hora12 = (h: string) => {
   const [hh = '0', mm = '00'] = h.split(':');
   return `${Number(hh) % 12 || 12}:${mm}`;
 };
-
 /** Convierte los bloques del backend en filas (una por rango de hora) con Lun–Vie. */
 function construirFilas(bloques: Bloque[]): Row[] {
   const mapa = new Map<string, Row>();
@@ -137,7 +137,6 @@ function construirFilas(bloques: Bloque[]): Row[] {
   }
   return [...mapa.values()].sort((a, b) => a.start - b.start);
 }
-
 async function cargarSucursales() {
   cargandoSedes.value = true;
   errorSedes.value = '';
@@ -156,7 +155,6 @@ async function cargarSucursales() {
     cargandoSedes.value = false;
   }
 }
-
 async function cargarHorario() {
   const indice = ++solicitud;
   rows.value = [];
@@ -187,21 +185,18 @@ async function cargarHorario() {
     if (indice === solicitud) cargando.value = false;
   }
 }
-
 /* ================= HORARIO: CÁLCULOS ================= */
 const fmt = (min: number) => {
   const h24 = Math.floor(min / 60), m = min % 60;
   const h = h24 % 12 === 0 ? 12 : h24 % 12;
   return `${h}:${String(m).padStart(2, '0')} ${h24 >= 12 ? 'pm' : 'am'}`;
 };
-
 const statusOf = (r: Row): 'live' | 'past' | '' => {
   if (todayIdx.value !== day.value || nowMin.value < 0) return '';
   if (nowMin.value >= r.start && nowMin.value < r.end) return 'live';
   if (nowMin.value >= r.end) return 'past';
   return '';
 };
-
 /* Datos rápidos de la sede (salen de los horarios) */
 const stats = computed(() => {
   const list = rows.value;
@@ -213,7 +208,6 @@ const stats = computed(() => {
     last: fmt(Math.max(...list.map(r => r.end))),
   };
 });
-
 /* Tabla de escritorio: filas con separadores Mañana / Tarde */
 const tableRows = computed(() => {
   const out: ({ kind: 'label'; text: string } | { kind: 'row'; row: Row })[] = [];
@@ -227,7 +221,6 @@ const tableRows = computed(() => {
   });
   return out;
 });
-
 /* Vista por día */
 const groups = computed(() => {
   const pick = (period: 'am' | 'pm') =>
@@ -239,7 +232,6 @@ const groups = computed(() => {
     { label: 'Tarde y noche', kind: 'pm', items: pick('pm') },
   ].filter(g => g.items.length);
 });
-
 const banner = computed(() => {
   if (todayIdx.value < 0) return { kind: 'rest', title: 'Hoy descansamos', text: 'Nos vemos el lunes con toda la energía.', color: '' };
   const today = rows.value
@@ -252,19 +244,15 @@ const banner = computed(() => {
   if (next) return { kind: 'next', title: 'Siguiente clase hoy', text: `${next.name} · ${fmt(next.s)}`, color: next.color || colorOf(next.name) };
   return { kind: 'rest', title: 'Por hoy terminamos', text: 'Mañana te esperamos con más ganas.', color: '' };
 });
-
 const legend = computed(() => {
   const set = new Set<string>();
   rows.value.forEach(r => r.classes.forEach(c => c && set.add(c)));
   return [...set];
 });
-
 const directions = computed(() =>
-  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sede.value.address)}`
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sede.value.mapQuery)}`
 );
-
 const pickSede = (id: string) => { sedeId.value = id; };
-
 const copyAddress = async () => {
   try {
     await navigator.clipboard.writeText(sede.value.address);
@@ -272,23 +260,19 @@ const copyAddress = async () => {
     setTimeout(() => (copied.value = false), 1800);
   } catch { /* sin permiso */ }
 };
-
 /* Al cambiar de sede se vuelve a consultar el horario */
 watch(sedeId, () => { if (sedeId.value) void cargarHorario(); });
-
 /* ---------- Aparición + reloj ---------- */
 const root = ref<HTMLElement | null>(null);
 const revealed = ref(false);
 let io: IntersectionObserver | null = null;
 let timer: ReturnType<typeof setInterval> | undefined;
-
 const tick = () => {
   const d = new Date();
   nowMin.value = d.getHours() * 60 + d.getMinutes();
   const g = d.getDay();
   todayIdx.value = g >= 1 && g <= 5 ? g - 1 : -1;
 };
-
 onMounted(() => {
   tick();
   if (todayIdx.value >= 0) day.value = todayIdx.value;
@@ -305,7 +289,6 @@ onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
 </script>
-
 <template>
   <section
     id="location"
@@ -319,7 +302,6 @@ onUnmounted(() => {
     <div class="blob b2" aria-hidden="true"></div>
     <div class="blob b3" aria-hidden="true"></div>
     <div class="blob b4" aria-hidden="true"></div>
-
     <div class="floaters" aria-hidden="true">
       <i
         v-for="(p, i) in PARTICLES"
@@ -328,14 +310,12 @@ onUnmounted(() => {
         :style="{ left: p.left + '%', '--s': p.size + 'px', animationDuration: p.dur + 's', animationDelay: p.delay + 's', '--dx': p.drift + 'px' }"
       >{{ p.kind === 'heart' ? '♥' : p.kind === 'star' ? '✦' : '' }}</i>
     </div>
-
     <svg class="wave w1" viewBox="0 0 2880 160" preserveAspectRatio="none" aria-hidden="true">
       <path d="M0,80 C240,20 480,140 720,80 C960,20 1200,140 1440,80 C1680,20 1920,140 2160,80 C2400,20 2640,140 2880,80 L2880,160 L0,160 Z" />
     </svg>
     <svg class="wave w2" viewBox="0 0 2880 160" preserveAspectRatio="none" aria-hidden="true">
       <path d="M0,60 C300,130 540,10 720,70 C900,130 1140,10 1440,60 C1740,130 1980,10 2160,70 C2340,130 2580,10 2880,60 L2880,160 L0,160 Z" />
     </svg>
-
     <div class="container">
       <!-- ===== Cabecera ===== -->
       <header class="head">
@@ -343,7 +323,6 @@ onUnmounted(() => {
         <h2 class="title">No podemos esperar <span class="grad">a verte</span></h2>
         <p class="subtitle">Elige tu sede, descubre cómo llegar y encuentra la clase perfecta para ti.</p>
       </header>
-
       <!-- ===== Selector de sede ===== -->
       <div v-if="cargandoSedes" class="msg" role="status">Cargando sucursales...</div>
       <div v-else-if="errorSedes" class="msg error" role="alert">{{ errorSedes }} <button type="button" @click="cargarSucursales">Reintentar</button></div>
@@ -370,20 +349,17 @@ onUnmounted(() => {
           </span>
         </button>
       </div>
-
       <!-- ===== UBICACIÓN: info + mapa ===== -->
       <div class="where">
         <article class="card info" :key="sede.id">
           <span class="kicker">Ubicación</span>
           <h3>{{ sede.name }}</h3>
           <p class="tag">{{ sede.tagline }}</p>
-
           <div class="stats">
             <div class="stat"><strong>{{ stats.total }}</strong><span>clases por semana</span></div>
             <div class="stat"><strong>{{ stats.first }}</strong><span>primera clase</span></div>
             <div class="stat"><strong>{{ stats.last }}</strong><span>cierre</span></div>
           </div>
-
           <ul class="contact">
             <li>
               <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
@@ -394,15 +370,13 @@ onUnmounted(() => {
               </span>
             </li>
           </ul>
-
           <div class="btns">
-            <a class="btn btn-main" :href="directions" target="_blank" rel="noopener">
+            <a v-if="sede.mapQuery" class="btn btn-main" :href="directions" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8-8-2Z"/></svg>
               Cómo llegar
             </a>
           </div>
         </article>
-
         <article class="card map">
           <iframe
             v-if="sede.mapSrc"
@@ -413,13 +387,13 @@ onUnmounted(() => {
             allowfullscreen
             referrerpolicy="no-referrer-when-downgrade"
           ></iframe>
+          <p v-if="!sede.mapSrc" class="map-empty">Esta sede todavía no tiene dirección ni coordenadas registradas.</p>
           <span class="map-tag">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
             {{ sede.name }}
           </span>
         </article>
       </div>
-
       <!-- ===== HORARIOS ===== -->
       <article class="card schedule">
         <div class="sched-head">
@@ -437,7 +411,6 @@ onUnmounted(() => {
             <span class="now-txt"><strong>{{ banner.title }}</strong><span>{{ banner.text }}</span></span>
           </div>
         </div>
-
         <!-- Estados de carga -->
         <div v-if="cargando" class="msg" role="status">Cargando horario...</div>
         <div v-else-if="error" class="msg error" role="alert">
@@ -445,7 +418,6 @@ onUnmounted(() => {
           <button type="button" @click="cargarHorario">Reintentar</button>
         </div>
         <div v-else-if="!rows.length" class="msg">Aún no hay clases registradas para esta sede.</div>
-
         <template v-else>
           <!-- Tabla grande -->
           <div v-if="view === 'week'" class="desk">
@@ -475,7 +447,6 @@ onUnmounted(() => {
               </tbody>
             </table>
           </div>
-
           <!-- Vista por día -->
           <div v-else class="mob">
             <div class="days" role="tablist" aria-label="Días">
@@ -491,7 +462,6 @@ onUnmounted(() => {
                 <i v-if="todayIdx === i" class="today-tag">Hoy</i>
               </button>
             </div>
-
             <div :key="sede.id + day" class="day-body">
               <p class="day-name">{{ DAYS[day]?.long }}<em v-if="todayIdx === day"> · Hoy</em></p>
               <div class="groups">
@@ -514,7 +484,6 @@ onUnmounted(() => {
               <p v-if="!groups.length" class="empty">No hay clases este día.</p>
             </div>
           </div>
-
           <ul class="legend" aria-label="Tipos de clase">
             <li v-for="l in legend" :key="l" :style="{ '--k': colorOf(l) }"><i></i>{{ l }}</li>
           </ul>
@@ -523,7 +492,6 @@ onUnmounted(() => {
     </div>
   </section>
 </template>
-
 <style scoped>
 .loc {
   --accent: #a78bfa;
@@ -542,7 +510,6 @@ onUnmounted(() => {
     radial-gradient(ellipse 60% 50% at 10% 100%, rgba(217, 70, 239, 0.26), transparent 62%),
     linear-gradient(170deg, #0d0922 0%, #170f3d 45%, #261361 100%);
 }
-
 /* ================= FONDO ANIMADO ================= */
 .aurora {
   position: absolute; z-index: -6; pointer-events: none; left: 50%; top: 50%; width: 150%; aspect-ratio: 1; translate: -50% -50%;
@@ -554,12 +521,10 @@ onUnmounted(() => {
 .b2 { width: 460px; height: 460px; background: color-mix(in srgb, var(--accent) 45%, transparent); top: 30%; right: -150px; transition: background 0.9s ease; animation: floatB 22s ease-in-out infinite alternate; }
 .b3 { width: 420px; height: 420px; background: rgba(217, 70, 239, 0.3); bottom: 8%; left: 6%; animation: floatC 20s ease-in-out infinite alternate; }
 .b4 { width: 340px; height: 340px; background: rgba(56, 189, 248, 0.2); top: 8%; left: 42%; animation: floatA 26s ease-in-out infinite alternate-reverse; }
-
 @keyframes floatA { from { transform: translate(0, 0) scale(1); } to { transform: translate(90px, 70px) scale(1.18); } }
 @keyframes floatB { from { transform: translate(0, 0) scale(1.05); } to { transform: translate(-100px, -60px) scale(0.9); } }
 @keyframes floatC { from { transform: translate(0, 0) scale(0.95); } to { transform: translate(70px, -90px) scale(1.2); } }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 /* Corazones, destellos y burbujas que suben */
 .floaters { position: absolute; inset: 0; z-index: -3; pointer-events: none; overflow: hidden; }
 .pt { position: absolute; bottom: -40px; font-style: normal; line-height: 1; opacity: 0; color: rgba(255, 255, 255, 0.75); animation: riseUp linear infinite; }
@@ -573,15 +538,12 @@ onUnmounted(() => {
   90% { opacity: 0.5; }
   100% { transform: translate(var(--dx), -115vh) rotate(-14deg); opacity: 0; }
 }
-
 /* Olas suaves abajo */
 .wave { position: absolute; left: 0; bottom: 0; width: 200%; height: clamp(70px, 10vw, 140px); z-index: -2; pointer-events: none; }
 .w1 { fill: rgba(167, 139, 250, 0.12); animation: slide 26s linear infinite; }
 .w2 { fill: rgba(217, 70, 239, 0.12); height: clamp(55px, 8vw, 110px); animation: slide 18s linear infinite reverse; }
 @keyframes slide { to { transform: translateX(-50%); } }
-
 .container { max-width: 1240px; margin: 0 auto; position: relative; }
-
 /* ================= CABECERA ================= */
 .head { text-align: center; margin-bottom: clamp(24px, 4vw, 38px); opacity: 0; transform: translateY(20px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
 .revealed .head { opacity: 1; transform: none; }
@@ -603,7 +565,6 @@ onUnmounted(() => {
 }
 @keyframes shine { to { background-position: 220% center; } }
 .subtitle { margin: 0 auto; max-width: 52ch; font-size: clamp(1rem, 2.4vw, 1.2rem); line-height: 1.6; color: rgba(255, 255, 255, 0.88); text-shadow: 0 2px 14px rgba(5, 2, 20, 0.4); }
-
 /* ================= SELECTOR DE SEDE ================= */
 .sedes {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(10px, 1.6vw, 18px);
@@ -629,7 +590,6 @@ onUnmounted(() => {
 .check { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #fff; color: var(--c2); transform: scale(0); transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
 .check svg { width: 15px; height: 15px; }
 .sede-btn.active .check { transform: scale(1); }
-
 /* ================= TARJETAS ================= */
 .card {
   position: relative;
@@ -647,18 +607,15 @@ onUnmounted(() => {
 }
 .revealed .card { opacity: 1; transform: none; }
 .kicker { font-size: 0.8rem; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; color: #d8c8ff; }
-
 /* ================= UBICACIÓN ================= */
 .where { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: clamp(16px, 2.6vw, 30px); align-items: stretch; margin-bottom: clamp(18px, 3vw, 30px); }
 .info { padding: clamp(22px, 3vw, 38px); display: flex; flex-direction: column; transition-delay: 0.25s; }
 .info h3 { margin: 6px 0 8px; font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(1.8rem, 4vw, 2.5rem); line-height: 1.1; }
 .tag { margin: 0 0 20px; font-size: clamp(1rem, 2vw, 1.12rem); line-height: 1.55; color: rgba(255, 255, 255, 0.88); }
-
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
 .stat { padding: 14px 10px; border-radius: 18px; text-align: center; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(255, 255, 255, 0.18); }
 .stat strong { display: block; font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; font-size: clamp(1.25rem, 2.6vw, 1.7rem); letter-spacing: 0.4px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .stat span { display: block; margin-top: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
-
 .contact { list-style: none; margin: 0 0 26px; padding: 0; display: grid; gap: 18px; }
 .contact li { display: flex; align-items: flex-start; gap: 16px; }
 .ic { flex: 0 0 auto; width: 50px; height: 50px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 10px 22px rgba(5, 2, 20, 0.4); }
@@ -670,7 +627,6 @@ a.c-val:hover { text-decoration: underline; }
 .copy { align-self: flex-start; margin-top: 6px; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.1); color: #fff; font: 700 0.8rem 'Inter', sans-serif; padding: 7px 14px; border-radius: 999px; transition: background 0.2s ease; }
 .copy:hover { background: rgba(255, 255, 255, 0.24); }
 .copy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-
 .btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: auto; }
 .btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 58px; padding: 0 16px; border-radius: 999px; text-decoration: none; color: #fff; font: 800 1.05rem 'Inter', sans-serif; transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease; }
 .btn-main { background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 12px 28px rgba(5, 2, 20, 0.45); border: 1px solid rgba(255, 255, 255, 0.45); }
@@ -680,8 +636,8 @@ a.c-val:hover { text-decoration: underline; }
 .btn:hover { transform: translateY(-3px); }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.22); }
 .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-
 .map { overflow: hidden; padding: 8px; min-height: 520px; transition-delay: 0.35s; }
+.map-empty { min-height: 504px; display: grid; place-items: center; text-align: center; padding: 24px; color: rgba(255,255,255,.8); }
 .map iframe { display: block; width: 100%; height: 100%; min-height: 504px; border: 0; border-radius: clamp(16px, 2.2vw, 24px); }
 .map-tag {
   position: absolute; left: 22px; top: 22px; display: inline-flex; align-items: center; gap: 8px; max-width: calc(100% - 44px);
@@ -690,13 +646,11 @@ a.c-val:hover { text-decoration: underline; }
   pointer-events: none;
 }
 .map-tag svg { width: 18px; height: 18px; flex: 0 0 auto; }
-
 /* ================= HORARIOS ================= */
 .schedule { padding: clamp(16px, 3vw, 34px); transition-delay: 0.45s; }
 .sched-head { display: flex; align-items: center; justify-content: space-between; gap: 18px 24px; flex-wrap: wrap; margin-bottom: clamp(16px, 2.4vw, 24px); }
 .sched-head h3 { margin: 2px 0 0; font-family: 'Anton', 'Inter', sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(1.9rem, 4.6vw, 2.8rem); letter-spacing: 0.5px; line-height: 1.1; }
 .sched-sub { margin: 4px 0 0; font-size: clamp(0.92rem, 2vw, 1.05rem); color: rgba(255, 255, 255, 0.82); font-weight: 600; }
-
 .now-bar {
   --k: var(--accent);
   display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-radius: 18px; max-width: 100%;
@@ -710,13 +664,11 @@ a.c-val:hover { text-decoration: underline; }
 .pulse { flex: 0 0 auto; width: 12px; height: 12px; border-radius: 50%; background: var(--k); animation: ring 1.8s infinite; }
 .now-bar.rest .pulse { animation: none; opacity: 0.6; }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--k) 70%, transparent); } 80%, 100% { box-shadow: 0 0 0 12px transparent; } }
-
 .seg { display: inline-flex; margin-top: 14px; padding: 5px; border-radius: 999px; background: rgba(10, 5, 30, 0.5); border: 1px solid rgba(255, 255, 255, 0.18); }
 .seg button { border: 0; cursor: pointer; padding: 11px 24px; border-radius: 999px; background: transparent; color: rgba(255, 255, 255, 0.78); font: 800 0.95rem 'Inter', sans-serif; transition: background 0.25s ease, color 0.25s ease; }
 .seg button:hover { color: #fff; }
 .seg button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 8px 18px rgba(5, 2, 20, 0.45); }
 .seg button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-
 /* Mensajes de carga / error / vacío */
 .msg {
   display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
@@ -728,7 +680,6 @@ a.c-val:hover { text-decoration: underline; }
 .msg.error { border-color: #fa8da5; color: #ffd0da; }
 .msg button { cursor: pointer; border: 0; border-radius: 999px; padding: 9px 18px; background: #fff; color: #3b2459; font: 800 0.9rem 'Inter', sans-serif; }
 .msg button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-
 /* Tabla */
 .desk { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .desk .week { min-width: 780px; }
@@ -740,14 +691,11 @@ a.c-val:hover { text-decoration: underline; }
 .week thead th small { display: block; margin-top: 2px; font-size: 0.66rem; letter-spacing: 1px; opacity: 0.95; }
 .week thead th.now { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: #fff; box-shadow: 0 8px 20px rgba(5, 2, 20, 0.45); }
 .week thead th.corner { background: transparent; border-color: transparent; width: 148px; text-align: left; color: rgba(255, 255, 255, 0.7); font-size: 0.8rem; padding-left: 6px; }
-
 .week tbody th.time { text-align: left; white-space: nowrap; font: 800 clamp(0.92rem, 1.25vw, 1.08rem) 'Inter', sans-serif; font-variant-numeric: tabular-nums; color: #fff; padding: 0 6px; }
 .week tbody th.time small { margin-left: 5px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.5px; }
-
 .week tr.band td { padding: 14px 0 2px; }
 .week tr.band span { display: inline-flex; align-items: center; gap: 12px; width: 100%; font: 800 0.8rem 'Inter', sans-serif; letter-spacing: 1.6px; text-transform: uppercase; color: #d8c8ff; }
 .week tr.band span::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent); }
-
 .week td { padding: 0; }
 .chip {
   display: flex; align-items: center; justify-content: center; text-align: center; min-height: 74px; padding: 10px 8px;
@@ -762,11 +710,9 @@ a.c-val:hover { text-decoration: underline; }
 .chip:hover { transform: translateY(-3px) scale(1.02); filter: brightness(1.15); }
 .week td.today .chip { border-color: rgba(255, 255, 255, 0.85); }
 .dash { display: flex; align-items: center; justify-content: center; min-height: 74px; border-radius: 16px; border: 1px dashed rgba(255, 255, 255, 0.25); color: rgba(255, 255, 255, 0.45); font-weight: 700; }
-
 .legend { list-style: none; margin: clamp(16px, 2.4vw, 24px) 0 0; padding: 18px 0 0; display: flex; flex-wrap: wrap; gap: 10px 20px; border-top: 1px dashed rgba(255, 255, 255, 0.28); }
 .legend li { display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; font-weight: 700; color: rgba(255, 255, 255, 0.9); }
 .legend i { width: 12px; height: 12px; border-radius: 50%; background: var(--k); box-shadow: 0 0 10px var(--k); }
-
 /* Vista por día */
 .days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 18px; }
 .day {
@@ -801,7 +747,6 @@ a.c-val:hover { text-decoration: underline; }
 .n { flex: 1; min-width: 0; font-weight: 800; font-size: 1.08rem; color: #fff; }
 .live-tag { flex: 0 0 auto; font-style: normal; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; color: #1a1033; background: var(--k); }
 .empty { margin: 18px 0 6px; text-align: center; color: rgba(255, 255, 255, 0.85); }
-
 /* ================= RESPONSIVE ================= */
 @media (max-width: 960px) {
   .where { grid-template-columns: minmax(0, 1fr); }
