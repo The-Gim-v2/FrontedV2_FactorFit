@@ -40,7 +40,7 @@ if (loading.value) return
 clearMessages()
 loading.value = true
 try {
-const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
+const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '')
 if (!apiUrl) throw new Error('No está configurada la URL del servidor.')
 const response = await fetch(`${apiUrl}/api/auth/login`, {
 method: 'POST',
@@ -69,11 +69,31 @@ if (!router.hasRoute(routeName)) {
 errorMessage.value = `No se encontró el dashboard para el rol ${role}.`
 return
 }
+const rawUser = (result.usuario || {}) as Record<string, any>
+const person = (rawUser.usuario && typeof rawUser.usuario === 'object' ? rawUser.usuario : rawUser) as Record<string, any>
+const branches = (Array.isArray(person.sedes) ? person.sedes : Array.isArray(rawUser.sedes) ? rawUser.sedes : []) as Array<Record<string, unknown>>
+const validBranches = branches.filter(s => Number.isInteger(Number(s.ID_Sede ?? s.id_sede ?? s.sede_id)) && Number(s.ID_Sede ?? s.id_sede ?? s.sede_id) > 0)
+const normalizedBranches = validBranches.map(s => ({ ...s, ID_Sede: Number(s.ID_Sede ?? s.id_sede ?? s.sede_id), Sede_Colonia: String(s.Sede_Colonia ?? s.nombre ?? s.nombre_sede ?? '') }))
+const preferred = Number(person.ID_Sede ?? person.sede_id ?? rawUser.ID_Sede ?? rawUser.sede_id ?? 0)
+const chosen = normalizedBranches.find(s => Number(s.ID_Sede) === preferred) || normalizedBranches[0] || null
+const sessionUser = { ...rawUser, ...person, sedes: normalizedBranches, ID_Sede: chosen?.ID_Sede ?? (preferred > 0 && !normalizedBranches.length ? preferred : null) }
+// La sesión devuelve las sedes permitidas; el token autentica al usuario, no a la sucursal.
+// Al entrar con Personal, la sede debe venir asignada desde el servidor.
+const selectedId = Number(sessionUser.ID_Sede || 0)
+if (['GYM_ADMIN', 'GYM_MANAGER', 'GYM_RECEPCIONIST'].includes(role) && selectedId <= 0) {
+errorMessage.value = 'Tu cuenta no tiene una sede asignada. Pide al propietario que revise tu asignación.'
+return
+}
+for (const storage of [sessionStorage, localStorage]) storage.removeItem('selected_sede_id')
+if (selectedId > 0) {
+sessionStorage.setItem('selected_sede_id', String(selectedId))
+localStorage.setItem('selected_sede_id', String(selectedId))
+}
 sessionStorage.setItem('auth_token', result.token)
 sessionStorage.setItem('user_role', role)
-sessionStorage.setItem('gym_account', JSON.stringify(result.usuario ?? {}))
+sessionStorage.setItem('gym_account', JSON.stringify(sessionUser))
 localStorage.removeItem('user_role')
-successMessage.value = `Bienvenido a ${result.usuario?.nombre || 'Factor Fit'}.`
+successMessage.value = `Bienvenido a ${String(person.nombre ?? rawUser.nombre ?? 'Factor Fit')}.`
 const failure = await router.replace({ name: routeName })
 if (failure) {
 console.error('Error de navegación:', failure)

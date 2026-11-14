@@ -35,8 +35,8 @@
             </button>
 
             <div class="billing-pill" :class="billingStatus">
-              <span class="billing-dot"></span>
-              {{ billingStatusText }}
+                <span class="billing-dot"></span>
+                {{ billingStatusText }}
             </div>
 
             <div v-if="gym.membershipEnd" class="membership-pill" :class="membershipState">

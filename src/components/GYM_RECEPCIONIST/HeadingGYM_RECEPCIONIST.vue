@@ -927,6 +927,7 @@ const aplicarEstilosGlobales = () => {
 ========================================================= */
 
 onMounted(() => {
+  refreshBranch();
   void fetchNotifications(true);
   notificationsTimer = window.setInterval(() => { void fetchNotifications(true); }, 60000);
   document.addEventListener('visibilitychange', refreshNotificationsOnFocus);
