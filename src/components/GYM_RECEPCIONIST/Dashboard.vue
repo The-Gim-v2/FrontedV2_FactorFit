@@ -82,7 +82,7 @@
           </div>
 
           <div class="access-grid">
-            <button type="button" class="access-card" @click="openCamera('facial')">
+            <button type="button" class="access-card" disabled title="Próximamente: reconocimiento facial">
               <span class="access-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
               </span>
@@ -95,7 +95,7 @@
               </span>
             </button>
 
-            <button type="button" class="access-card qr" @click="openCamera('scanner')">
+            <button type="button" class="access-card qr" @click="activeModal = 'scanner'">
               <span class="access-icon">
                 <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h3v2h-3zM18 13h2v2h-2zM13 17h2v3h-2zM17 17h3v3h-3z"/></svg>
               </span>
@@ -190,54 +190,16 @@
         </section>
 
         <!-- 5. UBICACIÓN DE LA SUCURSAL (MAPA) -->
-        <section v-if="hasLocation" class="map-panel" :class="{ expanded: mapExpanded }">
+        <section class="map-panel" :class="{ expanded: mapExpanded }">
           <!-- Mapa a pantalla completa del panel -->
           <div class="map-canvas">
-            <div ref="mapContainer" class="leaflet-map"></div>
+            <iframe v-if="googleMapEmbedUrl" :key="`${sedeId()}-${googleMapEmbedUrl}`" class="google-map-frame" :src="googleMapEmbedUrl" :title="`Mapa de ${gym.location.branchName}`" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <div v-else class="map-empty">{{ loadingIdentity ? ui.mapLoading : (identityError || 'Ubicación no registrada para esta sede.') }}</div>
 
             <div class="map-tools">
-              <button type="button" :title="ui.zoomIn" @click="zoomInMap">+</button>
-              <button type="button" :title="ui.zoomOut" @click="zoomOutMap">−</button>
-              <button type="button" :title="ui.centerMap" @click="centerMap">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
-                </svg>
+              <button type="button" :title="mapExpanded ? ui.collapseMap : ui.expandMap" @click="toggleExpand">
+                {{ mapExpanded ? '−' : '+' }}
               </button>
-              <button
-                type="button"
-                :title="mapExpanded ? ui.collapseMap : ui.expandMap"
-                @click="toggleExpand"
-              >
-                <svg v-if="!mapExpanded" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>
-                </svg>
-              </button>
-            </div>
-
-            <div class="map-style-switch">
-              <button
-                type="button"
-                :class="{ active: mapStyle === 'calles' }"
-                @click="changeMapStyle('calles')"
-              >
-                {{ ui.mapStreets }}
-              </button>
-              <button
-                type="button"
-                :class="{ active: mapStyle === 'satelite' }"
-                @click="changeMapStyle('satelite')"
-              >
-                {{ ui.mapSatellite }}
-              </button>
-            </div>
-
-            <div v-if="mapLoading" class="map-loading">
-              <span class="map-spinner"></span>
-              {{ ui.mapLoading }}
             </div>
           </div>
 
@@ -259,13 +221,13 @@
             </span>
 
             <address class="map-address">
-              <strong>{{ addressStreet }}</strong>
-              <span>{{ gym.location.neighborhood }} · C.P. {{ gym.location.zip }}</span>
-              <span>{{ gym.location.city }}, {{ gym.location.state }}</span>
+              <strong>{{ addressStreet || 'Dirección no registrada' }}</strong>
+              <span>{{ gym.location.neighborhood || 'Colonia no registrada' }} · C.P. {{ gym.location.zip || 'No registrado' }}</span>
+              <span>{{ [gym.location.city, gym.location.state].filter(Boolean).join(', ') || 'Municipio y estado no registrados' }}</span>
             </address>
 
             <div class="map-card-actions">
-              <a class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
+              <a v-if="hasLocation" class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
                 <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                 {{ ui.openInMaps }}
               </a>
@@ -324,26 +286,7 @@
             @close="closeModal"
           />
 
-          <div v-if="activeModal === 'facial' || activeModal === 'scanner'" class="camera-panel">
-            <div class="camera-header">
-              <div>
-                <span>{{ ui.accessControl }}</span>
-                <h3>{{ activeModal === 'facial' ? t.escaneoFacialTitle : t.escaneandoQrTitle }}</h3>
-              </div>
-              <button type="button" @click="closeModal">&times;</button>
-            </div>
-
-            <div class="camera-container">
-              <video ref="videoPlayer" autoplay playsinline></video>
-              <div v-if="activeModal === 'facial'" class="face-overlay"></div>
-              <div v-else class="qr-overlay"><div class="scanner-line"></div></div>
-            </div>
-
-            <div class="camera-footer">
-              <p>{{ activeModal === 'facial' ? t.instruccionFacial : t.instruccionQr }}</p>
-              <button type="button" @click="closeModal">{{ t.cancelar }}</button>
-            </div>
-          </div>
+          <AccessAttendanceModal v-if="activeModal === 'scanner'" mode="scanner" :sede-id="sedeId()" @close="closeModal" @registered="onAttendanceRegistered" />
         </div>
       </transition>
     </div>
@@ -351,13 +294,12 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted, onBeforeUnmount, h } from 'vue';
-import { useRouter } from 'vue-router';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { ref, computed, onMounted, onUnmounted, watch, h } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
-import AddScheduleModal from '../Modals/AddScheduleModal.vue';
+import AddScheduleModal from '../Modals/GymOpeningHours.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
+import AccessAttendanceModal from '../Modals/AccessAttendanceModal.vue';
 import HeadingAdmin from './HeadingGYM_RECEPCIONIST.vue';
 // Ajusta esta ruta a donde tengas Promos.vue
 import Promo from './Payments/Promos.vue';
@@ -381,21 +323,103 @@ let stream = null;
 ========================================================= */
 
 const gym = ref({
-  name: 'Ultra Fitness Center',
-  logoUrl: 'https://marketplace.canva.com/EAFxdcos7WU/1/0/1600w/canva-dark-blue-and-brown-illustrative-fitness-gym-logo-oqe3ybeEcQQ.jpg',
-  coverUrl: 'https://static.vecteezy.com/system/resources/thumbnails/037/228/850/small_2x/ai-generated-exercise-machines-in-a-gym-free-photo.jpg',
-  location: {
-    branchName: 'Sede Principal',
-    street: 'Av. Universitaria',
-    number: '420',
-    neighborhood: 'Zona Centro',
-    city: 'Ciudad Valles',
-    state: 'San Luis Potosí',
-    zip: '79000',
-    lat: '21.9903',
-    lng: '-99.0152'
-  }
+  name: 'Mi gimnasio', logoUrl: null, coverUrl: null,
+  location: { branchName: '', street: '', number: '', neighborhood: '', city: '', state: '', zip: '', lat: null, lng: null }
 });
+const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const route = useRoute();
+const activeSede = ref(0);
+const loadingIdentity = ref(false);
+const identityError = ref('');
+let identityRequest = 0;
+const getToken = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const name of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
+      const value = storage.getItem(name);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+    for (const name of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
+      try {
+        const value = JSON.parse(storage.getItem(name) || 'null');
+        const token = value?.token || value?.access_token || value?.accessToken;
+        if (token) return String(token).replace(/^Bearer\s+/i, '');
+      } catch { /* No es JSON. */ }
+    }
+  }
+  return '';
+};
+const storedSede = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
+      const raw = storage.getItem(key);
+      if (!raw) continue;
+      let value = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        value = parsed && typeof parsed === 'object' ? (parsed.ID_Sede ?? parsed.sede_id ?? parsed.id ?? parsed.value) : parsed;
+      } catch { /* Identificador simple. */ }
+      const id = Number(value);
+      if (Number.isInteger(id) && id > 0) return id;
+    }
+  }
+  return 0;
+};
+const sedeId = () => {
+  if (activeSede.value > 0) return activeSede.value;
+  const queryId = Number(route.query.sede_id);
+  return Number.isInteger(queryId) && queryId > 0 ? queryId : storedSede();
+};
+const loadGymIdentity = async () => {
+  const seq = ++identityRequest;
+  const id = sedeId();
+  loadingIdentity.value = true;
+  identityError.value = '';
+  if (!id) {
+    identityError.value = 'Selecciona una sede para consultar su ubicación.';
+    loadingIdentity.value = false;
+    return;
+  }
+  try {
+    const token = getToken();
+    if (!token) throw new Error('No se encontró la sesión de recepción.');
+    const response = await fetch(`${API}/api/gym/identidad-visual?sede_id=${id}`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store'
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.message || `Error HTTP ${response.status}`);
+    if (seq !== identityRequest) return;
+    const info = data.gimnasio || {};
+    const branch = data.sede || {};
+    gym.value = {
+      name: String(info.nombre || 'Mi gimnasio'),
+      logoUrl: info.logo_url || null, coverUrl: info.portada_url || null,
+      location: {
+        branchName: String(branch.nombre || `Sede ${id}`),
+        street: String(branch.calle || ''), number: String(branch.numero_ext || ''),
+        neighborhood: String(branch.colonia || ''), city: String(branch.municipio || ''),
+        state: String(branch.entidad || ''), zip: String(branch.codigo_postal || ''),
+        lat: branch.latitud ?? null, lng: branch.longitud ?? null
+      }
+    };
+  } catch (error) {
+    if (seq === identityRequest) identityError.value = error?.message || 'No se pudo cargar la información del gimnasio.';
+  } finally {
+    if (seq === identityRequest) loadingIdentity.value = false;
+  }
+};
+const onBranchChanged = (event) => {
+  const detail = event.detail || {};
+  const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
+  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
+  activeSede.value = Number.isInteger(id) && id > 0 ? id : 0;
+  void loadGymIdentity();
+};
+const onGymProfileUpdated = (event) => {
+  const id = Number(event.detail?.sede_id || 0);
+  if (!id || id === sedeId()) void loadGymIdentity();
+};
+const onTabVisible = () => { if (document.visibilityState === 'visible') void loadGymIdentity(); };
+watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -570,184 +594,35 @@ const toggleGymStatus = () => {
 };
 
 /* =========================================================
-   MAPA DE LA SUCURSAL (Leaflet + OpenStreetMap)
-   Solo lectura: sirve para indicar cómo llegar al gimnasio.
+    GOOGLE MAPS: coordenadas reales o dirección registrada
 ========================================================= */
-
-const mapContainer = ref(null);
-const mapLoading = ref(true);
-const mapStyle = ref('calles');
 const mapExpanded = ref(false);
 const addressCopied = ref(false);
-
-let mapInstance = null;
-let marker = null;
-let baseLayer = null;
-let resizeObserver = null;
 let copyTimer = null;
-
-const TILE_LAYERS = {
-  calles: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
-    subdomains: 'abc',
-    maxZoom: 19
-  },
-  satelite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
-  }
-};
-
-const coords = computed(() => ({
-  lat: parseFloat(gym.value.location.lat),
-  lng: parseFloat(gym.value.location.lng)
-}));
-
-const hasLocation = computed(
-  () => Number.isFinite(coords.value.lat) && Number.isFinite(coords.value.lng)
-);
-
-const addressStreet = computed(() => {
-  const { street, number } = gym.value.location;
-  return [street, number && `#${number}`].filter(Boolean).join(' ');
+const coords = computed(() => {
+  const latitude = gym.value.location.lat, longitude = gym.value.location.lng;
+  const lat = latitude == null || latitude === '' ? NaN : Number(latitude);
+  const lng = longitude == null || longitude === '' ? NaN : Number(longitude);
+  return { lat, lng };
 });
-
-const fullAddress = computed(() => {
-  const loc = gym.value.location;
-  return [
-    addressStreet.value,
-    loc.neighborhood,
-    loc.zip && `C.P. ${loc.zip}`,
-    loc.city,
-    loc.state
-  ].filter(Boolean).join(', ');
-});
-
-const directionsUrl = computed(
-  () => `https://www.google.com/maps/search/?api=1&query=${coords.value.lat},${coords.value.lng}`
-);
-
-const applyBaseLayer = () => {
-  if (!mapInstance) return;
-  if (baseLayer) mapInstance.removeLayer(baseLayer);
-
-  const cfg = TILE_LAYERS[mapStyle.value];
-  baseLayer = L.tileLayer(cfg.url, {
-    attribution: cfg.attribution,
-    maxZoom: cfg.maxZoom,
-    ...(cfg.subdomains ? { subdomains: cfg.subdomains } : {})
-  }).addTo(mapInstance);
-  baseLayer.bringToBack();
-};
-
-const changeMapStyle = (id) => {
-  if (mapStyle.value === id) return;
-  mapStyle.value = id;
-  applyBaseLayer();
-};
-
-const zoomInMap = () => mapInstance?.zoomIn();
-const zoomOutMap = () => mapInstance?.zoomOut();
-
-const centerMap = () => {
-  if (!mapInstance || !marker) return;
-  mapInstance.setView(marker.getLatLng(), Math.max(mapInstance.getZoom(), 16));
-};
-
-/* Agranda o reduce el mapa y lo vuelve a centrar en la sede */
-const toggleExpand = async () => {
-  mapExpanded.value = !mapExpanded.value;
-  await nextTick();
-
-  /* La altura se anima, así que se recalcula durante y después de la transición */
-  [0, 180, 380].forEach((ms) =>
-    setTimeout(() => {
-      mapInstance?.invalidateSize();
-      if (marker) mapInstance?.panTo(marker.getLatLng(), { animate: false });
-    }, ms)
-  );
-};
-
+const validCoords = computed(() => Number.isFinite(coords.value.lat) && Number.isFinite(coords.value.lng) && Math.abs(coords.value.lat) <= 90 && Math.abs(coords.value.lng) <= 180 && !(coords.value.lat === 0 && coords.value.lng === 0));
+const addressStreet = computed(() => [gym.value.location.street, gym.value.location.number && `#${gym.value.location.number}`].filter(Boolean).join(' '));
+const fullAddress = computed(() => [addressStreet.value, gym.value.location.neighborhood, gym.value.location.city, gym.value.location.state, gym.value.location.zip, 'México'].filter(Boolean).join(', '));
+const mapQuery = computed(() => validCoords.value ? `${coords.value.lat},${coords.value.lng}` : (gym.value.location.city || gym.value.location.street ? fullAddress.value : ''));
+const hasLocation = computed(() => !!mapQuery.value);
+const googleMapEmbedUrl = computed(() => hasLocation.value ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery.value)}&z=16&output=embed` : '');
+const directionsUrl = computed(() => hasLocation.value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.value)}` : '#');
+const toggleExpand = () => { mapExpanded.value = !mapExpanded.value; };
 const copyAddress = async () => {
+  if (!hasLocation.value) return;
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(fullAddress.value);
-    } else {
-      const area = document.createElement('textarea');
-      area.value = fullAddress.value;
-      area.style.position = 'fixed';
-      area.style.opacity = '0';
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      document.body.removeChild(area);
-    }
-
+    await navigator.clipboard.writeText(fullAddress.value);
     addressCopied.value = true;
     if (copyTimer) clearTimeout(copyTimer);
     copyTimer = setTimeout(() => { addressCopied.value = false; }, 2000);
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (error) { console.warn('No se pudo copiar la dirección.', error); }
 };
-
-const initMap = () => {
-  if (!mapContainer.value || !hasLocation.value) return;
-
-  const { lat, lng } = coords.value;
-
-  mapInstance = L.map(mapContainer.value, {
-    center: [lat, lng],
-    zoom: 16,
-    zoomControl: false,
-    attributionControl: false,
-    scrollWheelZoom: false,           /* no secuestra el scroll de la página */
-    dragging: !L.Browser.mobile       /* en móvil el dedo sigue haciendo scroll */
-  });
-
-  L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(mapInstance);
-  applyBaseLayer();
-
-  const pinIcon = L.divIcon({
-    className: 'gym-pin',
-    html:
-      '<span class="gym-pin-pulse"></span>' +
-      '<span class="gym-pin-body"><span class="gym-pin-dot"></span></span>',
-    iconSize: [36, 42],
-    iconAnchor: [18, 40]
-  });
-
-  marker = L.marker([lat, lng], { icon: pinIcon, draggable: false, keyboard: false }).addTo(mapInstance);
-
-  /* Espera a que el contenedor tenga su tamaño final antes de quitar el cargando */
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() =>
-      setTimeout(() => {
-        mapInstance?.invalidateSize();
-        mapLoading.value = false;
-      }, 250)
-    )
-  );
-
-  if ('ResizeObserver' in window) {
-    resizeObserver = new ResizeObserver(() => mapInstance?.invalidateSize());
-    resizeObserver.observe(mapContainer.value);
-  }
-};
-
-const destroyMap = () => {
-  resizeObserver?.disconnect();
-  resizeObserver = null;
-
-  if (copyTimer) clearTimeout(copyTimer);
-
-  mapInstance?.remove();
-  mapInstance = null;
-  marker = null;
-  baseLayer = null;
-};
+const onAttendanceRegistered = () => { void loadGymIdentity(); };
 
 /* =========================================================
    IDIOMA
@@ -760,88 +635,32 @@ const handleLangChange = (event) => {
 };
 
 /* =========================================================
-   CÁMARA / MODALES
+    MODALES
 ========================================================= */
-
-const stopStream = () => {
-  if (stream) {
-    stream.getTracks().forEach((track) => track.stop());
-    stream = null;
-  }
-};
-
-const openCamera = async (type) => {
-  activeModal.value = type;
-
-  setTimeout(async () => {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('getUserMedia no disponible');
-      }
-
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: type === 'scanner' ? 'environment' : 'user' }
-      });
-
-      /* Si el usuario cerró el modal mientras se pedía el permiso,
-         se apaga la cámara para que no quede encendida en segundo plano */
-      if (activeModal.value !== type) {
-        newStream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      stream = newStream;
-
-      if (videoPlayer.value) {
-        videoPlayer.value.srcObject = stream;
-      }
-    } catch (err) {
-      console.error('Error al acceder a la cámara:', err);
-      alert(ui.value.cameraError);
-      activeModal.value = null;
-    }
-  }, 100);
-};
-
-const closeModal = () => {
-  stopStream();
-  activeModal.value = null;
-};
-
-const handleKeydown = (event) => {
-  if (event.key === 'Escape' && activeModal.value) {
-    closeModal();
-  }
-};
+const closeModal = () => { activeModal.value = null; };
+const handleKeydown = (event) => { if (event.key === 'Escape' && activeModal.value) closeModal(); };
 
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
 
 onMounted(() => {
-  const saved = localStorage.getItem('isGymOpen');
-
-  if (saved !== null) {
-    try {
-      isGymOpen.value = JSON.parse(saved);
-    } catch {
-      /* valor inválido: se queda el predeterminado */
-    }
-  }
-
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
-
-  initMap();
+  window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
+  document.addEventListener('visibilitychange', onTabVisible);
+  void loadGymIdentity();
 });
-
 onUnmounted(() => {
+  identityRequest++;
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
-  destroyMap();
+  window.removeEventListener('factorfit:branch-changed', onBranchChanged);
+  window.removeEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
+  document.removeEventListener('visibilitychange', onTabVisible);
+  if (copyTimer) clearTimeout(copyTimer);
 });
-
-onBeforeUnmount(stopStream);
 </script>
 
 <style scoped>
@@ -1563,11 +1382,20 @@ button {
   inset: 0;
 }
 
-.leaflet-map {
+.google-map-frame {
+  display: block;
   width: 100%;
   height: 100%;
+  border: 0;
   background: #161616;
-  z-index: 1;
+}
+.map-empty {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: #d5d5d5;
 }
 
 .map-card {
