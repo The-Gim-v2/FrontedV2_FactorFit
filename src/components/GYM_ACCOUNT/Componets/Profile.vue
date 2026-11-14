@@ -1450,7 +1450,7 @@ async function buscarDireccion() {
 
                   <div class="map-stage">
                     <!-- Google Maps: la búsqueda se actualiza al cargar/cambiar la sede. -->
-                    <iframe v-if="googleMapUrl" class="google-map-embed" :src="googleMapUrl" title="Ubicación real del gimnasio en Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                    <iframe v-if="googleMapUrl" :key="googleMapUrl" class="google-map-embed" :src="googleMapUrl" title="Ubicación real del gimnasio en Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
                     <div v-else class="google-map-empty">{{ txt('Registra la dirección o las coordenadas de la sede para ver el mapa.', 'Enter the branch address or coordinates to display the map.') }}</div>
                     <!-- El mapa técnico de Leaflet permanece oculto para conservar la geocodificación, GPS y guardado existentes. -->
                     <div ref="mapContainer" class="leaflet-map leaflet-map-internal" aria-hidden="true"></div>
@@ -2869,7 +2869,7 @@ button, input, textarea { font: inherit; }
   box-shadow: 0 0 6px currentColor;
 }
 .map-topbar .map-live-status.busy { color: #fbbf24; }
-.map-stage { position: relative; min-width: 0; }
+.map-stage { position: relative; min-width: 0; height: 380px; min-height: 380px; overflow: hidden; border-radius: 14px; background: #15171c; border: 1px solid rgba(255,255,255,.12); }
 .leaflet-map {
   width: 100%;
   height: 380px;
@@ -3748,6 +3748,7 @@ button, input, textarea { font: inherit; }
   .map-column { padding: 10px; }
   .map-topbar { flex-direction: column; }
   .leaflet-map { height: 300px; }
+  .map-stage { height: 300px; min-height: 300px; }
   .security-notice { align-items: flex-start; }
   .save-bar { align-items: stretch; flex-direction: column; }
   .save-button { width: 100%; }
