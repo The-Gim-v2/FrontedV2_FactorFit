@@ -52,6 +52,7 @@
         </section>
 
         <p v-if="identityError" class="identity-error">{{ identityError }}</p>
+        <p v-if="metricsError" class="identity-error">No se pudieron cargar algunas métricas: {{ metricsError }}</p>
         <!-- 2. INDICADORES CLAVE -->
         <section class="kpi-grid">
           <article class="kpi-card">
@@ -59,7 +60,7 @@
               <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>142</strong>
+              <strong>{{ managerStats.entradasHoy }}</strong>
               <span>{{ t.entradasHoy }}</span>
             </div>
           </article>
@@ -69,7 +70,7 @@
               <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/></svg>
             </div>
             <div class="kpi-body">
-              <strong class="highlight">28</strong>
+              <strong class="highlight">{{ managerStats.enInstalaciones }}</strong>
               <span>{{ t.enInstalaciones }}</span>
             </div>
           </article>
@@ -79,7 +80,7 @@
               <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>5</strong>
+              <strong>{{ managerStats.deudores }}</strong>
               <span>{{ ui.clientsWithDebt }}</span>
             </div>
           </article>
@@ -89,7 +90,7 @@
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>3</strong>
+              <strong>{{ managerStats.porVencer }}</strong>
               <span>{{ t.porVencer }}</span>
             </div>
           </article>
@@ -107,6 +108,7 @@
             </div>
 
             <div class="alert-list">
+              <p v-if="!alerts.length" class="manager-empty">Sin alertas registradas para esta sede.</p>
               <button
                 v-for="alert in alerts"
                 :key="alert.title"
@@ -132,20 +134,20 @@
                 <span class="section-eyebrow">{{ ui.operation }}</span>
                 <h2>{{ ui.occupancyStatus }}</h2>
               </div>
-              <span class="occupancy-badge">35%</span>
+              <span class="occupancy-badge">{{ occupancyRatio }}</span>
             </div>
 
             <div class="finance-main occupancy-main">
               <span>{{ ui.currentOccupancy }}</span>
-              <strong>28 <small>/ 80</small></strong>
-              <div class="occupancy-progress"><i style="width: 35%"></i></div>
-              <small>{{ ui.normalOccupancy }}</small>
+              <strong>{{ managerStats.enInstalaciones }} <small>/ —</small></strong>
+              <div class="occupancy-progress"><i style="width:0%"></i></div>
+              <small>{{ ingresosLoaded ? 'Aforo no configurado en los datos consultados' : 'Sin datos de ocupación' }}</small>
             </div>
 
             <div class="finance-stats operation-stats">
-              <div><span>{{ ui.peakHour }}</span><strong>18:00</strong></div>
-              <div><span>{{ ui.averageStay }}</span><strong>1 h 18 min</strong></div>
-              <div><span>{{ ui.accessStatus }}</span><strong class="status-ok">{{ ui.normal }}</strong></div>
+              <div><span>{{ ui.peakHour }}</span><strong>—</strong></div>
+              <div><span>{{ ui.averageStay }}</span><strong>—</strong></div>
+              <div><span>{{ ui.accessStatus }}</span><strong class="status-ok">—</strong></div>
             </div>
           </article>
         </section>
@@ -189,6 +191,7 @@
             </div>
 
             <div class="activity-list">
+              <p v-if="!recentActivity.length" class="manager-empty">Sin actividad registrada para esta sede.</p>
               <div
                 v-for="item in recentActivity"
                 :key="item.name + item.time"
@@ -213,9 +216,9 @@
               <h2>{{ ui.weeklyPerformance }}</h2>
             </div>
             <div class="chart-summary">
-              <strong>742</strong>
+              <strong>{{ weeklyTotal }}</strong>
               <span>{{ ui.weekAccess }}</span>
-              <em>↑ 12.8%</em>
+              <em>{{ attendanceLoaded ? (currentLang === 'es' ? 'Datos registrados' : 'Registered data') : '—' }}</em>
             </div>
           </div>
 
@@ -422,7 +425,7 @@ const currentLang = ref(localStorage.getItem('GYM_MANAGER-idioma') || 'es');
 const activeModal = ref(null);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);
-const billingStatus = ref('active');
+const billingStatus = ref('unknown');
 
 let stream = null;
 
@@ -549,10 +552,10 @@ const onBranchChanged = (event) => {
 };
 const onGymProfileUpdated = (event) => {
   const id = Number(event.detail?.sede_id || 0);
-  if (!id || id === sedeId()) void loadGymIdentity();
+  if (!id || id === sedeId()) { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); }
 };
-const onTabVisible = () => { if (document.visibilityState === 'visible') void loadGymIdentity(); };
-watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); });
+const onTabVisible = () => { if (document.visibilityState === 'visible') { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); } };
+watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -727,75 +730,98 @@ const ui = computed(
    DATOS (de prueba)
 ========================================================= */
 
-const recentActivity = computed(() =>
-  currentLang.value === 'es'
-    ? [
-        { initials: 'JR', name: 'José Ramírez', text: 'Pago recibido · $500.00', time: 'Hace 5 min', type: 'payment' },
-        { initials: 'AL', name: 'Andrea López', text: 'Acceso autorizado al gimnasio', time: 'Hace 12 min', type: 'access' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Membresía mensual renovada', time: 'Hace 20 min', type: 'renewal' },
-        { initials: 'MG', name: 'Mariana García', text: 'Nuevo cliente registrado', time: 'Hace 35 min', type: 'client' }
-      ]
-    : [
-        { initials: 'JR', name: 'José Ramírez', text: 'Payment received · $500.00', time: '5 min ago', type: 'payment' },
-        { initials: 'AL', name: 'Andrea López', text: 'Gym access authorized', time: '12 min ago', type: 'access' },
-        { initials: 'CH', name: 'Carlos Hernández', text: 'Monthly membership renewed', time: '20 min ago', type: 'renewal' },
-        { initials: 'MG', name: 'Mariana García', text: 'New client registered', time: '35 min ago', type: 'client' }
-      ]
-);
-
-/* Las alertas se ordenan por urgencia: danger → warning → info */
+/* =========================================================
+   DATOS REALES DE LA SEDE: ingresos, asistencia y alertas
+========================================================= */
+const inscripciones = ref([]);
+const pagosConfirmados = ref([]);
+const registrosAsistencia = ref([]);
+const ingresosLoaded = ref(false);
+const asistenciaLoaded = ref(false);
+const metricsError = ref('');
+let metricsSeq = 0;
+const apiGet = async (path) => {
+  const token = getToken();
+  if (!token) throw new Error('Sesión del gerente no encontrada.');
+  const response = await fetch(`${API}${path}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.message || `Error HTTP ${response.status}`);
+  return data;
+};
+const nowParts = () => {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Monterrey', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const value = (k) => parts.find(p => p.type === k)?.value || '';
+  return { today: `${value('year')}-${value('month')}-${value('day')}` };
+};
+const loadManagerMetrics = async () => {
+  const seq = ++metricsSeq;
+  const id = sedeId();
+  if (!id) { inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; ingresosLoaded.value = false; asistenciaLoaded.value = false; return; }
+  const results = await Promise.allSettled([
+    apiGet(`/api/gym/ingresos?sede_id=${id}`),
+    apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
+  ]);
+  if (seq !== metricsSeq) return;
+  const [ingresos, asistencia] = results;
+  ingresosLoaded.value = ingresos.status === 'fulfilled' && Array.isArray(ingresos.value.inscripciones);
+  asistenciaLoaded.value = asistencia.status === 'fulfilled' && Array.isArray(asistencia.value.asistencias);
+  inscripciones.value = ingresosLoaded.value ? ingresos.value.inscripciones : [];
+  pagosConfirmados.value = ingresosLoaded.value && Array.isArray(ingresos.value.pagos_confirmados) ? ingresos.value.pagos_confirmados : [];
+  registrosAsistencia.value = asistenciaLoaded.value ? asistencia.value.asistencias : [];
+  metricsError.value = [ingresos, asistencia].filter(r => r.status === 'rejected').map(r => r.reason?.message || 'Error al consultar métricas').join(' · ');
+};
+const loadManagerStatus = async () => {
+  const id = sedeId();
+  if (!id) return;
+  try { const data = await apiGet(`/api/gym/estado?sede_id=${id}`); isGymOpen.value = Boolean(data?.estado?.abierto); }
+  catch { isGymOpen.value = false; }
+};
+const managerStats = computed(() => {
+  const today = nowParts().today;
+  const debtors = inscripciones.value.filter(r => Number(r.saldo_a_pagar || 0) > 0);
+  const expiring = inscripciones.value.filter(r => r.estatus_inscripcion === 'Próximo a vencer');
+  const todayAccess = new Set(registrosAsistencia.value.filter(r => r.fecha === today).map(r => Number(r.ID_Inscripto)));
+  return { entradasHoy: asistenciaLoaded.value ? todayAccess.size : '—', enInstalaciones: '—', deudores: ingresosLoaded.value ? debtors.length : '—', porVencer: ingresosLoaded.value ? expiring.length : '—', vencidos: ingresosLoaded.value ? inscripciones.value.filter(r => r.estatus_inscripcion === 'Inactivo').length : 0 };
+});
+const occupancyRatio = computed(() => '—'); // No hay aforo máximo ni ocupación actual verificados en estas APIs.
+const initials = (name) => String(name || 'Cliente').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+const recentActivity = computed(() => {
+  const clients = new Map(inscripciones.value.map(i => [Number(i.ID_Inscripto), i]));
+  const payments = pagosConfirmados.value.filter(p => p.fecha_pago).map(p => {
+    const name = clients.get(Number(p.id_inscripto))?.nombre || 'Cliente';
+    return { name, initials: initials(name), text: `${currentLang.value === 'en' ? 'Payment received' : 'Pago recibido'} · $${Number(p.monto || 0).toFixed(2)}`, time: String(p.fecha_pago).slice(0, 10), type: 'payment', sort: String(p.fecha_pago) };
+  });
+  const attendance = registrosAsistencia.value.filter(a => a.fecha).map(a => {
+    const name = clients.get(Number(a.ID_Inscripto))?.nombre || 'Cliente';
+    return { name, initials: initials(name), text: currentLang.value === 'en' ? 'Access registered' : 'Acceso registrado', time: String(a.fecha).slice(0, 10), type: 'access', sort: String(a.fecha) };
+  });
+  return [...payments, ...attendance].sort((a,b) => b.sort.localeCompare(a.sort)).slice(0,5);
+});
 const alertOrder = { danger: 0, warning: 1, info: 2 };
-
 const alerts = computed(() => {
-  const list =
-    currentLang.value === 'es'
-      ? [
-          { title: '3 membresías por vencer', subtitle: 'Próximas 48 horas', level: 'warning', route: '/GYM_MANAGER/renewals' },
-          { title: '5 clientes con adeudo', subtitle: 'Requieren seguimiento', level: 'danger', route: '/GYM_MANAGER/debtors' },
-          { title: '2 pagos pendientes', subtitle: 'Pendientes de conciliación', level: 'warning', route: '/GYM_MANAGER/payments' },
-          { title: '1 incidencia de acceso', subtitle: 'Revisar bitácora', level: 'info', route: '/GYM_MANAGER/attendance' }
-        ]
-      : [
-          { title: '3 memberships expiring', subtitle: 'Next 48 hours', level: 'warning', route: '/GYM_MANAGER/renewals' },
-          { title: '5 clients with debt', subtitle: 'Follow-up required', level: 'danger', route: '/GYM_MANAGER/debtors' },
-          { title: '2 pending payments', subtitle: 'Awaiting reconciliation', level: 'warning', route: '/GYM_MANAGER/payments' },
-          { title: '1 access incident', subtitle: 'Review attendance log', level: 'info', route: '/GYM_MANAGER/attendance' }
-        ];
-
-  return [...list].sort((a, b) => alertOrder[a.level] - alertOrder[b.level]);
+  if (!ingresosLoaded.value) return [];
+  const result = [];
+  if (managerStats.value.deudores > 0) result.push({ title: `${managerStats.value.deudores} clientes con adeudo`, subtitle: 'Requieren seguimiento', level: 'danger', route: '/GYM_MANAGER/debtors' });
+  if (managerStats.value.vencidos > 0) result.push({ title: `${managerStats.value.vencidos} membresías vencidas`, subtitle: 'Requieren renovación', level: 'danger', route: '/GYM_MANAGER/renewals' });
+  if (managerStats.value.porVencer > 0) result.push({ title: `${managerStats.value.porVencer} membresías por vencer`, subtitle: 'Requieren seguimiento', level: 'warning', route: '/GYM_MANAGER/renewals' });
+  return result.sort((a,b) => alertOrder[a.level] - alertOrder[b.level]);
 });
-
 const weeklyData = computed(() => {
-  const days =
-    currentLang.value === 'es'
-      ? [
-          { day: 'Lun', value: 94, height: 63 },
-          { day: 'Mar', value: 118, height: 79 },
-          { day: 'Mié', value: 103, height: 69 },
-          { day: 'Jue', value: 126, height: 84 },
-          { day: 'Vie', value: 142, height: 95 },
-          { day: 'Sáb', value: 101, height: 68 },
-          { day: 'Dom', value: 58, height: 39 }
-        ]
-      : [
-          { day: 'Mon', value: 94, height: 63 },
-          { day: 'Tue', value: 118, height: 79 },
-          { day: 'Wed', value: 103, height: 69 },
-          { day: 'Thu', value: 126, height: 84 },
-          { day: 'Fri', value: 142, height: 95 },
-          { day: 'Sat', value: 101, height: 68 },
-          { day: 'Sun', value: 58, height: 39 }
-        ];
-
-  const max = Math.max(...days.map((d) => d.value));
-
-  return days.map((d) => ({ ...d, peak: d.value === max }));
+  const labels = currentLang.value === 'en' ? ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] : ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const counts = [0,0,0,0,0,0,0], seen = new Set();
+  if (asistenciaLoaded.value) for (const a of registrosAsistencia.value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.fecha || ''))) continue;
+    const key = `${a.ID_Inscripto}:${a.fecha}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const index = (new Date(`${a.fecha}T00:00:00Z`).getUTCDay() + 6) % 7;
+    counts[index]++;
+  }
+  const max = Math.max(...counts,1);
+  return labels.map((day,i) => ({ day, value: asistenciaLoaded.value ? counts[i] : '—', height: asistenciaLoaded.value ? counts[i] / max * 100 : 0, peak: asistenciaLoaded.value && counts[i] === max && max > 0 }));
 });
+const weeklyTotal = computed(() => asistenciaLoaded.value ? weeklyData.value.reduce((s,d) => s + Number(d.value || 0),0) : '—');
 
-/*
-  icon  = path de un SVG de 24x24
-  modal = si existe, la acción abre un modal en vez de navegar
-*/
 const quickActions = computed(() => {
   const icons = {
     client: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6',
@@ -835,7 +861,7 @@ const runQuickAction = (action) => {
 const billingStatusText = computed(() => {
   if (billingStatus.value === 'active') return t.value.cuentaCorriente;
   if (billingStatus.value === 'pending') return t.value.pendientePago;
-  return t.value.bloqueadoPago;
+  return billingStatus.value === 'blocked' ? t.value.bloqueadoPago : '—';
 });
 
 
@@ -857,7 +883,7 @@ const hasLocation = computed(() => !!mapQuery.value);
 const coordsText = computed(() => validCoords.value ? `${coords.value.lat.toFixed(6)}, ${coords.value.lng.toFixed(6)}` : 'No registradas');
 const googleMapEmbedUrl = computed(() => mapQuery.value ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery.value)}&z=16&output=embed` : '');
 const directionsUrl = computed(() => mapQuery.value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery.value)}` : '#');
-const onAttendanceRegistered = () => { void loadGymIdentity(); };
+const onAttendanceRegistered = () => { void loadManagerMetrics(); };
 
 /* =========================================================
    IDIOMA
@@ -893,6 +919,7 @@ onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  window.addEventListener('sede-changed', onBranchChanged);
   window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.addEventListener('visibilitychange', onTabVisible);
   void loadGymIdentity();
@@ -902,6 +929,7 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('factorfit:branch-changed', onBranchChanged);
+  window.removeEventListener('sede-changed', onBranchChanged);
   window.removeEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.removeEventListener('visibilitychange', onTabVisible);
 });
@@ -3064,6 +3092,8 @@ button {
     animation-duration: 0.01ms !important;
   }
 }
+
+.manager-empty{color:var(--text2);font-size:12px;padding:12px 0;}
 </style>
 <style scoped>
 .map-stage .google-map-frame { display: block; width: 100%; height: 100%; min-height: 340px; border: 1px solid var(--line2); border-radius: 16px; background: #161616; }

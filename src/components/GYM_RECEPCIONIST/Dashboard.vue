@@ -348,7 +348,35 @@ const getToken = () => {
   }
   return '';
 };
+const sessionSedes = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['gym_account', 'user', 'auth', 'session']) {
+      try {
+        const parsed = JSON.parse(storage.getItem(key) || 'null');
+        const candidates = [parsed?.usuario?.sedes, parsed?.sedes, parsed?.user?.sedes, parsed?.data?.usuario?.sedes];
+        const found = candidates.find(Array.isArray);
+        if (found?.length) return found;
+      } catch { /* Sesión no disponible en esa clave. */ }
+    }
+  }
+  return [];
+};
+const sessionBranchId = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['gym_account', 'user', 'auth', 'session']) {
+      try {
+        const parsed = JSON.parse(storage.getItem(key) || 'null');
+        const value = parsed?.usuario?.ID_Sede ?? parsed?.usuario?.sede_id ?? parsed?.ID_Sede ?? parsed?.sede_id ?? parsed?.user?.ID_Sede;
+        const id = Number(value);
+        if (Number.isInteger(id) && id > 0) return id;
+      } catch { /* Ignorar. */ }
+    }
+  }
+  return Number(sessionSedes()[0]?.ID_Sede || sessionSedes()[0]?.id || 0);
+};
 const storedSede = () => {
+  const authorized = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(id => Number.isInteger(id) && id > 0);
+  const usable = (id) => Number.isInteger(id) && id > 0 && (!authorized.length || authorized.includes(id));
   for (const storage of [sessionStorage, localStorage]) {
     for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
       const raw = storage.getItem(key);
@@ -357,17 +385,21 @@ const storedSede = () => {
       try {
         const parsed = JSON.parse(raw);
         value = parsed && typeof parsed === 'object' ? (parsed.ID_Sede ?? parsed.sede_id ?? parsed.id ?? parsed.value) : parsed;
-      } catch { /* Identificador simple. */ }
+      } catch { /* ID simple. */ }
       const id = Number(value);
-      if (Number.isInteger(id) && id > 0) return id;
+      if (usable(id)) return id;
     }
   }
-  return 0;
+  const preferred = sessionBranchId();
+  if (usable(preferred)) return preferred;
+  return authorized[0] || 0;
 };
 const sedeId = () => {
-  if (activeSede.value > 0) return activeSede.value;
+  const assigned = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(id => Number.isInteger(id) && id > 0);
+  const allowed = (id) => Number.isInteger(id) && id > 0 && (!assigned.length || assigned.includes(id));
+  if (allowed(activeSede.value)) return activeSede.value;
   const queryId = Number(route.query.sede_id);
-  return Number.isInteger(queryId) && queryId > 0 ? queryId : storedSede();
+  return allowed(queryId) ? queryId : storedSede();
 };
 const loadGymIdentity = async () => {
   const seq = ++identityRequest;
@@ -410,8 +442,9 @@ const loadGymIdentity = async () => {
 const onBranchChanged = (event) => {
   const detail = event.detail || {};
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
-  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
-  activeSede.value = Number.isInteger(id) && id > 0 ? id : 0;
+  const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? detail.sede?.id ?? storedSede());
+  const authorized = sessionSedes().map(s => Number(s.ID_Sede ?? s.id)).filter(n => n > 0);
+  activeSede.value = Number.isInteger(id) && id > 0 && (!authorized.length || authorized.includes(id)) ? id : storedSede();
   void loadGymIdentity();
 };
 const onGymProfileUpdated = (event) => {
@@ -648,6 +681,7 @@ onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
+  window.addEventListener('sede-changed', onBranchChanged);
   window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.addEventListener('visibilitychange', onTabVisible);
   void loadGymIdentity();
@@ -657,6 +691,7 @@ onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('factorfit:branch-changed', onBranchChanged);
+  window.removeEventListener('sede-changed', onBranchChanged);
   window.removeEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.removeEventListener('visibilitychange', onTabVisible);
   if (copyTimer) clearTimeout(copyTimer);

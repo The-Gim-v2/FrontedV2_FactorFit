@@ -663,6 +663,21 @@ const getAuthToken = (): string => {
   return '';
 };
 
+const managerBranchId = (): number => {
+  for (const storage of [sessionStorage, localStorage]) {
+    const raw = Number(storage.getItem('selected_sede_id'));
+    if (Number.isInteger(raw) && raw > 0) return raw;
+  }
+  for (const storage of [sessionStorage, localStorage]) {
+    try {
+      const state = JSON.parse(storage.getItem('gym_account') || '{}');
+      const user = state.usuario || state;
+      const raw = Number(user.ID_Sede || user.sede_id || user.sedes?.[0]?.ID_Sede);
+      if (Number.isInteger(raw) && raw > 0) return raw;
+    } catch { /* sesión no disponible */ }
+  }
+  return 0;
+};
 const sendEmail = async () => {
   commitDraft();
   if (sending.value) return;
@@ -685,6 +700,11 @@ const sendEmail = async () => {
     return;
   }
 
+  const sedeId = managerBranchId();
+  if (!sedeId) {
+    toastRef.value?.notify('No se encontró tu sede asignada. Inicia sesión nuevamente.', 'error');
+    return;
+  }
   const all = [...recipientList.value];
   const confirmText =
     settings.idioma === 'en'
@@ -703,7 +723,7 @@ const sendEmail = async () => {
       const response = await fetch(`${API}/api/gym/correos/enviar`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-        body: JSON.stringify({ destinatarios: lote, asunto: emailForm.asunto.trim(), mensaje: html })
+        body: JSON.stringify({ sede_id: sedeId, destinatarios: lote, asunto: emailForm.asunto.trim(), mensaje: html })
       });
       const data = await response.json().catch(() => ({}));
       const sent = Math.max(0, Number(data.enviados || 0));
