@@ -20,7 +20,7 @@
                   <template v-else>{{ w }}</template>{{ ' ' }}
                 </template>
               </h1>
-              <p>{{ gym.description || ui.GYM_ACCOUNTPanel }}</p>
+              <p>{{ gym.description || ui.GYM_ADMINPanel }}</p>
               <small v-if="branchName" class="hero-branch">{{ branchName }}</small>
             </div>
           </div>
@@ -125,7 +125,7 @@
                 <span class="section-eyebrow">{{ ui.finance }}</span>
                 <h2>{{ ui.financialSummary }}</h2>
               </div>
-              <button type="button" class="link-btn" @click="go('/GYM_ACCOUNT/revenue')">{{ ui.details }} →</button>
+              <button type="button" class="link-btn" @click="go('/GYM_ADMIN/revenue')">{{ ui.details }} →</button>
             </div>
             <div class="finance-main">
               <span>{{ ui.monthIncome }}</span>
@@ -172,7 +172,7 @@
                 <span class="section-eyebrow">{{ ui.today }}</span>
                 <h2>{{ ui.recentActivity }}</h2>
               </div>
-              <button type="button" class="link-btn" @click="go('/GYM_ACCOUNT/attendance')">{{ ui.viewAll }} →</button>
+              <button type="button" class="link-btn" @click="go('/GYM_ADMIN/attendance')">{{ ui.viewAll }} →</button>
             </div>
             <div class="activity-list">
               <p v-if="!recentActivity.length" class="dashboard-empty">{{ ui.noActivity }}</p>
@@ -351,11 +351,11 @@ import AddScheduleModal from '../Modals/GymOpeningHours.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
 import CorreoMasivo from './Componets/Bulk-Email.vue';
 import AddCorteComponent from './Componets/Cut.vue';
-import HeadingAdmin from './HeadingGYM_ACCOUNT.vue';
+import HeadingAdmin from './HeadingGYM_ADMIN.vue';
 import AccessAttendanceModal from '../Modals/AccessAttendanceModal.vue';
 const router = useRouter();
 const route = useRoute();
-const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
+const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
 const activeModal = ref(null);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);const gymStatus=ref(null);const gymStatusError=ref('');let statusTimer=null;
@@ -381,11 +381,11 @@ const ingresosLoaded = ref(false);
 const asistenciaLoaded = ref(false);
 const getToken = () => {
   for (const storage of [sessionStorage, localStorage]) {
-    for (const name of ['token','auth_token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+    for (const name of ['token','auth_token','access_token','gym_token','GYM_ADMIN_token','gymAccountToken']) {
       const value = storage.getItem(name);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const name of ['auth','user','session','gymAccount','gym_account']) {
+    for (const name of ['auth','user','session','gymAccount','GYM_ADMIN']) {
       try {
         const value = JSON.parse(storage.getItem(name) || 'null');
         const token = value?.token || value?.access_token || value?.accessToken;
@@ -561,7 +561,7 @@ const t = computed(() => {
 });
 const dashboardTranslations = {
   es: {
-    GYM_ACCOUNTPanel: 'Panel del gimnasio',
+    GYM_ADMINPanel: 'Panel del gimnasio',
     operation: 'OPERACIÓN',
     schedule: 'AGENDA',
     scheduleHeading: 'Horarios y Eventos',
@@ -612,7 +612,7 @@ const dashboardTranslations = {
     realAttendance: 'Datos registrados', attendanceUnavailable: 'Sin datos de asistencia'
   },
   en: {
-    GYM_ACCOUNTPanel: 'Gym Account Panel',
+    GYM_ADMINPanel: 'Gym Account Panel',
     operation: 'OPERATIONS',
     schedule: 'SCHEDULE',
     scheduleHeading: 'Schedules & Events',
@@ -707,11 +707,11 @@ const recentActivity = computed(() => {
 });
 const alertOrder = { danger: 0, warning: 1, info: 2 };
 const alerts = computed(() => {
-  const result = alertasAcceso.value.slice(0,5).map(a=>({title:'Asistencia con advertencia de pago',subtitle:a.Descripcion,level:'warning',route:'/GYM_ACCOUNT/attendance'}));
+  const result = alertasAcceso.value.slice(0,5).map(a=>({title:'Asistencia con advertencia de pago',subtitle:a.Descripcion,level:'warning',route:'/GYM_ADMIN/attendance'}));
   if (!ingresosLoaded.value) return result;
-  if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ACCOUNT/debtors' });
-  if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ACCOUNT/renewals' });
-  if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ACCOUNT/renewals' });
+  if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ADMIN/debtors' });
+  if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ADMIN/renewals' });
+  if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ADMIN/renewals' });
   return result.sort((a, b) => alertOrder[a.level] - alertOrder[b.level]);
 });
 const weeklyData = computed(() => {
@@ -746,19 +746,19 @@ const quickActions = computed(() => {
   };
   return currentLang.value === 'es'
     ? [
-        { label: 'Registrar cliente', description: 'Nueva membresía', route: '/GYM_ACCOUNT/register-clients', icon: icons.client },
-        { label: 'Registrar pago', description: 'Cobrar membresía', route: '/GYM_ACCOUNT/payments', icon: icons.payment },
-        { label: 'Registrar personal', description: 'Nuevo colaborador', route: '/GYM_ACCOUNT/register-staff', icon: icons.staff },
+        { label: 'Registrar cliente', description: 'Nueva membresía', route: '/GYM_ADMIN/register-clients', icon: icons.client },
+        { label: 'Registrar pago', description: 'Cobrar membresía', route: '/GYM_ADMIN/payments', icon: icons.payment },
+        { label: 'Registrar personal', description: 'Nuevo colaborador', route: '/GYM_ADMIN/register-staff', icon: icons.staff },
         { label: 'Correo masivo', description: 'Comunicar a clientes', modal: 'enviomasivo', icon: icons.mail },
-        { label: 'Crear promoción', description: 'Campañas y descuentos', route: '/GYM_ACCOUNT/pricing', icon: icons.promo },
+        { label: 'Crear promoción', description: 'Campañas y descuentos', route: '/GYM_ADMIN/pricing', icon: icons.promo },
         { label: 'Corte de caja', description: 'Resumen de operación', modal: 'corte', icon: icons.cash }
       ]
     : [
-        { label: 'Register client', description: 'New membership', route: '/GYM_ACCOUNT/register-clients', icon: icons.client },
-        { label: 'Register payment', description: 'Charge membership', route: '/GYM_ACCOUNT/payments', icon: icons.payment },
-        { label: 'Register staff', description: 'New collaborator', route: '/GYM_ACCOUNT/register-staff', icon: icons.staff },
+        { label: 'Register client', description: 'New membership', route: '/GYM_ADMIN/register-clients', icon: icons.client },
+        { label: 'Register payment', description: 'Charge membership', route: '/GYM_ADMIN/payments', icon: icons.payment },
+        { label: 'Register staff', description: 'New collaborator', route: '/GYM_ADMIN/register-staff', icon: icons.staff },
         { label: 'Bulk email', description: 'Message clients', modal: 'enviomasivo', icon: icons.mail },
-        { label: 'Create promotion', description: 'Campaigns and discounts', route: '/GYM_ACCOUNT/pricing', icon: icons.promo },
+        { label: 'Create promotion', description: 'Campaigns and discounts', route: '/GYM_ADMIN/pricing', icon: icons.promo },
         { label: 'Cash close', description: 'Operation summary', modal: 'corte', icon: icons.cash }
       ];
 });
@@ -842,7 +842,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEscConfirm));
 const handleLangChange = (event) => {
   if (!event.detail?.idioma) return;
   currentLang.value = event.detail.idioma;
-  localStorage.setItem('GYM_ACCOUNT-idioma', event.detail.idioma);
+  localStorage.setItem('GYM_ADMIN-idioma', event.detail.idioma);
 };
 /* =========================================================
    MODALES
