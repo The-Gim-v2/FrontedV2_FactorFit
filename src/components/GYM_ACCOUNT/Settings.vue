@@ -501,17 +501,18 @@ function safeJsonParse(raw, fallback = null) {
   }
 }
 const ROLE_KEY = 'user_role';
+const cuentaVisualKey=()=>{const token=(()=>{for(const store of [sessionStorage,localStorage])for(const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const value=store.getItem(key);if(value)return value.replace(/^Bearer\s+/i,'');}return '';})();let h=2166136261;for(let i=0;i<token.length;i++)h=Math.imul(h^token.charCodeAt(i),16777619);return token?(h>>>0).toString(36):'no-session';};
 const claveColores = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-  return `app-colors-${rol}`;
+  return `app-colors-${rol}-${cuentaVisualKey()}`;
 };
 const claveRadius = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-  return `app-radius-${rol}`;
+  return `app-radius-${rol}-${cuentaVisualKey()}`;
 };
 const claveDensidad = () => {
   const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
-  return `app-densidad-${rol}`;
+  return `app-densidad-${rol}-${cuentaVisualKey()}`;
 };
 const defaultColors = {
   headingBg:    '#161726',  // --color-heading-bg
@@ -1157,16 +1158,16 @@ const showToast = (msg) => {
     toast.visible = false;
   }, 3000);
 };
-// Apariencia compartida por gimnasio/sucursal, preferencias individuales permanecen locales.
+// Apariencia privada de la cuenta del propietario, independiente de los demás usuarios.
 const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const apiApariencia = async (method = 'GET', datos = null) => {
   const token = pushToken();
   if (!token) throw new Error('No hay sesión activa. Inicia sesión nuevamente.');
   const sede = pushSede();
-  const response = await fetch(`${configBase}/api/gym/configuracion-apariencia${method === 'GET' ? `?sede_id=${sede}` : ''}`, {
+  const response = await fetch(`${configBase}/api/gym/mis-preferencias`, {
     method,
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(datos ? {'Content-Type':'application/json'} : {}) },
-    ...(datos ? {body:JSON.stringify({sede_id:sede, ...datos})} : {}), cache:'no-store'
+    ...(datos ? {body:JSON.stringify({...datos})} : {}), cache:'no-store'
   });
   const json = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(json.message || `Error HTTP ${response.status}`);
@@ -1184,6 +1185,8 @@ const cargarAparienciaRemota = async () => {
   try {
     const respuesta = await apiApariencia();
     const apariencia = respuesta.apariencia;
+    if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ACCOUNT-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
+    if (typeof respuesta.tutorial === 'boolean') settings.tutorial=respuesta.tutorial;
     if (apariencia && typeof apariencia === 'object') {
       if (apariencia.colors && typeof apariencia.colors === 'object') {
         settings.colors = {...defaultColors, ...apariencia.colors};
@@ -1215,14 +1218,14 @@ const guardarCambios = async () => {
   try {
     // Guardar primero en Railway; solo confirmar éxito si la API responde correctamente.
     await apiApariencia('PUT', {
-      apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}
+      apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
     localStorage.setItem('tutorialActivo', String(settings.tutorial));
     localStorage.setItem('GYM_ACCOUNT-idioma', settings.idioma);
     window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
-    showToast(t('toastGYM_ACCOUNTSaved'));
+    showToast(settings.idioma==='en'?'Your personal appearance was saved.':'Tu apariencia personal se guardó correctamente.');
   } catch(error) {
     console.error('Error al guardar apariencia en Railway:', error);
     showToast(error?.message || t('toastSaveError'));
@@ -1764,7 +1767,6 @@ const exportarExcel = async () => {
   .select-wrapper { flex: 1 1 100%; width: 100%; }
   .color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .toast-notification { left: 16px; right: 16px; bottom: 16px; max-width: none; }
-
   /* Exportación: botón de ancho completo, alto fijo y legible con el pulgar */
   .export-row .config-info { flex: 1 1 100%; }
   .export-actions { flex: 1 1 100%; width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }

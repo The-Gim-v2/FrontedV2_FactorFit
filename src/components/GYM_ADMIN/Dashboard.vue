@@ -20,7 +20,7 @@
                   <template v-else>{{ w }}</template>{{ ' ' }}
                 </template>
               </h1>
-              <p>{{ gym.description || ui.GYM_ADMINPanel }}</p>
+              <p>{{ gym.description || ui.GYM_ACCOUNTPanel }}</p>
               <small v-if="branchName" class="hero-branch">{{ branchName }}</small>
             </div>
           </div>
@@ -125,7 +125,7 @@
                 <span class="section-eyebrow">{{ ui.finance }}</span>
                 <h2>{{ ui.financialSummary }}</h2>
               </div>
-              <button type="button" class="link-btn" @click="go('/GYM_ADMIN/revenue')">{{ ui.details }} →</button>
+              <button type="button" class="link-btn" @click="go('/GYM_ACCOUNT/revenue')">{{ ui.details }} →</button>
             </div>
             <div class="finance-main">
               <span>{{ ui.monthIncome }}</span>
@@ -172,7 +172,7 @@
                 <span class="section-eyebrow">{{ ui.today }}</span>
                 <h2>{{ ui.recentActivity }}</h2>
               </div>
-              <button type="button" class="link-btn" @click="go('/GYM_ADMIN/attendance')">{{ ui.viewAll }} →</button>
+              <button type="button" class="link-btn" @click="go('/GYM_ACCOUNT/attendance')">{{ ui.viewAll }} →</button>
             </div>
             <div class="activity-list">
               <p v-if="!recentActivity.length" class="dashboard-empty">{{ ui.noActivity }}</p>
@@ -217,6 +217,20 @@
               </div>
               <small>{{ day.day }}</small>
             </div>
+          </div>
+        </section>
+        <!-- MAPA REAL POR SEDE: Google Maps, solo lectura, sin coordenadas ficticias -->
+        <section class="panel sede-map-panel" v-if="branchName" id="tutorial-step-mapa">
+          <div class="panel-header"><div><span class="section-eyebrow">{{ currentLang === 'en' ? 'LOCATION' : 'UBICACIÓN' }}</span><h2>{{ currentLang === 'en' ? 'Branch location' : 'Ubicación de la sucursal' }}</h2></div></div>
+          <div class="sede-map-grid">
+            <div class="sede-map-details">
+              <strong class="sede-map-name">{{ branchName }}</strong>
+              <p><small>{{ currentLang === 'en' ? 'Address' : 'Dirección' }}</small>{{ sedeDireccion || '—' }}</p>
+              <p><small>{{ currentLang === 'en' ? 'Postal code' : 'Código postal' }}</small>{{ profile.codigo_postal || 'No registrado' }}</p>
+              <p><small>{{ currentLang === 'en' ? 'Coordinates' : 'Coordenadas' }}</small>{{ coordenadasValidas ? `${profile.latitud}, ${profile.longitud}` : 'No registradas' }}</p>
+              <a v-if="busquedaMapa" class="sede-map-link" :href="mapaGoogleUrl" target="_blank" rel="noopener noreferrer">{{ currentLang === 'en' ? 'Open Google Maps' : 'Cómo llegar con Google Maps' }} ↗</a>
+            </div>
+            <div class="sede-map-frame"><iframe v-if="mapaGoogleSrc" :key="sedeId()" :src="mapaGoogleSrc" :title="`${branchName} · Google Maps`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe><p v-else>{{ currentLang === 'en' ? 'No address available' : 'La sede no tiene dirección registrada' }}</p></div>
           </div>
         </section>
         <!-- 6. OPERACIÓN Y CONFIGURACIÓN (menos frecuente) -->
@@ -335,13 +349,13 @@ import { useRouter, useRoute } from 'vue-router';
 import { traducciones } from './i18n.js';
 import AddScheduleModal from '../Modals/GymOpeningHours.vue';
 import ViewScheduleModal from '../Modals/ViewScheduleModal.vue';
-import CorreoMasivo from '../GYM_ADMIN/Componets/Bulk-Email.vue';
-import AddCorteComponent from '../GYM_ADMIN/Componets/Cut.vue';
-import HeadingAdmin from './HeadingGYM_ADMIN.vue';
+import CorreoMasivo from './Componets/Bulk-Email.vue';
+import AddCorteComponent from './Componets/Cut.vue';
+import HeadingAdmin from './HeadingGYM_ACCOUNT.vue';
 import AccessAttendanceModal from '../Modals/AccessAttendanceModal.vue';
 const router = useRouter();
 const route = useRoute();
-const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
+const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
 const activeModal = ref(null);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);const gymStatus=ref(null);const gymStatusError=ref('');let statusTimer=null;
@@ -421,13 +435,26 @@ const nowParts = () => {
   return { today: `${get('year')}-${get('month')}-${get('day')}`, month: `${get('year')}-${get('month')}` };
 };
 const formatMoney = (n) => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+// Dirección de la sucursal (se muestra en la tarjeta de "Sucursales").
+const sedeDireccion = computed(() => [
+  [profile.value.calle, profile.value.numero_ext ? `#${profile.value.numero_ext}` : '', profile.value.numero_int ? `Int. ${profile.value.numero_int}` : ''].filter(Boolean).join(' '),
+  profile.value.colonia, profile.value.municipio, profile.value.entidad,
+  profile.value.codigo_postal, 'México'
+].filter(Boolean).join(', '));
+const coordenadasValidas = computed(() => profile.value.latitud != null && profile.value.longitud != null && profile.value.latitud !== '' && profile.value.longitud !== '' &&
+  Number.isFinite(Number(profile.value.latitud)) && Number.isFinite(Number(profile.value.longitud)) &&
+  Math.abs(Number(profile.value.latitud)) <= 90 && Math.abs(Number(profile.value.longitud)) <= 180);
+const busquedaMapa = computed(() => coordenadasValidas.value
+  ? `${profile.value.latitud},${profile.value.longitud}` : sedeDireccion.value);
+const mapaGoogleSrc = computed(() => busquedaMapa.value ? `https://maps.google.com/maps?q=${encodeURIComponent(busquedaMapa.value)}&z=16&output=embed` : '');
+const mapaGoogleUrl = computed(() => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(busquedaMapa.value)}`);
 let requestSeq = 0;
 const loadDashboard = async () => {
   const seq = ++requestSeq;
   profileError.value = ''; metricsError.value = '';
   const id = sedeId();
   const requests = await Promise.allSettled([
-    apiGet('/api/personal/mi-perfil'),
+    apiGet(`/api/gym/identidad-visual?sede_id=${id}`),
     apiGet(`/api/gym/ingresos?sede_id=${id}`),
     apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
   ]);
@@ -435,19 +462,19 @@ const loadDashboard = async () => {
   const [perfilResult, ingresosResult, asistenciaResult] = requests;
   if (perfilResult.status === 'fulfilled') {
     const data = perfilResult.value;
-    profile.value = data.personal || {};
+    const sede = data.sede || {};
+    profile.value = sede;
     gym.value = {
-      name: String(data.gimnasio || 'Mi gimnasio'),
-      logoUrl: null,
-      coverUrl: null,
-      description: '',
+      name: String(data.gimnasio?.nombre || 'Mi gimnasio'),
+      logoUrl: data.gimnasio?.logo_url || null,
+      coverUrl: data.gimnasio?.portada_url || null,
+      description: String(sede.descripcion || ''),
       membershipEnd: null
     };
-    branchName.value = `Sede ${id}`;
-    // El endpoint personal no publica el estado de facturación del propietario.
+    branchName.value = String(sede.nombre || `Sede ${id}`);
   } else {
     gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, description: '' };
-    profileError.value = `No se pudo consultar el nombre del gimnasio desde el perfil de Admin: ${perfilResult.reason?.message || 'Error de conexión'}`;
+    profileError.value = `No se pudo cargar el perfil: ${perfilResult.reason?.message || 'Error de conexión'}`;
   }
   if (ingresosResult.status === 'fulfilled' && Array.isArray(ingresosResult.value.inscripciones)) {
     inscripciones.value = ingresosResult.value.inscripciones;
@@ -534,7 +561,7 @@ const t = computed(() => {
 });
 const dashboardTranslations = {
   es: {
-    GYM_ADMINPanel: 'Panel del administrador',
+    GYM_ACCOUNTPanel: 'Panel del gimnasio',
     operation: 'OPERACIÓN',
     schedule: 'AGENDA',
     scheduleHeading: 'Horarios y Eventos',
@@ -585,7 +612,7 @@ const dashboardTranslations = {
     realAttendance: 'Datos registrados', attendanceUnavailable: 'Sin datos de asistencia'
   },
   en: {
-    GYM_ADMINPanel: 'Gym administrator panel',
+    GYM_ACCOUNTPanel: 'Gym Account Panel',
     operation: 'OPERATIONS',
     schedule: 'SCHEDULE',
     scheduleHeading: 'Schedules & Events',
@@ -680,11 +707,11 @@ const recentActivity = computed(() => {
 });
 const alertOrder = { danger: 0, warning: 1, info: 2 };
 const alerts = computed(() => {
-  const result = alertasAcceso.value.slice(0,5).map(a=>({title:'Asistencia con advertencia de pago',subtitle:a.Descripcion,level:'warning',route:'/GYM_ADMIN/attendance'}));
+  const result = alertasAcceso.value.slice(0,5).map(a=>({title:'Asistencia con advertencia de pago',subtitle:a.Descripcion,level:'warning',route:'/GYM_ACCOUNT/attendance'}));
   if (!ingresosLoaded.value) return result;
-  if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ADMIN/debtors' });
-  if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ADMIN/renewals' });
-  if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ADMIN/renewals' });
+  if (dashboardStats.value.deudores > 0) result.push({ title: `${dashboardStats.value.deudores} ${ui.value.withDebt}`, subtitle: ui.value.requiresFollowup, level: 'danger', route: '/GYM_ACCOUNT/debtors' });
+  if (dashboardStats.value.vencidos > 0) result.push({ title: `${dashboardStats.value.vencidos} ${ui.value.expiredMemberships}`, subtitle: ui.value.requiresRenewal, level: 'danger', route: '/GYM_ACCOUNT/renewals' });
+  if (dashboardStats.value.porVencer > 0) result.push({ title: `${dashboardStats.value.porVencer} ${ui.value.expiringMemberships}`, subtitle: ui.value.requiresRenewal, level: 'warning', route: '/GYM_ACCOUNT/renewals' });
   return result.sort((a, b) => alertOrder[a.level] - alertOrder[b.level]);
 });
 const weeklyData = computed(() => {
@@ -719,19 +746,19 @@ const quickActions = computed(() => {
   };
   return currentLang.value === 'es'
     ? [
-        { label: 'Registrar cliente', description: 'Nueva membresía', route: '/GYM_ADMIN/register-clients', icon: icons.client },
-        { label: 'Registrar pago', description: 'Cobrar membresía', route: '/GYM_ADMIN/payments', icon: icons.payment },
-        { label: 'Registrar personal', description: 'Nuevo colaborador', route: '/GYM_ADMIN/register-staff', icon: icons.staff },
+        { label: 'Registrar cliente', description: 'Nueva membresía', route: '/GYM_ACCOUNT/register-clients', icon: icons.client },
+        { label: 'Registrar pago', description: 'Cobrar membresía', route: '/GYM_ACCOUNT/payments', icon: icons.payment },
+        { label: 'Registrar personal', description: 'Nuevo colaborador', route: '/GYM_ACCOUNT/register-staff', icon: icons.staff },
         { label: 'Correo masivo', description: 'Comunicar a clientes', modal: 'enviomasivo', icon: icons.mail },
-        { label: 'Crear promoción', description: 'Campañas y descuentos', route: '/GYM_ADMIN/pricing', icon: icons.promo },
+        { label: 'Crear promoción', description: 'Campañas y descuentos', route: '/GYM_ACCOUNT/pricing', icon: icons.promo },
         { label: 'Corte de caja', description: 'Resumen de operación', modal: 'corte', icon: icons.cash }
       ]
     : [
-        { label: 'Register client', description: 'New membership', route: '/GYM_ADMIN/register-clients', icon: icons.client },
-        { label: 'Register payment', description: 'Charge membership', route: '/GYM_ADMIN/payments', icon: icons.payment },
-        { label: 'Register staff', description: 'New collaborator', route: '/GYM_ADMIN/register-staff', icon: icons.staff },
+        { label: 'Register client', description: 'New membership', route: '/GYM_ACCOUNT/register-clients', icon: icons.client },
+        { label: 'Register payment', description: 'Charge membership', route: '/GYM_ACCOUNT/payments', icon: icons.payment },
+        { label: 'Register staff', description: 'New collaborator', route: '/GYM_ACCOUNT/register-staff', icon: icons.staff },
         { label: 'Bulk email', description: 'Message clients', modal: 'enviomasivo', icon: icons.mail },
-        { label: 'Create promotion', description: 'Campaigns and discounts', route: '/GYM_ADMIN/pricing', icon: icons.promo },
+        { label: 'Create promotion', description: 'Campaigns and discounts', route: '/GYM_ACCOUNT/pricing', icon: icons.promo },
         { label: 'Cash close', description: 'Operation summary', modal: 'corte', icon: icons.cash }
       ];
 });
@@ -815,7 +842,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEscConfirm));
 const handleLangChange = (event) => {
   if (!event.detail?.idioma) return;
   currentLang.value = event.detail.idioma;
-  localStorage.setItem('GYM_ADMIN-idioma', event.detail.idioma);
+  localStorage.setItem('GYM_ACCOUNT-idioma', event.detail.idioma);
 };
 /* =========================================================
    MODALES
@@ -2655,4 +2682,14 @@ button {
 .dashboard-data-error button{margin-left:10px;border:0;background:transparent;color:inherit;cursor:pointer;text-decoration:underline}
 .hero-branch{display:block;margin-top:8px;color:#e2e8f0;font-size:12px;font-weight:600}
 .dashboard-empty{padding:14px 4px;color:var(--text3);font-size:12px}
+/* Mapa de la sucursal real (Google Maps sin llave, pin por coordenadas si existen). */
+.sede-map-grid{display:grid;grid-template-columns:minmax(240px,32%) minmax(0,1fr);gap:18px;min-height:330px}
+.sede-map-details{padding:16px;border:1px solid var(--line2);border-radius:14px;background:var(--surface)}
+.sede-map-name{display:block;margin-bottom:16px;font-family:'Oswald',sans-serif;font-size:20px;color:var(--title)}
+.sede-map-details p{display:flex;flex-direction:column;gap:5px;padding:8px 0;margin:0;border-bottom:1px solid var(--line);font-size:13px;overflow-wrap:anywhere}
+.sede-map-details p small{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase}
+.sede-map-link{display:block;text-align:center;margin-top:16px;padding:13px 10px;border-radius:10px;background:var(--color-botones,#2563eb);color:var(--color-texto-botones,#fff);text-decoration:none;font-weight:700}
+.sede-map-frame{min-height:330px;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:var(--surface);display:grid;place-items:center}
+.sede-map-frame iframe{width:100%;height:100%;min-height:330px;border:0}
+@media(max-width:760px){.sede-map-grid{grid-template-columns:1fr}.sede-map-frame,.sede-map-frame iframe{min-height:290px}}
 </style>
