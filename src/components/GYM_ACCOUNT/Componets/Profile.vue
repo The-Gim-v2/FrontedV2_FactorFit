@@ -732,6 +732,16 @@ const handleAddSede = () => {
 /* =========================================================
    MAPA REAL: Leaflet + OpenStreetMap
    ========================================================= */
+// Google Maps siempre toma primero las coordenadas reales que devuelve /api/gym/perfil.
+// En ausencia de coordenadas válidas usa la dirección y el CP registrados, nunca una sede inventada.
+const googleMapQuery = computed(() => {
+  const lat = Number(form.latitud);
+  const lng = Number(form.longitud);
+  if (String(form.latitud).trim() && String(form.longitud).trim() && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return `${lat},${lng}`;
+  return [form.calle, form.numExt, form.colonia, form.municipio, form.entidad, form.cp, 'México'].map(x => String(x || '').trim()).filter(Boolean).join(', ');
+});
+const googleMapUrl = computed(() => googleMapQuery.value ? `https://www.google.com/maps?q=${encodeURIComponent(googleMapQuery.value)}&output=embed` : '');
+const googleMapsOpenUrl = computed(() => googleMapQuery.value ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(googleMapQuery.value)}` : '');
 const mapContainer = ref<HTMLElement | null>(null);
 let mapInstance: L.Map | null = null;
 let marker: L.Marker | null = null;
@@ -783,8 +793,8 @@ function cambiarEstiloMapa(id: MapStyle) {
 }
 function initMap() {
   if (!mapContainer.value) return;
-  const lat = parseFloat(form.latitud) || 21.9903;
-  const lng = parseFloat(form.longitud) || -99.0152;
+  const lat = Number(form.latitud) || 0;
+  const lng = Number(form.longitud) || 0;
   mapInstance = L.map(mapContainer.value, {
     center: [lat, lng],
     zoom: form.mapZoomLevel,
@@ -1428,7 +1438,7 @@ async function buscarDireccion() {
                   <div class="map-topbar">
                     <div>
                       <strong>{{ tr('mapLocationTitle', 'Ubicación en el mapa') }}</strong>
-                      <span>{{ tr('mapLocationHint', 'Arrastra el marcador para ajustar el punto exacto.') }}</span>
+                      <span>{{ tr('mapLocationHint', 'Google Maps muestra la ubicación guardada; edita coordenadas o usa Buscar para ajustarla.') }}</span>
                     </div>
                     <span class="map-live-status" :class="{ busy: resolviendoDireccion }">
                       <i></i>
@@ -1439,37 +1449,14 @@ async function buscarDireccion() {
                   </div>
 
                   <div class="map-stage">
-                    <div ref="mapContainer" class="leaflet-map"></div>
+                    <!-- Google Maps: la búsqueda se actualiza al cargar/cambiar la sede. -->
+                    <iframe v-if="googleMapUrl" class="google-map-embed" :src="googleMapUrl" title="Ubicación real del gimnasio en Google Maps" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                    <div v-else class="google-map-empty">{{ txt('Registra la dirección o las coordenadas de la sede para ver el mapa.', 'Enter the branch address or coordinates to display the map.') }}</div>
+                    <!-- El mapa técnico de Leaflet permanece oculto para conservar la geocodificación, GPS y guardado existentes. -->
+                    <div ref="mapContainer" class="leaflet-map leaflet-map-internal" aria-hidden="true"></div>
 
-                    <div class="map-style-switch">
-                      <button
-                        type="button"
-                        :class="{ active: mapStyle === 'calles' }"
-                        @click="cambiarEstiloMapa('calles')"
-                      >
-                        {{ tr('mapStreets', 'Calles') }}
-                      </button>
-                      <button
-                        type="button"
-                        :class="{ active: mapStyle === 'satelite' }"
-                        @click="cambiarEstiloMapa('satelite')"
-                      >
-                        {{ tr('mapSatellite', 'Satélite') }}
-                      </button>
-                    </div>
-
-                    <div class="map-tools">
-                      <button type="button" :title="tr('mapZoomIn', 'Acercar')" @click="zoomInMap">+</button>
-                      <button type="button" :title="tr('mapZoomOut', 'Alejar')" @click="zoomOutMap">−</button>
-                      <button type="button" :title="tr('mapCenter', 'Centrar en la sede')" @click="centrarSedeMapa">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <circle cx="12" cy="12" r="3"/>
-                          <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
-                        </svg>
-                      </button>
-                    </div>
-
-                    <div v-if="mapCargando" class="map-loading">
+                    <a v-if="googleMapsOpenUrl" class="google-maps-link" :href="googleMapsOpenUrl" target="_blank" rel="noopener noreferrer">{{ txt('Abrir en Google Maps', 'Open in Google Maps') }}</a>
+                    <div v-if="mapCargando && !googleMapUrl" class="map-loading">
                       <span class="map-spinner"></span>
                       {{ tr('mapLoading', 'Cargando mapa…') }}
                     </div>
@@ -1988,7 +1975,12 @@ async function buscarDireccion() {
 </template>
 
 <style scoped>
+
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
+.google-map-embed{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:inherit;z-index:1;background:#15171c}
+.google-map-empty{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:#a1a1aa;z-index:1}
+.leaflet-map-internal{position:absolute!important;inset:0;visibility:hidden!important;pointer-events:none!important}
+.google-maps-link{position:absolute;bottom:12px;right:12px;z-index:3;padding:9px 13px;border-radius:8px;background:#1d4ed8;color:white;text-decoration:none;font-size:12px;font-weight:700}
 
 * { box-sizing: border-box; }
 button, input, textarea { font: inherit; }
