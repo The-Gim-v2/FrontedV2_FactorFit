@@ -445,51 +445,85 @@ const activeSede = ref(0);
 const loadingIdentity = ref(false);
 const identityError = ref('');
 let identityRequest = 0;
+// El encabezado de Gerente lee la sucursal asignada desde gym_account.usuario.sedes.
+// El dashboard usa exactamente esa misma información, evitando sede_id=0.
+const readManagerSession = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const key of ['gym_account', 'user', 'auth', 'session']) {
+      try {
+        const value = JSON.parse(storage.getItem(key) || 'null');
+        if (!value || typeof value !== 'object') continue;
+        const account = value.usuario || value.user || value;
+        if (account && typeof account === 'object' && (account.sedes?.length || account.ID_Sede || account.sede_id)) return account;
+      } catch { /* Sesión no almacenada bajo esta clave. */ }
+    }
+  }
+  return {};
+};
+const validSedeId = (value) => {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : 0;
+};
+const assignedSedeIds = () => {
+  const account = readManagerSession();
+  const list = Array.isArray(account.sedes) ? account.sedes : [];
+  const ids = list.map(s => validSedeId(s?.ID_Sede ?? s?.sede_id ?? s?.id)).filter(Boolean);
+  const own = validSedeId(account.ID_Sede ?? account.sede_id ?? account.id_sede);
+  if (own && !ids.includes(own)) ids.push(own);
+  return ids;
+};
 const getToken = () => {
   for (const storage of [sessionStorage, localStorage]) {
-    for (const name of ['token', 'auth_token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
+    for (const name of ['auth_token', 'token', 'access_token', 'GYM_MANAGER_token', 'gym_token']) {
       const value = storage.getItem(name);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const name of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
-      try { const value = JSON.parse(storage.getItem(name) || 'null'); const token = value?.token || value?.access_token || value?.accessToken;
-        if (token) return String(token).replace(/^Bearer\s+/i, ''); } catch { /* No es JSON */ }
+    for (const name of ['gym_account', 'auth', 'user', 'session']) {
+      try {
+        const data = JSON.parse(storage.getItem(name) || 'null');
+        const value = data?.token || data?.access_token || data?.accessToken;
+        if (value) return String(value).replace(/^Bearer\s+/i, '');
+      } catch { /* No es JSON. */ }
     }
   }
   return '';
 };
 const storedSede = () => {
+  const assigned = assignedSedeIds();
   for (const storage of [sessionStorage, localStorage]) {
-    for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+    for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
       const raw = storage.getItem(key);
       if (!raw) continue;
-      let val = raw;
-      try { const obj = JSON.parse(raw); val = obj && typeof obj === 'object' ? (obj.ID_Sede ?? obj.sede_id ?? obj.id ?? obj.value) : obj; } catch { /* ID simple */ }
-      const id = Number(val);
-      if (Number.isInteger(id) && id > 0) return id;
+      let item = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        item = parsed && typeof parsed === 'object' ? (parsed.ID_Sede ?? parsed.sede_id ?? parsed.id ?? parsed.value) : parsed;
+      } catch { /* ID numérico directo. */ }
+      const id = validSedeId(item);
+      if (id && (!assigned.length || assigned.includes(id))) return id;
     }
   }
-  return 0;
+  // Caso real: la barra superior sí dice la sede, pero selected_sede_id está vacío.
+  // Coincide con la sede que el encabezado eligió como primera asignada.
+  return assigned[0] || 0;
 };
 const sedeId = () => {
-  if (activeSede.value > 0) return activeSede.value;
-  const queryId = Number(route.query.sede_id);
-  if (Number.isInteger(queryId) && queryId > 0) return queryId;
-  return storedSede();
+  const assigned = assignedSedeIds();
+  const candidate = activeSede.value || validSedeId(route.query.sede_id) || storedSede();
+  return candidate && (!assigned.length || assigned.includes(candidate)) ? candidate : (assigned[0] || 0);
 };
 const loadGymIdentity = async () => {
   const seq = ++identityRequest;
   const id = sedeId();
   loadingIdentity.value = true;
   identityError.value = '';
-  gym.value = { name: 'Mi gimnasio', logoUrl: null, coverUrl: null, membershipEnd: null, location: { branchName: '', street: '', number: '', neighborhood: '', city: '', state: '', zip: '', lat: null, lng: null } };
-  if (!id) { identityError.value = 'Selecciona una sede para ver su ubicación.'; loadingIdentity.value = false; return; }
+  if (!id) { identityError.value = 'No se encontró la sucursal asignada en la sesión del gerente. Vuelve a iniciar sesión.'; loadingIdentity.value = false; return; }
   try {
     const token = getToken();
     if (!token) throw new Error('No se encontró la sesión del gerente.');
     const response = await fetch(`${API}/api/gym/identidad-visual?sede_id=${id}`, { headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store' });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data?.message || `Error HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`No se pudo cargar la sede ${id} (${response.status}): ${data?.message || 'Consulta no autorizada o no disponible'}`);
     if (seq !== identityRequest) return;
     const info = data.gimnasio || {};
     const branch = data.sede || {};
@@ -510,7 +544,7 @@ const onBranchChanged = (event) => {
   const detail = event.detail || {};
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
-  activeSede.value = Number.isInteger(id) && id > 0 ? id : 0;
+  activeSede.value = validSedeId(id) && (!assignedSedeIds().length || assignedSedeIds().includes(id)) ? id : 0;
   void loadGymIdentity();
 };
 const onGymProfileUpdated = (event) => {
