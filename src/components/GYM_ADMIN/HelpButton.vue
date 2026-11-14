@@ -53,14 +53,11 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 const route = useRoute();
 const activeStep = ref(null);
-const roleFromRoute = computed(() => String(route.path || '').match(/\/(GYM_ACCOUNT|GYM_ADMIN|GYM_MANAGER|GYM_RECEPCIONIST)(?:\/|$)/i)?.[1]?.toUpperCase() || String(localStorage.getItem('user_role') || 'GYM_ACCOUNT').toUpperCase());
-const tutorialStorageKey = computed(() => `${roleFromRoute.value}-tutorialActivo`);
-const readTutorialEnabled = () => (localStorage.getItem(tutorialStorageKey.value) ?? localStorage.getItem('tutorialActivo')) === 'true';
-const tutorialEnabled = ref(readTutorialEnabled());
+const tutorialEnabled = ref(localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true');
 const targetRect = ref(null);
 const windowWidth = ref(window.innerWidth);
 // Idioma actual de la interfaz, sincronizado con localStorage
-const currentLang = ref(localStorage.getItem('GYM_ACCOUNT-idioma') || 'es');
+const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
 // Control de revelación de texto en móvil tras 1.5 segundos
 const textRevealed = ref(false);
 let revealTimer = null;
@@ -114,7 +111,7 @@ const t = (key) => {
 };
 // Diccionario de tutoriales bilingües
 const tutoriales = {
-  'GYM_ACCOUNT-dashboard': {
+  'GYM_ADMIN-dashboard': {
     es: [
       { title: "Identidad y sede del gimnasio", description: "Muestra la portada, el logotipo, el nombre, la descripción y la sucursal seleccionada.", selector: "#tutorial-step-0" },
       { title: "Resumen de actividad", description: "Agrupa los indicadores principales para consultar rápidamente cómo va la operación del día.", selector: "#tutorial-step-1" },
@@ -146,7 +143,7 @@ const tutoriales = {
       { title: "Gym and account status", description: "Review whether the gym is open or closed and the status of its subscription. You can change the operational state using its corresponding control.", selector: "#tutorial-step-12" }
     ]
   },
-  'register-clients': {
+  'GYM_ADMIN-register-clients': {
     es: [
       { title: "Fotografía del Cliente", description: "Sube o captura una fotografía reciente del cliente. Esto es fundamental para identificarlo rápidamente en el sistema al momento de registrar su asistencia.", selector: '#tutorial-step-0' },
       { title: "Datos Personales", description: "Ingresa la información básica de identificación del nuevo miembro, incluyendo su nombre completo, fecha de nacimiento, número celular y correo electrónico.", selector: '#tutorial-step-1' },
@@ -160,7 +157,7 @@ const tutoriales = {
       { title: "Membership and Validity Data", description: "Select the billing scheme (monthly or weekly), and set the enrollment dates and the corresponding cutoff day to keep their access active.", selector: '#tutorial-step-3' }
     ]
   },
-  'register-staff': {
+  'GYM_ADMIN-register-staff': {
     es: [
       { title: "Fotografía del Empleado", description: "Sube una fotografía oficial o reciente para integrarla al expediente del colaborador dentro de la plataforma.", selector: '#tutorial-step-0' },
       { title: "Credenciales y Rol", description: "Define el rol que desempeñará en el sistema (permisos de acceso), asigna el correo electrónico, establece su contraseña y selecciona las sedes o ubicaciones autorizadas.", selector: '#tutorial-step-1' },
@@ -174,7 +171,7 @@ const tutoriales = {
       { title: "Work Schedule", description: "Set the corresponding clock-in and clock-out times to track staff attendance and shifts.", selector: '#tutorial-step-3' }
     ]
   },
-  'view-clients': {
+  'GYM_ADMIN-view-clients': {
     es: [
       { title: "Filtros y Búsqueda General", description: "Filtra la lista de usuarios por tipo de membresía, su estatus actual (Activo/Inactivo), envía notificaciones masivas o busca a un cliente por su nombre de forma rápida.", selector: '#tutorial-step-0' },
       { title: "Listado de Clientes", description: "Visualiza la información resumida de cada usuario: foto de perfil, nombre completo, correo electrónico, número de celular y su estatus vigente.", selector: '#tutorial-step-1' },
@@ -186,7 +183,7 @@ const tutoriales = {
       { title: "Actions per User", description: "Perform specific actions for each client: send individual emails, change status, view their access QR code, edit their data, or delete the record.", selector: '#tutorial-step-2' }
     ]
   },
-  'view-staff': {
+  'GYM_ADMIN-view-staff': {
     es: [
       { title: "Filtros y Búsqueda de Personal", description: "Filtra al personal por su rol en el sistema (Recepcionista, Entrenador), envía correos masivos o busca rápidamente a un empleado por su nombre.", selector: '#tutorial-step-0' },
       { title: "Listado de Personal", description: "Visualiza la información clave de cada empleado: foto de perfil, nombre completo, correo electrónico, número celular y el rol asignado.", selector: '#tutorial-step-1' },
@@ -198,7 +195,7 @@ const tutoriales = {
       { title: "Actions per Employee", description: "Manage individual actions for each staff member: send an email, change status, edit their information, or delete the record.", selector: '#tutorial-step-2' }
     ]
   },
-  'payments': {
+  'GYM_ADMIN-payments': {
     es: [
       { title: "Filtros y Búsqueda de Pagos", description: "Filtra el listado por tipo de mensualidad, su estatus actual (Activo, Pendiente, Inactivo), envía correos masivos o busca usuarios por su nombre de forma rápida.", selector: '#tutorial-step-0' },
       { title: "Listado de Pagos", description: "Visualiza la información general de cada registro: foto de perfil, nombre completo, correo electrónico, fecha a vencer y el estatus actual de su pago.", selector: '#tutorial-step-1' },
@@ -210,7 +207,7 @@ const tutoriales = {
       { title: "Payment Actions", description: "Perform specific actions for each record: register a payment, edit the user's data, or delete the record.", selector: '#tutorial-step-2' }
     ]
   },
-  'pricing-management': {
+  'GYM_ADMIN-pricing-management': {
   es: [
     {
       title: "Promociones y tarifas",
@@ -246,7 +243,7 @@ const tutoriales = {
     }
   ]
 },
-  'fees-management': {
+  'GYM_ADMIN-fees-management': {
   es: [
     {
       title: "Reglas de morosidad",
@@ -282,7 +279,7 @@ const tutoriales = {
     }
   ]
 },
-  'revenue-log': {
+  'GYM_ADMIN-revenue-log': {
     es: [
       { title: "Filtros y Resumen de Ingresos", description: "Filtra los pagos por tipo de membresía, consulta el total recaudado en tiempo real o busca a un usuario específico mediante la barra de búsqueda.", selector: '#tutorial-step-0' },
       { title: "Tabla de Ingresos", description: "Visualiza el detalle completo de cada transacción: foto del usuario, nombre completo, correo electrónico, fecha de vencimiento, tipo de membresía adquirida y el monto pagado.", selector: '#tutorial-step-1' }
@@ -292,7 +289,7 @@ const tutoriales = {
       { title: "Revenue Table", description: "View the full detail of each transaction: user photo, full name, email address, due date, membership type purchased, and amount paid.", selector: '#tutorial-step-1' }
     ]
   },
-  'debtors-list': {
+  'GYM_ADMIN-debtors-list': {
     es: [
       { title: "Filtros y Búsqueda", description: "Filtra los deudores por tipo de membresía o estatus, realiza búsquedas específicas y envía correos masivos de cobranza.", selector: '#tutorial-step-0' },
       { title: "Listado de Deudores", description: "Visualiza la información clave de cada usuario con adeudo: nombre, correo, fecha de vencimiento y el monto pendiente.", selector: '#tutorial-step-1' },
@@ -304,7 +301,7 @@ const tutoriales = {
       { title: "Quick Actions", description: "Instantly reach out to the debtor by sending them an email or a direct WhatsApp message.", selector: '#tutorial-step-2' }
     ]
   },
-  'attendance-log': {
+  'GYM_ADMIN-attendance-log': {
     es: [
       { title: "Filtros y Reportes de Asistencia", description: "Filtra la asistencia por día de la semana, consulta la gráfica de reportes o busca a un usuario específico mediante la barra de búsqueda.", selector: '#tutorial-step-0' },
       { title: "Listado de Asistencia", description: "Visualiza la información clave de cada usuario: foto, nombre completo, correo electrónico, tipo de membresía, fecha a vencer y su estatus actual.", selector: '#tutorial-step-1' }
@@ -314,7 +311,7 @@ const tutoriales = {
       { title: "Attendance List", description: "View key information for each user: photo, full name, email address, membership type, due date, and current status.", selector: '#tutorial-step-1' }
     ]
   },
-  'renewals': {
+  'GYM_ADMIN-renewals': {
     es: [
       { title: "Búsqueda de Usuarios", description: "Busca de forma específica a los usuarios que necesitan renovación mediante la barra de búsqueda.", selector: '#tutorial-step-0' },
       { title: "Listado de Renovaciones", description: "Visualiza la información clave de cada usuario con membresía vencida o próxima a vencer: foto, nombre completo, correo, fecha de vencimiento y su adeudo.", selector: '#tutorial-step-1' },
@@ -326,7 +323,7 @@ const tutoriales = {
       { title: "Quick Actions", description: "Manage accounts by immediately renewing the membership or deleting the user's record as needed.", selector: '#tutorial-step-2' }
     ]
   },
-  'audit-log': {
+  'GYM_ADMIN-audit-log': {
     es: [
       { title: "Filtros y Búsqueda", description: "Filtra la bitácora por sucursal, tipo de acción o fecha, y busca por empleado o módulo. Usa el botón «Limpiar» para quitar todos los filtros de una vez.", selector: '#tutorial-step-0' },
       { title: "Registro de Actividad", description: "Consulta quién realizó cada acción, en qué sucursal y módulo, y la descripción del cambio. Los cuadros superiores resumen los eventos, modificaciones, eliminaciones y usuarios involucrados.", selector: '#tutorial-step-1' },
@@ -338,7 +335,7 @@ const tutoriales = {
       { title: "Action Details", description: "Open the full detail of the event, including the previous value and the new value of the change.", selector: '#tutorial-step-2' }
     ]
   },
-  'cash-history': {
+  'GYM_ADMIN-cash-history': {
     es: [
       { title: "Filtros y Búsqueda de Cortes", description: "Filtra los cortes de caja por sucursal, estado (abierto o cerrado) o fecha, y busca por responsable o folio. Usa «Limpiar» para quitar los filtros.", selector: '#tutorial-step-0' },
       { title: "Historial de Cortes", description: "Visualiza el folio, la fecha, la sucursal, el responsable, el estado, la diferencia y el total recaudado de cada corte. Los cuadros superiores muestran el total recaudado, el efectivo recibido y la diferencia neta.", selector: '#tutorial-step-1' },
@@ -350,7 +347,7 @@ const tutoriales = {
       { title: "View Session", description: "Check the session details: opening and closing, opening float, cash, card, transfer, expected and counted cash, and the difference.", selector: '#tutorial-step-2' }
     ]
   },
-  'membership-history': {
+  'GYM_ADMIN-membership-history': {
     es: [
       { title: "Filtros y Búsqueda", description: "Filtra los movimientos por sucursal, tipo (inscripción, renovación, cambio o cancelación) o fecha, y busca por cliente o paquete. Usa «Limpiar» para quitar los filtros.", selector: '#tutorial-step-0' },
       { title: "Historial de Membresías", description: "Visualiza la fecha, el cliente, la sucursal, el tipo de movimiento, el paquete, la vigencia y el importe de cada registro. Los cuadros superiores resumen movimientos, renovaciones, cambios de paquete y cancelaciones.", selector: '#tutorial-step-1' },
@@ -362,7 +359,7 @@ const tutoriales = {
       { title: "Movement Details", description: "Open the full detail: previous and new plan, start and expiration dates, applied price, employee and notes.", selector: '#tutorial-step-2' }
     ]
   },
-  'GYM_ACCOUNT-settings': {
+  'GYM_ADMIN-settings': {
     es: [
       { title: "Guardar Cambios", description: "Guarda la apariencia en PostgreSQL para el gimnasio y sucursal, y mantiene idioma y tutorial como preferencias del usuario.", selector: '#btn-guardar-cambios' },
       { title: "Temas y Combinaciones", description: "Selecciona entre 30 estilos y combinaciones predefinidas para cambiar la apariencia visual de todo el sistema.", selector: '#panel-temas' },
@@ -386,7 +383,7 @@ const tutoriales = {
       { title: "Data Export", description: "Download the selected branch’s logs as an Excel workbook with organized worksheets, columns and filters.", selector: '#panel-exportacion' }
     ]
   },
-  'profile': {
+  'GYM_ADMIN-profile': {
     es: [
       { title: "Logotipo del Gimnasio", description: "Sube o cambia la imagen del logotipo oficial del establecimiento que se muestra en el perfil y encabezados.", selector: '#tutor-5' },
       { title: "Información del Establecimiento", description: "Modifica el nombre oficial del gimnasio y consulta información de registro intransferible como el CURP.", selector: '#gym-info' },
@@ -408,7 +405,7 @@ const tutoriales = {
       { title: "Save Changes", description: "Permanently apply and store all modifications made to the gym's and administrator's profile.", selector: '#tutor-64' }
     ]
   },
-  'pay': {
+  'GYM_ADMIN-pay': {
     es: [
       { title: "Búsqueda de Cliente", description: "Busca rápidamente al cliente por su nombre o ID de usuario para gestionar su estado de cuenta y pagos.", selector: '#tutorial-step-0' },
       { title: "Detalles del Pago y Fechas", description: "Consulta y modifica los cortes de fechas, revisa el estado de cuenta actual, calcula recargos e ingresa los datos del tipo de pago y folio.", selector: '#tutorial-step-1' },
@@ -420,7 +417,7 @@ const tutoriales = {
       { title: "Confirmation Actions", description: "Confirm the payment record once the required fields are complete, or download the corresponding receipt.", selector: '#tutorial-step-2' }
     ]
   },
-'edit-user': {
+'GYM_ADMIN-edit-user': {
   es: [
     {
       title: "Buscar cliente",
@@ -526,7 +523,7 @@ const tutoriales = {
     }
   ]
 },
-  'edit-staff': {
+  'GYM_ADMIN-edit-staff': {
   es: [
     {
       title: "Buscar personal",
@@ -642,7 +639,7 @@ const tutoriales = {
     }
   ]
 },
-  'statistics': {
+  'GYM_ADMIN-statistics': {
     es: [
       { title: "Búsqueda de Usuario", description: "Localiza rápidamente a cualquier usuario registrado mediante su nombre o número de identificación.", selector: '#tutor-0' },
       { title: "Perfil del Usuario", description: "Visualiza la tarjeta general de información, estado y métricas principales del usuario.", selector: '#tutor-1' },
@@ -696,15 +693,9 @@ const tutoriales = {
   }
 };
 const steps = computed(() => {
-  const rawName = String(route.name || '');
-  const segment = String(route.path || '').split('/').filter(Boolean).pop() || '';
-  const role = roleFromRoute.value;
-  const candidates = [rawName, `${role}-${segment}`, segment, `${role}-dashboard`,
-    ...(segment === 'dashboard' || /dashboard/i.test(rawName) ? ['GYM_ACCOUNT-dashboard'] : []),
-    `${role}-settings`, ...(segment === 'settings' ? ['GYM_ACCOUNT-settings'] : [])];
-  // Reutilizar las explicaciones del propietario si el nombre de la ruta del rol es distinto.
-  const routeTutorials = candidates.map(name => tutoriales[name]).find(Boolean);
-  return routeTutorials?.[currentLang.value] || routeTutorials?.es || [];
+  const routeTutorials = tutoriales[String(route.name || '')];
+  if (!routeTutorials) return [];
+  return routeTutorials[currentLang.value] || routeTutorials.es;
 });
 const setupStepTimer = () => {
   textRevealed.value = false;
@@ -920,17 +911,30 @@ const closeTutorial = () => {
   textRevealed.value = false;
 };
 const updateTutorialStatus = () => {
-  tutorialEnabled.value = readTutorialEnabled();
+  tutorialEnabled.value = localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true';
+  if (!tutorialEnabled.value && activeStep.value !== null) closeTutorial();
+};
+const handleStorageChange = (event) => {
+  if (!event.key || event.key === 'GYM_ADMIN-tutorialActivo') updateTutorialStatus();
+  if (!event.key || event.key === 'GYM_ADMIN-idioma') handleLanguageUpdate();
+};
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    updateTutorialStatus();
+    handleLanguageUpdate();
+  }
 };
 // Listener para actualizar el idioma en tiempo real si se modifica en la app
-watch(roleFromRoute, () => { updateTutorialStatus(); currentLang.value = localStorage.getItem(`${roleFromRoute.value}-idioma`) || 'es'; });
 const handleLanguageUpdate = () => {
-  currentLang.value = localStorage.getItem(`${roleFromRoute.value}-idioma`) || localStorage.getItem('GYM_ACCOUNT-idioma') || 'es';
+  currentLang.value = localStorage.getItem('GYM_ADMIN-idioma') || 'es';
 };
 onMounted(() => {
   updateTutorialStatus();
-  window.addEventListener('storage', updateTutorialStatus);
   window.addEventListener('tutorial-updated', updateTutorialStatus);
+  window.addEventListener('factorfit:preferences-updated', updateTutorialStatus);
+  window.addEventListener('storage', handleStorageChange);
+  window.addEventListener('focus', updateTutorialStatus);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('language-updated', handleLanguageUpdate);
   window.addEventListener('idioma-changed', handleLanguageUpdate);
   window.addEventListener('resize', handleResize);
@@ -940,8 +944,11 @@ onUnmounted(() => {
   clearTimeout(resizeTimer);
   stopTracking();
   unlockScroll();
-  window.removeEventListener('storage', updateTutorialStatus);
   window.removeEventListener('tutorial-updated', updateTutorialStatus);
+  window.removeEventListener('factorfit:preferences-updated', updateTutorialStatus);
+  window.removeEventListener('storage', handleStorageChange);
+  window.removeEventListener('focus', updateTutorialStatus);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   window.removeEventListener('language-updated', handleLanguageUpdate);
   window.removeEventListener('idioma-changed', handleLanguageUpdate);
   window.removeEventListener('resize', handleResize);
