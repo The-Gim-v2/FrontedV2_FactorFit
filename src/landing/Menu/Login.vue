@@ -18,6 +18,14 @@ sedes: Array<Record<string, unknown>>
 }
 const router = useRouter()
 const email = ref('')
+const onIdentifierInput = () => {
+const value = email.value.trim()
+if (!value.includes('@') && /^[0-9+()\s-]+$/.test(value)) {
+let digits = value.replace(/\D/g, '')
+if (value.startsWith('+52') && digits.startsWith('52')) digits = digits.slice(2)
+email.value = digits.slice(0, 10)
+}
+}
 const password = ref('')
 const showPassword = ref(false)
 const errorMessage = ref('')
@@ -38,6 +46,15 @@ successMessage.value = ''
 const handleSubmit = async () => {
 if (loading.value) return
 clearMessages()
+const identifier = email.value.trim()
+if (!identifier.includes('@') && !/^[0-9]{10}$/.test(identifier)) {
+errorMessage.value = 'Escribe los 10 dígitos de tu celular, sin +52.'
+return
+}
+if (identifier.includes('@') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+errorMessage.value = 'Escribe un correo electrónico válido.'
+return
+}
 loading.value = true
 try {
 const apiUrl = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '')
@@ -49,7 +66,7 @@ headers: {
 Accept: 'application/json'
 },
 body: JSON.stringify({
-email: email.value.trim().includes('@') ? email.value.trim().toLowerCase() : email.value.trim(),
+email: identifier.includes('@') ? identifier.toLowerCase() : identifier,
 password: password.value
 })
 })
@@ -209,7 +226,7 @@ type="text"
 autocomplete="username"
 placeholder="Correo o celular (10 dígitos)"
 required
-@input="clearMessages"
+@input="onIdentifierInput(); clearMessages()"
 >
 </div>
 </div>
