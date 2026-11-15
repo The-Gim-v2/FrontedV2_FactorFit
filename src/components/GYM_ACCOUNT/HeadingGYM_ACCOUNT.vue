@@ -256,16 +256,17 @@
 
           <div class="desktop-separator"></div>
 
-          <!-- PERFIL (solo avatar, sin nombre) -->
+          <!-- PERFIL: nombre del propietario desde PostgreSQL -->
           <div class="profile-menu-root nav-dropdown-root">
             <button
               type="button"
               class="desktop-profile"
               :class="{ active: desktopDropdown === 'profile' }"
-              :aria-label="label('profile', 'Mi perfil', 'My profile')"
+              :aria-label="ownerName ? `${label('profile', 'Mi perfil', 'My profile')}: ${ownerName}` : label('profile', 'Mi perfil', 'My profile')"
+              :title="ownerName || label('profile', 'Mi perfil', 'My profile')"
               @click.stop="toggleDesktopDropdown('profile')"
             >
-              <span class="profile-avatar">{{ GYM_ACCOUNTInitials }}</span>
+              <span class="profile-avatar" :class="{ 'is-name': ownerWordCount === 1 }">{{ GYM_ACCOUNTInitials }}</span>
 
               <svg class="profile-chevron" :class="{ rotated: desktopDropdown === 'profile' }" viewBox="0 0 24 24">
                 <path d="M7 10l5 5 5-5z"></path>
@@ -815,25 +816,72 @@ const onBranchChanged = () => { syncBranch(); refreshNotificationsOnBranch(); };
 const notifications = ref([]); // Notificaciones reales de Laravel, sin datos de prueba
 
 /* =========================================================
-   PERFIL (datos de prueba)
+   PROPIETARIO: dato real de Gym_Account.Nombre_Propietario
+   GET /api/gym/perfil retorna perfil.nombrePropietario
 ========================================================= */
+const ownerName = ref('');
+let ownerRequestVersion = 0;
 
-const GYM_ACCOUNTName = 'Jose Luis';
-
-/* Logo temporal generado en línea; reemplázalo por el real */
-const gymLogo =
-  'https://ui-avatars.com/api/?name=Ultra+Fitness&size=128&background=2563eb&color=ffffff&bold=true';
-
-const logoOk = ref(true);
-
-const GYM_ACCOUNTInitials = computed(() =>
-  GYM_ACCOUNTName
-    .split(' ')
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase()
+const ownerWordCount = computed(() =>
+  ownerName.value.trim().split(/\s+/u).filter(Boolean).length
 );
+
+// Un nombre: "Geova". Nombre compuesto: "Geova Lopez Gutierrez" -> "GLG".
+const GYM_ACCOUNTInitials = computed(() => {
+  const words = ownerName.value.trim().split(/\s+/u).filter(Boolean);
+  if (!words.length) return '—';
+  if (words.length === 1) return words[0];
+  return words.map(word => Array.from(word)[0] || '').join('').toLocaleUpperCase('es-MX');
+});
+
+const ownerNameFromSession = () => {
+  for (const store of [sessionStorage, localStorage]) {
+    for (const key of ['gym_account', 'user', 'auth', 'session']) {
+      try {
+        const raw = JSON.parse(store.getItem(key) || 'null');
+        const account = raw?.usuario || raw?.user || raw;
+        const name = account?.Nombre_Propietario ?? account?.nombrePropietario ?? account?.nombre_propietario;
+        if (typeof name === 'string' && name.trim()) return name.trim().replace(/\s+/gu, ' ');
+      } catch { /* Una sesión distinta no contiene este dato. */ }
+    }
+  }
+  return '';
+};
+
+const loadOwnerName = async () => {
+  const version = ++ownerRequestVersion;
+  const token = notificationsToken();
+  if (!token) { ownerName.value = ''; return; }
+
+  // El nombre pertenece a Gym_Account, independientemente de la sede.
+  const sede = Number(sessionStorage.getItem('selected_sede_id') || selectedGym.value?.ID_Sede || 0);
+  const query = sede > 0 ? `?sede_id=${encodeURIComponent(sede)}` : '';
+  try {
+    const response = await fetch(`${notificationsBase}/api/gym/perfil${query}`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (version !== ownerRequestVersion) return;
+    const name = data?.perfil?.nombrePropietario ?? data?.perfil?.Nombre_Propietario
+      ?? data?.nombrePropietario ?? data?.Nombre_Propietario;
+    // Nunca inventar nombre o usar el nombre del gimnasio como propietario.
+    ownerName.value = typeof name === 'string' && name.trim()
+      ? name.trim().replace(/\s+/gu, ' ')
+      : '';
+  } catch (error) {
+    if (version !== ownerRequestVersion) return;
+    // Solo respaldo si la sesión realmente contiene el nombre del propietario.
+    ownerName.value = ownerNameFromSession();
+    console.warn('No se pudo consultar el nombre del propietario:', error);
+  }
+};
+
+const refreshOwnerOnProfileUpdated = () => { void loadOwnerName(); };
+const refreshOwnerOnVisible = () => {
+  if (document.visibilityState === 'visible') void loadOwnerName();
+};
 
 /* =========================================================
    IDIOMA
@@ -1179,6 +1227,9 @@ onMounted(() => {
   const correctedBranch = syncBranch();
   if (correctedBranch) window.dispatchEvent(new Event('factorfit:branch-changed'));
   void fetchNotifications(true);
+  void loadOwnerName();
+  window.addEventListener('factorfit:gym-profile-updated', refreshOwnerOnProfileUpdated);
+  document.addEventListener('visibilitychange', refreshOwnerOnVisible);
   notificationsTimer = window.setInterval(() => { void fetchNotifications(true); }, 60000);
   document.addEventListener('visibilitychange', refreshNotificationsOnFocus);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
@@ -1192,6 +1243,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  ownerRequestVersion++;
+  window.removeEventListener('factorfit:gym-profile-updated', refreshOwnerOnProfileUpdated);
+  document.removeEventListener('visibilitychange', refreshOwnerOnVisible);
   notificationsRequestVersion++;
   if (notificationsTimer !== null) window.clearInterval(notificationsTimer);
   document.removeEventListener('visibilitychange', refreshNotificationsOnFocus);
@@ -2417,6 +2471,7 @@ onUnmounted(() => {
 
   .profile-avatar {
     width: 38px;
+    min-width: 38px;
     height: 38px;
     flex-shrink: 0;
     display: flex;
@@ -2428,6 +2483,15 @@ onUnmounted(() => {
     color: color-mix(in srgb, var(--accent) 55%, white);
     font-size: 0.8rem;
     font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-avatar.is-name {
+    width: auto;
+    max-width: 150px;
+    padding: 0 10px;
   }
 
   .profile-chevron {
