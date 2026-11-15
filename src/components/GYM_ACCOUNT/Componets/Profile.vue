@@ -253,6 +253,48 @@ const showAddGymModal = ref(false);
 const showEmailModal = ref(false);
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+// Mismas reglas del formulario de registro: nombre en formato título y celular mexicano sin +52.
+const nombreTitulo = (valor: string): string =>
+  String(valor ?? '').toLocaleLowerCase('es-MX')
+    .replace(/(^|[\s'-])([\p{L}])/gu, (_, sep: string, letra: string) => sep + letra.toLocaleUpperCase('es-MX'));
+const normalizarNombrePropietario = (): void => {
+  form.nombrePropietario = nombreTitulo(form.nombrePropietario);
+};
+const soloDigitosCelular = (valor: string): string => String(valor ?? '').replace(/\D/g, '');
+const formatearCelular = (valor: string): string => {
+  const n = soloDigitosCelular(valor).slice(0, 10);
+  if (n.length <= 3) return n;
+  if (n.length <= 6) return `${n.slice(0, 3)} ${n.slice(3)}`;
+  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+};
+const avisoPrefijoCelular = (): void => {
+  showNotification(txt('No incluyas +52. Ingresa solamente los 10 dígitos de tu celular.', 'Do not include +52. Enter only your 10-digit mobile number.'), 'warning');
+};
+const actualizarCelularPropietario = (event: Event): void => {
+  const input = event.target as HTMLInputElement;
+  const texto = String(input.value ?? '');
+  const numeros = soloDigitosCelular(texto);
+  if (texto.includes('+') || numeros.length > 10) {
+    avisoPrefijoCelular();
+    input.value = form.celularPropietario;
+    return;
+  }
+  form.celularPropietario = formatearCelular(texto);
+  input.value = form.celularPropietario;
+};
+const pegarCelularPropietario = (event: ClipboardEvent): void => {
+  const texto = event.clipboardData?.getData('text') || '';
+  if (texto.includes('+') || soloDigitosCelular(texto).length > 10) {
+    event.preventDefault();
+    avisoPrefijoCelular();
+  }
+};
+const bloquearPrefijoCelular = (event: KeyboardEvent): void => {
+  if (event.key === '+') { event.preventDefault(); avisoPrefijoCelular(); }
+};
+const celularPropietarioParaGuardar = (): string => soloDigitosCelular(form.celularPropietario);
+const celularPropietarioValido = (): boolean => /^\d{10}$/.test(celularPropietarioParaGuardar());
+
 type ApiPerfil = {
   perfil: Record<string, unknown>;
   sede_nombre: string;
@@ -318,6 +360,8 @@ const syncProfile = async (data: ApiPerfil): Promise<void> => {
   coverFile.value = null;
   previewImage.value = data.logo_url || null;
   previewCoverImage.value = data.portada_url || null;
+  form.nombrePropietario = nombreTitulo(form.nombrePropietario);
+  form.celularPropietario = formatearCelular(form.celularPropietario);
   originalEmail.value = form.email;
   branchName.value = data.sede_nombre || `Sede ${getBranchId()}`;
   const lat = Number(form.latitud), lng = Number(form.longitud);
@@ -352,6 +396,8 @@ const sendProfile = async (): Promise<void> => {
       ...form,
       sede_id: getBranchId(),
       email: form.email.trim().toLowerCase(),
+      nombrePropietario: nombreTitulo(form.nombrePropietario.trim()),
+      celularPropietario: celularPropietarioParaGuardar(),
       amenidades: form.amenidades.map(item => ({ nombre: item.nombre.trim() })),
       selectedDays: form.selectedDays,
       horariosCompletos: form.horariosCompletos
@@ -389,9 +435,14 @@ const validateAndSave = async (confirmedEmailChange = false): Promise<void> => {
     showNotification(txt('Escribe un correo válido.', 'Enter a valid email.'), 'warning');
     return;
   }
-  form.celularPropietario = form.celularPropietario.trim();
-  if (form.celularPropietario && !/^[0-9]{10}$/.test(form.celularPropietario)) {
-    showNotification(txt('El celular del propietario debe tener exactamente 10 dígitos.', 'Owner phone must contain exactly 10 digits.'), 'warning');
+  normalizarNombrePropietario();
+  if (!form.nombrePropietario.trim() || !/^[\p{L}][\p{L}\s.'’-]*$/u.test(form.nombrePropietario.trim())) {
+    showNotification(txt('Escribe un nombre del propietario válido, sin números.', 'Enter a valid owner name without numbers.'), 'warning');
+    scrollToSection('gym-info');
+    return;
+  }
+  if (form.celularPropietario && !celularPropietarioValido()) {
+    showNotification(txt('El celular del propietario debe tener exactamente 10 dígitos, sin +52.', 'Owner mobile must contain exactly 10 digits, without +52.'), 'warning');
     scrollToSection('gym-info');
     return;
   }
@@ -1209,11 +1260,13 @@ async function buscarDireccion() {
                 </div>
                 <div class="input-group">
                   <label for="nombrePropietario">{{ tr('labelOwnerName', 'Nombre del propietario') }}</label>
-                  <input id="nombrePropietario" v-model.trim="form.nombrePropietario" type="text" maxlength="180" autocomplete="name" required />
+                  <input id="nombrePropietario" v-model="form.nombrePropietario" @input="normalizarNombrePropietario" type="text" maxlength="180" autocomplete="name" placeholder="Ej. Juan Pérez López" required />
                 </div>
                 <div class="input-group">
                   <label for="celularPropietario">{{ tr('labelOwnerPhone', 'Celular del propietario') }}</label>
-                  <input id="celularPropietario" v-model="form.celularPropietario" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" pattern="[0-9]{10}" placeholder="Ej. 4811234567" />
+                  <input id="celularPropietario" :value="form.celularPropietario" @input="actualizarCelularPropietario"
+                    @paste="pegarCelularPropietario" @keydown="bloquearPrefijoCelular"
+                    type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="12" placeholder="481 123 4567" />
                 </div>
               </div>
 
