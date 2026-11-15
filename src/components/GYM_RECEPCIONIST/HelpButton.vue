@@ -918,7 +918,10 @@ const handleLanguageUpdate = () => {
   currentLang.value = localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es';
 };
 onMounted(() => {
+  updateTutorialStatus();
   window.addEventListener('tutorial-updated', updateTutorialStatus);
+  window.addEventListener('storage', updateTutorialStatus);
+  window.addEventListener('focus', updateTutorialStatus);
   window.addEventListener('language-updated', handleLanguageUpdate);
   window.addEventListener('idioma-changed', handleLanguageUpdate);
   window.addEventListener('resize', handleResize);
@@ -929,6 +932,8 @@ onUnmounted(() => {
   stopTracking();
   unlockScroll();
   window.removeEventListener('tutorial-updated', updateTutorialStatus);
+  window.removeEventListener('storage', updateTutorialStatus);
+  window.removeEventListener('focus', updateTutorialStatus);
   window.removeEventListener('language-updated', handleLanguageUpdate);
   window.removeEventListener('idioma-changed', handleLanguageUpdate);
   window.removeEventListener('resize', handleResize);

@@ -81,6 +81,7 @@
               type="checkbox"
               id="input-tutorial"
               v-model="settings.tutorial"
+              @change="actualizarTutorialLocal"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
@@ -1012,7 +1013,7 @@ const colorPresets = {
 const settings = reactive({
   notificaciones: false,
   tutorial:
-    localStorage.getItem('tutorialActivo') === 'true',
+    localStorage.getItem('GYM_RECEPCIONIST-tutorialActivo') === 'true',
   idioma:
     localStorage.getItem('GYM_RECEPCIONIST-idioma') || 'es',
   densidad:
@@ -1173,6 +1174,7 @@ const apiApariencia = async (method = 'GET', datos = null) => {
   if (!response.ok) throw new Error(json.message || `Error HTTP ${response.status}`);
   return json;
 };
+const actualizarTutorialLocal = () => { localStorage.setItem('GYM_RECEPCIONIST-tutorialActivo', String(settings.tutorial)); window.dispatchEvent(new Event('tutorial-updated')); };
 const guardarLocalApariencia = () => {
   localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
   localStorage.setItem(claveDensidad(), settings.densidad);
@@ -1186,7 +1188,7 @@ const cargarAparienciaRemota = async () => {
     const respuesta = await apiApariencia();
     const apariencia = respuesta.apariencia;
     if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_RECEPCIONIST-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
-    if (typeof respuesta.tutorial === 'boolean') settings.tutorial=respuesta.tutorial;
+    if (typeof respuesta.tutorial === 'boolean') { settings.tutorial = respuesta.tutorial; localStorage.setItem('GYM_RECEPCIONIST-tutorialActivo', String(settings.tutorial)); window.dispatchEvent(new Event('tutorial-updated')); }
     if (apariencia && typeof apariencia === 'object') {
       if (apariencia.colors && typeof apariencia.colors === 'object') {
         settings.colors = {...defaultColors, ...apariencia.colors};
@@ -1221,7 +1223,7 @@ const guardarCambios = async () => {
       apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
-    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    localStorage.setItem('GYM_RECEPCIONIST-tutorialActivo', String(settings.tutorial));
     localStorage.setItem('GYM_RECEPCIONIST-idioma', settings.idioma);
     window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
