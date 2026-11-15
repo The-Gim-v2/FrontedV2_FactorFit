@@ -423,6 +423,25 @@ async function cargarPerfil() {
 const originalEmail = ref(form.email);
 const showPassword = ref(false);
 
+// Validación en tiempo real, compartida por Seguridad y el modal de correo.
+const estadoConfirmacion = computed<'vacio' | 'incompleta' | 'diferente' | 'coincide'>(() => {
+  if (!form.confirmPassword) return 'vacio';
+  if (!form.password || form.password.length < 8) return 'incompleta';
+  return form.password === form.confirmPassword ? 'coincide' : 'diferente';
+});
+const mensajeConfirmacion = computed(() => {
+  if (estadoConfirmacion.value === 'vacio') return '';
+  if (estadoConfirmacion.value === 'incompleta') {
+    return currentLang.value === 'en'
+      ? 'Enter a password of at least 8 characters.'
+      : 'Escribe una contraseña de al menos 8 caracteres.';
+  }
+  if (estadoConfirmacion.value === 'coincide') {
+    return currentLang.value === 'en' ? 'Passwords match.' : 'Las contraseñas coinciden.';
+  }
+  return currentLang.value === 'en' ? 'Passwords do not match.' : 'Las contraseñas no coinciden.';
+});
+
 const nombreCompleto = computed(() =>
   [form.nombres, form.apellidoP, form.apellidoM]
     .map((s) => s.trim())
@@ -1414,8 +1433,16 @@ onUnmounted(() => {
                       type="password"
                       autocomplete="new-password"
                       :placeholder="t.confirmPasswordPlaceholder"
+                      :aria-invalid="estadoConfirmacion === 'diferente' || estadoConfirmacion === 'incompleta'"
+                      aria-describedby="confirm-password-feedback"
                     />
                   </div>
+                  <p v-if="mensajeConfirmacion" id="confirm-password-feedback"
+                     class="password-match-feedback"
+                     :class="estadoConfirmacion === 'coincide' ? 'match-ok' : 'match-error'"
+                     aria-live="polite">
+                    {{ estadoConfirmacion === 'coincide' ? '✓' : '✕' }} {{ mensajeConfirmacion }}
+                  </p>
                 </div>
               </div>
             </section>
@@ -1641,8 +1668,16 @@ onUnmounted(() => {
                 type="password"
                 autocomplete="new-password"
                 :placeholder="t.confirmNewPasswordPlaceholder"
+                :aria-invalid="estadoConfirmacion === 'diferente' || estadoConfirmacion === 'incompleta'"
+                aria-describedby="modal-confirm-password-feedback"
                 required
               />
+              <p v-if="mensajeConfirmacion" id="modal-confirm-password-feedback"
+                 class="password-match-feedback"
+                 :class="estadoConfirmacion === 'coincide' ? 'match-ok' : 'match-error'"
+                 aria-live="polite">
+                {{ estadoConfirmacion === 'coincide' ? '✓' : '✕' }} {{ mensajeConfirmacion }}
+              </p>
             </div>
 
             <div class="modal-actions">
@@ -3098,4 +3133,15 @@ button, input, textarea { font: inherit; }
   .camera-loader,
   .switch-camera-btn svg.rotating { animation-duration: 1.4s !important; }
 }
+
+/* Confirmación de contraseña (sin alterar el diseño del formulario) */
+.password-match-feedback {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.password-match-feedback.match-ok { color: #34d399; }
+.password-match-feedback.match-error { color: #fb7185; }
+
 </style>
