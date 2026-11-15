@@ -918,6 +918,7 @@ const handleLanguageUpdate = () => {
   currentLang.value = localStorage.getItem('GYM_MANAGER-idioma') || 'es';
 };
 onMounted(() => {
+  updateTutorialStatus();
   window.addEventListener('tutorial-updated', updateTutorialStatus);
   window.addEventListener('language-updated', handleLanguageUpdate);
   window.addEventListener('idioma-changed', handleLanguageUpdate);

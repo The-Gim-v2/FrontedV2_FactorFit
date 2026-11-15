@@ -370,7 +370,7 @@
   </HeadingGYM_MANAGER>
 </template>
 <script setup>
-import { reactive, computed, onMounted, ref } from 'vue';
+import { reactive, computed, onMounted, ref, watch } from 'vue';
 import { useLang } from './useLang.js';
 import HeadingGYM_MANAGER from './HeadingGYM_MANAGER.vue';
 const { setLang } = useLang();
@@ -1012,7 +1012,7 @@ const colorPresets = {
 const settings = reactive({
   notificaciones: false,
   tutorial:
-    localStorage.getItem('tutorialActivo') === 'true',
+    localStorage.getItem('GYM_MANAGER-tutorialActivo') === 'true',
   idioma:
     localStorage.getItem('GYM_MANAGER-idioma') || 'es',
   densidad:
@@ -1023,6 +1023,10 @@ const settings = reactive({
     safeJsonParse(
       localStorage.getItem(claveColores())
     ) || { ...defaultColors }
+});
+watch(() => settings.tutorial, (activo) => {
+  localStorage.setItem('GYM_MANAGER-tutorialActivo', String(activo));
+  window.dispatchEvent(new Event('tutorial-updated'));
 });
 // =========================================================
 // WEB PUSH — configuración por dispositivo, API real Laravel
@@ -1221,7 +1225,7 @@ const guardarCambios = async () => {
       apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
-    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    localStorage.setItem('GYM_MANAGER-tutorialActivo', String(settings.tutorial));
     localStorage.setItem('GYM_MANAGER-idioma', settings.idioma);
     window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
