@@ -123,7 +123,7 @@
             type="button"
             class="desktop-action"
             :title="t.qrGimnasio || 'QR'"
-            @click="activeModal = 'qr'"
+            @click="abrirQrMiembro"
           >
             <svg viewBox="0 0 24 24">
               <path d="M4 4h6v6H4z"></path>
@@ -235,7 +235,7 @@
           <button
             type="button"
             class="nav-action-btn"
-            @click="activeModal = 'qr'"
+            @click="abrirQrMiembro"
             :title="t.qrGimnasio"
             :aria-label="t.qrGimnasio || 'QR'"
           >
@@ -459,14 +459,14 @@
             </button>
           </div>
           <div class="panel-body">
-            <div class="qr-container">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ULTRAFITNESS"
-                alt="QR Code"
-              />
+            <div class="qr-container" aria-live="polite">
+              <p v-if="qrCargando" class="member-qr-message">Cargando tu código QR…</p>
+              <img v-else-if="qrImagen" :src="qrImagen" :alt="`QR de acceso de ${memberName}`" />
+              <p v-else class="member-qr-message">{{ qrError || 'No hay un código QR disponible para esta inscripción.' }}</p>
             </div>
-            <p>{{ t.muestraCodigoAsistencia }}</p>
-            <button type="button" class="action-btn-full">
+            <p v-if="qrImagen">{{ t.muestraCodigoAsistencia }}</p>
+            <p v-if="qrImagen" class="member-qr-inscription">{{ memberName }} · {{ selectedGym }}</p>
+            <button type="button" class="action-btn-full" :disabled="!qrImagen || qrCargando" @click="descargarQrMiembro">
               {{ t.descargarImprimir }}
             </button>
           </div>
@@ -489,6 +489,8 @@ import NotificationsPanel from './Notifications/NotificationsPanel.vue';
 import { traducciones } from './i18n.js';
 import { useLang } from './useLang.js';
 import { sesionMiembro, cargarSesionMiembro, limpiarSesionMiembro } from './memberSesion.js';
+import QRCode from 'qrcode';
+import { solicitudMiembro } from './memberSesion.js';
 const router = useRouter();
 const route = useRoute();
 const { lang } = useLang();
@@ -665,6 +667,37 @@ const navLang = {
 ========================================================= */
 const isNotificationsOpen = ref(false);
 const activeModal = ref(null);
+/* QR individual de la inscripción, validado por Laravel contra el cliente del token. */
+const qrCargando = ref(false);
+const qrImagen = ref('');
+const qrError = ref('');
+const abrirQrMiembro = async () => {
+  activeModal.value = 'qr';
+  qrCargando.value = true;
+  qrImagen.value = '';
+  qrError.value = '';
+  try {
+    const data = await solicitudMiembro('/api/member/qr', { method: 'POST' });
+    if (activeModal.value !== 'qr') return;
+    const codigo = String(data?.codigo_qr || '');
+    if (!/^[a-f0-9]{64}$/i.test(codigo)) throw new Error('El servidor no devolvió un código QR válido.');
+    qrImagen.value = await QRCode.toDataURL(codigo, { width: 320, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
+  } catch (error) {
+    console.error('No se pudo cargar el QR del miembro:', error);
+    qrError.value = error?.message || 'No fue posible obtener el QR de tu inscripción.';
+  } finally {
+    qrCargando.value = false;
+  }
+};
+const descargarQrMiembro = () => {
+  if (!qrImagen.value) return;
+  const enlace = document.createElement('a');
+  enlace.href = qrImagen.value;
+  enlace.download = 'FactorFit-QR-miembro.png';
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+};
 const desktopDropdown = ref(null);
 /* Hoja inferior móvil: null | 'routines' | 'health' | 'payments' | 'more' */
 const mobileSheet = ref(null);
@@ -2061,4 +2094,8 @@ onUnmounted(() => {
     animation-duration: 0.01ms !important;
   }
 }
+
+.member-qr-message { color: var(--color-texto-general, #f8fafc); font-size: 13px; text-align: center; }
+.member-qr-inscription { font-size: 12px; text-align: center; opacity: .85; margin: 5px 0 10px; }
+.action-btn-full:disabled { opacity: .5; cursor: not-allowed; }
 </style>

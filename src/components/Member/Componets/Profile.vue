@@ -2,6 +2,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingAtleta from '../HeadingMember.vue';
+import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { solicitudMiembro, cargarSesionMiembro } from '../memberSesion.js';
 
 const router = useRouter();
@@ -363,22 +364,10 @@ const handleLangChange = (e: Event) => {
    ========================================================= */
 type ToastType = 'success' | 'warning' | 'info' | 'error';
 
-const notification = reactive({
-  show: false,
-  message: '',
-  type: 'success' as ToastType
-});
-
-let toastTimer: ReturnType<typeof setTimeout> | null = null;
-
+// Mismo sistema visual de notificaciones utilizado por GYM_ACCOUNT.
+const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const showNotification = (msg: string, type: ToastType = 'success', duration = 4000) => {
-  if (toastTimer) clearTimeout(toastTimer);
-  notification.message = msg;
-  notification.type = type;
-  notification.show = true;
-  toastTimer = setTimeout(() => {
-    notification.show = false;
-  }, duration);
+  toastRef.value?.notify(msg, type, duration);
 };
 
 /* =========================================================
@@ -612,18 +601,25 @@ async function guardarPerfil() {
     }
     if (avatarFile.value) payload.append('foto', avatarFile.value);
     const datos = await solicitudMiembro<{
-      perfil: Record<string, unknown>; requiere_login?: boolean; message?: string
+      perfil: Record<string, unknown>; requiere_login?: boolean; message?: string;
+      aviso_correo_anterior?: boolean; aviso_correo_nuevo?: boolean
     }>('/api/member/perfil', { method: 'POST', body: payload });
     asignarPerfil(datos.perfil || {});
     form.password = '';
     form.confirmPassword = '';
     showEmailModal.value = false;
     if (datos.requiere_login) {
-      showNotification(t.value.emailChangedMsg, 'info', 6000);
+      const aviso = datos.aviso_correo_anterior && datos.aviso_correo_nuevo
+        ? 'Se enviaron avisos al correo anterior y al nuevo. Inicia sesión de nuevo.'
+        : datos.aviso_correo_anterior || datos.aviso_correo_nuevo
+          ? 'Correo actualizado. Solo se pudo enviar uno de los avisos. Inicia sesión de nuevo.'
+          : 'Correo actualizado, pero no fue posible enviar avisos por email. Inicia sesión de nuevo.';
+      showNotification(aviso, datos.aviso_correo_anterior && datos.aviso_correo_nuevo ? 'success' : 'warning', 6500);
       // Invalidar sólo la sesión de Member: no conservar credenciales revocadas.
       for (const storage of [sessionStorage, localStorage]) {
         for (const key of ['auth_token','token','access_token','member_token','user','user_role']) storage.removeItem(key);
       }
+      await new Promise<void>(resolve => setTimeout(resolve, 1600));
       await router.replace('/login');
       return;
     }
@@ -855,7 +851,6 @@ onUnmounted(() => {
   sectionObserver?.disconnect();
   sectionObserver = null;
   stopCamera();
-  if (toastTimer) clearTimeout(toastTimer);
   if (previewImage.value?.startsWith('blob:')) URL.revokeObjectURL(previewImage.value);
 });
 </script>
@@ -864,15 +859,7 @@ onUnmounted(() => {
   <HeadingAtleta>
     <main class="settings-page" id="tutorial-profile-main">
 
-      <!-- Notificación flotante -->
-      <transition name="toast">
-        <div v-if="notification.show" class="floating-toast" :class="notification.type" role="status">
-          <svg v-if="notification.type === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          <svg v-else-if="notification.type === 'warning' || notification.type === 'error'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-          <span>{{ notification.message }}</span>
-        </div>
-      </transition>
+      <NotificationSystem ref="toastRef" />
 
       <!-- ENCABEZADO GENERAL -->
       <header class="settings-header">
