@@ -81,6 +81,7 @@
               type="checkbox"
               id="input-tutorial"
               v-model="settings.tutorial"
+              @change="sincronizarTutorialLocal"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
@@ -1012,7 +1013,7 @@ const colorPresets = {
 const settings = reactive({
   notificaciones: false,
   tutorial:
-    localStorage.getItem('tutorialActivo') === 'true',
+    localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true',
   idioma:
     localStorage.getItem('GYM_ADMIN-idioma') || 'es',
   densidad:
@@ -1180,13 +1181,17 @@ const guardarLocalApariencia = () => {
   aplicarEstilos();
   window.dispatchEvent(new CustomEvent('app-settings-updated', {detail: settings}));
 };
+const sincronizarTutorialLocal = () => {
+  localStorage.setItem('GYM_ADMIN-tutorialActivo', String(settings.tutorial));
+  window.dispatchEvent(new Event('tutorial-updated'));
+};
 const cargarAparienciaRemota = async () => {
   cargandoConfig.value = true;
   try {
     const respuesta = await apiApariencia();
     const apariencia = respuesta.apariencia;
     if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ADMIN-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
-    if (typeof respuesta.tutorial === 'boolean') settings.tutorial=respuesta.tutorial;
+    if (typeof respuesta.tutorial === 'boolean') { settings.tutorial = respuesta.tutorial; sincronizarTutorialLocal(); }
     if (apariencia && typeof apariencia === 'object') {
       if (apariencia.colors && typeof apariencia.colors === 'object') {
         settings.colors = {...defaultColors, ...apariencia.colors};
@@ -1221,9 +1226,8 @@ const guardarCambios = async () => {
       apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
-    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    sincronizarTutorialLocal();
     localStorage.setItem('GYM_ADMIN-idioma', settings.idioma);
-    window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
     showToast(settings.idioma === 'en' ? 'Your personal appearance was saved.' : 'Tu apariencia personal se guardó correctamente.');
   } catch(error) {
