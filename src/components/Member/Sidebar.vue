@@ -201,6 +201,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { aplicarAparienciaLocalMember } from './memberAppearance.js';
 import { useRouter } from 'vue-router';
 import { sesionMiembro, cargarSesionMiembro } from './memberSesion.js'; 
 
@@ -218,43 +219,7 @@ const handleLangChange = (e: Event): void => {
 
 
 // Función para aplicar los estilos globales del tema
-const aplicarEstilosGlobales = () => {
-  const savedColors = JSON.parse(localStorage.getItem('app-colors-member') || localStorage.getItem('app-colors') || '{}');
-  const savedRadius = localStorage.getItem('app-radius-member') || localStorage.getItem('app-radius');
-  const savedDensidad = localStorage.getItem('app-densidad-member') || localStorage.getItem('app-densidad');
-
-  const root = document.documentElement;
-
-  if (savedColors) {
-    if (savedColors.headingBg) root.style.setProperty('--color-heading-bg', savedColors.headingBg);
-    if (savedColors.tablas) root.style.setProperty('--color-tablas', savedColors.tablas);
-    if (savedColors.interfaz) {
-      root.style.setProperty('--color-interfaz', savedColors.interfaz);
-      root.style.setProperty('--bg-custom', savedColors.interfaz);
-    }
-    if (savedColors.botones) root.style.setProperty('--color-botones', savedColors.botones);
-    if (savedColors.tarjetas) root.style.setProperty('--bg-cards', savedColors.tarjetas);
-    if (savedColors.titulos) root.style.setProperty('--color-titulos', savedColors.titulos);
-    if (savedColors.highlight) root.style.setProperty('--color-highlight', savedColors.highlight);
-    if (savedColors.etiquetas) root.style.setProperty('--color-etiquetas', savedColors.etiquetas);
-    if (savedColors.textoGeneral) root.style.setProperty('--color-texto-general', savedColors.textoGeneral);
-    if (savedColors.textoBotones) root.style.setProperty('--color-texto-botones', savedColors.textoBotones);
-    if (savedColors.svgColor) root.style.setProperty('--color-svg', savedColors.svgColor);
-  }
-  
-  if (savedRadius) root.style.setProperty('--app-border-radius', savedRadius);
-  
-  if (savedDensidad === 'compacto') {
-    root.style.setProperty('--panel-padding', '16px');
-    root.style.setProperty('--row-padding', '10px 0');
-  } else if (savedDensidad === 'espacioso') {
-    root.style.setProperty('--panel-padding', '38px');
-    root.style.setProperty('--row-padding', '22px 0');
-  } else {
-    root.style.setProperty('--panel-padding', '30px');
-    root.style.setProperty('--row-padding', '16px 0');
-  }
-};
+const aplicarEstilosGlobales = () => aplicarAparienciaLocalMember();
 
 onMounted(() => {
   aplicarEstilosGlobales();

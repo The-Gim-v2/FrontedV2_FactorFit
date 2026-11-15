@@ -6,8 +6,8 @@
           <h1 class="main-title">{{ t('configPageTitle') }} <span class="highlight">{{ t('configPageHighlight') }}</span></h1>
           <p class="subtitle">{{ t('configPageSubtitle') }}</p>
         </div>
-        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios">
-          <span>{{ t('saveChangesBtn') }}</span>
+        <button id="btn-guardar-cambios" class="btn-primary" @click="guardarCambios" :disabled="guardandoConfig || cargandoConfig">
+          <span>{{ guardandoConfig ? (settings.idioma === 'en' ? 'Saving…' : 'Guardando…') : t('saveChangesBtn') }}</span>
         </button>
       </div>
       
@@ -225,8 +225,9 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted } from 'vue';
+import { reactive, computed, onMounted, ref, watch } from 'vue';
 import { solicitudMiembro } from './memberSesion.js';
+import { MEMBER_APARIENCIA, aplicarAparienciaMember, guardarAparienciaLocalMember } from './memberAppearance.js';
 import Headingmember from './HeadingMember.vue';
 import { useLang } from './useLang.js';
 
@@ -377,20 +378,10 @@ function safeJsonParse(raw, fallback = null) {
 // App.vue (antes este archivo usaba 'userRole', que no coincidía con nada
 // y por eso el bloque `if (userRole === 'member')` casi nunca se cumplía).
 // ============================================================
-const ROLE_KEY = 'user_role';
-
-const claveColores = () => {
-  const rol = (localStorage.getItem(ROLE_KEY) || '').toLowerCase();
-  return `app-colors-${rol}`; // ej: app-colors-member
-};
-const claveRadius = () => {
-  const rol = (localStorage.getItem(ROLE_KEY) || '').toLowerCase();
-  return `app-radius-${rol}`;
-};
-const claveDensidad = () => {
-  const rol = (localStorage.getItem(ROLE_KEY) || '').toLowerCase();
-  return `app-densidad-${rol}`;
-};
+// Claves fijas para Member, compartidas con Heading y Sidebar.
+const claveColores = () => MEMBER_APARIENCIA.colors;
+const claveRadius = () => MEMBER_APARIENCIA.radius;
+const claveDensidad = () => MEMBER_APARIENCIA.density;
 
 const defaultColors = {
   headingBg:    '#161726',  // --color-heading-bg
@@ -534,7 +525,7 @@ const colorPresets = {
 // en vez de 'app-colors' / 'app-densidad' / 'app-radius' globales.
 const settings = reactive({
   notificaciones: false,
-  tutorial: localStorage.getItem('tutorialActivo') === 'true', 
+  tutorial: localStorage.getItem(MEMBER_APARIENCIA.tutorial) === 'true', 
   idioma: localStorage.getItem('member-idioma') || 'es',
   densidad: localStorage.getItem(claveDensidad()) || 'normal',
   borderRadius: localStorage.getItem(claveRadius()) || '16px',
@@ -573,102 +564,79 @@ const showToast = (msg) => {
   setTimeout(() => { toast.visible = false; }, 3000);
 };
 
-const restaurarColoresPorDefecto = () => {
-  settings.colors = { ...defaultColors };
-  guardarCambios(); 
-  showToast(t('toastColorsRestored'));
-};
+const guardandoConfig = ref(false);
+const cargandoConfig = ref(false);
 
-const aplicarPreset = (tipoPreset) => {
-  if (colorPresets[tipoPreset]) {
-    settings.colors = { ...colorPresets[tipoPreset].colors };
-    // CAMBIO: se guarda en la llave namespaceada por rol, no en 'app-colors' global.
-    localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
-    aplicarEstilos();
-    window.dispatchEvent(new CustomEvent('app-settings-updated', { detail: settings }));
-    showToast(t('toastPresetApplied').replace('{label}', colorPresets[tipoPreset].label));
-  }
-};
+const payloadConfiguracion = () => ({
+  idioma: settings.idioma,
+  densidad: settings.densidad,
+  borderRadius: settings.borderRadius,
+  colors: { ...settings.colors },
+  tutorial: !!settings.tutorial,
+  notificaciones: !!settings.notificaciones,
+});
+
+const aplicarEstilos = () => aplicarAparienciaMember(payloadConfiguracion());
 
 const guardarCambios = async () => {
+  if (guardandoConfig.value || cargandoConfig.value) return;
+  guardandoConfig.value = true;
   try {
-    // El servidor es la fuente de verdad: no anunciar éxito antes de que confirme.
-    const preferencia = {
-      idioma: settings.idioma, densidad: settings.densidad,
-      borderRadius: settings.borderRadius, colors: { ...settings.colors },
-      tutorial: !!settings.tutorial, notificaciones: !!settings.notificaciones
-    };
+    const preferencias = payloadConfiguracion();
     await solicitudMiembro('/api/member/configuracion', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(preferencia)
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferencias),
     });
-    localStorage.setItem('tutorialActivo', String(settings.tutorial));
-    localStorage.setItem('member-idioma', settings.idioma);
-    localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
-    localStorage.setItem(claveDensidad(), settings.densidad);
-    localStorage.setItem(claveRadius(), settings.borderRadius);
-    aplicarEstilos();
+    guardarAparienciaLocalMember(preferencias);
+    setLang(preferencias.idioma);
     window.dispatchEvent(new Event('tutorial-updated'));
-    window.dispatchEvent(new CustomEvent('app-settings-updated', { detail: settings }));
-    window.dispatchEvent(new CustomEvent('idioma-changed', { detail: { idioma: settings.idioma } }));
+    window.dispatchEvent(new CustomEvent('idioma-changed', { detail: { idioma: preferencias.idioma } }));
+    window.dispatchEvent(new CustomEvent('language-changed', { detail: { idioma: preferencias.idioma } }));
     showToast(t('toastmemberSaved'));
   } catch (error) {
-    console.error('No se pudo guardar la configuración del miembro:', error);
-    showToast(error?.message || t('toastSaveError'));
+    console.error('No fue posible guardar las preferencias de Member:', error);
+    showToast(error instanceof Error ? error.message : t('toastSaveError'));
+  } finally {
+    guardandoConfig.value = false;
   }
 };
 
-const aplicarEstilos = () => {
-  const root = document.documentElement;
-  root.style.setProperty('--color-heading-bg', settings.colors.headingBg);
-  root.style.setProperty('--color-tablas', settings.colors.tablas);
-  root.style.setProperty('--color-interfaz', settings.colors.interfaz);
-  root.style.setProperty('--color-botones', settings.colors.botones);
-  root.style.setProperty('--bg-cards', settings.colors.tarjetas);
-  root.style.setProperty('--bg-custom', settings.colors.interfaz);
-  root.style.setProperty('--app-border-radius', settings.borderRadius);
-  
-  root.style.setProperty('--color-titulos', settings.colors.titulos);
-  root.style.setProperty('--color-highlight', settings.colors.highlight);
-  root.style.setProperty('--color-etiquetas', settings.colors.etiquetas);
-  root.style.setProperty('--color-texto-general', settings.colors.textoGeneral);
-  root.style.setProperty('--color-texto-botones', settings.colors.textoBotones);
-  root.style.setProperty('--color-svg', settings.colors.svgColor);
+const restaurarColoresPorDefecto = async () => {
+  settings.colors = { ...defaultColors };
+  aplicarEstilos();
+  await guardarCambios();
+};
 
-  if (settings.densidad === 'compacto') {
-    root.style.setProperty('--panel-padding', '16px');
-    root.style.setProperty('--row-padding', '10px 0');
-  } else if (settings.densidad === 'espacioso') {
-    root.style.setProperty('--panel-padding', '38px');
-    root.style.setProperty('--row-padding', '22px 0');
-  } else {
-    root.style.setProperty('--panel-padding', '30px');
-    root.style.setProperty('--row-padding', '16px 0');
-  }
+const aplicarPreset = async (tipoPreset) => {
+  if (!colorPresets[tipoPreset]) return;
+  settings.colors = { ...colorPresets[tipoPreset].colors };
+  aplicarEstilos();
+  await guardarCambios();
 };
 
 onMounted(async () => {
   aplicarEstilos();
-
-  window.addEventListener('idioma-changed', (e) => {
-    if (e.detail && e.detail.idioma) {
-      settings.idioma = e.detail.idioma;
-    }
-  });
-
+  cargandoConfig.value = true;
   try {
     const data = await solicitudMiembro('/api/member/configuracion');
-    if (data && data.idioma) settings.idioma = data.idioma;
+    if (data && ['es','en'].includes(data.idioma)) settings.idioma = data.idioma;
     if (data && typeof data.tutorial === 'boolean') settings.tutorial = data.tutorial;
     if (data && typeof data.notificaciones === 'boolean') settings.notificaciones = data.notificaciones;
-    if (data && data.densidad) settings.densidad = data.densidad;
-    if (data && data.borderRadius) settings.borderRadius = data.borderRadius;
+    if (data && ['espacioso','normal','compacto'].includes(data.densidad)) settings.densidad = data.densidad;
+    if (data && ['8px','16px','24px'].includes(data.borderRadius)) settings.borderRadius = data.borderRadius;
     if (data && data.colors && typeof data.colors === 'object') settings.colors = { ...defaultColors, ...data.colors };
-    aplicarEstilos();
+    guardarAparienciaLocalMember(payloadConfiguracion());
   } catch (e) {
-    console.warn('No se pudo consultar la configuración guardada:', e);
+    console.warn('No se pudo consultar la configuración personal del miembro:', e);
+    // Los ajustes locales existentes permanecen visibles durante una falla de red.
+    showToast(e instanceof Error ? e.message : t('toastSaveError'));
+  } finally {
+    cargandoConfig.value = false;
   }
 });
+
+watch(() => ({ ...settings.colors, densidad: settings.densidad, borderRadius: settings.borderRadius }), () => aplicarEstilos(), { deep: true });
 
 const exportar = async (tipo) => {
   try {

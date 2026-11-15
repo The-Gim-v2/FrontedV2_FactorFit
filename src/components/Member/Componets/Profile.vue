@@ -2,7 +2,7 @@
 import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingAtleta from '../HeadingMember.vue';
-import MembershipModal from '../Modals/UpgradeMembershipModal.vue';
+import { solicitudMiembro, cargarSesionMiembro } from '../memberSesion.js';
 
 const router = useRouter();
 
@@ -385,41 +385,51 @@ const showNotification = (msg: string, type: ToastType = 'success', duration = 4
    FORMULARIO
    ========================================================= */
 const form = reactive({
-  // Personales (solo lectura)
-  nombres: 'Carlos Alberto',
-  apellidoP: 'Martínez',
-  apellidoM: 'Sánchez',
-  fechaNacimiento: '1998-07-22',
-  // Contacto
-  celular: '4811234567',
-  email: 'atleta@ironfitness.com',
-  // Ubicación
-  direccion: 'Av. Las Palmas #420',
-  ciudad: 'Ciudad Valles',
-  estado: 'San Luis Potosí',
-  codigoPostal: '79000',
-  // Cuenta
-  status: 'activo' as 'activo' | 'pendiente' | 'suspendido',
-  // Medidas
-  peso: '75.5',
-  altura: '178',
-  grasaCorporal: '14.5',
-  masaMuscular: '38.2',
-  pecho: '102',
-  cintura: '81',
-  brazos: '37',
-  legs: '58',
-  // Membresía del gimnasio (solo lectura)
-  tipoMembresia: 'mes',
-  fechaInscripcion: '2026-01-15',
-  fechaCorte: '2026-09-15',
-  montoPagado: '650.00',
-  // Suscripción web
-  webPlan: 'Plan Pro - Sede Principal (Activa)',
-  // Seguridad
-  password: '',
-  confirmPassword: ''
+  nombres: '', apellidoP: '', apellidoM: '', fechaNacimiento: '',
+  celular: '', email: '', direccion: '', ciudad: '', estado: '', codigoPostal: '',
+  status: 'pendiente' as 'activo' | 'pendiente' | 'suspendido',
+  peso: '', altura: '', grasaCorporal: '', masaMuscular: '',
+  pecho: '', cintura: '', brazos: '', legs: '',
+  tipoMembresia: 'mes', fechaInscripcion: '', fechaCorte: '', montoPagado: '',
+  webPlan: 'No disponible', password: '', confirmPassword: ''
 });
+const cargandoPerfil = ref(true);
+const guardandoPerfil = ref(false);
+let fotoPersistida: string | null = null;
+const camposPerfil = [
+  'nombres','apellidoP','apellidoM','fechaNacimiento','celular','email',
+  'direccion','ciudad','estado','codigoPostal','peso','altura',
+  'grasaCorporal','masaMuscular','pecho','cintura','brazos','legs',
+  'tipoMembresia','fechaInscripcion','fechaCorte','montoPagado','webPlan','status'
+] as const;
+function asignarPerfil(perfil: Record<string, unknown>) {
+  for (const campo of camposPerfil) {
+    const valor = perfil[campo];
+    if (campo === 'status') {
+      form.status = (valor === 'activo' || valor === 'suspendido' ? valor : 'pendiente');
+    } else {
+      (form as unknown as Record<string, string>)[campo] = valor === null || valor === undefined ? '' : String(valor);
+    }
+  }
+  form.webPlan = 'No disponible';
+  fotoPersistida = typeof perfil.foto_url === 'string' ? perfil.foto_url : null;
+  if (previewImage.value?.startsWith('blob:')) URL.revokeObjectURL(previewImage.value);
+  previewImage.value = fotoPersistida;
+  avatarFile.value = null;
+  originalEmail.value = form.email;
+}
+async function cargarPerfil() {
+  cargandoPerfil.value = true;
+  try {
+    const datos = await solicitudMiembro<{ perfil: Record<string, unknown> }>('/api/member/perfil');
+    asignarPerfil(datos.perfil || {});
+  } catch (e) {
+    showNotification(e instanceof Error ? e.message : 'No se pudo cargar el perfil', 'error', 6000);
+  } finally {
+    cargandoPerfil.value = false;
+  }
+}
+
 
 const originalEmail = ref(form.email);
 const showPassword = ref(false);
@@ -452,7 +462,7 @@ const statusLabel = computed(() =>
 );
 
 const membershipLabel = computed(() =>
-  form.tipoMembresia === 'mes' ? t.value.monthlyMembership : t.value.weeklyMembership
+  !form.fechaInscripcion ? '—' : (form.tipoMembresia === 'mes' ? t.value.monthlyMembership : t.value.weeklyMembership)
 );
 
 const formatDate = (iso: string) => {
@@ -588,68 +598,63 @@ const validateForm = () => {
 };
 
 const showEmailModal = ref(false);
-
+async function guardarPerfil() {
+  if (guardandoPerfil.value || cargandoPerfil.value || !validateForm()) return;
+  guardandoPerfil.value = true;
+  try {
+    const payload = new FormData();
+    const editables = ['celular','email','direccion','ciudad','estado','codigoPostal',
+      'peso','altura','grasaCorporal','masaMuscular','pecho','cintura','brazos','legs'] as const;
+    for (const campo of editables) payload.append(campo, String(form[campo] ?? ''));
+    if (form.password) {
+      payload.append('password', form.password);
+      payload.append('password_confirmation', form.confirmPassword);
+    }
+    if (avatarFile.value) payload.append('foto', avatarFile.value);
+    const datos = await solicitudMiembro<{
+      perfil: Record<string, unknown>; requiere_login?: boolean; message?: string
+    }>('/api/member/perfil', { method: 'POST', body: payload });
+    asignarPerfil(datos.perfil || {});
+    form.password = '';
+    form.confirmPassword = '';
+    showEmailModal.value = false;
+    if (datos.requiere_login) {
+      showNotification(t.value.emailChangedMsg, 'info', 6000);
+      // Invalidar sólo la sesión de Member: no conservar credenciales revocadas.
+      for (const storage of [sessionStorage, localStorage]) {
+        for (const key of ['auth_token','token','access_token','member_token','user','user_role']) storage.removeItem(key);
+      }
+      await router.replace('/login');
+      return;
+    }
+    await cargarSesionMiembro(true).catch(() => {});
+    showNotification(t.value.savedSuccessMsg, 'success');
+  } catch (e) {
+    showNotification(e instanceof Error ? e.message : 'No se pudieron guardar los datos', 'error', 6000);
+  } finally { guardandoPerfil.value = false; }
+}
 const handleSaveChanges = () => {
-  if (!validateForm()) return;
-
-  if (form.email.trim() !== originalEmail.value) {
+  if (!validateForm() || guardandoPerfil.value || cargandoPerfil.value) return;
+  if (form.email.trim().toLowerCase() !== originalEmail.value.trim().toLowerCase()) {
     showEmailModal.value = true;
     return;
   }
-
-  // Lógica de guardado...
-  form.password = '';
-  form.confirmPassword = '';
-  showNotification(t.value.savedSuccessMsg, 'success');
+  void guardarPerfil();
 };
-
 const confirmEmailAndPasswordChange = () => {
   if (!form.password || form.password.length < 8 || form.password !== form.confirmPassword) {
-    showNotification(t.value.passwordWarningMsg, 'warning');
-    return;
+    showNotification(t.value.passwordWarningMsg, 'warning'); return;
   }
-
-  // Lógica de guardado...
-  originalEmail.value = form.email.trim();
-  showEmailModal.value = false;
-  showNotification(t.value.emailChangedMsg, 'info', 5000);
-
-  setTimeout(() => {
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.replace({ name: 'login' });
-  }, 2000);
+  void guardarPerfil();
 };
 
-/* =========================================================
-   SUSCRIPCIÓN WEB
-   ========================================================= */
-const showPaymentModal = ref(false);
-
-const handleUpdateMembership = () => {
-  showPaymentModal.value = true;
-};
-
-const handlePaymentSuccess = (msg: string) => {
-  showPaymentModal.value = false;
-  showNotification(msg, 'success');
-};
-
+// No existe un plan web del cliente independiente de la membresía física
+// en el esquema proporcionado: se evita simular cobros o cancelaciones.
+const handleUpdateMembership = () => showNotification('La contratación web todavía no está habilitada.', 'info');
 const showCancelModal = ref(false);
+const handleCancelSubscription = () => showNotification('No hay una suscripción web independiente para cancelar.', 'info');
+const confirmCancelSubscription = () => { showCancelModal.value = false; };
 
-const handleCancelSubscription = () => {
-  showCancelModal.value = true;
-};
-
-const confirmCancelSubscription = () => {
-  showCancelModal.value = false;
-  showNotification(t.value.subscriptionCancelledMsg, 'warning');
-};
-
-/* =========================================================
-   FOTO DE PERFIL (cámara o galería)
-   ========================================================= */
 const fileInput = ref<HTMLInputElement | null>(null);
 const previewImage = ref<string | null>(null);
 const avatarFile = ref<File | null>(null);
@@ -676,14 +681,14 @@ const onFileSelected = (event: Event) => {
   const file = input.files?.[0];
   if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 3 * 1024 * 1024) {
     showNotification(t.value.invalidImageMsg, 'warning');
     input.value = '';
     return;
   }
 
   setAvatarFile(file);
-  showNotification(t.value.photoUpdatedMsg, 'success');
+  showNotification('Foto seleccionada. Pulsa Guardar cambios para subirla.', 'info');
   input.value = '';
 };
 
@@ -829,7 +834,7 @@ const capturePhoto = () => {
       setAvatarFile(file);
       closeCamera();
 
-      showNotification(t.value.photoCapturedMsg, 'success');
+      showNotification('Foto capturada. Pulsa Guardar cambios para subirla.', 'info');
     },
     'image/jpeg',
     0.92
@@ -842,6 +847,7 @@ const capturePhoto = () => {
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange as EventListener);
   initScrollSpy();
+  void cargarPerfil();
 });
 
 onUnmounted(() => {
@@ -1319,7 +1325,7 @@ onUnmounted(() => {
                   <button
                     type="button"
                     class="btn-icon-action"
-                    id="tutorial-sync-plan-btn"
+                    id="tutorial-sync-plan-btn" disabled
                     :title="t.syncPlanTitle"
                     :aria-label="t.syncPlanTitle"
                     @click="handleUpdateMembership"
@@ -1333,7 +1339,7 @@ onUnmounted(() => {
               </div>
 
               <div class="cancel-sub-wrapper" id="tutorial-cancel-sub-wrapper">
-                <button type="button" class="btn-text-danger" @click="handleCancelSubscription">
+                <button type="button" class="btn-text-danger" disabled @click="handleCancelSubscription">
                   {{ t.cancelSubscriptionBtn }}
                 </button>
               </div>
@@ -1434,13 +1440,13 @@ onUnmounted(() => {
                 <span>{{ t.saveDescription }}</span>
               </div>
 
-              <button type="submit" class="save-button" id="tutorial-save-btn">
+              <button type="submit" class="save-button" id="tutorial-save-btn" :disabled="guardandoPerfil || cargandoPerfil">
                 <svg viewBox="0 0 24 24">
                   <path d="M5 3h14l2 2v16H3V3z" />
                   <path d="M8 3v6h8V3M8 21v-7h8v7" />
                 </svg>
 
-                {{ t.saveChangesBtn }}
+                {{ guardandoPerfil ? (currentLang === 'en' ? 'Saving…' : 'Guardando…') : t.saveChangesBtn }}
               </button>
             </div>
           </form>
@@ -1666,12 +1672,6 @@ onUnmounted(() => {
       </div>
     </main>
 
-    <!-- MODAL: ACTUALIZAR PLAN WEB -->
-    <transition name="pop">
-      <div v-if="showPaymentModal" class="modal-wrapper" @click.self="showPaymentModal = false">
-        <MembershipModal @close="showPaymentModal = false" @success="handlePaymentSuccess" />
-      </div>
-    </transition>
   </HeadingAtleta>
 </template>
 
