@@ -139,15 +139,15 @@
 
             <div class="finance-main occupancy-main">
               <span>{{ ui.currentOccupancy }}</span>
-              <strong>{{ managerStats.enInstalaciones }} <small>/ —</small></strong>
-              <div class="occupancy-progress"><i style="width:0%"></i></div>
-              <small>{{ ingresosLoaded ? 'Aforo no configurado en los datos consultados' : 'Sin datos de ocupación' }}</small>
+              <strong>{{ managerStats.enInstalaciones }} <small>/ {{ capacityLabel }}</small></strong>
+              <div class="occupancy-progress"><i :style="{ width: occupancyPercentage + '%' }"></i></div>
+              <small>{{ occupancyInfoLabel }}</small>
             </div>
 
             <div class="finance-stats operation-stats">
-              <div><span>{{ ui.peakHour }}</span><strong>—</strong></div>
-              <div><span>{{ ui.averageStay }}</span><strong>—</strong></div>
-              <div><span>{{ ui.accessStatus }}</span><strong class="status-ok">—</strong></div>
+              <div><span>{{ ui.peakHour }}</span><strong>{{ operationalStats.peak || '—' }}</strong></div>
+              <div><span>{{ ui.averageStay }}</span><strong>{{ averageStayDisplay }}</strong></div>
+              <div><span>{{ ui.accessStatus }}</span><strong class="status-ok">{{ accessStatusLabel }}</strong></div>
             </div>
           </article>
         </section>
@@ -426,6 +426,10 @@ const activeModal = ref(null);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);
 const billingStatus = ref('unknown');
+const statusLoaded = ref(false);
+const gymOpenLoaded = ref(false);
+const maxCapacity = ref(null);
+const statusMessage = ref('');
 
 let stream = null;
 
@@ -446,6 +450,7 @@ const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').repla
 const route = useRoute();
 const activeSede = ref(0);
 const loadingIdentity = ref(false);
+const identityLoaded = ref(false);
 const identityError = ref('');
 let identityRequest = 0;
 // El encabezado de Gerente lee la sucursal asignada desde gym_account.usuario.sedes.
@@ -515,11 +520,49 @@ const sedeId = () => {
   const candidate = activeSede.value || validSedeId(route.query.sede_id) || storedSede();
   return candidate && (!assigned.length || assigned.includes(candidate)) ? candidate : (assigned[0] || 0);
 };
+// Estado de cuenta compartido por el gimnasio, nunca inferido del rol ni del horario.
+const syncBillingState = (...sources) => {
+  const seen = new Set();
+  const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+  const interpret = (value) => {
+    if (value === true) return 'active';
+    if (value === false) return 'blocked';
+    const state = normalize(value);
+    if (['active','activo','activa','vigente','al corriente','cuenta al corriente','pagado','paid','current','ok'].includes(state)) return 'active';
+    if (['pending','pendiente','por pagar','past due','vencimiento','grace'].includes(state)) return 'pending';
+    if (['blocked','bloqueado','bloqueada','suspendido','suspendida','vencido','vencida','expired','cancelado','cancelada','moroso'].includes(state)) return 'blocked';
+    return null;
+  };
+  const inspect = (source, depth = 0) => {
+    if (source === null || typeof source !== 'object' || depth > 2 || seen.has(source)) return null;
+    seen.add(source);
+    const named = ['estado_cuenta','Estado_Cuenta','estado_suscripcion','Estado_Suscripcion','billing_status','billingStatus','estado_pago_suscripcion','estatus_cuenta','Estatus_Cuenta','estatus_suscripcion','Estatus_Suscripcion','status_suscripcion','estado_facturacion','Estado_Pago'];
+    for (const key of named) if (Object.prototype.hasOwnProperty.call(source,key)) {
+      const result = interpret(source[key]);
+      if (result) return result;
+    }
+    for (const key of ['cuenta_al_corriente','al_corriente','suscripcion_vigente']) {
+      if (typeof source[key] === 'boolean') return interpret(source[key]);
+    }
+    for (const key of ['cuenta','suscripcion','facturacion','billing','gym','gimnasio','data']) {
+      const result = inspect(source[key],depth+1);
+      if (result) return result;
+    }
+    return null;
+  };
+  for (const source of sources) {
+    const resolved = inspect(source);
+    if (resolved) { billingStatus.value = resolved; statusLoaded.value = true; return; }
+  }
+  // Si la API no informa la suscripción, jamás dibujar un estado verde falso.
+};
 const loadGymIdentity = async () => {
   const seq = ++identityRequest;
   const id = sedeId();
   loadingIdentity.value = true;
   identityError.value = '';
+  identityLoaded.value = false;
+  maxCapacity.value = null;
   if (!id) { identityError.value = 'No se encontró la sucursal asignada en la sesión del gerente. Vuelve a iniciar sesión.'; loadingIdentity.value = false; return; }
   try {
     const token = getToken();
@@ -530,6 +573,10 @@ const loadGymIdentity = async () => {
     if (seq !== identityRequest) return;
     const info = data.gimnasio || {};
     const branch = data.sede || {};
+    const capacityRaw = branch.aforo_maximo ?? branch.capacidad_maxima ?? branch.capacidad ?? data.aforo_maximo ?? data.capacidad_maxima ?? null;
+    maxCapacity.value = capacityRaw !== null && capacityRaw !== '' && Number.isFinite(Number(capacityRaw)) && Number(capacityRaw) > 0 ? Number(capacityRaw) : null;
+    syncBillingState(info, data);
+    identityLoaded.value = true;
     gym.value = {
       name: String(info.nombre || 'Mi gimnasio'), logoUrl: info.logo_url || null, coverUrl: info.portada_url || null,
       membershipEnd: null,
@@ -547,7 +594,9 @@ const onBranchChanged = (event) => {
   const detail = event.detail || {};
   const branch = detail.sede && typeof detail.sede === 'object' ? detail.sede : {};
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
+  const previousSede = sedeId();
   activeSede.value = validSedeId(id) && (!assignedSedeIds().length || assignedSedeIds().includes(id)) ? id : 0;
+  if (sedeId() !== previousSede) { metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; billingStatus.value = 'unknown'; statusLoaded.value = false; gymOpenLoaded.value = false; }
   void loadGymIdentity();
   void loadManagerMetrics();
   void loadManagerStatus();
@@ -557,7 +606,7 @@ const onGymProfileUpdated = (event) => {
   if (!id || id === sedeId()) { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); }
 };
 const onTabVisible = () => { if (document.visibilityState === 'visible') { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); } };
-watch(() => route.query.sede_id, () => { activeSede.value = 0; void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); });
+watch(() => route.query.sede_id, () => { activeSede.value = 0; metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; registrosAsistencia.value = []; billingStatus.value = 'unknown'; statusLoaded.value = false; gymOpenLoaded.value = false; void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -751,40 +800,112 @@ const nowParts = () => {
   const value = (k) => parts.find(p => p.type === k)?.value || '';
   return { today: `${value('year')}-${value('month')}-${value('day')}` };
 };
+let metricsInFlight = null;
 const loadManagerMetrics = async () => {
-  const seq = ++metricsSeq;
   const id = sedeId();
-  if (!id) { inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; ingresosLoaded.value = false; asistenciaLoaded.value = false; metricsError.value = 'No se encontró el ID de la sede asignada en la sesión.'; return; }
-  const results = await Promise.allSettled([
-    apiGet(`/api/gym/ingresos?sede_id=${id}`),
-    apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
-  ]);
-  if (seq !== metricsSeq) return;
-  const [ingresos, asistencia] = results;
-  ingresosLoaded.value = ingresos.status === 'fulfilled' && Array.isArray(ingresos.value.inscripciones);
-  asistenciaLoaded.value = asistencia.status === 'fulfilled' && Array.isArray(asistencia.value.asistencias);
-  inscripciones.value = ingresosLoaded.value ? ingresos.value.inscripciones : [];
-  pagosConfirmados.value = ingresosLoaded.value && Array.isArray(ingresos.value.pagos_confirmados) ? ingresos.value.pagos_confirmados : [];
-  registrosAsistencia.value = asistenciaLoaded.value ? asistencia.value.asistencias : [];
-  const errores = [ingresos, asistencia].filter(r => r.status === 'rejected').map(r => r.reason?.message || 'Error al consultar métricas');
-  if (ingresos.status === 'fulfilled' && !Array.isArray(ingresos.value?.inscripciones)) errores.push('La API de ingresos no devolvió inscripciones en el formato esperado.');
-  if (asistencia.status === 'fulfilled' && !Array.isArray(asistencia.value?.asistencias)) errores.push('La API de asistencias no devolvió asistencias en el formato esperado.');
-  metricsError.value = errores.join(' · ');
+  if (!id) { inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; ingresosLoaded.value = false; asistenciaLoaded.value = false; metricsError.value = 'No se encontró la sede asignada.'; return; }
+  if (metricsInFlight?.id === id) return metricsInFlight.promise;
+  const seq = ++metricsSeq;
+  const errors = {};
+  metricsError.value = '';
+  // Cargar cada panel en cuanto responda su API; no esperar a la más lenta.
+  const income = apiGet(`/api/gym/ingresos?sede_id=${id}`).then(data => {
+    if (seq !== metricsSeq) return;
+    if (!Array.isArray(data.inscripciones)) throw new Error('La API de ingresos no devolvió inscripciones.');
+    inscripciones.value = data.inscripciones;
+    pagosConfirmados.value = Array.isArray(data.pagos_confirmados) ? data.pagos_confirmados : [];
+    ingresosLoaded.value = true;
+    delete errors.ingresos;
+  }).catch(error => {
+    if (seq !== metricsSeq) return;
+    ingresosLoaded.value = false; inscripciones.value = []; pagosConfirmados.value = [];
+    errors.ingresos = `Ingresos: ${error?.message || 'Error de conexión'}`;
+    metricsError.value = Object.values(errors).join(' · ');
+  });
+  const attendance = apiGet(`/api/gym/asistencias-semana?sede_id=${id}`).then(data => {
+    if (seq !== metricsSeq) return;
+    if (!Array.isArray(data.asistencias)) throw new Error('La API de asistencias no devolvió asistencias.');
+    registrosAsistencia.value = data.asistencias;
+    asistenciaLoaded.value = true;
+    delete errors.asistencia;
+  }).catch(error => {
+    if (seq !== metricsSeq) return;
+    asistenciaLoaded.value = false; registrosAsistencia.value = [];
+    errors.asistencia = `Asistencias: ${error?.message || 'Error de conexión'}`;
+    metricsError.value = Object.values(errors).join(' · ');
+  });
+  const promise = Promise.allSettled([income, attendance]).then(() => {
+    if (seq === metricsSeq) metricsError.value = Object.values(errors).join(' · ');
+  }).finally(() => { if (metricsInFlight?.promise === promise) metricsInFlight = null; });
+  metricsInFlight = { id, promise };
+  return promise;
 };
 const loadManagerStatus = async () => {
   const id = sedeId();
   if (!id) return;
-  try { const data = await apiGet(`/api/gym/estado?sede_id=${id}`); isGymOpen.value = Boolean(data?.estado?.abierto); }
-  catch { isGymOpen.value = false; }
+  try {
+    const data = await apiGet(`/api/gym/estado?sede_id=${id}`);
+    if (id !== sedeId()) return;
+    isGymOpen.value = Boolean(data?.estado?.abierto);
+    gymOpenLoaded.value = data?.estado?.abierto !== undefined && data?.estado?.abierto !== null;
+    syncBillingState(data?.cuenta, data?.suscripcion, data?.gimnasio, data);
+    const aforo = data?.sede?.aforo_maximo ?? data?.sede?.capacidad_maxima ?? data?.capacidad_maxima ?? data?.aforo_maximo ?? null;
+    if (aforo !== null && Number.isFinite(Number(aforo)) && Number(aforo) > 0) maxCapacity.value = Number(aforo);
+    statusMessage.value = '';
+  } catch (error) { if (id === sedeId()) { statusMessage.value = error?.message || 'No se pudo consultar el estado.'; gymOpenLoaded.value = false; isGymOpen.value = false; } }
 };
+// Solo usar horas verificables presentes en las respuestas; no inferir presencia de un registro semanal.
+const timePart = (value) => {
+  if (value === null || value === undefined || value === '') return '';
+  const raw = String(value);
+  const match = raw.match(/(?:T|\s|^)([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?/);
+  return match ? `${match[1]}:${match[2]}` : '';
+};
+const minuteOfDay = (value) => {
+  const parts = timePart(value).split(':');
+  return parts.length === 2 ? Number(parts[0]) * 60 + Number(parts[1]) : null;
+};
+const operationalStats = computed(() => {
+  if (!asistenciaLoaded.value) return { inside: null, peak: null, average: null, access: null };
+  const records = registrosAsistencia.value;
+  const today = nowParts().today;
+  const withDetails = records.filter(r => r && (r.hora_entrada != null || r.Fecha_Entrada != null || r.fecha_entrada != null));
+  // Si solo se devuelve fecha, no hay forma fiable de calcular quién sigue dentro.
+  const todayRecords = withDetails.filter(r => String(r.fecha ?? r.Fecha_Entrada ?? r.fecha_entrada ?? '').slice(0,10) === today);
+  const entries = todayRecords.filter(r => minuteOfDay(r.hora_entrada ?? r.Fecha_Entrada ?? r.fecha_entrada) !== null);
+  const hasExitData = entries.length > 0 && entries.some(r => 'Fecha_Salida' in r || 'fecha_salida' in r || 'hora_salida' in r);
+  const inside = hasExitData ? new Set(entries.filter(r => {
+    const exit = r.Fecha_Salida ?? r.fecha_salida ?? r.hora_salida;
+    return exit === null || exit === '';
+  }).map(r => String(r.ID_Inscripto ?? r.id_inscripto ?? r.ID_Asistencia ?? ''))).size : null;
+  const byHour = Array(24).fill(0);
+  for (const item of withDetails) {
+    const entry = minuteOfDay(item.hora_entrada ?? item.Fecha_Entrada ?? item.fecha_entrada);
+    if (entry !== null) byHour[Math.floor(entry / 60)]++;
+  }
+  const peak = byHour.some(Boolean) ? `${String(byHour.indexOf(Math.max(...byHour))).padStart(2,'0')}:00` : null;
+  const durations = withDetails.map(r => {
+    const entry = minuteOfDay(r.hora_entrada ?? r.Fecha_Entrada ?? r.fecha_entrada);
+    const exit = minuteOfDay(r.hora_salida ?? r.Fecha_Salida ?? r.fecha_salida);
+    return entry !== null && exit !== null && exit >= entry ? exit - entry : null;
+  }).filter(v => v !== null);
+  const average = durations.length ? Math.round(durations.reduce((a,b) => a+b,0) / durations.length) : null;
+  return { inside, peak, average, access: null };
+});
+const averageStayDisplay = computed(() => operationalStats.value.average === null ? '—' : `${Math.floor(operationalStats.value.average / 60)} h ${operationalStats.value.average % 60} min`);
+const accessStatusLabel = computed(() => !gymOpenLoaded.value || statusMessage.value ? '—' : (isGymOpen.value ? (currentLang.value === 'en' ? 'Open' : 'Abierto') : (currentLang.value === 'en' ? 'Closed' : 'Cerrado')));
+
+const occupancyPercentage = computed(() => maxCapacity.value && operationalStats.value.inside !== null ? Math.min(100, Math.round(operationalStats.value.inside / maxCapacity.value * 100)) : 0);
+const capacityLabel = computed(() => maxCapacity.value === null ? '—' : String(maxCapacity.value));
+const occupancyInfoLabel = computed(() => maxCapacity.value === null ? 'Aforo no registrado en la información de esta sede' : operationalStats.value.inside === null ? 'Sin registros de entradas y salidas completos' : `${occupancyPercentage.value}% de ocupación`);
 const managerStats = computed(() => {
   const today = nowParts().today;
   const debtors = inscripciones.value.filter(r => Number(r.saldo_a_pagar || 0) > 0);
   const expiring = inscripciones.value.filter(r => r.estatus_inscripcion === 'Próximo a vencer');
   const todayAccess = new Set(registrosAsistencia.value.filter(r => r.fecha === today).map(r => Number(r.ID_Inscripto)));
-  return { entradasHoy: asistenciaLoaded.value ? todayAccess.size : '—', enInstalaciones: '—', deudores: ingresosLoaded.value ? debtors.length : '—', porVencer: ingresosLoaded.value ? expiring.length : '—', vencidos: ingresosLoaded.value ? inscripciones.value.filter(r => r.estatus_inscripcion === 'Inactivo').length : 0 };
+  return { entradasHoy: asistenciaLoaded.value ? todayAccess.size : '—', enInstalaciones: operationalStats.value.inside ?? '—', deudores: ingresosLoaded.value ? debtors.length : '—', porVencer: ingresosLoaded.value ? expiring.length : '—', vencidos: ingresosLoaded.value ? inscripciones.value.filter(r => r.estatus_inscripcion === 'Inactivo').length : 0 };
 });
-const occupancyRatio = computed(() => '—'); // No hay aforo máximo ni ocupación actual verificados en estas APIs.
+const occupancyRatio = computed(() => maxCapacity.value !== null && operationalStats.value.inside !== null ? `${occupancyPercentage.value}%` : '—');
 const initials = (name) => String(name || 'Cliente').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
 const recentActivity = computed(() => {
   const clients = new Map(inscripciones.value.map(i => [Number(i.ID_Inscripto), i]));
@@ -862,7 +983,7 @@ const runQuickAction = (action) => {
 const billingStatusText = computed(() => {
   if (billingStatus.value === 'active') return t.value.cuentaCorriente;
   if (billingStatus.value === 'pending') return t.value.pendientePago;
-  return billingStatus.value === 'blocked' ? t.value.bloqueadoPago : '—';
+  return billingStatus.value === 'blocked' ? t.value.bloqueadoPago : (currentLang.value === 'es' ? 'Estado no disponible' : 'Status unavailable');
 });
 
 
