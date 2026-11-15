@@ -1,13 +1,16 @@
 <template>
   <HeadingMember>
     <div class="dashboard">
+      <p v-if="dashboardError" role="alert" class="member-dashboard-message">{{ dashboardError }} <button type="button" @click="cargarDashboardMiembro(selectedInscripcionId)">Reintentar</button></p>
+      <p v-if="loadingDashboard" class="member-dashboard-message">Cargando datos reales del miembro…</p>
       <main class="dashboard-container">
 
         <!-- 1. ENCABEZADO: miembro a la izquierda, gimnasio a la derecha -->
         <section class="hero">
           <div class="hero-member">
             <div class="avatar">
-              <img :src="member.photoUrl" :alt="member.name" />
+              <img v-if="member.photoUrl" :src="member.photoUrl" :alt="member.name" />
+              <span v-else class="avatar-fallback">{{ member.name && member.name !== '—' ? member.name.split(/\s+/).map(p => p[0]).slice(0, 3).join('').toUpperCase() : '?' }}</span>
             </div>
 
             <div class="hero-copy">
@@ -15,7 +18,7 @@
               <h1>{{ member.name }}</h1>
 
               <div class="hero-meta">
-                <span class="plan-badge">{{ member.plan || ui.plan }}</span>
+                <span class="plan-badge">{{ member.plan || '—' }}</span>
                 <span class="billing-pill" :class="membershipPillClass">
                   <span class="billing-dot"></span>
                   {{ membershipStatusText }}
@@ -33,6 +36,7 @@
                 <small>{{ ui.registeredAt }}</small>
                 <strong>{{ gym.name }}</strong>
                 <span>{{ gym.branchName }}</span>
+                <select v-if="inscripciones.length > 1" :value="selectedInscripcionId" aria-label="Cambiar inscripción" @change="cargarDashboardMiembro(Number($event.target.value))" class="member-inscription-select"><option v-for="ins in inscripciones" :key="ins.id" :value="ins.id">{{ ins.gimnasio }} · {{ ins.sede }}</option></select>
               </div>
             </div>
 
@@ -46,7 +50,7 @@
                 <small>{{ ui.todayHours }}</small>
                 <strong>{{ gym.todayHours }}</strong>
               </div>
-              <a class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
+              <a v-if="gym.address || gym.city" class="directions-btn" :href="directionsUrl" target="_blank" rel="noopener noreferrer">
                 <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                 {{ ui.getDirections }}
               </a>
@@ -71,7 +75,7 @@
               <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2ZM8 2v4M16 2v4M3 9h18M8 13h3v3H8z"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>{{ member.classesReserved }}</strong>
+              <strong>{{ member.classesReserved ?? '—' }}</strong>
               <span>{{ ui.classesReserved }}</span>
             </div>
           </article>
@@ -92,7 +96,7 @@
             </div>
             <div class="kpi-body">
               <strong class="sm">{{ balanceText }}</strong>
-              <span>{{ ui.balanceDue }} · {{ member.balance > 0 ? ui.pendingPayment : ui.upToDate }}</span>
+              <span>{{ ui.balanceDue }} · {{ member.balance == null ? 'Sin datos' : member.balance > 0 ? ui.pendingPayment : ui.upToDate }}</span>
             </div>
           </article>
         </section>
@@ -158,7 +162,7 @@
 
             <div class="legend">
               <div class="legend-item"><i class="dot asistio"></i>{{ ui.legendAttended }} <b>{{ attendedCount }}</b></div>
-              <div class="legend-item"><i class="dot falto"></i>{{ ui.legendMissed }} <b>{{ missedCount }}</b></div>
+              <div class="legend-item"><i class="dot falto"></i>{{ currentLang === 'es' ? 'Sin registro' : 'No record' }}</div>
               <div class="legend-item"><i class="dot hoy"></i>{{ ui.legendToday }}</div>
             </div>
           </article>
@@ -218,7 +222,7 @@
                   <circle class="ring-fg" cx="60" cy="60" r="52" :stroke-dasharray="ringDash" />
                 </svg>
                 <div class="ring-center">
-                  <strong>{{ Math.max(daysRemaining, 0) }}</strong>
+                  <strong>{{ daysRemaining === null ? '—' : Math.max(daysRemaining, 0) }}</strong>
                   <small>{{ ui.daysLeft }}</small>
                 </div>
               </div>
@@ -230,7 +234,7 @@
                   </span>
                   <span class="al-copy">
                     <small>{{ ui.planLabel }}</small>
-                    <strong>{{ member.plan || ui.plan }}</strong>
+                    <strong>{{ member.plan || '—' }}</strong>
                   </span>
                 </li>
                 <li>
@@ -248,7 +252,7 @@
                   </span>
                   <span class="al-copy">
                     <small>{{ ui.lastPayment }}</small>
-                    <strong>{{ formatMoney(member.lastPayment.amount) }} · {{ formatDate(member.lastPayment.date) }}</strong>
+                    <strong>{{ member.lastPayment ? `${formatMoney(member.lastPayment.monto)} · ${formatDate(member.lastPayment.fecha)}` : '—' }}</strong>
                   </span>
                 </li>
               </ul>
@@ -269,7 +273,8 @@
               <button type="button" class="link-btn" @click="go('/Member/my-routines')">{{ ui.viewRoutine }}</button>
             </div>
 
-            <ol class="exercise-list">
+            <p v-if="!todayRoutine.exercises.length" class="member-dashboard-message">No hay una rutina asignada disponible.</p>
+            <ol v-else class="exercise-list">
               <li v-for="(ex, i) in todayRoutine.exercises" :key="ex.name">
                 <span class="ex-index">{{ i + 1 }}</span>
                 <span class="ex-name">{{ ex.name }}</span>
@@ -288,6 +293,7 @@
             </div>
 
             <div class="activity-list">
+              <p v-if="!nextActivities.length" class="member-dashboard-message">No hay actividades próximas registradas.</p>
               <div v-for="item in nextActivities" :key="item.title + item.day" class="activity-row">
                 <div class="date-box">
                   <strong>{{ item.day }}</strong>
@@ -460,37 +466,64 @@ const translations = {
 const ui = computed(() => translations[currentLang.value] || translations.es);
 const locale = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
 
-/* =========================================================
-   DATOS (de prueba: reemplázalos por los del backend)
-========================================================= */
-
-const gym = ref({
-  name: 'Ultra Fitness Center',
-  branchName: 'Sede Principal',
-  logoUrl: 'https://marketplace.canva.com/EAFxdcos7WU/1/0/1600w/canva-dark-blue-and-brown-illustrative-fitness-gym-logo-oqe3ybeEcQQ.jpg',
-  coverUrl: 'https://static.vecteezy.com/system/resources/thumbnails/037/228/850/small_2x/ai-generated-exercise-machines-in-a-gym-free-photo.jpg',
-  address: 'Av. Universitaria #420, Zona Centro',
-  city: 'Ciudad Valles, San Luis Potosí',
-  todayHours: '05:00 - 23:00'
-});
-
-const member = ref({
-  name: 'Carlos Alberto Martínez',
-  photoUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=400&q=80',
-  plan: '',                       /* si viene vacío se usa "Plan Mensual" */
-  nextCut: '2026-10-15',          /* AAAA-MM-DD */
-  balance: 650,
-  lastPayment: { date: '2026-09-15', amount: 650 },
-  classesReserved: 2,
-  monthGoal: 24,
-  cycleDays: 30
-});
-
-const rachaInfo = ref({ dias: 460, activoHoy: true });
-const rachaRecord = 520;
+/* DATOS DESDE LARAVEL: sin nombres, imágenes ni cifras inventadas. */
+const loadingDashboard = ref(true);
+const dashboardError = ref('');
+const inscripciones = ref([]);
+const selectedInscripcionId = ref(null);
+const gym = ref({ name: '—', branchName: '—', logoUrl: null, coverUrl: null, address: '', city: '', todayHours: '—' });
+const member = ref({ name: '—', photoUrl: null, plan: '', nextCut: '', balance: null, lastPayment: null, classesReserved: null, monthGoal: 24, cycleDays: 30, cycleStart: '', membershipStatus: '' });
+const rachaInfo = ref({ dias: 0, activoHoy: false });
+const rachaRecord = ref(0);
 const nextRewardAt = 800;
-
-const isGymOpen = ref(true);
+const isGymOpen = ref(false);
+const actividadesReales = ref([]);
+const baseApi = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const authToken = () => {
+  for (const storage of [sessionStorage, localStorage]) {
+    for (const k of ['auth_token', 'token', 'access_token', 'gym_token']) {
+      const value = storage.getItem(k);
+      if (value) return value.replace(/^Bearer\s+/i, '');
+    }
+  }
+  return '';
+};
+const cargarDashboardMiembro = async (id = null) => {
+  loadingDashboard.value = true;
+  dashboardError.value = '';
+  try {
+    const token = authToken();
+    if (!token) throw new Error('Tu sesión caducó. Inicia sesión nuevamente.');
+    const query = id ? `?inscripcion_id=${encodeURIComponent(id)}` : '';
+    const response = await fetch(`${baseApi}/api/member/dashboard${query}`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }, cache: 'no-store'
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || `Error HTTP ${response.status}`);
+    const c = data.cliente || {}, g = data.gimnasio || {}, m = data.membresia || {}, a = data.asistencia || {};
+    member.value = {
+      name: c.nombre || '—', photoUrl: c.foto_url || null, plan: m.plan || '',
+      nextCut: m.vencimiento || '', balance: m.saldo == null ? null : Number(m.saldo),
+      lastPayment: m.ultimo_pago || null, classesReserved: null,
+      monthGoal: 24, cycleDays: 30, cycleStart: m.fecha_inscripcion || '', membershipStatus: m.estado || ''
+    };
+    gym.value = {
+      name: g.nombre || '—', branchName: g.sede || '—',
+      logoUrl: g.logo_url || null, coverUrl: g.portada_url || null,
+      address: [g.direccion, g.colonia].filter(Boolean).join(', '),
+      city: [g.municipio, g.entidad].filter(Boolean).join(', '), todayHours: g.horario_hoy || '—'
+    };
+    isGymOpen.value = g.abierto === true;
+    attendedDays.value = [...new Set((a.fechas_mes || []).map(f => Number(String(f).slice(8, 10))).filter(n => n >= 1 && n <= 31))];
+    rachaInfo.value = { dias: Number(a.dias_acumulados || 0), activoHoy: a.asistio_hoy === true };
+    rachaRecord.value = Number(a.mejor_racha || 0);
+    actividadesReales.value = Array.isArray(data.actividades) ? data.actividades : [];
+    inscripciones.value = Array.isArray(data.inscripciones) ? data.inscripciones : [];
+    selectedInscripcionId.value = data.inscripcion_id || null;
+  } catch (e) { dashboardError.value = e?.message || 'No se pudo cargar el Dashboard.'; }
+  finally { loadingDashboard.value = false; }
+};
+const onMemberDashboardRefresh = () => { void cargarDashboardMiembro(selectedInscripcionId.value); };
 
 const heroStyle = computed(() =>
   gym.value.coverUrl ? { '--cover': `url('${gym.value.coverUrl}')` } : {}
@@ -523,11 +556,11 @@ const formatMoney = (n) =>
   `$${Number(n || 0).toLocaleString(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const nextCutText = computed(() => formatDate(member.value.nextCut));
-const balanceText = computed(() => formatMoney(member.value.balance));
+const balanceText = computed(() => member.value.balance == null ? '—' : formatMoney(member.value.balance));
 
 const daysRemaining = computed(() => {
   const date = parseDate(member.value.nextCut);
-  if (!date) return 0;
+  if (!date) return null;
 
   const end = new Date(date.y, date.m - 1, date.d);
   const today = new Date();
@@ -538,17 +571,19 @@ const daysRemaining = computed(() => {
 
 /* ok = vigente · soon = vence en 7 días o menos · expired = ya venció */
 const membershipState = computed(() => {
+  if (['inactivo', 'suspendido', 'cancelado', 'eliminado temporal'].includes(String(member.value.membershipStatus || '').toLowerCase())) return 'expired';
+  if (daysRemaining.value === null) return 'unknown';
   if (daysRemaining.value < 0) return 'expired';
   if (daysRemaining.value <= 7) return 'soon';
   return 'ok';
 });
 
 const membershipPillClass = computed(() =>
-  membershipState.value === 'expired' ? 'blocked' : membershipState.value === 'soon' ? 'pending' : 'active'
+  membershipState.value === 'expired' ? 'blocked' : membershipState.value === 'soon' ? 'pending' : membershipState.value === 'unknown' ? 'pending' : 'active'
 );
 
 const membershipStatusText = computed(() =>
-  membershipState.value === 'expired'
+  membershipState.value === 'unknown' ? 'Estado no disponible' : membershipState.value === 'expired'
     ? ui.value.membershipExpired
     : membershipState.value === 'soon'
       ? ui.value.membershipWarning
@@ -557,6 +592,7 @@ const membershipStatusText = computed(() =>
 
 const cutSubtitle = computed(() => {
   const n = daysRemaining.value;
+  if (n === null) return '—';
   const days = ui.value.days;
 
   if (n < 0) return `${ui.value.expiredAgo} ${Math.abs(n)} ${days}`;
@@ -565,6 +601,7 @@ const cutSubtitle = computed(() => {
 });
 
 const balanceState = computed(() => {
+  if (member.value.balance == null) return 'unknown';
   if (member.value.balance <= 0) return 'clear';
   return membershipState.value === 'expired' ? 'expired' : membershipState.value === 'soon' ? 'soon' : 'due';
 });
@@ -580,6 +617,7 @@ const balanceTint = computed(() => {
 });
 
 const cycleStartText = computed(() => {
+  if (member.value.cycleStart) return formatDate(member.value.cycleStart);
   const date = parseDate(member.value.nextCut);
   if (!date) return '—';
   const start = new Date(date.y, date.m - 1, date.d - (member.value.cycleDays || 30));
@@ -587,6 +625,7 @@ const cycleStartText = computed(() => {
 });
 
 const cyclePercent = computed(() => {
+  if (daysRemaining.value === null) return 0;
   const total = member.value.cycleDays || 30;
   const used = total - Math.max(daysRemaining.value, 0);
   return Math.min(100, Math.max(0, Math.round((used / total) * 100)));
@@ -610,12 +649,7 @@ const currentMonth = now.getMonth();
 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 const firstWeekday = new Date(currentYear, currentMonth, 1).getDay();
 
-/* Días en que asistió (de prueba). Reemplázalo con los datos reales. */
-const attendedDays = ref(
-  Array.from({ length: Math.max(todayDay - 1, 0) }, (_, i) => i + 1).filter(
-    (d) => d % 4 !== 0 && d % 7 !== 6
-  )
-);
+const attendedDays = ref([]);
 
 const diasCalendario = computed(() =>
   Array.from({ length: daysInMonth }, (_, i) => {
@@ -623,7 +657,7 @@ const diasCalendario = computed(() =>
     let estado = 'futuro';
 
     if (dia === todayDay) estado = 'hoy';
-    else if (dia < todayDay) estado = attendedDays.value.includes(dia) ? 'asistio' : 'falto';
+    else if (dia < todayDay) estado = attendedDays.value.includes(dia) ? 'asistio' : 'sinregistro';
 
     return { dia, estado };
   })
@@ -637,7 +671,8 @@ const celdasCalendario = computed(() => [
 const cuenta = (d) => d.estado === 'asistio' || (d.estado === 'hoy' && rachaInfo.value.activoHoy);
 
 const attendedCount = computed(() => diasCalendario.value.filter(cuenta).length);
-const missedCount = computed(() => diasCalendario.value.filter((d) => d.estado === 'falto').length);
+// No contar ausencias como faltas sin un horario personal verificado.
+const missedCount = computed(() => 0);
 
 const goalPercent = computed(() =>
   member.value.monthGoal > 0
@@ -690,46 +725,13 @@ const rewardPercent = computed(() =>
    RUTINA, ACTIVIDADES Y ACCESOS RÁPIDOS
 ========================================================= */
 
-/* De prueba: reemplázala con la rutina asignada del día */
-const todayRoutine = computed(() =>
-  currentLang.value === 'es'
-    ? {
-        name: 'Pecho y tríceps',
-        duration: 60,
-        exercises: [
-          { name: 'Press de banca', sets: '4 × 10' },
-          { name: 'Press inclinado con mancuernas', sets: '3 × 12' },
-          { name: 'Aperturas en polea', sets: '3 × 15' },
-          { name: 'Fondos en paralelas', sets: '3 × 10' },
-          { name: 'Extensión de tríceps', sets: '3 × 12' }
-        ]
-      }
-    : {
-        name: 'Chest & triceps',
-        duration: 60,
-        exercises: [
-          { name: 'Bench press', sets: '4 × 10' },
-          { name: 'Incline dumbbell press', sets: '3 × 12' },
-          { name: 'Cable flyes', sets: '3 × 15' },
-          { name: 'Parallel bar dips', sets: '3 × 10' },
-          { name: 'Triceps extension', sets: '3 × 12' }
-        ]
-      }
-);
-
-const nextActivities = computed(() =>
-  currentLang.value === 'es'
-    ? [
-        { day: '07', month: 'OCT', title: 'Funcional', time: '18:00', trainer: 'Laura Méndez', status: 'Reservada', booked: true },
-        { day: '09', month: 'OCT', title: 'Spinning', time: '19:30', trainer: 'Daniel Ruiz', status: 'Reservada', booked: true },
-        { day: '11', month: 'OCT', title: 'Yoga', time: '08:00', trainer: 'Ana Torres', status: 'Disponible', booked: false }
-      ]
-    : [
-        { day: '07', month: 'OCT', title: 'Functional', time: '18:00', trainer: 'Laura Méndez', status: 'Booked', booked: true },
-        { day: '09', month: 'OCT', title: 'Spinning', time: '19:30', trainer: 'Daniel Ruiz', status: 'Booked', booked: true },
-        { day: '11', month: 'OCT', title: 'Yoga', time: '08:00', trainer: 'Ana Torres', status: 'Available', booked: false }
-      ]
-);
+// No inventar rutinas; requieren una API de rutinas asignadas al miembro.
+const todayRoutine = computed(() => ({ name: 'Sin rutina asignada', duration: '—', exercises: [] }));
+const nextActivities = computed(() => actividadesReales.value.map(a => {
+  const date = String(a.fecha || '');
+  return { day: date.slice(8, 10), month: date.slice(5, 7), title: a.nombre,
+    time: a.hora || '—', trainer: a.instructor || '—', status: 'Disponible', booked: false };
+}));
 
 /* Sin "Pagar membresía" ni "Reservar clase": ya tienen su botón en sus paneles */
 const quickActions = computed(() => {
@@ -772,32 +774,26 @@ const directionsUrl = computed(
     )}`
 );
 
-const syncGymOpen = () => {
-  const saved = localStorage.getItem('isGymOpen');
-  if (saved === null) return;
-
-  try {
-    isGymOpen.value = JSON.parse(saved);
-  } catch {
-    /* valor inválido: se queda el predeterminado */
-  }
-};
-
 onMounted(() => {
-  syncGymOpen();
+  void cargarDashboardMiembro();
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('language-changed', handleLangChange);
-  window.addEventListener('storage', syncGymOpen);
+  window.addEventListener('focus', onMemberDashboardRefresh);
 });
 
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('language-changed', handleLangChange);
-  window.removeEventListener('storage', syncGymOpen);
+  window.removeEventListener('focus', onMemberDashboardRefresh);
 });
 </script>
 
 <style scoped>
+.member-dashboard-message { padding: 10px 16px; margin: 12px 0; color: var(--color-texto-general, #d4d4dc); }
+.member-dashboard-message button { text-decoration: underline; cursor: pointer; }
+.avatar-fallback { display: grid; place-items: center; width: 100%; height: 100%; font-size: 1.4rem; font-weight: 800; }
+.member-inscription-select { display: block; max-width: 250px; margin-top: 6px; font-size: 12px; background: #191923; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 5px; }
+
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; }

@@ -487,6 +487,7 @@ import { useRouter, useRoute } from 'vue-router';
 import NotificationsPanel from './Notifications/NotificationsPanel.vue';
 import { traducciones } from './i18n.js';
 import { useLang } from './useLang.js';
+import { sesionMiembro, cargarSesionMiembro, limpiarSesionMiembro } from './memberSesion.js';
 const router = useRouter();
 const route = useRoute();
 const { lang } = useLang();
@@ -666,24 +667,11 @@ const activeModal = ref(null);
 const desktopDropdown = ref(null);
 /* Hoja inferior móvil: null | 'routines' | 'health' | 'payments' | 'more' */
 const mobileSheet = ref(null);
-/*
-  Gimnasios en los que el miembro está inscrito.
-  Reemplaza esta lista por la real (por ejemplo, la que regrese tu API).
-*/
-const GYM_KEY = 'member-selected-gym';
-const gyms = ref(['Gimnasio Principal', 'Sucursal Secundaria']);
-const savedGym = localStorage.getItem(GYM_KEY);
-const selectedGym = ref(
-  gyms.value.includes(savedGym) ? savedGym : gyms.value[0]
-);
-const selectGym = (gym) => {
-  selectedGym.value = gym;
-  localStorage.setItem(GYM_KEY, gym);
-  /* Para que las páginas puedan recargar sus datos al cambiar de gimnasio */
-  window.dispatchEvent(new CustomEvent('gym-changed', { detail: { gym } }));
-  closeDesktopDropdown();
-  closeSheet();
-};
+// Solo se presenta la inscripción que Laravel validó para este miembro.
+// Nunca se construye una lista ficticia ni se permite cambiar la sede solo en la interfaz.
+const gyms = computed(() => sesionMiembro.gimnasio?.sede ? [sesionMiembro.gimnasio.sede] : []);
+const selectedGym = computed(() => sesionMiembro.gimnasio?.sede || 'Sin sede registrada');
+const selectGym = (_gym) => { closeDesktopDropdown(); closeSheet(); };
 const notifications = ref([
   {
     id: 1,
@@ -693,18 +681,9 @@ const notifications = ref([
     read: false
   }
 ]);
-/* =========================================================
-   PERFIL (datos de prueba: reemplázalos por los reales)
-========================================================= */
-const memberName = 'Carlos Martínez';
-const memberInitials = computed(() =>
-  memberName
-    .split(' ')
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase()
-);
+/* PERFIL REAL DE LA SESIÓN DEL MIEMBRO */
+const memberName = computed(() => sesionMiembro.miembro?.nombre || 'Miembro');
+const memberInitials = computed(() => memberName.value.split(/\s+/).filter(Boolean).slice(0,3).map(p=>p[0]).join('').toLocaleUpperCase('es-MX'));
 /* =========================================================
    IDIOMA
 ========================================================= */
@@ -862,6 +841,7 @@ const handleLogout = async () => {
   finally {
     ['auth_token','token','access_token','user_role','gym_account','user','selected_sede_id'].forEach(k => { sessionStorage.removeItem(k); localStorage.removeItem(k); });
     localStorage.removeItem('GYM_ACCOUNT-selected-gym');
+  limpiarSesionMiembro();
     closeDesktopDropdown(); closeSheet();
     await router.replace({ name: 'login' });
   }
@@ -872,12 +852,12 @@ const handleLogout = async () => {
 const aplicarEstilosGlobales = () => {
   let savedColors = null;
   try {
-    savedColors = JSON.parse(localStorage.getItem('app-colors') || 'null');
+    savedColors = JSON.parse(localStorage.getItem('app-colors-member') || localStorage.getItem('app-colors') || 'null');
   } catch {
     savedColors = null;
   }
-  const savedRadius = localStorage.getItem('app-radius');
-  const savedDensidad = localStorage.getItem('app-densidad');
+  const savedRadius = localStorage.getItem('app-radius-member') || localStorage.getItem('app-radius');
+  const savedDensidad = localStorage.getItem('app-densidad-member') || localStorage.getItem('app-densidad');
   const root = document.documentElement;
   if (savedColors) {
     if (savedColors.headingBg) {
@@ -929,11 +909,14 @@ const aplicarEstilosGlobales = () => {
     root.style.setProperty('--row-padding', '16px 0');
   }
 };
+const refrescarIdentidadMiembro = () => { void cargarSesionMiembro(true).catch(() => {}); };
 /* =========================================================
    CICLO DE VIDA
 ========================================================= */
 onMounted(() => {
   aplicarEstilosGlobales();
+  void cargarSesionMiembro().catch(() => {});
+  window.addEventListener('focus', refrescarIdentidadMiembro);
   document.addEventListener('click', handleDocumentClick);
   document.addEventListener('keydown', handleKeydown);
   window.addEventListener('resize', handleResize);
@@ -942,6 +925,7 @@ onMounted(() => {
   window.addEventListener('language-changed', handleIdiomaChanged);
 });
 onUnmounted(() => {
+  window.removeEventListener('focus', refrescarIdentidadMiembro);
   document.removeEventListener('click', handleDocumentClick);
   document.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('resize', handleResize);

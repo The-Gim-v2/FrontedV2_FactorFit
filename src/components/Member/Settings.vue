@@ -226,6 +226,7 @@
 
 <script setup>
 import { reactive, computed, onMounted } from 'vue';
+import { solicitudMiembro } from './memberSesion.js';
 import Headingmember from './HeadingMember.vue';
 import { useLang } from './useLang.js';
 
@@ -591,53 +592,29 @@ const aplicarPreset = (tipoPreset) => {
 
 const guardarCambios = async () => {
   try {
-    // CAMBIO: ROLE_KEY ('user_role') en vez de 'userRole', para que coincida
-    // con la llave real que usan el router y App.vue.
-    const userRole = localStorage.getItem(ROLE_KEY) || 'member';
-
-    localStorage.setItem('tutorialActivo', settings.tutorial);
+    // El servidor es la fuente de verdad: no anunciar éxito antes de que confirme.
+    const preferencia = {
+      idioma: settings.idioma, densidad: settings.densidad,
+      borderRadius: settings.borderRadius, colors: { ...settings.colors },
+      tutorial: !!settings.tutorial, notificaciones: !!settings.notificaciones
+    };
+    await solicitudMiembro('/api/member/configuracion', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(preferencia)
+    });
+    localStorage.setItem('tutorialActivo', String(settings.tutorial));
     localStorage.setItem('member-idioma', settings.idioma);
-    // CAMBIO: llaves namespaceadas por rol en vez de 'app-colors' / 'app-densidad' / 'app-radius' globales.
     localStorage.setItem(claveColores(), JSON.stringify(settings.colors));
     localStorage.setItem(claveDensidad(), settings.densidad);
     localStorage.setItem(claveRadius(), settings.borderRadius);
-    
     aplicarEstilos();
-    
     window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('app-settings-updated', { detail: settings }));
     window.dispatchEvent(new CustomEvent('idioma-changed', { detail: { idioma: settings.idioma } }));
-
-    if (settings.notificaciones) {
-      await fetch('/api/notificaciones/activar', { method: 'POST' }).catch(() => {});
-    }
-
-    if (userRole === 'member') {
-      try {
-        await fetch('/api/member/configuracion', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-          },
-          body: JSON.stringify({
-            idioma: settings.idioma,
-            densidad: settings.densidad,
-            borderRadius: settings.borderRadius,
-            colors: settings.colors,
-            tutorial: settings.tutorial
-          })
-        });
-      } catch (backendError) {
-        console.warn("Sincronización en la nube omitida temporalmente:", backendError);
-      }
-      showToast(t('toastmemberSaved'));
-    } else {
-      showToast(t('toastLocalSaved'));
-    }
+    showToast(t('toastmemberSaved'));
   } catch (error) {
-    console.error("Error al guardar:", error);
-    showToast(t('toastSaveError'));
+    console.error('No se pudo guardar la configuración del miembro:', error);
+    showToast(error?.message || t('toastSaveError'));
   }
 };
 
@@ -679,23 +656,17 @@ onMounted(async () => {
     }
   });
 
-  // CAMBIO: ROLE_KEY ('user_role') en vez de 'userRole'.
-  const userRole = localStorage.getItem(ROLE_KEY) || 'member';
-  if (userRole === 'member') {
-    try {
-      const res = await fetch('/api/member/configuracion', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.idioma) {
-          settings.idioma = data.idioma;
-          localStorage.setItem('member-idioma', data.idioma);
-        }
-      }
-    } catch (e) {
-      // Ignorar si no hay red
-    }
+  try {
+    const data = await solicitudMiembro('/api/member/configuracion');
+    if (data && data.idioma) settings.idioma = data.idioma;
+    if (data && typeof data.tutorial === 'boolean') settings.tutorial = data.tutorial;
+    if (data && typeof data.notificaciones === 'boolean') settings.notificaciones = data.notificaciones;
+    if (data && data.densidad) settings.densidad = data.densidad;
+    if (data && data.borderRadius) settings.borderRadius = data.borderRadius;
+    if (data && data.colors && typeof data.colors === 'object') settings.colors = { ...defaultColors, ...data.colors };
+    aplicarEstilos();
+  } catch (e) {
+    console.warn('No se pudo consultar la configuración guardada:', e);
   }
 });
 

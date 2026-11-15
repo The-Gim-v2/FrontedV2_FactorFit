@@ -200,12 +200,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router'; 
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { sesionMiembro, cargarSesionMiembro } from './memberSesion.js'; 
 
 const router = useRouter(); 
 const openSection = ref<string | null>(null);
-const selectedGym = ref('Gimnasio Principal');
+const selectedGym = computed(() => sesionMiembro.gimnasio?.sede || 'Sin sede registrada');
 
 const currentLang = ref<string>(localStorage.getItem('member-idioma') || 'es');
 const handleLangChange = (e: Event): void => {
@@ -218,9 +219,9 @@ const handleLangChange = (e: Event): void => {
 
 // Función para aplicar los estilos globales del tema
 const aplicarEstilosGlobales = () => {
-  const savedColors = JSON.parse(localStorage.getItem('app-colors') || '{}');
-  const savedRadius = localStorage.getItem('app-radius');
-  const savedDensidad = localStorage.getItem('app-densidad');
+  const savedColors = JSON.parse(localStorage.getItem('app-colors-member') || localStorage.getItem('app-colors') || '{}');
+  const savedRadius = localStorage.getItem('app-radius-member') || localStorage.getItem('app-radius');
+  const savedDensidad = localStorage.getItem('app-densidad-member') || localStorage.getItem('app-densidad');
 
   const root = document.documentElement;
 
@@ -257,6 +258,7 @@ const aplicarEstilosGlobales = () => {
 
 onMounted(() => {
   aplicarEstilosGlobales();
+  void cargarSesionMiembro().catch(() => {});
   window.addEventListener('language-changed', handleLangChange as EventListener);
   window.addEventListener('app-settings-updated', aplicarEstilosGlobales);
 });
