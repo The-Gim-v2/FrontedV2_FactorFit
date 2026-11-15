@@ -426,7 +426,6 @@ const activeModal = ref(null);
 const videoPlayer = ref(null);
 const isGymOpen = ref(false);
 const billingStatus = ref('unknown');
-const statusLoaded = ref(false);
 const gymOpenLoaded = ref(false);
 const maxCapacity = ref(null);
 const statusMessage = ref('');
@@ -447,6 +446,35 @@ const gym = ref({
   location: { branchName: '', street: '', number: '', neighborhood: '', city: '', state: '', zip: '', lat: null, lng: null }
 });
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+
+// Estado de suscripcion del GIMNASIO propietario. Los cuatro roles solo lo consultan.
+// Nunca se decide desde el estado del horario, la sede ni los ingresos del gimnasio.
+let estadoCuentaConsulta = 0;
+let estadoCuentaTimer = null;
+const cargarEstadoCuenta = async () => {
+  const secuencia = ++estadoCuentaConsulta;
+  try {
+    const token = getToken();
+    if (!token) throw new Error('Falta la sesion');
+    const respuesta = await fetch(`${API}/api/auth/estado-cuenta`, {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      cache: 'no-store'
+    });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) throw new Error(datos?.message || `HTTP ${respuesta.status}`);
+    const cuenta = datos?.cuenta;
+    if (!cuenta || typeof cuenta.activo !== 'boolean') throw new Error('Estado de cuenta invalido');
+    if (secuencia !== estadoCuentaConsulta) return;
+    const estado = String(cuenta.estado || '').toLowerCase();
+    billingStatus.value = cuenta.activo ? 'active' : (estado.includes('pendiente') ? 'pending' : 'blocked');
+  } catch (error) {
+    if (secuencia === estadoCuentaConsulta) {
+      billingStatus.value = 'unknown';
+      console.warn('No fue posible consultar la suscripcion del gimnasio:', error);
+    }
+  }
+};
+
 const route = useRoute();
 const activeSede = ref(0);
 const loadingIdentity = ref(false);
@@ -521,41 +549,7 @@ const sedeId = () => {
   return candidate && (!assigned.length || assigned.includes(candidate)) ? candidate : (assigned[0] || 0);
 };
 // Estado de cuenta compartido por el gimnasio, nunca inferido del rol ni del horario.
-const syncBillingState = (...sources) => {
-  const seen = new Set();
-  const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/[_-]+/g, ' ');
-  const interpret = (value) => {
-    if (value === true) return 'active';
-    if (value === false) return 'blocked';
-    const state = normalize(value);
-    if (['active','activo','activa','vigente','al corriente','cuenta al corriente','pagado','paid','current','ok'].includes(state)) return 'active';
-    if (['pending','pendiente','por pagar','past due','vencimiento','grace'].includes(state)) return 'pending';
-    if (['blocked','bloqueado','bloqueada','suspendido','suspendida','vencido','vencida','expired','cancelado','cancelada','moroso'].includes(state)) return 'blocked';
-    return null;
-  };
-  const inspect = (source, depth = 0) => {
-    if (source === null || typeof source !== 'object' || depth > 2 || seen.has(source)) return null;
-    seen.add(source);
-    const named = ['estado_cuenta','Estado_Cuenta','estado_suscripcion','Estado_Suscripcion','billing_status','billingStatus','estado_pago_suscripcion','estatus_cuenta','Estatus_Cuenta','estatus_suscripcion','Estatus_Suscripcion','status_suscripcion','estado_facturacion','Estado_Pago'];
-    for (const key of named) if (Object.prototype.hasOwnProperty.call(source,key)) {
-      const result = interpret(source[key]);
-      if (result) return result;
-    }
-    for (const key of ['cuenta_al_corriente','al_corriente','suscripcion_vigente']) {
-      if (typeof source[key] === 'boolean') return interpret(source[key]);
-    }
-    for (const key of ['cuenta','suscripcion','facturacion','billing','gym','gimnasio','data']) {
-      const result = inspect(source[key],depth+1);
-      if (result) return result;
-    }
-    return null;
-  };
-  for (const source of sources) {
-    const resolved = inspect(source);
-    if (resolved) { billingStatus.value = resolved; statusLoaded.value = true; return; }
-  }
-  // Si la API no informa la suscripción, jamás dibujar un estado verde falso.
-};
+
 const loadGymIdentity = async () => {
   const seq = ++identityRequest;
   const id = sedeId();
@@ -575,7 +569,6 @@ const loadGymIdentity = async () => {
     const branch = data.sede || {};
     const capacityRaw = branch.aforo_maximo ?? branch.capacidad_maxima ?? branch.capacidad ?? data.aforo_maximo ?? data.capacidad_maxima ?? null;
     maxCapacity.value = capacityRaw !== null && capacityRaw !== '' && Number.isFinite(Number(capacityRaw)) && Number(capacityRaw) > 0 ? Number(capacityRaw) : null;
-    syncBillingState(info, data);
     identityLoaded.value = true;
     gym.value = {
       name: String(info.nombre || 'Mi gimnasio'), logoUrl: info.logo_url || null, coverUrl: info.portada_url || null,
@@ -596,7 +589,7 @@ const onBranchChanged = (event) => {
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
   const previousSede = sedeId();
   activeSede.value = validSedeId(id) && (!assignedSedeIds().length || assignedSedeIds().includes(id)) ? id : 0;
-  if (sedeId() !== previousSede) { metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; billingStatus.value = 'unknown'; statusLoaded.value = false; gymOpenLoaded.value = false; }
+  if (sedeId() !== previousSede) { metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = [];  gymOpenLoaded.value = false; }
   void loadGymIdentity();
   void loadManagerMetrics();
   void loadManagerStatus();
@@ -605,8 +598,8 @@ const onGymProfileUpdated = (event) => {
   const id = Number(event.detail?.sede_id || 0);
   if (!id || id === sedeId()) { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); }
 };
-const onTabVisible = () => { if (document.visibilityState === 'visible') { void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); } };
-watch(() => route.query.sede_id, () => { activeSede.value = 0; metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; registrosAsistencia.value = []; billingStatus.value = 'unknown'; statusLoaded.value = false; gymOpenLoaded.value = false; void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); });
+const onTabVisible = () => { if (document.visibilityState === 'visible') { void cargarEstadoCuenta(); void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); } };
+watch(() => route.query.sede_id, () => { activeSede.value = 0; metricsSeq++; metricsInFlight = null; ingresosLoaded.value = false; asistenciaLoaded.value = false; inscripciones.value = []; registrosAsistencia.value = [];  gymOpenLoaded.value = false; void loadGymIdentity(); void loadManagerMetrics(); void loadManagerStatus(); });
 
 const nameWords = computed(() => gym.value.name.trim().toUpperCase().split(/\s+/));
 
@@ -848,7 +841,6 @@ const loadManagerStatus = async () => {
     if (id !== sedeId()) return;
     isGymOpen.value = Boolean(data?.estado?.abierto);
     gymOpenLoaded.value = data?.estado?.abierto !== undefined && data?.estado?.abierto !== null;
-    syncBillingState(data?.cuenta, data?.suscripcion, data?.gimnasio, data);
     const aforo = data?.sede?.aforo_maximo ?? data?.sede?.capacidad_maxima ?? data?.capacidad_maxima ?? data?.aforo_maximo ?? null;
     if (aforo !== null && Number.isFinite(Number(aforo)) && Number(aforo) > 0) maxCapacity.value = Number(aforo);
     statusMessage.value = '';
@@ -981,9 +973,10 @@ const runQuickAction = (action) => {
 ========================================================= */
 
 const billingStatusText = computed(() => {
-  if (billingStatus.value === 'active') return t.value.cuentaCorriente;
-  if (billingStatus.value === 'pending') return t.value.pendientePago;
-  return billingStatus.value === 'blocked' ? t.value.bloqueadoPago : (currentLang.value === 'es' ? 'Estado no disponible' : 'Status unavailable');
+  if (billingStatus.value === 'active') return t.value.cuentaCorriente || (currentLang.value === 'en' ? 'Account in good standing' : 'Cuenta al Corriente');
+  if (billingStatus.value === 'pending') return t.value.pendientePago || (currentLang.value === 'en' ? 'Payment pending' : 'Pago pendiente');
+  if (billingStatus.value === 'blocked') return t.value.bloqueadoPago || (currentLang.value === 'en' ? 'Account suspended' : 'Cuenta suspendida');
+  return currentLang.value === 'en' ? 'Status unavailable' : 'Estado no disponible';
 });
 
 
@@ -1038,6 +1031,8 @@ const handleKeydown = (event) => {
 ========================================================= */
 
 onMounted(() => {
+  void cargarEstadoCuenta();
+  estadoCuentaTimer = window.setInterval(() => { if (document.visibilityState === 'visible') void cargarEstadoCuenta(); }, 60000);
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('factorfit:branch-changed', onBranchChanged);
@@ -1049,6 +1044,8 @@ onMounted(() => {
   void loadManagerStatus();
 });
 onUnmounted(() => {
+  estadoCuentaConsulta++;
+  if (estadoCuentaTimer !== null) window.clearInterval(estadoCuentaTimer);
   identityRequest++;
   window.removeEventListener('idioma-changed', handleLangChange);
   window.removeEventListener('keydown', handleKeydown);
