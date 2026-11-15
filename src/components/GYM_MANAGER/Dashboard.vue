@@ -549,6 +549,8 @@ const onBranchChanged = (event) => {
   const id = Number(detail.sede_id ?? detail.ID_Sede ?? detail.id ?? detail.sedeId ?? branch.ID_Sede ?? storedSede());
   activeSede.value = validSedeId(id) && (!assignedSedeIds().length || assignedSedeIds().includes(id)) ? id : 0;
   void loadGymIdentity();
+  void loadManagerMetrics();
+  void loadManagerStatus();
 };
 const onGymProfileUpdated = (event) => {
   const id = Number(event.detail?.sede_id || 0);
@@ -727,10 +729,6 @@ const ui = computed(
 );
 
 /* =========================================================
-   DATOS (de prueba)
-========================================================= */
-
-/* =========================================================
    DATOS REALES DE LA SEDE: ingresos, asistencia y alertas
 ========================================================= */
 const inscripciones = ref([]);
@@ -756,7 +754,7 @@ const nowParts = () => {
 const loadManagerMetrics = async () => {
   const seq = ++metricsSeq;
   const id = sedeId();
-  if (!id) { inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; ingresosLoaded.value = false; asistenciaLoaded.value = false; return; }
+  if (!id) { inscripciones.value = []; pagosConfirmados.value = []; registrosAsistencia.value = []; ingresosLoaded.value = false; asistenciaLoaded.value = false; metricsError.value = 'No se encontró el ID de la sede asignada en la sesión.'; return; }
   const results = await Promise.allSettled([
     apiGet(`/api/gym/ingresos?sede_id=${id}`),
     apiGet(`/api/gym/asistencias-semana?sede_id=${id}`)
@@ -768,7 +766,10 @@ const loadManagerMetrics = async () => {
   inscripciones.value = ingresosLoaded.value ? ingresos.value.inscripciones : [];
   pagosConfirmados.value = ingresosLoaded.value && Array.isArray(ingresos.value.pagos_confirmados) ? ingresos.value.pagos_confirmados : [];
   registrosAsistencia.value = asistenciaLoaded.value ? asistencia.value.asistencias : [];
-  metricsError.value = [ingresos, asistencia].filter(r => r.status === 'rejected').map(r => r.reason?.message || 'Error al consultar métricas').join(' · ');
+  const errores = [ingresos, asistencia].filter(r => r.status === 'rejected').map(r => r.reason?.message || 'Error al consultar métricas');
+  if (ingresos.status === 'fulfilled' && !Array.isArray(ingresos.value?.inscripciones)) errores.push('La API de ingresos no devolvió inscripciones en el formato esperado.');
+  if (asistencia.status === 'fulfilled' && !Array.isArray(asistencia.value?.asistencias)) errores.push('La API de asistencias no devolvió asistencias en el formato esperado.');
+  metricsError.value = errores.join(' · ');
 };
 const loadManagerStatus = async () => {
   const id = sedeId();
@@ -923,6 +924,8 @@ onMounted(() => {
   window.addEventListener('factorfit:gym-profile-updated', onGymProfileUpdated);
   document.addEventListener('visibilitychange', onTabVisible);
   void loadGymIdentity();
+  void loadManagerMetrics();
+  void loadManagerStatus();
 });
 onUnmounted(() => {
   identityRequest++;
