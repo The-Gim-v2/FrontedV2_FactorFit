@@ -478,6 +478,7 @@
       :is-open="isNotificationsOpen"
       :notifications="notifications"
       @close="isNotificationsOpen = false"
+      @notifications-updated="notifications = $event"
     />
   </div>
 </template>
@@ -706,15 +707,7 @@ const mobileSheet = ref(null);
 const gyms = computed(() => sesionMiembro.gimnasio?.sede ? [sesionMiembro.gimnasio.sede] : []);
 const selectedGym = computed(() => sesionMiembro.gimnasio?.sede || 'Sin sede registrada');
 const selectGym = (_gym) => { closeDesktopDropdown(); closeSheet(); };
-const notifications = ref([
-  {
-    id: 1,
-    title: 'Sistema',
-    message: 'Bienvenido',
-    time: 'ahora',
-    read: false
-  }
-]);
+const notifications = ref([]);
 /* PERFIL REAL DE LA SESIÓN DEL MIEMBRO */
 const memberName = computed(() => sesionMiembro.miembro?.nombre || 'Miembro');
 const memberInitials = computed(() => memberName.value.split(/\s+/).filter(Boolean).slice(0,3).map(p=>p[0]).join('').toLocaleUpperCase('es-MX'));
