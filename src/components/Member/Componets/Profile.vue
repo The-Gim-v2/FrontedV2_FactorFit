@@ -48,8 +48,6 @@ const translations = {
     navBodyDesc: 'Peso, altura y perímetros',
     navGym: 'Membresía del gimnasio',
     navGymDesc: 'Plan, fechas y pagos',
-    navWeb: 'Suscripción web',
-    navWebDesc: 'Plan del sistema',
     navSecurity: 'Seguridad',
     navSecurityDesc: 'Contraseña de acceso',
 
@@ -110,14 +108,6 @@ const translations = {
     cutoffDateLabel: 'Fecha de corte',
     amountPaidLabel: 'Cantidad pagada',
 
-    // Suscripción web
-    webEyebrow: 'SISTEMA',
-    webSubscriptionTitle: 'Suscripción al sistema',
-    webDescription: 'Plan que te da acceso a las funciones de la plataforma.',
-    currentWebPlanLabel: 'Plan actual',
-    syncPlanTitle: 'Actualizar o sincronizar plan',
-    cancelSubscriptionBtn: 'Cancelar suscripción web',
-
     // Seguridad
     securityEyebrow: 'SEGURIDAD',
     securityAndPasswordTitle: 'Contraseña de acceso',
@@ -145,12 +135,6 @@ const translations = {
     cancelBtn: 'Cancelar',
     confirmChangeBtn: 'Confirmar cambio',
 
-    // Modal cancelar suscripción
-    modalCancelTitle: 'Cancelar suscripción',
-    modalCancelText: '¿Seguro que quieres cancelar tu suscripción?\nPerderás acceso a los beneficios Pro al finalizar el periodo actual.',
-    btnKeepPlan: 'Conservar plan',
-    btnConfirmCancel: 'Sí, cancelar',
-
     // Foto y cámara
     photoEyebrow: 'FOTO DE PERFIL',
     photoModalTitle: 'Agregar foto de perfil',
@@ -173,7 +157,6 @@ const translations = {
     savedSuccessMsg: 'Cambios guardados con éxito',
     passwordWarningMsg: 'Las contraseñas no coinciden o tienen menos de 8 caracteres.',
     emailChangedMsg: 'Correo actualizado. Inicia sesión de nuevo.',
-    subscriptionCancelledMsg: 'Suscripción cancelada correctamente',
     phoneInvalidMsg: 'El celular debe tener 10 dígitos.',
     emailInvalidMsg: 'Escribe un correo válido.',
     cameraUnsupported: 'Este navegador no permite utilizar la cámara.',
@@ -219,8 +202,6 @@ const translations = {
     navBodyDesc: 'Weight, height and girths',
     navGym: 'Gym membership',
     navGymDesc: 'Plan, dates and payments',
-    navWeb: 'Web subscription',
-    navWebDesc: 'System plan',
     navSecurity: 'Security',
     navSecurityDesc: 'Access password',
 
@@ -276,13 +257,6 @@ const translations = {
     cutoffDateLabel: 'Cutoff date',
     amountPaidLabel: 'Amount paid',
 
-    webEyebrow: 'SYSTEM',
-    webSubscriptionTitle: 'System subscription',
-    webDescription: 'The plan that gives you access to the platform features.',
-    currentWebPlanLabel: 'Current plan',
-    syncPlanTitle: 'Update or sync plan',
-    cancelSubscriptionBtn: 'Cancel web subscription',
-
     securityEyebrow: 'SECURITY',
     securityAndPasswordTitle: 'Access password',
     securityDescription: 'Leave it blank if you do not want to change it.',
@@ -307,11 +281,6 @@ const translations = {
     cancelBtn: 'Cancel',
     confirmChangeBtn: 'Confirm change',
 
-    modalCancelTitle: 'Cancel subscription',
-    modalCancelText: 'Are you sure you want to cancel your subscription?\nYou will lose access to Pro benefits at the end of the current period.',
-    btnKeepPlan: 'Keep plan',
-    btnConfirmCancel: 'Yes, cancel',
-
     photoEyebrow: 'PROFILE PHOTO',
     photoModalTitle: 'Add profile photo',
     photoModalDesc: 'Choose how you want to add the image.',
@@ -332,7 +301,6 @@ const translations = {
     savedSuccessMsg: 'Changes saved successfully',
     passwordWarningMsg: 'Passwords do not match or are shorter than 8 characters.',
     emailChangedMsg: 'Email updated. Please sign in again.',
-    subscriptionCancelledMsg: 'Subscription cancelled successfully',
     phoneInvalidMsg: 'Phone number must have 10 digits.',
     emailInvalidMsg: 'Enter a valid email.',
     cameraUnsupported: 'Camera is not supported by this browser.',
@@ -500,6 +468,20 @@ const onPostalInput = (e: Event) => {
   input.value = form.codigoPostal;
 };
 
+// Medidas corporales: máx. 3 dígitos enteros y, donde aplica, 1 decimal
+type CampoMedida = 'peso' | 'altura' | 'grasaCorporal' | 'masaMuscular' | 'pecho' | 'cintura' | 'brazos' | 'legs';
+
+const onMedidaInput = (campo: CampoMedida, e: Event, decimales = 1) => {
+  const input = e.target as HTMLInputElement;
+  const limpio = input.value.replace(',', '.').replace(/[^\d.]/g, '');
+  const [entero = '', ...resto] = limpio.split('.');
+  let valor = entero.slice(0, 3);
+  if (decimales > 0 && resto.length) valor = (valor || '0') + '.' + resto.join('').slice(0, decimales);
+  if (campo === 'grasaCorporal' && Number(valor) > 100) valor = '100';
+  form[campo] = valor;
+  input.value = valor;
+};
+
 /* =========================================================
    NAVEGACIÓN LATERAL (scroll spy)
    ========================================================= */
@@ -540,12 +522,6 @@ const sections = computed<NavSection[]>(() => [
     title: t.value.navGym,
     desc: t.value.navGymDesc,
     icon: ['M6 4v16M18 4v16M3 9v6M21 9v6M6 12h12']
-  },
-  {
-    id: 'athlete-web',
-    title: t.value.navWeb,
-    desc: t.value.navWebDesc,
-    icon: ['M3 5h18v12H3z', 'M8 21h8M12 17v4']
   },
   {
     id: 'athlete-security',
@@ -662,13 +638,6 @@ const confirmEmailAndPasswordChange = () => {
   }
   void guardarPerfil();
 };
-
-// No existe un plan web del cliente independiente de la membresía física
-// en el esquema proporcionado: se evita simular cobros o cancelaciones.
-const handleUpdateMembership = () => showNotification('La contratación web todavía no está habilitada.', 'info');
-const showCancelModal = ref(false);
-const handleCancelSubscription = () => showNotification('No hay una suscripción web independiente para cancelar.', 'info');
-const confirmCancelSubscription = () => { showCancelModal.value = false; };
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const previewImage = ref<string | null>(null);
@@ -1235,7 +1204,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="peso">{{ t.weightLabel }}</label>
                   <div class="unit-input">
-                    <input id="peso" v-model="form.peso" type="number" step="0.1" min="0" inputmode="decimal" placeholder="75.5" />
+                    <input id="peso" :value="form.peso" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="75.5" @input="onMedidaInput('peso', $event)" />
                     <span>kg</span>
                   </div>
                 </div>
@@ -1243,7 +1212,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="altura">{{ t.alturaLabel }}</label>
                   <div class="unit-input">
-                    <input id="altura" v-model="form.altura" type="number" step="1" min="0" inputmode="numeric" placeholder="178" />
+                    <input id="altura" :value="form.altura" type="text" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="178" @input="onMedidaInput('altura', $event, 0)" />
                     <span>cm</span>
                   </div>
                 </div>
@@ -1251,7 +1220,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="grasaCorporal">{{ t.bodyFatLabel }}</label>
                   <div class="unit-input">
-                    <input id="grasaCorporal" v-model="form.grasaCorporal" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="14.5" />
+                    <input id="grasaCorporal" :value="form.grasaCorporal" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="14.5" @input="onMedidaInput('grasaCorporal', $event)" />
                     <span>%</span>
                   </div>
                 </div>
@@ -1259,7 +1228,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="masaMuscular">{{ t.muscleMassLabel }}</label>
                   <div class="unit-input">
-                    <input id="masaMuscular" v-model="form.masaMuscular" type="number" step="0.1" min="0" inputmode="decimal" placeholder="38.2" />
+                    <input id="masaMuscular" :value="form.masaMuscular" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="38.2" @input="onMedidaInput('masaMuscular', $event)" />
                     <span>kg</span>
                   </div>
                 </div>
@@ -1271,7 +1240,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="pecho">{{ t.chestLabel }}</label>
                   <div class="unit-input">
-                    <input id="pecho" v-model="form.pecho" type="number" step="0.5" min="0" inputmode="decimal" placeholder="102" />
+                    <input id="pecho" :value="form.pecho" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="102" @input="onMedidaInput('pecho', $event)" />
                     <span>cm</span>
                   </div>
                 </div>
@@ -1279,7 +1248,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="cintura">{{ t.waistLabel }}</label>
                   <div class="unit-input">
-                    <input id="cintura" v-model="form.cintura" type="number" step="0.5" min="0" inputmode="decimal" placeholder="81" />
+                    <input id="cintura" :value="form.cintura" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="81" @input="onMedidaInput('cintura', $event)" />
                     <span>cm</span>
                   </div>
                 </div>
@@ -1287,7 +1256,7 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="brazos">{{ t.armsLabel }}</label>
                   <div class="unit-input">
-                    <input id="brazos" v-model="form.brazos" type="number" step="0.5" min="0" inputmode="decimal" placeholder="37" />
+                    <input id="brazos" :value="form.brazos" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="37" @input="onMedidaInput('brazos', $event)" />
                     <span>cm</span>
                   </div>
                 </div>
@@ -1295,59 +1264,10 @@ onUnmounted(() => {
                 <div class="input-group">
                   <label for="legs">{{ t.legsLabel }}</label>
                   <div class="unit-input">
-                    <input id="legs" v-model="form.legs" type="number" step="0.5" min="0" inputmode="decimal" placeholder="58" />
+                    <input id="legs" :value="form.legs" type="text" inputmode="decimal" maxlength="5" autocomplete="off" placeholder="58" @input="onMedidaInput('legs', $event)" />
                     <span>cm</span>
                   </div>
                 </div>
-              </div>
-            </section>
-
-            
-
-            <!-- SUSCRIPCIÓN WEB -->
-            <section id="athlete-web" class="settings-card">
-              <div id="tutorial-web-subscription-card"></div>
-              <header class="card-header">
-                <div class="card-header-icon">
-                  <svg viewBox="0 0 24 24"><path d="M3 5h18v12H3z" /><path d="M8 21h8M12 17v4" /></svg>
-                </div>
-
-                <div>
-                  <span class="card-eyebrow">{{ t.webEyebrow }}</span>
-                  <h2>{{ t.webSubscriptionTitle }}</h2>
-                  <p>{{ t.webDescription }}</p>
-                </div>
-              </header>
-
-              <div class="input-group">
-                <label for="membresiaActual">{{ t.currentWebPlanLabel }}</label>
-
-                <div class="plan-row">
-                  <div class="input-with-icon disabled">
-                    <svg viewBox="0 0 24 24"><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" /></svg>
-                    <input id="membresiaActual" v-model="form.webPlan" type="text" disabled />
-                  </div>
-
-                  <button
-                    type="button"
-                    class="btn-icon-action"
-                    id="tutorial-sync-plan-btn" disabled
-                    :title="t.syncPlanTitle"
-                    :aria-label="t.syncPlanTitle"
-                    @click="handleUpdateMembership"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="cancel-sub-wrapper" id="tutorial-cancel-sub-wrapper">
-                <button type="button" class="btn-text-danger" disabled @click="handleCancelSubscription">
-                  {{ t.cancelSubscriptionBtn }}
-                </button>
               </div>
             </section>
 
@@ -1598,38 +1518,6 @@ onUnmounted(() => {
           </div>
         </div>
       </transition>
-
-      <!-- MODAL: CONFIRMAR BAJA DE SUSCRIPCIÓN -->
-      <div v-if="showCancelModal" class="modal-overlay" id="tutorial-cancel-modal" @click.self="showCancelModal = false">
-        <div class="modal-container modal-small animate-modal">
-          <div class="modal-header">
-            <h3>{{ t.modalCancelTitle }}</h3>
-            <button type="button" class="close-btn" :aria-label="t.close" @click="showCancelModal = false">×</button>
-          </div>
-
-          <div class="modal-body text-center">
-            <div class="warning-icon-wrapper">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
-            </div>
-
-            <p class="modal-text pre-line">{{ t.modalCancelText }}</p>
-
-            <div class="modal-actions">
-              <button type="button" class="btn-secondary-modal" @click="showCancelModal = false">
-                {{ t.btnKeepPlan }}
-              </button>
-
-              <button type="button" class="btn-danger-modal" @click="confirmCancelSubscription">
-                {{ t.btnConfirmCancel }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- MODAL: CAMBIO DE CORREO -->
       <div v-if="showEmailModal" class="modal-overlay" id="tutorial-email-modal" @click.self="showEmailModal = false">
@@ -2385,53 +2273,6 @@ button, input, textarea { font: inherit; }
 }
 
 /* =========================================================
-   SUSCRIPCIÓN WEB
-========================================================= */
-.plan-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px;
-  align-items: center;
-  gap: 12px;
-}
-
-.btn-icon-action {
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text);
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line-strong);
-  border-radius: 11px;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.btn-icon-action:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
-}
-
-.btn-icon-action svg { width: 19px; height: 19px; }
-
-.cancel-sub-wrapper { margin-top: 18px; }
-
-.btn-text-danger {
-  padding: 0;
-  color: #ef4444;
-  cursor: pointer;
-  background: transparent;
-  border: 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  transition: color 0.2s;
-}
-
-.btn-text-danger:hover { color: #f87171; text-decoration: underline; }
-
-/* =========================================================
    AVISOS
 ========================================================= */
 .security-notice {
@@ -2855,7 +2696,7 @@ button, input, textarea { font: inherit; }
 .pop-leave-to { opacity: 0; transform: scale(0.95); }
 
 /* =========================================================
-   MODALES (correo, baja de suscripción, plan web)
+   MODALES (correo)
 ========================================================= */
 .modal-wrapper {
   position: fixed;
