@@ -204,7 +204,7 @@
                       <span class="event-time">{{ formatHour(ev.inicio) }}</span>
                       <span class="event-capacity">
                         <svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3" /><path d="M3 21a6 6 0 0 1 12 0M17 11a4 4 0 0 1 4 4v6" /></svg>
-                        {{ ev.inscritos || 0 }}/{{ ev.capacidad }}
+                        {{ inscritosDelDia(ev, day.key) }}/{{ ev.capacidad }} · {{ Math.max(0, ev.capacidad - inscritosDelDia(ev, day.key)) }} libres
                       </span>
                     </div>
                     <strong>{{ ev.nombre }}</strong>
@@ -235,7 +235,7 @@
                       </a>
                     </div>
 
-                    <div class="event-progress"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
+                    <div class="event-progress"><i :style="{ width: fillPercent(ev, day.key) + '%' }"></i></div>
 
                     <!-- ACCIONES -->
                     <div v-if="!locked(ev)" class="event-actions">
@@ -354,9 +354,9 @@
 
                   <div class="mobile-event-footer">
                     <span>{{ levelLabel(ev.nivel) }}</span>
-                    <span>{{ ev.inscritos || 0 }}/{{ ev.capacidad }} {{ t('people') }}</span>
+                    <span>{{ inscritosDelDia(ev, activeKey) }}/{{ ev.capacidad }} {{ t('people') }} · {{ Math.max(0, ev.capacidad - inscritosDelDia(ev, activeKey)) }} libres</span>
                   </div>
-                  <div class="event-progress static"><i :style="{ width: fillPercent(ev) + '%' }"></i></div>
+                  <div class="event-progress static"><i :style="{ width: fillPercent(ev, activeKey) + '%' }"></i></div>
                 </article>
               </template>
 
@@ -405,6 +405,7 @@ interface Activity {
   capacidad: number;
   precio: number;
   inscritos?: number;
+  reservas_por_fecha?: Record<string,number>;
   inicio: string;
   fin: string;
   ubicacion: string;
@@ -781,9 +782,15 @@ const eventsAt = (day: string, hour: string) => {
   return found ? [found] : [];
 };
 
-const fillPercent = (activity: Activity) => {
+const inscritosDelDia = (activity: Activity, day: string): number => {
+  const fecha = dateForDay(day);
+  if (!fecha) return Number(activity.inscritos || 0);
+  return Number(activity.reservas_por_fecha?.[isoDate(fecha)] ?? 0);
+};
+
+const fillPercent = (activity: Activity, day: string) => {
   if (!activity.capacidad) return 0;
-  return Math.min(100, Math.round(((activity.inscritos || 0) / activity.capacidad) * 100));
+  return Math.min(100, Math.round((inscritosDelDia(activity, day) / activity.capacidad) * 100));
 };
 
 const dayLabel = (key: string) => {
@@ -1047,6 +1054,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
+let refreshInterval: ReturnType<typeof setInterval> | undefined;
 onMounted(() => {
   syncLanguage();
   goToday();
@@ -1057,6 +1065,8 @@ onMounted(() => {
     now.value = new Date();
   }, 60000);
   void cargarActividades();
+  // Sincroniza aforo con reservas de Member mientras la agenda está abierta.
+  refreshInterval = setInterval(() => { if (!showForm.value && !guardando.value) void cargarActividades(); }, 30000);
 });
 
 onUnmounted(() => {
@@ -1064,6 +1074,7 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', cambiarSede);
   window.removeEventListener('keydown', handleKeydown);
   if (clockTimer) clearInterval(clockTimer);
+  if (refreshInterval) clearInterval(refreshInterval);
   if (toastTimer) clearTimeout(toastTimer);
   ultimaConsulta++;
 });

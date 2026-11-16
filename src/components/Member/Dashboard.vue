@@ -301,7 +301,7 @@
                 </div>
                 <div class="activity-info">
                   <strong>{{ item.title }}</strong>
-                  <span>{{ item.time }} · {{ item.trainer }}</span>
+                  <span>{{ item.time }} · {{ item.trainer }} · {{ Number(item.price || 0) > 0 ? `$${Number(item.price).toFixed(2)} MXN` : (currentLang === 'en' ? 'Free' : 'Gratis') }}</span>
                 </div>
                 <span class="activity-status" :class="{ booked: item.booked }">{{ item.status }}</span>
               </div>
@@ -504,7 +504,7 @@ const cargarDashboardMiembro = async (id = null) => {
     member.value = {
       name: c.nombre || '—', photoUrl: c.foto_url || null, plan: m.plan || '',
       nextCut: m.vencimiento || '', balance: m.saldo == null ? null : Number(m.saldo),
-      lastPayment: m.ultimo_pago || null, classesReserved: null,
+      lastPayment: m.ultimo_pago || null, classesReserved: Number(data.clases_reservadas ?? 0),
       monthGoal: 24, cycleDays: 30, cycleStart: m.fecha_inscripcion || '', membershipStatus: m.estado || ''
     };
     gym.value = {
@@ -730,7 +730,7 @@ const todayRoutine = computed(() => ({ name: 'Sin rutina asignada', duration: '�
 const nextActivities = computed(() => actividadesReales.value.map(a => {
   const date = String(a.fecha || '');
   return { day: date.slice(8, 10), month: date.slice(5, 7), title: a.nombre,
-    time: a.hora || '—', trainer: a.instructor || '—', status: 'Disponible', booked: false };
+    time: a.hora || '—', trainer: a.instructor || '—', price: Number(a.precio || 0), status: a.reservada ? (currentLang.value === 'en' ? 'Booked' : 'Reservada') : (currentLang.value === 'en' ? 'Available' : 'Disponible'), booked: !!a.reservada };
 }));
 
 /* Sin "Pagar membresía" ni "Reservar clase": ya tienen su botón en sus paneles */

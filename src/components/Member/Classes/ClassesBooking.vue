@@ -206,6 +206,7 @@
                       <div class="class-tags">
                         <span class="cat-tag">{{ t.cats[cls.category] || cls.category }}</span>
                         <span class="level-tag">{{ translateLevel(cls.level) }}</span>
+                        <span class="level-tag">{{ Number(cls.price || 0) > 0 ? '$' + Number(cls.price).toFixed(2) + ' MXN' : (lang === 'en' ? 'Free' : 'Gratis') }}</span>
                       </div>
 
                       <h3 class="class-title" @click="openDetail(cls)">{{ cls.name }}</h3>
@@ -332,6 +333,7 @@
               <button type="button" class="close-btn" :aria-label="t.close" @click="selectedClass = null">&times;</button>
               <div class="modal-hero-copy">
                 <span class="cat-tag">{{ t.cats[selectedClass.category] || selectedClass.category }}</span>
+                <span class="cat-tag">{{ Number(selectedClass.price || 0) > 0 ? '$' + Number(selectedClass.price).toFixed(2) + ' MXN' : (lang === 'en' ? 'Free' : 'Gratis') }}</span>
                 <h2>{{ selectedClass.name }}</h2>
               </div>
             </div>
@@ -528,8 +530,19 @@ const cancelBooking = async cls => {
  finally{busy.value=false;}
 };
 const handleKeydown = e => {if(e.key==='Escape')selectedClass.value=null;};
-onMounted(()=>{window.addEventListener('keydown',handleKeydown);void cargarClases();});
-onUnmounted(()=>window.removeEventListener('keydown',handleKeydown));
+const refrescarAlVolver = () => { void cargarClases(true); };
+let recargaReservas;
+onMounted(()=>{
+  window.addEventListener('keydown',handleKeydown);
+  window.addEventListener('focus',refrescarAlVolver);
+  recargaReservas = setInterval(refrescarAlVolver,30000);
+  void cargarClases();
+});
+onUnmounted(()=>{
+  window.removeEventListener('keydown',handleKeydown);
+  window.removeEventListener('focus',refrescarAlVolver);
+  if (recargaReservas) clearInterval(recargaReservas);
+});
 </script>
 
 <style scoped>
