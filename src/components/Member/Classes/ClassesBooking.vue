@@ -36,7 +36,7 @@
               <strong>{{ nextBooking.name }}</strong>
               <span class="hero-base-meta">
                 <i class="dot open"></i>
-                {{ t.daysShort[nextBooking.day] }} · {{ nextBooking.startTime }}
+                {{ nextBooking.date }} · {{ nextBooking.startTime }}
               </span>
             </span>
             <svg class="hero-base-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
@@ -127,7 +127,7 @@
               <div class="date-strip custom-scrollbar-x" role="tablist">
                 <button
                   v-for="(d, idx) in weekDates"
-                  :key="idx"
+                  :key="d.iso"
                   type="button"
                   class="date-chip"
                   :class="{ active: selectedDateIndex === idx }"
@@ -174,7 +174,8 @@
                 </div>
               </header>
 
-              <div v-if="filteredDayClasses.length" class="timeline">
+              <div v-if="loading" class="empty-state"><p>{{ lang === 'en' ? 'Loading classes…' : 'Cargando clases…' }}</p></div>
+              <div v-else-if="filteredDayClasses.length" class="timeline">
                 <div v-for="cls in filteredDayClasses" :key="cls.id" class="timeline-row">
 
                   <div class="timeline-time">
@@ -189,12 +190,12 @@
 
                   <article
                     class="class-card"
-                    :class="{ booked: isBooked(cls.id), full: spotsLeft(cls) <= 0 && !isBooked(cls.id) }"
+                    :class="{ booked: cls.myBooking, full: spotsLeft(cls) <= 0 && !cls.myBooking }"
                     :style="{ '--cat-color': categoryColors[cls.category] }"
                   >
                     <div class="class-media" @click="openDetail(cls)">
                       <img :src="cls.image" :alt="cls.name" loading="lazy" @error="onImgError($event, 400)" />
-                      <span v-if="isBooked(cls.id)" class="booked-badge">
+                      <span v-if="isBooked(cls.key)" class="booked-badge">
                         <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
                         {{ t.bookedBadge }}
                       </span>
@@ -232,11 +233,11 @@
                         </div>
                       </div>
 
-                      <button v-if="isBooked(cls.id)" type="button" class="btn-danger" @click="cancelBooking(cls)">
+                      <button v-if="isBooked(cls.key)" type="button" class="btn-danger" :disabled="busy" @click="cancelBooking(cls)">
                         {{ t.cancelBookingBtn }}
                       </button>
-                      <button v-else type="button" class="btn-primary" :disabled="spotsLeft(cls) <= 0" @click="bookClass(cls)">
-                        {{ spotsLeft(cls) <= 0 ? t.fullBtn : t.bookBtn }}
+                      <button v-else type="button" class="btn-primary" :disabled="busy || spotsLeft(cls) <= 0 || cls.price > 0" @click="bookClass(cls)">
+                        {{ cls.price > 0 ? (lang === 'en' ? 'At reception' : 'En recepción') : spotsLeft(cls) <= 0 ? t.fullBtn : t.bookBtn }}
                       </button>
                     </div>
                   </article>
@@ -307,7 +308,7 @@
                   <img :src="cls.image" :alt="cls.name" class="booking-thumb" @error="onImgError($event, 200)" />
                   <div class="booking-info">
                     <strong>{{ cls.name }}</strong>
-                    <span>{{ t.daysShort[cls.day] }} · {{ cls.startTime }}</span>
+                    <span>{{ cls.date }} · {{ cls.startTime }}</span>
                   </div>
                   <button type="button" class="booking-cancel" :title="t.cancelBookingBtn" :aria-label="t.cancelBookingBtn" @click.stop="cancelBooking(cls)">
                     <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -349,7 +350,7 @@
               <div class="modal-info-grid">
                 <div class="modal-info-item">
                   <span class="info-label">{{ t.scheduleLabel }}</span>
-                  <span class="info-value">{{ t.days[selectedClass.day] }} · {{ selectedClass.startTime }}</span>
+                  <span class="info-value">{{ selectedClass.date }} · {{ selectedClass.startTime }}</span>
                 </div>
                 <div class="modal-info-item">
                   <span class="info-label">{{ t.durationLabel }}</span>
@@ -371,11 +372,11 @@
                 </div>
               </div>
 
-              <button v-if="isBooked(selectedClass.id)" type="button" class="btn-danger wide" @click="cancelBooking(selectedClass)">
+              <button v-if="isBooked(selectedClass.key)" type="button" class="btn-danger wide" :disabled="busy" @click="cancelBooking(selectedClass)">
                 {{ t.cancelBookingBtn }}
               </button>
-              <button v-else type="button" class="btn-primary wide" :disabled="spotsLeft(selectedClass) <= 0" @click="bookClass(selectedClass)">
-                {{ spotsLeft(selectedClass) <= 0 ? t.fullBtn : t.bookBtn }}
+              <button v-else type="button" class="btn-primary wide" :disabled="busy || spotsLeft(selectedClass) <= 0 || selectedClass.price > 0" @click="bookClass(selectedClass)">
+                {{ selectedClass.price > 0 ? (lang === 'en' ? 'At reception' : 'En recepción') : spotsLeft(selectedClass) <= 0 ? t.fullBtn : t.bookBtn }}
               </button>
             </div>
           </div>
@@ -386,319 +387,149 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const { lang } = useLang();
-
-const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const categoryKeys = ['yoga', 'spinning', 'crossfit', 'boxing', 'pilates', 'zumba'];
-
-const categoryColors = {
-  yoga: '#a855f7',
-  spinning: '#f97316',
-  crossfit: '#ef4444',
-  boxing: '#eab308',
-  pilates: '#14b8a6',
-  zumba: '#ec4899'
-};
-
-const props = defineProps({
-  classesList: {
-    type: Array,
-    default: () => [
-      { id: 'c1', name: 'Power Yoga', category: 'yoga', level: 'Principiante', day: 'mon', startTime: '07:00', duration: 45, capacity: 20, booked: 12, instructor: 'Marisol Reyes', instructorAvatar: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400', description: 'Sesión de yoga dinámico enfocada en fuerza, flexibilidad y respiración controlada.' },
-      { id: 'c2', name: 'Spinning HIIT', category: 'spinning', level: 'Intermedio', day: 'mon', startTime: '18:30', duration: 40, capacity: 18, booked: 18, instructor: 'Daniel Ortiz', instructorAvatar: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400', description: 'Cardio de alta intensidad sobre bicicleta estática con intervalos cronometrados.' },
-      { id: 'c3', name: 'CrossFit WOD', category: 'crossfit', level: 'Avanzado', day: 'mon', startTime: '19:30', duration: 60, capacity: 15, booked: 9, instructor: 'Luis Fernández', instructorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=400', description: 'Entrenamiento funcional de alta intensidad con movimientos variados cada sesión.' },
-      { id: 'c4', name: 'Boxeo Fitness', category: 'boxing', level: 'Intermedio', day: 'wed', startTime: '20:00', duration: 50, capacity: 16, booked: 6, instructor: 'Karla Jiménez', instructorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?auto=format&fit=crop&q=80&w=400', description: 'Técnica de boxeo combinada con acondicionamiento cardiovascular.' },
-      { id: 'c5', name: 'Pilates Reformer', category: 'pilates', level: 'Principiante', day: 'thu', startTime: '09:00', duration: 45, capacity: 12, booked: 12, instructor: 'Marisol Reyes', instructorAvatar: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&q=80&w=400', description: 'Trabajo de core y postura con control total del movimiento.' },
-      { id: 'c6', name: 'Zumba Party', category: 'zumba', level: 'Principiante', day: 'fri', startTime: '18:00', duration: 50, capacity: 25, booked: 14, instructor: 'Karla Jiménez', instructorAvatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=400', description: 'Baile con ritmos latinos, quema calórica y mucha energía en grupo.' },
-      { id: 'c7', name: 'Yoga Restaurativo', category: 'yoga', level: 'Principiante', day: 'wed', startTime: '07:30', duration: 40, capacity: 20, booked: 5, instructor: 'Marisol Reyes', instructorAvatar: 'https://images.unsplash.com/photo-1594381898411-846e7d193883?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400', description: 'Estiramientos profundos y respiración para liberar tensión acumulada.' },
-      { id: 'c8', name: 'Spinning Endurance', category: 'spinning', level: 'Avanzado', day: 'fri', startTime: '07:00', duration: 45, capacity: 18, booked: 4, instructor: 'Daniel Ortiz', instructorAvatar: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&q=80&w=150', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=400', description: 'Recorrido de resistencia con cambios de ritmo sostenidos.' }
-    ]
-  },
-  initialBookings: { type: Array, default: () => [] }
-});
-
-const emit = defineEmits(['book-class', 'cancel-class']);
-
-/* =========================================================
-   NOTIFICACIONES
-========================================================= */
 const toastRef = ref(null);
-const notify = (message, type = 'success', duration = 3500) => {
-  toastRef.value?.notify(message, type, duration);
+const notify = (message, type = 'success', duration = 4000) => toastRef.value?.notify(message, type, duration);
+const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+const serverDay = { monday:'mon', tuesday:'tue', wednesday:'wed', thursday:'thu', friday:'fri', saturday:'sat', sunday:'sun' };
+const categoryColors = {
+  yoga:'#a855f7', spinning:'#f97316', crossfit:'#ef4444', boxing:'#eab308',
+  pilates:'#14b8a6', zumba:'#ec4899'
 };
-
-/* =========================================================
-   TRADUCCIONES
-========================================================= */
-const traducciones = {
-  es: {
-    headerTag: 'Clases Grupales',
-    mainTitle1: 'Reserva tus',
-    mainTitle2: 'Clases',
-    heroDesc: 'Elige el horario que más te acomode y asegura tu lugar antes de que se llene.',
-    todayBtn: 'Ver hoy',
-    nextClass: 'Tu próxima clase',
-    noNextClass: 'Aún no tienes reservas',
-    noNextClassSub: 'Reserva una clase para verla aquí',
-    summaryMyBookings: 'Mis reservas',
-    summarySelectedDay: 'Clases este día',
-    summarySpotsLeft: 'Lugares hoy',
-    kpiWeek: 'Clases en la semana',
-    onlyMyBookingsLabel: 'Solo mis reservas',
-    searchPlaceholder: 'Busca por clase, instructor o categoría…',
-    clearSearch: 'Limpiar búsqueda',
-    clearFilters: 'Limpiar filtros',
-    categoryAll: 'Todas',
-    timelineSub: 'Horario de clases del día seleccionado.',
-    dayOccupancy: 'Ocupación del día',
-    dayBookedLabel: 'Cupo reservado',
-    noBookings: 'Todavía no has reservado ninguna clase.',
-    bookedBadge: 'Reservada',
-    bookedOk: 'Reservaste',
-    cancelledOk: 'Reserva cancelada',
-    close: 'Cerrar',
-    instructorLabel: 'Instructor',
-    minutesShort: 'min',
-    spotsShort: 'lugares',
-    bookBtn: 'Reservar',
-    fullBtn: 'Lleno',
-    cancelBookingBtn: 'Cancelar',
-    scheduleLabel: 'Horario',
-    durationLabel: 'Duración',
-    spotsLabel: 'Cupo',
-    levelLabel: 'Nivel',
-    emptyTitle: 'No hay clases con ese criterio',
-    emptyDesc: 'Prueba otro día o cambia los filtros.',
-    levelBeginner: 'Principiante',
-    levelIntermediate: 'Intermedio',
-    levelAdvanced: 'Avanzado',
-    days: { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' },
-    daysShort: { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb', sun: 'Dom' },
-    cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxeo', pilates: 'Pilates', zumba: 'Zumba' }
-  },
-  en: {
-    headerTag: 'Group Classes',
-    mainTitle1: 'Book your',
-    mainTitle2: 'Classes',
-    heroDesc: 'Pick the schedule that fits you best and grab your spot before it fills up.',
-    todayBtn: 'View today',
-    nextClass: 'Your next class',
-    noNextClass: 'No bookings yet',
-    noNextClassSub: 'Book a class to see it here',
-    summaryMyBookings: 'My bookings',
-    summarySelectedDay: 'Classes this day',
-    summarySpotsLeft: 'Spots today',
-    kpiWeek: 'Classes this week',
-    onlyMyBookingsLabel: 'Only my bookings',
-    searchPlaceholder: 'Search by class, instructor or category…',
-    clearSearch: 'Clear search',
-    clearFilters: 'Clear filters',
-    categoryAll: 'All',
-    timelineSub: 'Class schedule for the selected day.',
-    dayOccupancy: "Day's occupancy",
-    dayBookedLabel: 'Booked capacity',
-    noBookings: "You haven't booked any class yet.",
-    bookedBadge: 'Booked',
-    bookedOk: 'You booked',
-    cancelledOk: 'Booking cancelled',
-    close: 'Close',
-    instructorLabel: 'Instructor',
-    minutesShort: 'min',
-    spotsShort: 'spots',
-    bookBtn: 'Book',
-    fullBtn: 'Full',
-    cancelBookingBtn: 'Cancel',
-    scheduleLabel: 'Schedule',
-    durationLabel: 'Duration',
-    spotsLabel: 'Capacity',
-    levelLabel: 'Level',
-    emptyTitle: 'No classes match that',
-    emptyDesc: 'Try another day or change the filters.',
-    levelBeginner: 'Beginner',
-    levelIntermediate: 'Intermediate',
-    levelAdvanced: 'Advanced',
-    days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' },
-    daysShort: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
-    cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxing', pilates: 'Pilates', zumba: 'Zumba' }
-  }
-};
-
-const t = computed(() => traducciones[lang.value] || traducciones.es);
-
-const translateLevel = (level) => {
-  if (level === 'Principiante') return t.value.levelBeginner;
-  if (level === 'Intermedio') return t.value.levelIntermediate;
-  if (level === 'Avanzado') return t.value.levelAdvanced;
-  return level;
-};
-
-/* =========================================================
-   FECHAS (tira de 7 días a partir de hoy)
-========================================================= */
-const jsDayToKey = (jsDay) => dayKeys[(jsDay + 6) % 7];
-
-const weekDates = (() => {
-  const arr = [];
-  const today = new Date();
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    arr.push({ date: d, dateNum: d.getDate(), dayKey: jsDayToKey(d.getDay()), isToday: i === 0 });
-  }
-  return arr;
-})();
-
+const classesList = ref([]);
+const loading = ref(false);
+const busy = ref(false);
 const selectedDateIndex = ref(0);
-const selectedDayKey = computed(() => weekDates[selectedDateIndex.value].dayKey);
-
-const selectedDateLabel = computed(() => {
-  const d = weekDates[selectedDateIndex.value].date;
-  const locale = lang.value === 'en' ? 'en-US' : 'es-MX';
-  const label = d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-});
-
-const goToday = () => { selectedDateIndex.value = 0; };
-
-/* =========================================================
-   ESTADO DE RESERVAS
-========================================================= */
-const bookedCounts = reactive({});
-props.classesList.forEach((c) => { bookedCounts[c.id] = c.booked || 0; });
-
-const myBookings = ref([...props.initialBookings]);
 const activeCategory = ref('all');
 const onlyMyBookings = ref(false);
 const searchQuery = ref('');
 const selectedClass = ref(null);
-
-const isBooked = (id) => myBookings.value.includes(id);
-
-const occupiedCount = (cls) => bookedCounts[cls.id] ?? cls.booked ?? 0;
-const spotsLeft = (cls) => Math.max(cls.capacity - occupiedCount(cls), 0);
-const occupancyPct = (cls) => (cls.capacity ? Math.round(Math.min(occupiedCount(cls) / cls.capacity, 1) * 100) : 0);
-const occLevel = (cls) => {
-  const p = occupancyPct(cls);
-  return p >= 100 ? 'high' : p >= 75 ? 'mid' : 'low';
+const myBookings = computed(() => classesList.value.filter(c => c.myBooking).map(c => c.key));
+const categoryKeys = computed(() => [...new Set(classesList.value.map(c => c.category))].sort());
+const todayStart = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const localIso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const jsDayToKey = day => dayKeys[(day+6)%7];
+const weekDates = Array.from({length:7}, (_,i) => {
+  const d=todayStart(); d.setDate(d.getDate()+i);
+  return {date:d, iso:localIso(d), dateNum:d.getDate(), dayKey:jsDayToKey(d.getDay()), isToday:i===0};
+});
+const selectedDate = computed(() => weekDates[selectedDateIndex.value]?.iso || weekDates[0].iso);
+const selectedDayKey = computed(() => weekDates[selectedDateIndex.value]?.dayKey || weekDates[0].dayKey);
+const goToday = () => {selectedDateIndex.value=0;};
+const selectedDateLabel = computed(() => {
+  const label=weekDates[selectedDateIndex.value].date.toLocaleDateString(lang.value==='en'?'en-US':'es-MX',{weekday:'long',day:'numeric',month:'long'});
+  return label.charAt(0).toUpperCase()+label.slice(1);
+});
+const traducciones = {
+ es: {
+  headerTag:'Clases Grupales', mainTitle1:'Reserva tus',mainTitle2:'Clases',heroDesc:'Consulta clases disponibles en tu sede y asegura tu lugar.',
+  todayBtn:'Ver hoy',nextClass:'Tu próxima clase',noNextClass:'Aún no tienes reservas',noNextClassSub:'Reserva una clase para verla aquí',
+  summaryMyBookings:'Mis reservas',summarySelectedDay:'Clases este día',summarySpotsLeft:'Lugares hoy',kpiWeek:'Clases en la semana',
+  onlyMyBookingsLabel:'Solo mis reservas',searchPlaceholder:'Busca por clase, instructor o categoría…',clearSearch:'Limpiar búsqueda',clearFilters:'Limpiar filtros',
+  categoryAll:'Todas',timelineSub:'Horario real de clases del día seleccionado.',dayOccupancy:'Ocupación del día',dayBookedLabel:'Cupo reservado',
+  noBookings:'Todavía no has reservado ninguna clase.',bookedBadge:'Reservada',bookedOk:'Reservaste',cancelledOk:'Reserva cancelada',close:'Cerrar',
+  instructorLabel:'Instructor',minutesShort:'min',spotsShort:'lugares',bookBtn:'Reservar',fullBtn:'Lleno',cancelBookingBtn:'Cancelar',
+  scheduleLabel:'Horario',durationLabel:'Duración',spotsLabel:'Cupo',levelLabel:'Nivel',emptyTitle:'No hay clases con ese criterio',
+  emptyDesc:'Prueba otro día o cambia los filtros.',levelBeginner:'Principiante',levelIntermediate:'Intermedio',levelAdvanced:'Avanzado',
+  days:{mon:'Lunes',tue:'Martes',wed:'Miércoles',thu:'Jueves',fri:'Viernes',sat:'Sábado',sun:'Domingo'},
+  daysShort:{mon:'Lun',tue:'Mar',wed:'Mié',thu:'Jue',fri:'Vie',sat:'Sáb',sun:'Dom'},
+  cats:{yoga:'Yoga',spinning:'Spinning',crossfit:'CrossFit',boxing:'Boxeo',pilates:'Pilates',zumba:'Zumba'}
+ },
+ en: {
+  headerTag:'Group Classes',mainTitle1:'Book your',mainTitle2:'Classes',heroDesc:'See available classes at your gym and secure your spot.',
+  todayBtn:'View today',nextClass:'Your next class',noNextClass:'No bookings yet',noNextClassSub:'Book a class to see it here',
+  summaryMyBookings:'My bookings',summarySelectedDay:'Classes this day',summarySpotsLeft:'Spots today',kpiWeek:'Classes this week',
+  onlyMyBookingsLabel:'Only my bookings',searchPlaceholder:'Search by class, instructor or category…',clearSearch:'Clear search',clearFilters:'Clear filters',
+  categoryAll:'All',timelineSub:'Actual schedule for the selected date.',dayOccupancy:"Day's occupancy",dayBookedLabel:'Booked capacity',
+  noBookings:"You haven't booked any class yet.",bookedBadge:'Booked',bookedOk:'You booked',cancelledOk:'Booking cancelled',close:'Close',
+  instructorLabel:'Instructor',minutesShort:'min',spotsShort:'spots',bookBtn:'Book',fullBtn:'Full',cancelBookingBtn:'Cancel',
+  scheduleLabel:'Schedule',durationLabel:'Duration',spotsLabel:'Capacity',levelLabel:'Level',emptyTitle:'No classes match your filters',
+  emptyDesc:'Try another day or change the filters.',levelBeginner:'Beginner',levelIntermediate:'Intermediate',levelAdvanced:'Advanced',
+  days:{mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday',sun:'Sunday'},
+  daysShort:{mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri',sat:'Sat',sun:'Sun'},
+  cats:{yoga:'Yoga',spinning:'Spinning',crossfit:'CrossFit',boxing:'Boxing',pilates:'Pilates',zumba:'Zumba'}
+ }
 };
-
-const endTime = (cls) => {
-  const [h, m] = cls.startTime.split(':').map(Number);
-  const total = h * 60 + m + cls.duration;
-  const eh = Math.floor(total / 60) % 24;
-  const em = total % 60;
-  return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-};
-
-const bookClass = (cls) => {
-  if (spotsLeft(cls) <= 0 || isBooked(cls.id)) return;
-  bookedCounts[cls.id] = occupiedCount(cls) + 1;
-  myBookings.value.push(cls.id);
-  emit('book-class', cls);
-  notify(`${t.value.bookedOk}: ${cls.name}`, 'success');
-};
-
-const cancelBooking = (cls) => {
-  if (!isBooked(cls.id)) return;
-  bookedCounts[cls.id] = Math.max(occupiedCount(cls) - 1, 0);
-  myBookings.value = myBookings.value.filter((id) => id !== cls.id);
-  emit('cancel-class', cls);
-  notify(`${t.value.cancelledOk}: ${cls.name}`, 'info');
-};
-
-const openDetail = (cls) => { selectedClass.value = cls; };
-
-const onImgError = (event, width) => {
-  event.target.src = `https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=${width}`;
-};
-
-/* =========================================================
-   DERIVADOS
-========================================================= */
-const normalize = (str) =>
-  (str || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-
+const t = computed(() => traducciones[lang.value] || traducciones.es);
+const translateLevel = level => ({Principiante:t.value.levelBeginner,Intermedio:t.value.levelIntermediate,Avanzado:t.value.levelAdvanced}[level] || level);
+const normalize = str => String(str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const selectedDayClasses = computed(() => classesList.value.filter(c=>c.date===selectedDate.value).sort((a,b)=>a.startTime.localeCompare(b.startTime)));
 const query = computed(() => normalize(searchQuery.value.trim()));
-
-const matchesQuery = (cls) =>
-  !query.value ||
-  normalize(cls.name).includes(query.value) ||
-  normalize(cls.instructor).includes(query.value) ||
-  normalize(t.value.cats[cls.category] || cls.category).includes(query.value);
-
-const selectedDayClasses = computed(() =>
-  props.classesList
-    .filter((c) => c.day === selectedDayKey.value)
-    .sort((a, b) => a.startTime.localeCompare(b.startTime))
-);
-
-const filteredDayClasses = computed(() =>
-  selectedDayClasses.value.filter((cls) => {
-    if (activeCategory.value !== 'all' && cls.category !== activeCategory.value) return false;
-    if (onlyMyBookings.value && !isBooked(cls.id)) return false;
-    return matchesQuery(cls);
-  })
-);
-
-const hasActiveFilters = computed(
-  () => activeCategory.value !== 'all' || onlyMyBookings.value || !!query.value
-);
-
-const clearFilters = () => {
-  activeCategory.value = 'all';
-  onlyMyBookings.value = false;
-  searchQuery.value = '';
+const matchesQuery = cls => !query.value || [cls.name,cls.instructor,t.value.cats[cls.category]||cls.category].some(s=>normalize(s).includes(query.value));
+const isBooked = key => myBookings.value.includes(key);
+const occupiedCount = cls => Number(cls.booked||0);
+const spotsLeft = cls => Math.max(0,Number(cls.capacity||0)-occupiedCount(cls));
+const occupancyPct = cls => cls.capacity?Math.min(100,Math.round(occupiedCount(cls)/cls.capacity*100)):0;
+const occLevel = cls => occupancyPct(cls)>=100?'high':occupancyPct(cls)>=75?'mid':'low';
+const endTime = cls => {
+  const [h,m]=cls.startTime.split(':').map(Number), minutes=h*60+m+Number(cls.duration||0);
+  return `${String(Math.floor(minutes/60)%24).padStart(2,'0')}:${String(minutes%60).padStart(2,'0')}`;
 };
-
-const classCountByDay = computed(() => {
-  const counts = {};
-  props.classesList.forEach((c) => { counts[c.day] = (counts[c.day] || 0) + 1; });
-  return counts;
+const filteredDayClasses = computed(() => selectedDayClasses.value.filter(cls =>
+ (activeCategory.value==='all'||activeCategory.value===cls.category) && (!onlyMyBookings.value||cls.myBooking) && matchesQuery(cls)));
+const hasActiveFilters = computed(()=>activeCategory.value!=='all'||onlyMyBookings.value||!!query.value);
+const clearFilters=()=>{activeCategory.value='all';onlyMyBookings.value=false;searchQuery.value='';};
+const classCountByDay = computed(()=>{
+ const result={}; for(const day of weekDates) result[day.dayKey]=classesList.value.filter(c=>c.date===day.iso).length;
+ return result;
 });
-
-const categoryCountsToday = computed(() => {
-  const counts = {};
-  selectedDayClasses.value.forEach((c) => { counts[c.category] = (counts[c.category] || 0) + 1; });
-  return counts;
+const categoryCountsToday = computed(()=>{
+ const counts={}; for(const cls of selectedDayClasses.value)counts[cls.category]=(counts[cls.category]||0)+1;
+ return counts;
 });
-
-const totalSpotsLeftToday = computed(() =>
-  selectedDayClasses.value.reduce((sum, c) => sum + spotsLeft(c), 0)
-);
-
-const dayCapacity = computed(() => selectedDayClasses.value.reduce((sum, c) => sum + c.capacity, 0));
-const dayPct = computed(() =>
-  dayCapacity.value ? Math.round(((dayCapacity.value - totalSpotsLeftToday.value) / dayCapacity.value) * 100) : 0
-);
-const dayLevel = computed(() => (dayPct.value >= 100 ? 'high' : dayPct.value >= 75 ? 'mid' : 'low'));
-
-const bookedClassesSorted = computed(() => {
-  const order = weekDates.map((d) => d.dayKey);
-  return props.classesList
-    .filter((c) => isBooked(c.id))
-    .sort((a, b) => order.indexOf(a.day) - order.indexOf(b.day) || a.startTime.localeCompare(b.startTime));
-});
-
-const nextBooking = computed(() => bookedClassesSorted.value[0] || null);
-
-const showMyBookings = () => {
-  document.getElementById('my-bookings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+const totalSpotsLeftToday = computed(()=>selectedDayClasses.value.reduce((sum,c)=>sum+spotsLeft(c),0));
+const dayCapacity = computed(()=>selectedDayClasses.value.reduce((sum,c)=>sum+Number(c.capacity),0));
+const dayPct = computed(()=>dayCapacity.value?Math.round((dayCapacity.value-totalSpotsLeftToday.value)/dayCapacity.value*100):0);
+const dayLevel = computed(()=>dayPct.value>=100?'high':dayPct.value>=75?'mid':'low');
+const bookedClassesSorted = computed(()=>classesList.value.filter(c=>c.myBooking).sort((a,b)=> a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)));
+const nextBooking = computed(()=>bookedClassesSorted.value[0]||null);
+const showMyBookings = ()=>document.getElementById('my-bookings')?.scrollIntoView({behavior:'smooth',block:'start'});
+const openDetail = cls=>{selectedClass.value=cls;};
+const emptyImage = 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><rect width="640" height="420" fill="#17202d"/><path d="M250 205h140M290 155v100M350 155v100" stroke="#4b84b8" stroke-width="18" stroke-linecap="round"/><text x="320" y="330" text-anchor="middle" fill="#a8b8ca" font-size="25" font-family="Arial">FactorFit</text></svg>');
+const onImgError = event => {if(event.target.src!==emptyImage)event.target.src=emptyImage;};
+async function cargarClases(silent=false) {
+ if(!silent)loading.value=true;
+ try {
+  const res=await solicitudMiembro('/api/member/clases');
+  if(!res||!Array.isArray(res.classes))throw new Error('Respuesta de clases no válida.');
+  classesList.value=res.classes.map(c=>({ ...c,id:Number(c.id),date:String(c.date),key:`${c.id}|${c.date}`,
+    category: String(c.category||'general').toLowerCase(),day:serverDay[String(c.day).toLowerCase()]||'mon',
+    image:c.image||emptyImage,instructorAvatar:c.instructorAvatar||emptyImage,myBooking:Boolean(c.myBooking) }));
+ }catch(e){notify(e instanceof Error?e.message:'No se pudieron cargar las clases.','error',6000);}
+ finally{loading.value=false;}
+}
+const bookClass = async cls => {
+ if(busy.value||cls.myBooking||spotsLeft(cls)<=0)return;
+ if(Number(cls.price||0)>0){notify('Esta clase requiere pago. Consulta en recepción.','warning');return;}
+ busy.value=true;
+ try{
+  await solicitudMiembro('/api/member/clases/reservar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actividad_id:cls.id,fecha:cls.date})});
+  notify(`${t.value.bookedOk}: ${cls.name}`,'success');
+  await cargarClases(true);
+  if (selectedClass.value?.key === cls.key) selectedClass.value = classesList.value.find(c => c.key === cls.key) || null;
+ }catch(e){notify(e instanceof Error?e.message:'No se pudo realizar la reserva.','error',6000);}
+ finally{busy.value=false;}
 };
-
-/* =========================================================
-   CICLO DE VIDA
-========================================================= */
-const handleKeydown = (e) => {
-  if (e.key === 'Escape' && selectedClass.value) selectedClass.value = null;
+const cancelBooking = async cls => {
+ if(busy.value||!cls.myBooking)return;
+ busy.value=true;
+ try{
+  await solicitudMiembro('/api/member/clases/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actividad_id:cls.id,fecha:cls.date})});
+  notify(`${t.value.cancelledOk}: ${cls.name}`,'info');
+  selectedClass.value=null;
+  await cargarClases(true);
+ }catch(e){notify(e instanceof Error?e.message:'No se pudo cancelar la reserva.','error',6000);}
+ finally{busy.value=false;}
 };
-
-onMounted(() => window.addEventListener('keydown', handleKeydown));
-onUnmounted(() => window.removeEventListener('keydown', handleKeydown));
+const handleKeydown = e => {if(e.key==='Escape')selectedClass.value=null;};
+onMounted(()=>{window.addEventListener('keydown',handleKeydown);void cargarClases();});
+onUnmounted(()=>window.removeEventListener('keydown',handleKeydown));
 </script>
 
 <style scoped>
