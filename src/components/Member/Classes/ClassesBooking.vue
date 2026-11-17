@@ -195,6 +195,8 @@
                   >
                     <div class="class-media" @click="openDetail(cls)">
                       <img :src="cls.image" :alt="cls.name" loading="lazy" @error="onImgError($event, 400)" />
+                      <span v-if="cls.video" class="media-video-tag" :title="lang === 'en' ? 'Video available' : 'Video disponible'">▶ Video</span>
+                      <span v-if="cls.images?.length > 1" class="media-photo-count">{{ cls.images.length }} fotos</span>
                       <span v-if="isBooked(cls.key)" class="booked-badge">
                         <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
                         {{ t.bookedBadge }}
@@ -328,7 +330,7 @@
         <div v-if="selectedClass" class="modal-backdrop" @click.self="selectedClass = null">
           <div class="modal-content custom-scrollbar" :style="{ '--cat-color': categoryColors[selectedClass.category] }">
             <div class="modal-hero-media">
-              <img :src="selectedClass.image" :alt="selectedClass.name" @error="onImgError($event, 800)" />
+              <img :src="currentMediaImage(selectedClass)" :alt="selectedClass.name" @error="onImgError($event, 800)" />
               <div class="modal-hero-overlay"></div>
               <button type="button" class="close-btn" :aria-label="t.close" @click="selectedClass = null">&times;</button>
               <div class="modal-hero-copy">
@@ -339,6 +341,23 @@
             </div>
 
             <div class="modal-body">
+              <!-- Galería de fotos y video reales de esta actividad -->
+              <section v-if="selectedClass.images?.length || selectedClass.video" class="class-media-gallery" :aria-label="lang === 'en' ? 'Class media' : 'Fotos y video de la clase'">
+                <div v-if="selectedClass.images?.length" class="class-photo-thumbs">
+                  <button v-for="(photo, index) in selectedClass.images" :key="index" type="button"
+                    class="class-photo-thumb" :class="{ active: activePhotoIndex === index }"
+                    :aria-label="(lang === 'en' ? 'View photo ' : 'Ver foto ') + (index + 1)"
+                    @click="activePhotoIndex = index">
+                    <img :src="photo" :alt="selectedClass.name + ' - ' + (index + 1)" loading="lazy" @error="onImgError($event, 200)" />
+                  </button>
+                </div>
+                <div v-if="selectedClass.video" class="class-video-section">
+                  <strong>{{ lang === 'en' ? 'Class video' : 'Video de la clase' }}</strong>
+                  <video :key="selectedClass.video" :src="selectedClass.video" controls playsinline preload="metadata" :poster="selectedClass.images?.[0] || undefined">
+                    {{ lang === 'en' ? 'Your browser cannot play this video.' : 'Tu navegador no puede reproducir este video.' }}
+                  </video>
+                </div>
+              </section>
               <p class="modal-desc">{{ selectedClass.description }}</p>
 
               <div class="modal-instructor-row">
@@ -412,6 +431,8 @@ const activeCategory = ref('all');
 const onlyMyBookings = ref(false);
 const searchQuery = ref('');
 const selectedClass = ref(null);
+const activePhotoIndex = ref(0);
+const currentMediaImage = cls => cls?.images?.[activePhotoIndex.value] || cls?.image || emptyImage;
 const myBookings = computed(() => classesList.value.filter(c => c.myBooking).map(c => c.key));
 const categoryKeys = computed(() => [...new Set(classesList.value.map(c => c.category))].sort());
 const todayStart = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
@@ -492,7 +513,7 @@ const dayLevel = computed(()=>dayPct.value>=100?'high':dayPct.value>=75?'mid':'l
 const bookedClassesSorted = computed(()=>classesList.value.filter(c=>c.myBooking).sort((a,b)=> a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)));
 const nextBooking = computed(()=>bookedClassesSorted.value[0]||null);
 const showMyBookings = ()=>document.getElementById('my-bookings')?.scrollIntoView({behavior:'smooth',block:'start'});
-const openDetail = cls=>{selectedClass.value=cls;};
+const openDetail = cls=>{activePhotoIndex.value=0;selectedClass.value=cls;};
 const emptyImage = 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><rect width="640" height="420" fill="#17202d"/><path d="M250 205h140M290 155v100M350 155v100" stroke="#4b84b8" stroke-width="18" stroke-linecap="round"/><text x="320" y="330" text-anchor="middle" fill="#a8b8ca" font-size="25" font-family="Arial">FactorFit</text></svg>');
 const onImgError = event => {if(event.target.src!==emptyImage)event.target.src=emptyImage;};
 async function cargarClases(silent=false) {
@@ -502,7 +523,9 @@ async function cargarClases(silent=false) {
   if(!res||!Array.isArray(res.classes))throw new Error('Respuesta de clases no válida.');
   classesList.value=res.classes.map(c=>({ ...c,id:Number(c.id),date:String(c.date),key:`${c.id}|${c.date}`,
     category: String(c.category||'general').toLowerCase(),day:serverDay[String(c.day).toLowerCase()]||'mon',
-    image:c.image||emptyImage,instructorAvatar:c.instructorAvatar||emptyImage,myBooking:Boolean(c.myBooking) }));
+    image:c.image||emptyImage, images:Array.isArray(c.images)?c.images.filter(u=>typeof u==='string' && u.startsWith('https://')):[],
+     video:typeof c.video==='string' && c.video.startsWith('https://')?c.video:null,
+     instructorAvatar:c.instructorAvatar||emptyImage,myBooking:Boolean(c.myBooking) }));
  }catch(e){notify(e instanceof Error?e.message:'No se pudieron cargar las clases.','error',6000);}
  finally{loading.value=false;}
 }
@@ -1440,4 +1463,17 @@ input:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
+</style>
+<style scoped>
+/* Fotos y video: se integra sin cambiar la estructura visual de reservas. */
+.media-video-tag,.media-photo-count{position:absolute;top:7px;right:7px;z-index:2;border-radius:7px;padding:3px 6px;font-size:9px;font-weight:800;color:#fff;background:rgba(0,0,0,.75)}
+.media-photo-count{top:29px}
+.class-media-gallery{display:flex;flex-direction:column;gap:14px}
+.class-photo-thumbs{display:flex;gap:8px;overflow-x:auto;padding:3px 0}
+.class-photo-thumb{flex:0 0 76px;width:76px;height:64px;border-radius:10px;overflow:hidden;padding:0;border:2px solid transparent;background:var(--surface);cursor:pointer}
+.class-photo-thumb.active{border-color:var(--color-highlight,#3b82f6)}
+.class-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.class-video-section{display:flex;flex-direction:column;gap:9px}
+.class-video-section strong{font-size:13px;color:var(--title)}
+.class-video-section video{display:block;width:100%;max-height:360px;object-fit:contain;background:#070707;border-radius:14px;border:1px solid var(--line2)}
 </style>
