@@ -29,7 +29,7 @@
           <!-- Tu próxima clase -->
           <button v-if="nextBooking" type="button" class="hero-base" @click="openDetail(nextBooking)">
             <span class="hero-base-img">
-              <img :src="nextBooking.image" :alt="nextBooking.name" @error="onImgError($event, 200)" />
+              <img :src="nextBooking.image" :alt="nextBooking.name" @error="onImgError" />
             </span>
             <span class="hero-base-copy">
               <small>{{ t.nextClass }}</small>
@@ -102,7 +102,7 @@
           <!-- ================= IZQUIERDA ================= -->
           <div class="left-column">
 
-            <!-- 3. BÚSQUEDA Y FILTROS -->
+            <!-- 3. BÚSQUEDA, FECHAS Y FILTROS -->
             <section class="toolbar">
               <div class="toolbar-row">
                 <label class="search-box">
@@ -113,9 +113,7 @@
                     :placeholder="t.searchPlaceholder"
                     :aria-label="t.searchPlaceholder"
                   />
-                  <button v-if="searchQuery" type="button" class="clear-search" :aria-label="t.clearSearch" @click="searchQuery = ''">
-                    <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                  </button>
+                  <button v-if="searchQuery" type="button" class="clear-search" :aria-label="t.clearSearch" @click="searchQuery = ''">&times;</button>
                 </label>
 
                 <label class="only-booked-toggle">
@@ -123,6 +121,43 @@
                   <span class="toggle-track"><span class="toggle-thumb"></span></span>
                   <span class="toggle-label-text">{{ t.onlyMyBookingsLabel }}</span>
                 </label>
+              </div>
+
+              <!-- Fechas: se desliza para ver más días -->
+              <div class="date-block">
+                <div class="date-head">
+                  <span class="date-month">{{ monthTitle }}</span>
+                  <div class="date-nav">
+                    <button type="button" class="date-arrow" :aria-label="t.prevDays" @click="scrollStrip(-1)">
+                      <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="date-today" @click="goToday">{{ t.todayShort }}</button>
+                    <button type="button" class="date-arrow" :aria-label="t.nextDays" @click="scrollStrip(1)">
+                      <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div ref="stripRef" class="date-strip custom-scrollbar-x" role="tablist">
+                  <button
+                    v-for="d in stripDays"
+                    :key="d.iso"
+                    :ref="el => { if (d.iso === selectedIso && el) activeChipEl = el }"
+                    type="button"
+                    role="tab"
+                    class="date-chip"
+                    :class="{ active: d.iso === selectedIso, today: d.isToday, empty: !d.count }"
+                    :aria-selected="d.iso === selectedIso"
+                    @click="selectIso(d.iso)"
+                  >
+                    <span class="date-chip-day">{{ t.daysShort[d.dayKey] }}</span>
+                    <span class="date-chip-num">{{ d.num }}</span>
+                    <span class="date-chip-month">{{ d.monthShort }}</span>
+                    <span class="date-chip-count" :class="{ none: !d.count }">{{ d.count }}</span>
+                    <svg v-if="d.booked" class="date-chip-booked" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+                    <span v-else-if="d.isToday" class="date-chip-today-dot"></span>
+                  </button>
+                </div>
               </div>
 
               <!-- Categorías -->
@@ -154,17 +189,14 @@
                   <p>{{ t.timelineSub }}</p>
                 </div>
                 <div class="head-actions">
-                  <button v-if="hasActiveFilters" type="button" class="link-btn" @click="clearFilters">
-                    {{ t.clearFilters }}
-                    <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                  </button>
+                  <button v-if="hasActiveFilters" type="button" class="link-btn" @click="clearFilters">{{ t.clearFilters }} ✕</button>
                   <span class="count-pill">{{ filteredDayClasses.length }}</span>
                 </div>
               </header>
 
               <div v-if="loading" class="empty-state"><p>{{ lang === 'en' ? 'Loading classes…' : 'Cargando clases…' }}</p></div>
               <div v-else-if="filteredDayClasses.length" class="timeline">
-                <div v-for="cls in filteredDayClasses" :key="cls.id + cls.date" class="timeline-row">
+                <div v-for="cls in filteredDayClasses" :key="cls.key" class="timeline-row">
 
                   <div class="timeline-time">
                     <span class="time-start">{{ cls.startTime }}</span>
@@ -182,11 +214,8 @@
                     :style="{ '--cat-color': catColor(cls.category) }"
                   >
                     <div class="class-media" @click="openDetail(cls)">
-                      <img :src="cls.image" :alt="cls.name" loading="lazy" @error="onImgError($event, 400)" />
-                      <span v-if="cls.video" class="media-video-tag">
-                        <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
-                        Video
-                      </span>
+                      <img :src="cls.image" :alt="cls.name" loading="lazy" @error="onImgError" />
+                      <span v-if="cls.video" class="media-video-tag">▶ Video</span>
                       <span v-if="cls.images?.length > 1" class="media-photo-count">{{ cls.images.length }} {{ lang === 'en' ? 'photos' : 'fotos' }}</span>
                       <span v-if="isBooked(cls.key)" class="booked-badge">
                         <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
@@ -199,14 +228,14 @@
                       <div class="class-tags">
                         <span class="cat-tag">{{ t.cats[cls.category] || cls.category }}</span>
                         <span class="level-tag">{{ translateLevel(cls.level) }}</span>
-                        <span class="level-tag price">{{ Number(cls.price || 0) > 0 ? '$' + Number(cls.price).toFixed(2) + ' MXN' : (lang === 'en' ? 'Free' : 'Gratis') }}</span>
+                        <span class="level-tag">{{ priceLabel(cls) }}</span>
                       </div>
 
                       <h3 class="class-title" @click="openDetail(cls)">{{ cls.name }}</h3>
 
                       <ul class="meta">
                         <li>
-                          <img :src="cls.instructorAvatar" :alt="cls.instructor" class="avatar" />
+                          <img :src="cls.instructorAvatar" :alt="cls.instructor" class="avatar" @error="onImgError" />
                           <span>{{ cls.instructor }}</span>
                         </li>
                         <li>
@@ -231,7 +260,7 @@
                         {{ t.cancelBookingBtn }}
                       </button>
                       <button v-else type="button" class="btn-primary" :disabled="busy || spotsLeft(cls) <= 0 || cls.price > 0" @click="bookClass(cls)">
-                        {{ cls.price > 0 ? (lang === 'en' ? 'At reception' : 'En recepción') : spotsLeft(cls) <= 0 ? t.fullBtn : t.bookBtn }}
+                        {{ bookLabel(cls) }}
                       </button>
                     </div>
                   </article>
@@ -258,67 +287,8 @@
           <!-- ================= DERECHA ================= -->
           <aside class="right-column">
 
-            <!-- CALENDARIO -->
-            <section class="panel-box cal-card" :aria-label="t.calendarEyebrow">
-              <header class="cal-head">
-                <div class="cal-title">
-                  <span class="card-eyebrow">{{ t.calendarEyebrow }}</span>
-                  <h3>{{ calTitle }}</h3>
-                </div>
-                <div class="cal-nav">
-                  <button type="button" class="cal-btn" :aria-label="viewMode === 'week' ? t.prevWeek : t.prevMonth" @click="shift(-1)">
-                    <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-                  </button>
-                  <button type="button" class="cal-today" @click="goToday">{{ t.todayShort }}</button>
-                  <button type="button" class="cal-btn" :aria-label="viewMode === 'week' ? t.nextWeek : t.nextMonth" @click="shift(1)">
-                    <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-                  </button>
-                </div>
-              </header>
-
-              <div class="cal-weekdays" aria-hidden="true">
-                <span v-for="k in dayKeys" :key="k">{{ t.daysShort[k] }}</span>
-              </div>
-
-              <div class="cal-grid" :class="viewMode" role="grid">
-                <button
-                  v-for="c in visibleCells"
-                  :key="c.iso"
-                  type="button"
-                  class="cal-cell"
-                  :class="{
-                    out: !c.inMonth,
-                    today: c.isToday,
-                    past: c.isPast,
-                    has: c.count > 0,
-                    selected: c.iso === selectedIso
-                  }"
-                  :aria-label="c.label + ', ' + c.count + ' ' + (lang === 'en' ? 'classes' : 'clases')"
-                  :aria-pressed="c.iso === selectedIso"
-                  @click="selectCell(c)"
-                >
-                  <span class="cal-num">{{ c.num }}</span>
-                  <span class="cal-dots">
-                    <i v-for="(col, i) in c.colors" :key="i" :style="{ background: col }"></i>
-                  </span>
-                  <svg v-if="c.booked" class="cal-booked" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
-                </button>
-              </div>
-
-              <button type="button" class="cal-toggle" @click="calendarOpen = !calendarOpen" :aria-expanded="calendarOpen">
-                {{ calendarOpen ? t.viewWeek : t.viewMonth }}
-                <svg viewBox="0 0 24 24" :class="{ flip: calendarOpen }"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
-
-              <footer class="cal-legend">
-                <span><i class="lg-dot"></i>{{ t.legendClasses }}</span>
-                <span><i class="lg-ring"></i>{{ t.todayShort }}</span>
-                <span><svg viewBox="0 0 24 24" class="lg-check"><path d="M20 6 9 17l-5-5"/></svg>{{ t.bookedBadge }}</span>
-              </footer>
-            </section>
-
             <!-- Resumen del día -->
-            <section class="panel-box occ-card">
+            <section class="panel-box">
               <header class="card-header">
                 <div class="card-header-icon success">
                   <svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>
@@ -344,7 +314,7 @@
             </section>
 
             <!-- Mis reservas -->
-            <section id="my-bookings" class="panel-box contact-card bookings-card">
+            <section id="my-bookings" class="panel-box contact-card">
               <header class="card-header">
                 <div class="card-header-icon">
                   <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
@@ -358,12 +328,12 @@
               <div v-if="bookedClassesSorted.length" class="booking-list custom-scrollbar">
                 <div
                   v-for="cls in bookedClassesSorted"
-                  :key="cls.id + cls.date"
+                  :key="cls.key"
                   class="booking-item"
                   :style="{ '--cat-color': catColor(cls.category) }"
                   @click="openDetail(cls)"
                 >
-                  <img :src="cls.image" :alt="cls.name" class="booking-thumb" @error="onImgError($event, 200)" />
+                  <img :src="cls.image" :alt="cls.name" class="booking-thumb" @error="onImgError" />
                   <div class="booking-info">
                     <strong>{{ cls.name }}</strong>
                     <span>{{ shortDate(cls.date) }} · {{ cls.startTime }}</span>
@@ -384,131 +354,127 @@
       <transition name="pop">
         <div v-if="selectedClass" class="modal-backdrop" @click.self="closeDetail">
           <div
-            class="modal-content"
+            class="modal-content custom-scrollbar"
             role="dialog"
             aria-modal="true"
             :aria-label="selectedClass.name"
             :style="{ '--cat-color': catColor(selectedClass.category) }"
           >
-            <button type="button" class="modal-close" :aria-label="t.close" @click="closeDetail">
-              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
+            <!-- Foto / video principal -->
+            <div class="modal-hero-media">
+              <div class="viewer-bg" :style="{ backgroundImage: viewerBg ? `url('${viewerBg}')` : 'none' }"></div>
 
-            <!-- Fotos y video -->
-            <div class="modal-media">
-              <div class="viewer">
-                <div class="viewer-bg" :style="{ backgroundImage: viewerBg ? `url('${viewerBg}')` : 'none' }"></div>
+              <img
+                v-if="currentMedia.type === 'image'"
+                :key="'img-' + currentMedia.src"
+                class="viewer-img"
+                :src="currentMedia.src"
+                :alt="selectedClass.name"
+                @error="onImgError"
+              />
+              <video
+                v-else
+                :key="'vid-' + currentMedia.src"
+                class="viewer-video"
+                :src="currentMedia.src"
+                :poster="posterOf(selectedClass)"
+                controls
+                playsinline
+                preload="metadata"
+              >
+                {{ lang === 'en' ? 'Your browser cannot play this video.' : 'Tu navegador no puede reproducir este video.' }}
+              </video>
 
-                <img
-                  v-if="currentMedia.type === 'image'"
-                  :key="currentMedia.src"
-                  class="viewer-img"
-                  :src="currentMedia.src"
-                  :alt="selectedClass.name"
-                  @error="onImgError($event, 800)"
-                />
-                <video
-                  v-else
-                  :key="currentMedia?.src"
-                  class="viewer-video"
-                  :src="currentMedia.src"
-                  :poster="posterOf(selectedClass)"
-                  controls
-                  playsinline
-                  preload="metadata"
-                >
-                  {{ lang === 'en' ? 'Your browser cannot play this video.' : 'Tu navegador no puede reproducir este video.' }}
-                </video>
+              <div v-if="currentMedia.type === 'image'" class="modal-hero-overlay"></div>
 
-                <template v-if="mediaItems.length > 1">
-                  <button type="button" class="viewer-arrow left" :aria-label="t.prevMedia" @click="stepMedia(-1)">
-                    <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
-                  </button>
-                  <button type="button" class="viewer-arrow right" :aria-label="t.nextMedia" @click="stepMedia(1)">
-                    <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
-                  </button>
-                  <span class="viewer-count">{{ activeMediaIndex + 1 }} / {{ mediaItems.length }}</span>
-                </template>
+              <button type="button" class="close-btn" :aria-label="t.close" @click="closeDetail">&times;</button>
+
+              <template v-if="mediaItems.length > 1">
+                <button type="button" class="viewer-arrow left" :aria-label="t.prevMedia" @click="stepMedia(-1)">
+                  <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button type="button" class="viewer-arrow right" :aria-label="t.nextMedia" @click="stepMedia(1)">
+                  <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <span class="viewer-count">{{ activeMediaIndex + 1 }} / {{ mediaItems.length }}</span>
+              </template>
+            </div>
+
+            <!-- Miniaturas -->
+            <div v-if="mediaItems.length > 1" class="thumbs custom-scrollbar-x">
+              <button
+                v-for="(m, i) in mediaItems"
+                :key="m.src + i"
+                type="button"
+                class="thumb"
+                :class="{ active: i === activeMediaIndex }"
+                :aria-label="m.type === 'video' ? 'Video' : (lang === 'en' ? 'Photo ' : 'Foto ') + (i + 1)"
+                @click="activeMediaIndex = i"
+              >
+                <img :src="m.type === 'image' ? m.src : (posterOf(selectedClass) || emptyImage)" alt="" loading="lazy" @error="onImgError" />
+                <span v-if="m.type === 'video'" class="thumb-play">
+                  <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
+                </span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="class-tags">
+                <span class="cat-tag">{{ t.cats[selectedClass.category] || selectedClass.category }}</span>
+                <span class="level-tag">{{ translateLevel(selectedClass.level) }}</span>
+                <span class="level-tag">{{ priceLabel(selectedClass) }}</span>
               </div>
 
-              <div v-if="mediaItems.length > 1" class="thumbs custom-scrollbar-x">
-                <button
-                  v-for="(m, i) in mediaItems"
-                  :key="m.src + i"
-                  type="button"
-                  class="thumb"
-                  :class="{ active: i === activeMediaIndex }"
-                  :aria-label="(m.type === 'video' ? 'Video' : (lang === 'en' ? 'Photo ' : 'Foto ') + (i + 1))"
-                  @click="activeMediaIndex = i"
-                >
-                  <img :src="m.type === 'image' ? m.src : (posterOf(selectedClass) || emptyImage)" alt="" loading="lazy" @error="onImgError($event, 200)" />
-                  <span v-if="m.type === 'video'" class="thumb-play">
-                    <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
-                  </span>
-                </button>
+              <h2 class="modal-title">{{ selectedClass.name }}</h2>
+
+              <p v-if="selectedClass.description" class="modal-desc">{{ selectedClass.description }}</p>
+
+              <div class="modal-instructor-row">
+                <img :src="selectedClass.instructorAvatar" :alt="selectedClass.instructor" class="avatar lg" @error="onImgError" />
+                <div>
+                  <strong>{{ selectedClass.instructor }}</strong>
+                  <small>{{ t.instructorLabel }}</small>
+                </div>
+              </div>
+
+              <div class="modal-info-grid">
+                <div class="modal-info-item">
+                  <span class="info-label">{{ t.scheduleLabel }}</span>
+                  <span class="info-value">{{ shortDate(selectedClass.date) }}</span>
+                  <span class="info-sub">{{ selectedClass.startTime }} – {{ endTime(selectedClass) }}</span>
+                </div>
+                <div class="modal-info-item">
+                  <span class="info-label">{{ t.durationLabel }}</span>
+                  <span class="info-value">{{ selectedClass.duration }} {{ t.minutesShort }}</span>
+                </div>
+                <div class="modal-info-item">
+                  <span class="info-label">{{ t.spotsLabel }}</span>
+                  <span class="info-value">{{ spotsLeft(selectedClass) }} / {{ selectedClass.capacity }}</span>
+                </div>
+                <div class="modal-info-item">
+                  <span class="info-label">{{ t.levelLabel }}</span>
+                  <span class="info-value">{{ translateLevel(selectedClass.level) }}</span>
+                </div>
+              </div>
+
+              <div class="occ">
+                <div class="occ-head">
+                  <span>{{ spotsLeft(selectedClass) }} {{ t.spotsShort }}</span>
+                  <b :class="occLevel(selectedClass)">{{ occupancyPct(selectedClass) }}%</b>
+                </div>
+                <div class="occ-track" :class="occLevel(selectedClass)">
+                  <i :style="{ width: occupancyPct(selectedClass) + '%' }"></i>
+                </div>
               </div>
             </div>
 
-            <!-- Información -->
-            <div class="modal-info">
-              <div class="modal-info-scroll custom-scrollbar">
-                <div class="class-tags">
-                  <span class="cat-tag">{{ t.cats[selectedClass.category] || selectedClass.category }}</span>
-                  <span class="level-tag">{{ translateLevel(selectedClass.level) }}</span>
-                  <span class="level-tag price">{{ Number(selectedClass.price || 0) > 0 ? '$' + Number(selectedClass.price).toFixed(2) + ' MXN' : (lang === 'en' ? 'Free' : 'Gratis') }}</span>
-                </div>
-
-                <h2 class="modal-title">{{ selectedClass.name }}</h2>
-
-                <p v-if="selectedClass.description" class="modal-desc">{{ selectedClass.description }}</p>
-
-                <div class="modal-instructor-row">
-                  <img :src="selectedClass.instructorAvatar" :alt="selectedClass.instructor" class="avatar lg" />
-                  <div>
-                    <strong>{{ selectedClass.instructor }}</strong>
-                    <small>{{ t.instructorLabel }}</small>
-                  </div>
-                </div>
-
-                <div class="modal-info-grid">
-                  <div class="modal-info-item">
-                    <span class="info-label">{{ t.scheduleLabel }}</span>
-                    <span class="info-value">{{ shortDate(selectedClass.date) }}</span>
-                    <span class="info-sub">{{ selectedClass.startTime }} – {{ endTime(selectedClass) }}</span>
-                  </div>
-                  <div class="modal-info-item">
-                    <span class="info-label">{{ t.durationLabel }}</span>
-                    <span class="info-value">{{ selectedClass.duration }} {{ t.minutesShort }}</span>
-                  </div>
-                  <div class="modal-info-item">
-                    <span class="info-label">{{ t.spotsLabel }}</span>
-                    <span class="info-value">{{ spotsLeft(selectedClass) }} / {{ selectedClass.capacity }}</span>
-                  </div>
-                  <div class="modal-info-item">
-                    <span class="info-label">{{ t.levelLabel }}</span>
-                    <span class="info-value">{{ translateLevel(selectedClass.level) }}</span>
-                  </div>
-                </div>
-
-                <div class="occ">
-                  <div class="occ-head">
-                    <span>{{ spotsLeft(selectedClass) }} {{ t.spotsShort }}</span>
-                    <b :class="occLevel(selectedClass)">{{ occupancyPct(selectedClass) }}%</b>
-                  </div>
-                  <div class="occ-track" :class="occLevel(selectedClass)">
-                    <i :style="{ width: occupancyPct(selectedClass) + '%' }"></i>
-                  </div>
-                </div>
-              </div>
-
-              <div class="modal-cta">
-                <button v-if="isBooked(selectedClass.key)" type="button" class="btn-danger wide" :disabled="busy" @click="cancelBooking(selectedClass)">
-                  {{ t.cancelBookingBtn }}
-                </button>
-                <button v-else type="button" class="btn-primary wide" :disabled="busy || spotsLeft(selectedClass) <= 0 || selectedClass.price > 0" @click="bookClass(selectedClass)">
-                  {{ selectedClass.price > 0 ? (lang === 'en' ? 'At reception' : 'En recepción') : spotsLeft(selectedClass) <= 0 ? t.fullBtn : t.bookBtn }}
-                </button>
-              </div>
+            <div class="modal-cta">
+              <button v-if="isBooked(selectedClass.key)" type="button" class="btn-danger wide" :disabled="busy" @click="cancelBooking(selectedClass)">
+                {{ t.cancelBookingBtn }}
+              </button>
+              <button v-else type="button" class="btn-primary wide" :disabled="busy || spotsLeft(selectedClass) <= 0 || selectedClass.price > 0" @click="bookClass(selectedClass)">
+                {{ bookLabel(selectedClass) }}
+              </button>
             </div>
           </div>
         </div>
@@ -518,7 +484,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
@@ -549,7 +515,7 @@ const myBookings = computed(() => classesList.value.filter(c => c.myBooking).map
 const categoryKeys = computed(() => [...new Set(classesList.value.map(c => c.category))].sort());
 
 /* =========================================================
-   FECHAS Y CALENDARIO
+   FECHAS (tira deslizable)
 ========================================================= */
 const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const localIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -560,17 +526,18 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 const todayIso = localIso(todayStart());
 const selectedIso = ref(todayIso);
-const monthCursor = ref(new Date(todayStart().getFullYear(), todayStart().getMonth(), 1));
-const isCompact = ref(false);
-const calendarOpen = ref(false);
-const viewMode = computed(() => (isCompact.value && !calendarOpen.value ? 'week' : 'month'));
-const locale = computed(() => (lang.value === 'en' ? 'en-US' : 'es-MX'));
+const stripRef = ref(null);
+let activeChipEl = null;
 
+const locale = computed(() => (lang.value === 'en' ? 'en-US' : 'es-MX'));
 const selectedDate = computed(() => selectedIso.value);
 const selectedDateObj = computed(() => parseIso(selectedIso.value));
 const selectedDayKey = computed(() => jsDayToKey(selectedDateObj.value.getDay()));
 const selectedDateLabel = computed(() =>
   cap(selectedDateObj.value.toLocaleDateString(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }))
+);
+const monthTitle = computed(() =>
+  cap(selectedDateObj.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }))
 );
 const shortDate = iso => parseIso(iso).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -583,69 +550,42 @@ const classesByDate = computed(() => {
   return map;
 });
 
-const makeCell = (d, inMonth) => {
-  const iso = localIso(d);
-  const list = classesByDate.value.get(iso) || [];
-  return {
-    iso,
-    num: d.getDate(),
-    inMonth,
-    isToday: iso === todayIso,
-    isPast: iso < todayIso,
-    count: list.length,
-    colors: [...new Set(list.map(c => catColor(c.category)))].slice(0, 3),
-    booked: list.some(c => c.myBooking),
-    label: d.toLocaleDateString(locale.value, { weekday: 'long', day: 'numeric', month: 'long' })
-  };
-};
-
-const monthCells = computed(() => {
-  const first = monthCursor.value;
-  const y = first.getFullYear();
-  const m = first.getMonth();
-  const lead = (first.getDay() + 6) % 7;
-  const days = new Date(y, m + 1, 0).getDate();
-  const total = Math.ceil((lead + days) / 7) * 7;
+// Hoy + 4 semanas (se extiende si hay clases más adelante, máx. 90 días)
+const stripDays = computed(() => {
+  const start = todayStart();
+  let total = 28;
+  for (const iso of classesByDate.value.keys()) {
+    const diff = Math.round((parseIso(iso) - start) / 86400000) + 1;
+    if (diff > total && diff <= 90) total = diff;
+  }
   return Array.from({ length: total }, (_, i) => {
-    const d = new Date(y, m, 1 - lead + i);
-    return makeCell(d, d.getMonth() === m);
+    const d = addDays(start, i);
+    const iso = localIso(d);
+    const list = classesByDate.value.get(iso) || [];
+    return {
+      iso,
+      num: d.getDate(),
+      dayKey: jsDayToKey(d.getDay()),
+      monthShort: d.toLocaleDateString(locale.value, { month: 'short' }).replace('.', ''),
+      isToday: iso === todayIso,
+      count: list.length,
+      booked: list.some(c => c.myBooking)
+    };
   });
 });
 
-const weekCells = computed(() => {
-  const sel = selectedDateObj.value;
-  const start = addDays(sel, -((sel.getDay() + 6) % 7));
-  return Array.from({ length: 7 }, (_, i) => makeCell(addDays(start, i), true));
-});
-
-const visibleCells = computed(() => (viewMode.value === 'week' ? weekCells.value : monthCells.value));
-
-const calTitle = computed(() => {
-  if (viewMode.value === 'week') {
-    const f = d => d.toLocaleDateString(locale.value, { day: 'numeric', month: 'short' });
-    return `${f(parseIso(weekCells.value[0].iso))} – ${f(parseIso(weekCells.value[6].iso))}`;
-  }
-  return cap(monthCursor.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }));
-});
-
-const selectIso = iso => {
-  selectedIso.value = iso;
-  const d = parseIso(iso);
-  monthCursor.value = new Date(d.getFullYear(), d.getMonth(), 1);
+const scrollToActive = () => {
+  nextTick(() => {
+    activeChipEl?.scrollIntoView?.({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  });
 };
-const selectCell = c => {
-  selectIso(c.iso);
-  if (isCompact.value) calendarOpen.value = false;
+const selectIso = iso => { selectedIso.value = iso; scrollToActive(); };
+const goToday = () => selectIso(todayIso);
+const scrollStrip = dir => {
+  const el = stripRef.value;
+  if (!el) return;
+  el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
 };
-const shift = dir => {
-  if (viewMode.value === 'week') {
-    selectIso(localIso(addDays(selectedDateObj.value, 7 * dir)));
-  } else {
-    const c = monthCursor.value;
-    monthCursor.value = new Date(c.getFullYear(), c.getMonth() + dir, 1);
-  }
-};
-const goToday = () => { calendarOpen.value = false; selectIso(todayIso); };
 
 const nextClassIso = computed(() => {
   let best = null;
@@ -668,11 +608,9 @@ const traducciones = {
     noBookings: 'Todavía no has reservado ninguna clase.', bookedBadge: 'Reservada', bookedOk: 'Reservaste', cancelledOk: 'Reserva cancelada', close: 'Cerrar',
     instructorLabel: 'Instructor', minutesShort: 'min', spotsShort: 'lugares', bookBtn: 'Reservar', fullBtn: 'Lleno', cancelBookingBtn: 'Cancelar',
     scheduleLabel: 'Horario', durationLabel: 'Duración', spotsLabel: 'Cupo', levelLabel: 'Nivel', emptyTitle: 'No hay clases con ese criterio',
-    emptyDesc: 'Prueba otro día en el calendario o cambia los filtros.', goNextDay: 'Ir al siguiente día con clases',
+    emptyDesc: 'Prueba otro día o cambia los filtros.', goNextDay: 'Ir al siguiente día con clases',
     levelBeginner: 'Principiante', levelIntermediate: 'Intermedio', levelAdvanced: 'Avanzado',
-    calendarEyebrow: 'Calendario', todayShort: 'Hoy', prevMonth: 'Mes anterior', nextMonth: 'Mes siguiente', prevWeek: 'Semana anterior', nextWeek: 'Semana siguiente',
-    viewMonth: 'Ver mes completo', viewWeek: 'Ver solo la semana', legendClasses: 'Con clases',
-    prevMedia: 'Anterior', nextMedia: 'Siguiente',
+    todayShort: 'Hoy', prevDays: 'Días anteriores', nextDays: 'Días siguientes', prevMedia: 'Anterior', nextMedia: 'Siguiente',
     days: { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' },
     daysShort: { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb', sun: 'Dom' },
     cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxeo', pilates: 'Pilates', zumba: 'Zumba' }
@@ -686,11 +624,9 @@ const traducciones = {
     noBookings: "You haven't booked any class yet.", bookedBadge: 'Booked', bookedOk: 'You booked', cancelledOk: 'Booking cancelled', close: 'Close',
     instructorLabel: 'Instructor', minutesShort: 'min', spotsShort: 'spots', bookBtn: 'Book', fullBtn: 'Full', cancelBookingBtn: 'Cancel',
     scheduleLabel: 'Schedule', durationLabel: 'Duration', spotsLabel: 'Capacity', levelLabel: 'Level', emptyTitle: 'No classes match your filters',
-    emptyDesc: 'Try another day on the calendar or change the filters.', goNextDay: 'Go to the next day with classes',
+    emptyDesc: 'Try another day or change the filters.', goNextDay: 'Go to the next day with classes',
     levelBeginner: 'Beginner', levelIntermediate: 'Intermediate', levelAdvanced: 'Advanced',
-    calendarEyebrow: 'Calendar', todayShort: 'Today', prevMonth: 'Previous month', nextMonth: 'Next month', prevWeek: 'Previous week', nextWeek: 'Next week',
-    viewMonth: 'Show full month', viewWeek: 'Show week only', legendClasses: 'With classes',
-    prevMedia: 'Previous', nextMedia: 'Next',
+    todayShort: 'Today', prevDays: 'Previous days', nextDays: 'Next days', prevMedia: 'Previous', nextMedia: 'Next',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' },
     daysShort: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
     cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxing', pilates: 'Pilates', zumba: 'Zumba' }
@@ -698,6 +634,7 @@ const traducciones = {
 };
 const t = computed(() => traducciones[lang.value] || traducciones.es);
 const translateLevel = level => ({ Principiante: t.value.levelBeginner, Intermedio: t.value.levelIntermediate, Avanzado: t.value.levelAdvanced }[level] || level);
+const priceLabel = cls => (Number(cls.price || 0) > 0 ? '$' + Number(cls.price).toFixed(2) + ' MXN' : (lang.value === 'en' ? 'Free' : 'Gratis'));
 
 /* =========================================================
    FILTROS Y CÁLCULOS
@@ -713,6 +650,7 @@ const occupiedCount = cls => Number(cls.booked || 0);
 const spotsLeft = cls => Math.max(0, Number(cls.capacity || 0) - occupiedCount(cls));
 const occupancyPct = cls => (cls.capacity ? Math.min(100, Math.round(occupiedCount(cls) / cls.capacity * 100)) : 0);
 const occLevel = cls => (occupancyPct(cls) >= 100 ? 'high' : occupancyPct(cls) >= 75 ? 'mid' : 'low');
+const bookLabel = cls => (cls.price > 0 ? (lang.value === 'en' ? 'At reception' : 'En recepción') : spotsLeft(cls) <= 0 ? t.value.fullBtn : t.value.bookBtn);
 const endTime = cls => {
   const [h, m] = cls.startTime.split(':').map(Number);
   const minutes = h * 60 + m + Number(cls.duration || 0);
@@ -786,6 +724,10 @@ async function cargarClases(silent = false) {
       instructorAvatar: c.instructorAvatar || emptyImage,
       myBooking: Boolean(c.myBooking)
     }));
+    // Mantener el modal abierto sincronizado con los datos nuevos
+    if (selectedClass.value) {
+      selectedClass.value = classesList.value.find(c => c.key === selectedClass.value.key) || null;
+    }
   } catch (e) {
     notify(e instanceof Error ? e.message : 'No se pudieron cargar las clases.', 'error', 6000);
   } finally {
@@ -801,7 +743,6 @@ const bookClass = async cls => {
     await solicitudMiembro('/api/member/clases/reservar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actividad_id: cls.id, fecha: cls.date }) });
     notify(`${t.value.bookedOk}: ${cls.name}`, 'success');
     await cargarClases(true);
-    if (selectedClass.value?.key === cls.key) selectedClass.value = classesList.value.find(c => c.key === cls.key) || null;
   } catch (e) {
     notify(e instanceof Error ? e.message : 'No se pudo realizar la reserva.', 'error', 6000);
   } finally {
@@ -836,26 +777,17 @@ const handleKeydown = e => {
 };
 const refrescarAlVolver = () => { void cargarClases(true); };
 let recargaReservas;
-let mq = null;
-const syncCompact = () => {
-  isCompact.value = !!mq?.matches;
-  if (!isCompact.value) calendarOpen.value = false;
-};
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('focus', refrescarAlVolver);
   recargaReservas = setInterval(refrescarAlVolver, 30000);
-  mq = window.matchMedia('(max-width: 680px)');
-  syncCompact();
-  mq.addEventListener('change', syncCompact);
   void cargarClases();
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown);
   window.removeEventListener('focus', refrescarAlVolver);
-  mq?.removeEventListener('change', syncCompact);
   if (recargaReservas) clearInterval(recargaReservas);
   document.body.style.overflow = '';
 });
@@ -995,13 +927,10 @@ svg.fill { fill: currentColor; stroke: none; }
 .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-primary.wide,
-.btn-danger.wide { width: 100%; min-height: 50px; font-size: 13.5px; }
+.btn-danger.wide { width: 100%; min-height: 48px; font-size: 13px; }
 
 .link-btn {
   padding: 7px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   color: var(--hl);
   font-size: 11.5px;
   font-weight: 700;
@@ -1012,7 +941,6 @@ svg.fill { fill: currentColor; stroke: none; }
   white-space: nowrap;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
-.link-btn svg { width: 12px; height: 12px; stroke-width: 2.4; }
 .link-btn:hover { background: var(--hl-mid); border-color: var(--hl-line); }
 
 button:focus-visible,
@@ -1196,7 +1124,7 @@ input:focus-visible,
 ========================================================= */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 22px;
   align-items: start;
 }
@@ -1204,162 +1132,9 @@ input:focus-visible,
 .left-column,
 .right-column { min-width: 0; display: flex; flex-direction: column; gap: 22px; }
 
-/* =========================================================
-   CALENDARIO
-========================================================= */
-.cal-card { padding: 22px; }
-
-.cal-head {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+@media (min-width: 1101px) {
+  .right-column { position: sticky; top: 88px; }
 }
-
-.cal-title { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.cal-title h3 {
-  margin: 0;
-  overflow: hidden;
-  color: var(--title);
-  font-family: 'Oswald', sans-serif;
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cal-nav { display: flex; flex: none; align-items: center; gap: 6px; }
-
-.cal-btn {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  color: var(--text2);
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  border-radius: 10px;
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-}
-.cal-btn svg { width: 16px; height: 16px; }
-.cal-btn:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); }
-
-.cal-today {
-  height: 34px;
-  padding: 0 12px;
-  color: var(--hl);
-  cursor: pointer;
-  background: var(--hl-soft);
-  border: 1px solid var(--hl-line);
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 800;
-  transition: background 0.2s ease;
-}
-.cal-today:hover { background: var(--hl-mid); }
-
-.cal-weekdays,
-.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-
-.cal-weekdays { margin-bottom: 6px; }
-.cal-weekdays span {
-  padding: 4px 0;
-  color: var(--text3);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.cal-cell {
-  position: relative;
-  height: 54px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  color: var(--text2);
-  cursor: pointer;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s var(--ease);
-}
-.cal-cell:hover { background: var(--surface-hover); border-color: var(--line2); }
-
-.cal-num { font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 500; line-height: 1; }
-.cal-cell.has .cal-num { color: var(--title); font-weight: 600; }
-.cal-cell.out { opacity: 0.3; }
-.cal-cell.past:not(.selected):not(.today) { opacity: 0.5; }
-.cal-cell.out.has { opacity: 0.55; }
-
-.cal-cell.today { border-color: var(--hl-line); background: var(--hl-soft); }
-.cal-cell.today .cal-num { color: var(--hl); }
-
-.cal-cell.selected {
-  color: var(--color-texto-botones, #fff);
-  background: var(--color-botones, var(--hl));
-  border-color: var(--color-botones, var(--hl));
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--hl) 30%, transparent);
-  opacity: 1;
-}
-.cal-cell.selected .cal-num { color: inherit; }
-.cal-cell.selected .cal-dots i { background: rgba(255, 255, 255, 0.92) !important; }
-
-.cal-dots { height: 5px; display: flex; justify-content: center; gap: 3px; }
-.cal-dots i { width: 5px; height: 5px; display: block; border-radius: 50%; }
-
-.cal-booked {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 13px;
-  height: 13px;
-  padding: 2px;
-  color: #04210f;
-  background: var(--green);
-  border-radius: 50%;
-  stroke-width: 4;
-}
-
-.cal-toggle {
-  display: none;
-  width: 100%;
-  height: 40px;
-  margin-top: 10px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--text2);
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--line2);
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.cal-toggle svg { width: 15px; height: 15px; transition: transform 0.25s var(--ease); }
-.cal-toggle svg.flip { transform: rotate(180deg); }
-
-.cal-legend {
-  margin-top: 14px;
-  padding-top: 14px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  border-top: 1px solid var(--line);
-}
-.cal-legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--text3); font-size: 11px; font-weight: 600; }
-.lg-dot { width: 6px; height: 6px; display: block; background: var(--hl); border-radius: 50%; }
-.lg-ring { width: 12px; height: 12px; display: block; background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 4px; }
-.lg-check { width: 13px; height: 13px; padding: 2px; color: #04210f; background: var(--green); border-radius: 50%; stroke-width: 4; }
 
 /* =========================================================
    BARRA DE EXPLORACIÓN
@@ -1410,16 +1185,14 @@ input:focus-visible,
   width: 28px;
   height: 28px;
   flex: none;
-  display: grid;
-  place-items: center;
-  padding: 0;
   color: #fff;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.08);
   border: 0;
   border-radius: 50%;
 }
-.clear-search svg { width: 13px; height: 13px; stroke-width: 2.4; }
 .clear-search:hover { background: rgba(255, 255, 255, 0.16); }
 
 .only-booked-toggle { display: flex; flex: none; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
@@ -1430,6 +1203,121 @@ input:focus-visible,
 .only-booked-toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(16px); }
 .only-booked-toggle input:focus-visible + .toggle-track { outline: 2px solid var(--hl); outline-offset: 2px; }
 .toggle-label-text { color: var(--text2); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+
+/* ---------- Fechas deslizables ---------- */
+.date-block { display: flex; flex-direction: column; gap: 10px; }
+
+.date-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.date-month { overflow: hidden; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+.date-nav { display: flex; flex: none; align-items: center; gap: 6px; }
+
+.date-arrow {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+.date-arrow svg { width: 16px; height: 16px; }
+.date-arrow:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); }
+
+.date-today {
+  height: 32px;
+  padding: 0 12px;
+  color: var(--hl);
+  cursor: pointer;
+  background: var(--hl-soft);
+  border: 1px solid var(--hl-line);
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  transition: background 0.2s ease;
+}
+.date-today:hover { background: var(--hl-mid); }
+
+.date-strip {
+  display: flex;
+  gap: 8px;
+  padding: 2px 2px 8px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+}
+
+.date-chip {
+  position: relative;
+  flex: 0 0 calc((100% - 32px) / 5);
+  min-width: 68px;
+  padding: 10px 4px 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: var(--text2);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 16px;
+  scroll-snap-align: start;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s var(--ease), box-shadow 0.2s ease;
+}
+.date-chip:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); transform: translateY(-1px); }
+.date-chip.empty:not(.active) { opacity: 0.6; }
+.date-chip.today:not(.active) { border-color: var(--hl-line); background: var(--hl-soft); }
+.date-chip.today:not(.active) .date-chip-num { color: var(--hl); }
+
+.date-chip.active {
+  color: var(--color-texto-botones, #fff);
+  background: var(--color-botones, var(--hl));
+  border-color: var(--color-botones, var(--hl));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--hl) 28%, transparent);
+  opacity: 1;
+}
+
+.date-chip-day { font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8; }
+.date-chip-num { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; line-height: 1.1; }
+.date-chip-month { margin-bottom: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.6; }
+.date-chip-count {
+  min-width: 22px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+.date-chip-count.none { opacity: 0.35; }
+.date-chip.active .date-chip-count { background: rgba(255, 255, 255, 0.25); }
+
+.date-chip-today-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--green);
+}
+.date-chip-booked {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 15px;
+  height: 15px;
+  padding: 3px;
+  color: #04210f;
+  background: var(--green);
+  border-radius: 50%;
+  stroke-width: 4;
+}
 
 /* Categorías */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1534,21 +1422,17 @@ input:focus-visible,
 .media-video-tag,
 .media-photo-count {
   position: absolute;
-  right: 6px;
+  top: 7px;
+  right: 7px;
   z-index: 2;
-  padding: 3px 7px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  padding: 3px 6px;
   color: #fff;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.75);
   border-radius: 7px;
   font-size: 9px;
   font-weight: 800;
 }
-.media-video-tag { top: 6px; }
-.media-video-tag svg { width: 8px; height: 8px; }
-.media-photo-count { top: 28px; }
+.media-photo-count { top: 29px; }
 
 .booked-badge,
 .full-badge {
@@ -1586,7 +1470,6 @@ input:focus-visible,
 }
 
 .level-tag { color: var(--text3); font-size: 11.5px; font-weight: 700; }
-.level-tag.price { color: var(--text2); }
 
 .class-title {
   margin: 0;
@@ -1733,13 +1616,13 @@ input:focus-visible,
 .empty-actions .btn-primary { text-transform: capitalize; }
 
 /* =========================================================
-   MODAL DE DETALLE
+   MODAL (una columna, foto/video arriba)
 ========================================================= */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 5000;
-  padding: 20px;
+  padding: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1751,68 +1634,32 @@ input:focus-visible,
   --cat-color: var(--hl);
   position: relative;
   width: 100%;
-  max-width: 1040px;
-  max-height: min(90vh, 760px);
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  background: var(--card);
+  max-width: 540px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
   border: 1px solid var(--line2);
   border-radius: 26px;
   box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
 }
 
-.modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 6;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--line2);
-  border-radius: 50%;
-  backdrop-filter: blur(6px);
-  transition: background 0.2s ease;
-}
-.modal-close svg { width: 16px; height: 16px; stroke-width: 2.4; }
-.modal-close:hover { background: rgba(0, 0, 0, 0.85); }
-
-/* Visor */
-.modal-media {
-  min-width: 0;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.28);
-  border-right: 1px solid var(--line);
-}
-
-.viewer {
+/* Visor principal: alto fijo, el contenido se ve completo sobre fondo difuminado */
+.modal-hero-media {
   position: relative;
-  width: 100%;
-  flex: 1;
-  min-height: 260px;
+  height: 300px;
   overflow: hidden;
   display: grid;
   place-items: center;
   background: #06070a;
-  border: 1px solid var(--line2);
-  border-radius: 18px;
 }
 
 .viewer-bg {
   position: absolute;
-  inset: -20px;
+  inset: -24px;
   background-position: center;
   background-size: cover;
-  filter: blur(26px) brightness(0.45) saturate(1.2);
+  filter: blur(28px) brightness(0.5) saturate(1.2);
   transform: scale(1.1);
 }
 
@@ -1827,12 +1674,43 @@ input:focus-visible,
 }
 .viewer-video { background: transparent; }
 
+.modal-hero-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 2;
+  height: 70px;
+  background: linear-gradient(180deg, transparent, rgba(10, 10, 10, 0.55));
+  pointer-events: none;
+}
+
+.close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s ease;
+}
+.close-btn:hover { background: rgba(0, 0, 0, 0.85); }
+
 .viewer-arrow {
   position: absolute;
   top: 50%;
-  z-index: 3;
-  width: 40px;
-  height: 40px;
+  z-index: 4;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -1853,8 +1731,8 @@ input:focus-visible,
 .viewer-count {
   position: absolute;
   left: 12px;
-  bottom: 12px;
-  z-index: 3;
+  top: 14px;
+  z-index: 4;
   padding: 4px 10px;
   color: #fff;
   background: rgba(0, 0, 0, 0.62);
@@ -1863,7 +1741,7 @@ input:focus-visible,
   font-weight: 700;
 }
 
-.thumbs { display: flex; gap: 8px; padding: 2px 0 4px; overflow-x: auto; }
+.thumbs { display: flex; gap: 8px; padding: 12px 22px 0; overflow-x: auto; }
 
 .thumb {
   position: relative;
@@ -1885,20 +1763,8 @@ input:focus-visible,
 .thumb-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.45); }
 .thumb-play svg { width: 18px; height: 18px; }
 
-/* Información */
-.modal-info { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-
-.modal-info-scroll {
-  min-height: 0;
-  flex: 1;
-  padding: 28px 26px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-}
-
-.modal-title { margin: 0; padding-right: 36px; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 600; line-height: 1.15; }
+.modal-body { padding: 20px 22px 8px; display: flex; flex-direction: column; gap: 16px; }
+.modal-title { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1.15; }
 .modal-desc { margin: 0; color: var(--text2); font-size: 13.5px; line-height: 1.7; }
 
 .modal-instructor-row { display: flex; align-items: center; gap: 12px; }
@@ -1907,21 +1773,28 @@ input:focus-visible,
 .modal-instructor-row small { color: var(--text3); font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
 
 .modal-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.modal-info-item { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
+.modal-info-item { padding: 11px 14px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
 .info-label { color: var(--text3); font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
 .info-value { color: var(--title); font-size: 13.5px; font-weight: 600; text-transform: capitalize; }
 .info-sub { color: var(--text2); font-size: 12px; font-weight: 600; }
 
-.modal-cta { padding: 14px 26px 22px; border-top: 1px solid var(--line); background: var(--card); }
+.modal-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  padding: 14px 22px calc(18px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 70%, transparent), var(--card) 35%);
+  backdrop-filter: blur(10px);
+}
 
 .pop-enter-active,
 .pop-leave-active { transition: opacity 0.25s ease; }
 .pop-enter-active .modal-content,
-.pop-leave-active .modal-content { transition: transform 0.28s var(--ease); }
+.pop-leave-active .modal-content { transition: transform 0.25s var(--ease); }
 .pop-enter-from,
 .pop-leave-to { opacity: 0; }
 .pop-enter-from .modal-content,
-.pop-leave-to .modal-content { transform: translateY(16px) scale(0.97); }
+.pop-leave-to .modal-content { transform: translateY(14px) scale(0.97); }
 
 /* =========================================================
    RESPONSIVE
@@ -1929,16 +1802,8 @@ input:focus-visible,
 @media (max-width: 1100px) {
   .hero { grid-template-columns: 1fr; }
   .hero-base { max-width: 420px; }
-
-  /* Una sola columna: el orden pone el calendario primero */
-  .dashboard-grid { display: flex; flex-direction: column; gap: 22px; }
-  .left-column,
-  .right-column { display: contents; }
-  .cal-card { order: 1; }
-  .toolbar { order: 2; }
-  .block { order: 3; }
-  .occ-card { order: 4; }
-  .bookings-card { order: 5; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  .right-column { position: static; }
 }
 
 @media (max-width: 900px) {
@@ -1949,35 +1814,6 @@ input:focus-visible,
   .class-side .occ { flex: 1; }
   .class-side .btn-primary,
   .class-side .btn-danger { flex: none; min-width: 130px; }
-}
-
-@media (max-width: 860px) {
-  /* Modal: hoja de una columna con scroll general */
-  .modal-backdrop { padding: 0; align-items: flex-end; }
-  .modal-content {
-    max-width: none;
-    max-height: 94vh;
-    max-height: 94dvh;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    border-radius: 24px 24px 0 0;
-    border-bottom: 0;
-  }
-  .modal-media { padding: 14px; border-right: 0; border-bottom: 1px solid var(--line); flex: none; }
-  .viewer { flex: none; min-height: 0; aspect-ratio: 16 / 10; max-height: 46vh; max-height: 46dvh; }
-  .modal-info { flex: none; overflow: visible; }
-  .modal-info-scroll { flex: none; overflow: visible; padding: 20px 18px 14px; }
-  .modal-title { font-size: 24px; padding-right: 0; }
-  .modal-cta {
-    position: sticky;
-    bottom: 0;
-    z-index: 4;
-    padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 80%, transparent), var(--card) 30%);
-    backdrop-filter: blur(10px);
-  }
-  .modal-close { top: 12px; right: 12px; }
 }
 
 @media (max-width: 760px) {
@@ -2003,18 +1839,14 @@ input:focus-visible,
   .kpi-body strong { font-size: 28px; }
   .kpi-body span { font-size: 9.5px; }
 
-  /* Calendario compacto: semana por defecto, mes al desplegar */
-  .cal-card { padding: 16px 14px; }
-  .cal-head { margin-bottom: 12px; }
-  .cal-title h3 { font-size: 19px; }
-  .cal-grid.week .cal-cell { height: 66px; }
-  .cal-grid.week .cal-num { font-size: 20px; }
-  .cal-grid.month .cal-cell { height: 48px; }
-  .cal-grid.month .cal-num { font-size: 16px; }
-  .cal-toggle { display: inline-flex; }
-
   .toolbar { padding: 12px; gap: 12px; border-radius: 18px; }
   .toolbar-row { flex-direction: column; align-items: stretch; gap: 12px; }
+
+  /* ~4.5 chips visibles para que se note que se desliza */
+  .date-strip { scrollbar-width: none; margin: 0 -12px; padding: 2px 12px 6px; }
+  .date-strip::-webkit-scrollbar { display: none; }
+  .date-chip { flex: 0 0 64px; min-width: 64px; }
+  .date-arrow { display: none; }
 
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 2px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
@@ -2035,14 +1867,19 @@ input:focus-visible,
   .class-side .btn-danger { width: 100%; }
 
   .panel-box { padding: 18px 16px; border-radius: 18px; }
-  .cal-card { padding: 16px 14px; }
+  .right-column { gap: 16px; }
 
-  .modal-media { padding: 12px; }
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal-content { max-width: none; max-height: 94vh; max-height: 94dvh; border-radius: 24px 24px 0 0; border-bottom: 0; }
+  .modal-hero-media { height: 250px; }
+  .thumbs { padding: 10px 16px 0; }
   .thumb { width: 64px; height: 50px; }
-  .modal-info-grid { gap: 8px; }
+  .modal-body { padding: 16px 16px 8px; }
+  .modal-title { font-size: 22px; }
+  .modal-cta { padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
+  *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 </style>

@@ -4,6 +4,8 @@ import HeadingMember from '../HeadingMember.vue';
 import MascotasColeccion from '@/components/MascotasColeccion.vue';
 import LineChartSimple from '@/components/LineChartSimple.vue';
 import DonutChart from '@/components/DonutChart.vue';
+import AvatarCuerpo from '@/components/AvatarCuerpo.vue';
+import CalorieRingsChart from '@/components/CalorieRingsChart.vue';
 import { solicitudMiembro } from '../memberSesion.js';
 
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
@@ -105,9 +107,9 @@ const rachaInfo = ref({dias:0,activoHoy:false});
 const user = computed(() => {
   const c=usuarioReal.value||{},m=medidasReales.value||{};
   const f=(v,s='')=>v===null||v===undefined||v===''?'—':`${Number(v).toLocaleString(currentLang.value==='en'?'en-US':'es-MX',{maximumFractionDigits:2})}${s}`;
-  return {nombre:c.nombre||'—',id:c.id||'—',foto:c.foto_url||null,edad:c.edad??null,
+  return {nombre:c.nombre||'—',id:c.id||'—',foto:c.foto_url||null,edad:c.edad??null,sexo:null,
     pesoInicial:f(m.peso_inicial,' kg'),pesoActual:f(m.peso_actual,' kg'),estatura:f(m.altura_m,' m'),
-    grasaCorporal:f(m.grasa_corporal,'%'),masaMuscular:f(m.masa_muscular,' kg'),imc:f(m.imc),
+    grasaCorporal:f(m.grasa_corporal,'%'),masaMuscular:f(m.masa_muscular,' kg'),imc:f(m.imc),aguaCorporal:'—',aumentoFuerza:'—',caloriasPromedio:'—',
     asistenciaPorcentaje:porcentajeMes.value};
 });
 const mesISO = computed(()=>hoy.value.slice(0,7));
@@ -153,6 +155,8 @@ const porcentajeMes = computed(()=>diasRegistradosMes.value?Math.round(diasAsist
 const rachaActualMes = computed(()=>diasAsistidosMes.value);
 const mejorRachaMes = computed(()=>diasAsistidosMes.value);
 const iconoEstado = estado => estado==='asistio'?'✓':estado==='falto'?'✕':'';
+const fuerzaHistorico = ref([]);
+const caloriasSemanales = ref([]);
 const pesoHistorico = computed(()=>{
  const a=medidasReales.value?.historial_peso||[];
  return a.map(m=>({label:m.fecha,value:Number(m.peso)}));
@@ -183,12 +187,11 @@ onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);void c
 onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
 </script>
 
-
 <template>
   <HeadingMember>
     <main class="main-content">
-      <div v-if="cargando" role="status" class="stats-msg">Cargando estadísticas reales…</div>
-      <div v-if="errorApi" role="alert" class="stats-msg">{{ errorApi }} <button type="button" @click="cargarEstadisticas">Reintentar</button></div>
+      <p v-if="cargando" class="stats-real-status" role="status">Cargando estadísticas…</p>
+      <p v-if="errorApi" class="stats-real-status" role="alert">{{ errorApi }} <button type="button" @click="cargarEstadisticas">Reintentar</button></p>
 
       <div class="stats-container">
 
@@ -207,8 +210,7 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
             <div class="profile-main-info">
               <div class="avatar-wrapper">
                 <div class="avatar-circle">
-                  <img v-if="user.foto" :src="user.foto" :alt="user.nombre" class="profile-photo-real" />
-                  <svg v-else width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 </div>
                 <div class="attendance-badge">{{ user.asistenciaPorcentaje }}% {{ t.attendanceBadgeSuffix }}</div>
               </div>
@@ -217,8 +219,9 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
                 <div class="user-sub-info">
                   <span class="user-id">ID: {{ user.id }}</span>
                   <span class="user-meta-dot">•</span>
-                  
-                  <span class="user-age">Edad: {{ user.edad ?? '—' }} años</span>
+                  <span v-if="user.sexo" class="user-sex">Sexo: {{ user.sexo }}</span>
+                  <span class="user-meta-dot">•</span>
+                  <span v-if="user.edad !== null" class="user-age">Edad: {{ user.edad }} años</span>
                 </div>
               </div>
             </div>
@@ -230,16 +233,35 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
               <div class="metric-box"><span class="metric-label">{{ t.heightLabel }}</span><span class="metric-value">{{ user.estatura }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.bodyFatLabel }}</span><span class="metric-value warning">{{ user.grasaCorporal }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.muscleMassLabel }}</span><span class="metric-value accent">{{ user.masaMuscular }}</span></div>
+              <div class="metric-box"><span class="metric-label">{{ t.avgCaloriesLabel }}</span><span class="metric-value">{{ user.caloriasPromedio }}</span></div>
             </div>
 
             <div class="section-subtitle-small"><span class="subtitle-dot"></span>{{ t.advancedMetricsTitle }}</div>
             <div class="metrics-grid advanced-metrics">
+              <div class="metric-box"><span class="metric-label">{{ t.bodyWaterLabel }}</span><span class="metric-value info">{{ user.aguaCorporal }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.bmiLabel }}</span><span class="metric-value">{{ user.imc }}</span></div>
+              <div class="metric-box"><span class="metric-label">{{ t.strengthGainLabel }}</span><span class="metric-value accent">{{ user.aumentoFuerza }}</span></div>
             </div>
           </div>
 
-          <div v-if="pesoHistorico.length" class="chart-card area-peso">
-            <LineChartSimple :data="pesoHistorico" color="#3b82f6" unit=" kg" :titulo="t.weightProgressTitle" />
+          <div class="body-avatar-card area-avatar">
+            <span class="section-subtitle-small"><span class="subtitle-dot"></span>{{ t.physiqueTitle }}</span>
+            <span class="streak-sub">{{ t.physiqueDesc }}</span>
+            <div class="body-avatar-display-box">
+              <AvatarCuerpo v-if="user.sexo && user.imc !== '—'"
+                :sexo="user.sexo" :imc="user.imc" :grasa-corporal="user.grasaCorporal" tamano="md" />
+              <div v-else class="stats-no-data">Sin datos suficientes para representar el avatar corporal.</div>
+            </div>
+          </div>
+
+          <div class="chart-card area-peso">
+            <LineChartSimple v-if="pesoHistorico.length" :data="pesoHistorico" color="#3b82f6" unit=" kg" :titulo="t.weightProgressTitle" />
+            <div v-else class="stats-no-data">{{ t.weightProgressTitle }}: Sin mediciones registradas</div>
+          </div>
+
+          <div class="chart-card area-fuerza">
+            <LineChartSimple v-if="fuerzaHistorico.length" :data="fuerzaHistorico" color="#4ade80" unit=" kg" :titulo="t.strengthProgressTitle" />
+            <div v-else class="stats-no-data">{{ t.strengthProgressTitle }}: Sin registros de fuerza</div>
           </div>
 
           <!-- ===== Calendario de asistencia ===== -->
@@ -279,7 +301,7 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
                   <div class="progress-fill" :style="{ width: porcentajeMes + '%' }"></div>
                 </div>
                 <div class="progress-label">
-                  <span>{{ diasAsistidosMes }} {{ t.calendarDaysAttended }} · {{ diasFaltoMes }} {{ t.legendMissed.toLowerCase() }}</span>
+                  <span>{{ diasAsistidosMes }}/{{ diasRegistradosMes }} {{ t.calendarDaysAttended }}</span>
                   <span class="progress-percent">{{ porcentajeMes }}%</span>
                 </div>
               </div>
@@ -347,9 +369,9 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
             <div class="streak-extra-banner">
               <div class="streak-status-pill">
                 <span class="status-indicator-dot" :class="{ active: rachaInfo.activoHoy }"></span>
-                <span>{{ rachaInfo.activoHoy ? '¡Entrenamiento registrado hoy!' : 'Pendiente de registrar hoy' }}</span>
+                <span>{{ rachaInfo.activoHoy ? '¡Asistencia registrada hoy!' : 'Pendiente de registrar hoy' }}</span>
               </div>
-              <span class="streak-motivation-tip">Las faltas no descuentan las asistencias acumuladas.</span>
+              <span class="streak-motivation-tip">Las faltas no descuentan tus asistencias acumuladas.</span>
             </div>
 
             <div class="mascotas-wrapper-flex">
@@ -358,15 +380,44 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
                 :activo-hoy="rachaInfo.activoHoy"
               />
             </div>
+
+            <div class="streak-bottom-analytics">
+              <div class="analytics-mini-card">
+                <span class="analytics-label">Récord histórico</span>
+                <span class="analytics-value">
+                  {{ rachaInfo.dias }} días 
+                  <svg style="display:inline-block; vertical-align:middle; margin-left:2px;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17h4v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+                </span>
+              </div>
+              <div class="analytics-mini-card">
+                <span class="analytics-label">Siguiente recompensa</span>
+                <span class="analytics-value accent">—</span>
+              </div>
+            </div>
+
+            <div class="next-pet-progress-container">
+              <div class="next-pet-info-header">
+                <span>Progreso de tu compañero</span>
+                <span class="next-pet-pct">—</span>
+              </div>
+              <div class="next-pet-track">
+                <div class="next-pet-fill" style="width: 0%;"></div>
+              </div>
+            </div>
           </div>
 
-          <div v-if="composicionCorporal.length" class="chart-card area-composicion">
-            <DonutChart
+          <div class="chart-card area-composicion">
+            <DonutChart v-if="composicionCorporal.length"
               :segmentos="composicionCorporal"
               :titulo="t.bodyCompositionChartTitle"
-              :centro-valor="`${composicionCorporal[0]?.value ?? 0}%`"
-              :centro-label="t.bodyFatLabel"
-            />
+              :centro-valor="`${composicionCorporal[0].value}%`"
+              :centro-label="t.bodyFatLabel" />
+            <div v-else class="stats-no-data">{{ t.bodyCompositionChartTitle }}: Sin medición de grasa corporal</div>
+          </div>
+
+          <div class="chart-card area-semanal">
+            <CalorieRingsChart v-if="caloriasSemanales.length" :data="caloriasSemanales" color="#fb923c" unit=" kcal" :titulo="t.weeklyCaloriesTitle" />
+            <div v-else class="stats-no-data">{{ t.weeklyCaloriesTitle }}: Sin registros de calorías</div>
           </div>
 
         </div>
@@ -377,6 +428,11 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
 </template>
 
 <style scoped>
+.profile-photo-real { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.stats-no-data { display:flex; align-items:center; justify-content:center; min-height:125px; padding:18px; color:rgba(245,245,244,.65); font-size:13px; text-align:center; }
+.stats-real-status { margin:8px auto 12px; max-width:1360px; padding:12px 16px; border:1px solid var(--border-cards,rgba(255,255,255,.12)); border-radius:12px; }
+.stats-real-status button { cursor:pointer; text-decoration:underline; color:var(--color-highlight,#93c5fd); background:none; border:0; }
+
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
 
 * { box-sizing: border-box; }
@@ -412,10 +468,10 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   grid-template-areas:
-    "perfil perfil"
-    "peso peso"
+    "perfil avatar"
+    "peso fuerza"
     "calendario mascotas"
-    "composicion composicion";
+    "composicion semanal";
   gap: 20px;
   align-items: stretch;
   position: relative;
@@ -437,10 +493,13 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
     grid-template-columns: 1fr;
     grid-template-areas:
       "perfil"
+      "avatar"
       "peso"
+      "fuerza"
       "calendario"
       "mascotas"
-      "composicion";
+      "composicion"
+      "semanal";
   }
 }
 
@@ -953,8 +1012,4 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
   .animate-bounce, .animate-pulse { animation: none; }
   .progress-fill, .next-pet-fill, .week-bar-fill { transition: none; }
 }
-
-.stats-msg{padding:12px 16px;margin-bottom:12px;border:1px solid var(--border-cards,#444);border-radius:12px;color:var(--color-texto-general,#fff)}
-.stats-msg button{color:var(--color-highlight,#60a5fa);background:none;border:0;cursor:pointer;font-weight:bold}
-.profile-photo-real{width:100%;height:100%;object-fit:cover;border-radius:50%}
 </style>
