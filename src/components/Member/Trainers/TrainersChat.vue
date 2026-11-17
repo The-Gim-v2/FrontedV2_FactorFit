@@ -488,8 +488,11 @@
       </template>
 
       <!-- ESTADO: ENTRENADOR NO ENCONTRADO -->
-        <p v-if="cargando">Cargando perfil del entrenador…</p>
-        <p v-if="errorApi" role="alert">{{ errorApi }}</p>
+        <p v-else-if="cargando" class="trainer-api-status" role="status">Cargando perfil del entrenador…</p>
+        <div v-else-if="errorApi" class="trainer-api-status" role="alert">
+        <p>{{ errorApi }}</p>
+        <button type="button" class="back-btn" @click="cargarDetalle">Reintentar</button>
+      </div>
 
       <div v-else class="not-found-wrapper">
 
@@ -539,12 +542,11 @@ const errorApi = ref('');
 async function cargarDetalle() {
   cargando.value = true;
   errorApi.value = '';
-  entrenador.value = null;
   const id = Number(route.params.id);
-  if (!Number.isSafeInteger(id) || id < 1) { cargando.value = false; return; }
+  if (!Number.isSafeInteger(id) || id < 1) { entrenador.value = null; cargando.value = false; return; }
   try {
     const res = await solicitudMiembro(`/api/member/entrenadores/${id}`);
-    entrenador.value = res.entrenador || null;
+    entrenador.value = res?.entrenador && Number(res.entrenador.id) === id ? res.entrenador : null;
 
   } catch (e) {
     errorApi.value = e?.message || 'No se pudo consultar el entrenador.';
@@ -640,7 +642,7 @@ const traducciones = {
 
     notFoundTitle: 'No encontramos a este entrenador',
 
-    notFoundDesc: 'Puede que el enlace sea incorrecto o que necesites una membresía Plus para verlo.'
+    notFoundDesc: 'Verifica el enlace o vuelve al listado para seleccionar al entrenador.'
 
   },
 
@@ -688,7 +690,7 @@ const traducciones = {
 
     notFoundTitle: "We couldn't find this trainer",
 
-    notFoundDesc: 'The link may be wrong, or you may need a Plus membership to view it.'
+    notFoundDesc: 'Check the link or return to the list to select a trainer.'
 
   }
 
@@ -726,6 +728,7 @@ onUnmounted(() => {
 
 watch(() => route.params.id, () => {
 
+  entrenador.value = null;
   void cargarDetalle();
 
 });
