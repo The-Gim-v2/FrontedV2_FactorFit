@@ -2126,17 +2126,67 @@ input:focus-visible,
   .toolbar { padding: 12px; gap: 12px; border-radius: 18px; }
   .toolbar-row { flex-direction: column; align-items: stretch; gap: 12px; }
 
-  .date-head { flex-wrap: nowrap; }
-  .date-month { font-size: 17px; }
-  .date-cal-btn { width: 34px; padding: 0; justify-content: center; margin-right: 2px; }
-  .date-cal-btn span { display: none; }
-  .date-grid { gap: 5px; }
-  .date-chip { padding: 9px 0 8px; border-radius: 12px; gap: 3px; }
+  /* Fechas móvil: flechas + mes arriba, Calendario y Hoy abajo, luego los 7 días */
+  .toolbar-row .only-booked-toggle {
+    justify-content: space-between;
+    flex-direction: row-reverse;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--line2);
+    border-radius: 13px;
+  }
+  .search-box { height: 46px; }
+
+  .date-block { gap: 12px; }
+  .date-head { display: block; }
+  .date-nav {
+    display: grid;
+    grid-template-columns: 40px 1fr 1fr 40px;
+    grid-template-areas:
+      "prev title title next"
+      "cal  cal   today today";
+    gap: 10px 8px;
+    align-items: center;
+  }
+  /* El título está fuera de .date-nav: lo colocamos con position sobre la primera fila */
+  .date-head { position: relative; }
+  .date-month {
+    position: absolute;
+    top: 0;
+    left: 48px;
+    right: 48px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .date-nav > :nth-child(1) { grid-area: cal; width: 100%; height: 40px; margin: 0; justify-content: center; }
+  .date-nav > :nth-child(2) { grid-area: prev; width: 40px; height: 40px; }
+  .date-nav > :nth-child(3) { grid-area: today; width: 100%; height: 40px; font-size: 12.5px; }
+  .date-nav > :nth-child(4) { grid-area: next; width: 40px; height: 40px; }
+  .date-cal-btn { font-size: 12.5px; }
+
+  .date-grid { gap: 6px; }
+  .date-chip { padding: 10px 0 9px; border-radius: 13px; gap: 3px; }
   .date-chip-day { font-size: 9px; letter-spacing: 0.2px; }
-  .date-chip-num { font-size: 19px; }
+  .date-chip-num { font-size: 20px; }
+  .date-chip-dots { height: 5px; }
   .date-chip-dots i { width: 5px; height: 5px; }
   .date-chip-today-dot { top: 5px; right: 5px; width: 5px; height: 5px; }
-  .date-chip-booked { top: 3px; right: 3px; width: 13px; height: 13px; padding: 2px; }
+  .date-chip-booked {
+    top: -5px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    padding: 3px;
+    border: 2px solid var(--card);
+    box-sizing: content-box;
+    width: 10px;
+    height: 10px;
+  }
 
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 2px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
