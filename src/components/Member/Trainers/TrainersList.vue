@@ -2,175 +2,32 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import HeadingMember from '../HeadingMember.vue';
-import UpgradeMembershipModal from '../Modals/UpgradeMembershipModal.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const router = useRouter();
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
 
-/* -------------------------------------------------------------------- */
-/* DATOS MOCK — sustituir por la respuesta real de tu API / backend.    */
-/* La forma de cada entrenador refleja los campos capturados en el      */
-/* formulario de registro de personal (RegistroPersonal.vue).          */
-/* -------------------------------------------------------------------- */
-
-// Sede a la que pertenece el socio (misma que registeredGym en GestionSedes)
-const miSedeId = 1;
-
-const entrenadoresMiSede = ref([
-  {
-    id: 101,
-    nombres: 'Daniela',
-    apellidoP: 'Reyes',
-    apellidoM: 'Cortés',
-    especialidad: 'Entrenamiento de Fuerza',
-    foto: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=400&q=80',
-    sedeId: 1,
-    sedeNombre: 'IronFit Valles Centro',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 100 2211',
-    horaEntrada: '06:00',
-    horaSalida: '14:00',
-    aniosExperiencia: 6,
-    redes: { instagram: '@dani.fuerza', tiktok: '@dani.fuerza' }
-  },
-  {
-    id: 102,
-    nombres: 'Marco',
-    apellidoP: 'Villanueva',
-    apellidoM: 'Ibarra',
-    especialidad: 'Boxeo y Acondicionamiento',
-    foto: 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?auto=format&fit=crop&w=400&q=80',
-    sedeId: 1,
-    sedeNombre: 'IronFit Valles Centro',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 100 3344',
-    horaEntrada: '14:00',
-    horaSalida: '21:00',
-    aniosExperiencia: 4,
-    redes: { instagram: '@marcobox_fit', facebook: 'MarcoBoxFit' }
-  },
-  {
-    id: 103,
-    nombres: 'Paola',
-    apellidoP: 'Serrano',
-    apellidoM: 'Munguía',
-    especialidad: 'Yoga y Movilidad',
-    foto: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=400&q=80',
-    sedeId: 1,
-    sedeNombre: 'IronFit Valles Centro',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 100 5566',
-    horaEntrada: '07:00',
-    horaSalida: '13:00',
-    aniosExperiencia: 8,
-    redes: { instagram: '@paola.yoga' }
+// Información real: entrenadores de este gimnasio, agrupados por sede.
+const entrenadoresMiSede = ref([]);
+const entrenadoresLocales = ref([]);
+const entrenadoresNacionales = ref([]); // No hay red Plus contratada ni API para ella.
+const cargando = ref(true);
+const errorApi = ref('');
+async function cargarEntrenadores() {
+  cargando.value = true;
+  errorApi.value = '';
+  try {
+    const datos = await solicitudMiembro('/api/member/entrenadores');
+    entrenadoresMiSede.value = Array.isArray(datos.mi_sede) ? datos.mi_sede : [];
+    entrenadoresLocales.value = Array.isArray(datos.otras_sedes) ? datos.otras_sedes : [];
+  } catch (e) {
+    entrenadoresMiSede.value = [];
+    entrenadoresLocales.value = [];
+    errorApi.value = e?.message || 'No se pudieron cargar los entrenadores.';
+  } finally {
+    cargando.value = false;
   }
-]);
-
-const entrenadoresLocales = ref([
-  {
-    id: 104,
-    nombres: 'Héctor',
-    apellidoP: 'Domínguez',
-    apellidoM: 'Ramos',
-    especialidad: 'CrossFit',
-    foto: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
-    sedeId: 2,
-    sedeNombre: 'IronFit Norte - Plaza San José',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 200 1122',
-    horaEntrada: '05:00',
-    horaSalida: '12:00',
-    aniosExperiencia: 5,
-    redes: { instagram: '@hector.crossfit' }
-  },
-  {
-    id: 105,
-    nombres: 'Renata',
-    apellidoP: 'Cabrera',
-    apellidoM: 'Solís',
-    especialidad: 'Spinning',
-    foto: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&w=400&q=80',
-    sedeId: 3,
-    sedeNombre: 'IronFit Poniente',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 300 7788',
-    horaEntrada: '16:00',
-    horaSalida: '20:00',
-    aniosExperiencia: 3,
-    redes: { tiktok: '@renata.spin', instagram: '@renata.spin' }
-  },
-  {
-    id: 106,
-    nombres: 'Iván',
-    apellidoP: 'Torres',
-    apellidoM: 'Guerra',
-    especialidad: 'Nutrición Deportiva',
-    foto: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-    sedeId: 6,
-    sedeNombre: 'IronFit Sur - Plaza Tangamanga',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    celular: '+52 481 400 9900',
-    horaEntrada: '09:00',
-    horaSalida: '17:00',
-    aniosExperiencia: 7,
-    redes: { instagram: '@ivan.nutricion' }
-  }
-]);
-
-const entrenadoresNacionales = ref([
-  {
-    id: 107,
-    nombres: 'Fernanda',
-    apellidoP: 'López',
-    apellidoM: 'Aguilar',
-    especialidad: 'Pilates Reformer',
-    foto: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&w=400&q=80',
-    sedeNombre: 'IronFit CDMX Polanco (Plus)',
-    ciudad: 'Polanco',
-    estado: 'Ciudad de México'
-  },
-  {
-    id: 108,
-    nombres: 'Rodrigo',
-    apellidoP: 'Elizondo',
-    apellidoM: 'Farías',
-    especialidad: 'Halterofilia',
-    foto: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=400&q=80',
-    sedeNombre: 'IronFit Monterrey San Pedro (Plus)',
-    ciudad: 'San Pedro Garza García',
-    estado: 'Nuevo León'
-  },
-  {
-    id: 109,
-    nombres: 'Ximena',
-    apellidoP: 'Bravo',
-    apellidoM: 'Delgado',
-    especialidad: 'Funcional / HIIT',
-    foto: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=400&q=80',
-    sedeNombre: 'IronFit Guadalajara Andares (Plus)',
-    ciudad: 'Zapopan',
-    estado: 'Jalisco'
-  },
-  {
-    id: 110,
-    nombres: 'Álvaro',
-    apellidoP: 'Nájera',
-    apellidoM: 'Pineda',
-    especialidad: 'Boxeo',
-    foto: 'https://images.unsplash.com/photo-1567013127542-490d757e51fc?auto=format&fit=crop&w=400&q=80',
-    sedeNombre: 'IronFit Querétaro Antea (Plus)',
-    ciudad: 'Querétaro',
-    estado: 'Querétaro'
-  }
-]);
-
+}
 const estadoAbrevMap = {
   'San Luis Potosí': 'SLP',
   'Ciudad de México': 'CDMX',
@@ -180,7 +37,7 @@ const estadoAbrevMap = {
 };
 const abreviarEstado = (estado) => estadoAbrevMap[estado] || estado;
 
-const nombreCompleto = (e) => `${e.nombres} ${e.apellidoP}${e.apellidoM ? ' ' + e.apellidoM : ''}`;
+const nombreCompleto = (e) => [e.nombres, e.apellidoP, e.apellidoM].filter(Boolean).join(' ');
 const iniciales = (e) => `${e.nombres?.[0] || ''}${e.apellidoP?.[0] || ''}`.toUpperCase();
 
 /* =========================================================
@@ -309,7 +166,7 @@ const traducciones = {
   es: {
     eyebrow: 'EQUIPO DE ENTRENADORES',
     pageTitle: 'Nuestros Entrenadores',
-    pageDesc: 'Conoce al equipo que entrena contigo en tu sede, descubre entrenadores en otras sucursales de la ciudad, o desbloquea la red nacional con Plus.',
+    pageDesc: 'Conoce a los entrenadores registrados en tu sede y en otras sucursales del mismo gimnasio.',
     seePlus: 'Ver Plus',
     yourGym: 'TU SEDE',
     kpiMiSede: 'ENTRENADORES EN TU SEDE',
@@ -332,7 +189,7 @@ const traducciones = {
     result: 'resultado',
     miSedeTitle: 'Entrenadores en tu Sede',
     miSedeSub: 'El equipo que entrena contigo todos los días.',
-    localesTitle: 'Entrenadores en Ciudad Valles',
+    localesTitle: 'Entrenadores en otras sedes',
     localesSub: 'Otras sucursales de la ciudad incluidas en tu membresía.',
     nacionalesTitle: 'Red Nacional (Acceso Plus Requerido)',
     nacionalesSub: 'Conoce entrenadores en otras ciudades del país con Membresía Plus.',
@@ -354,7 +211,7 @@ const traducciones = {
   en: {
     eyebrow: 'TRAINER TEAM',
     pageTitle: 'Our Trainers',
-    pageDesc: 'Meet the team training with you at your gym, discover trainers at other branches in the city, or unlock the national network with Plus.',
+    pageDesc: 'Meet the trainers registered at your branch and other branches of the same gym.',
     seePlus: 'See Plus',
     yourGym: 'YOUR GYM',
     kpiMiSede: 'TRAINERS AT YOUR GYM',
@@ -377,7 +234,7 @@ const traducciones = {
     result: 'result',
     miSedeTitle: 'Trainers at Your Gym',
     miSedeSub: 'The team that trains with you every day.',
-    localesTitle: 'Trainers in Ciudad Valles',
+    localesTitle: 'Trainers at other branches',
     localesSub: 'Other branches in the city included in your membership.',
     nacionalesTitle: 'National Network (Plus Access Required)',
     nacionalesSub: 'Meet trainers in other cities nationwide with Plus Membership.',
@@ -421,6 +278,7 @@ const handleKeydown = (e) => {
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
+  void cargarEntrenadores();
 });
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
@@ -431,6 +289,8 @@ onUnmounted(() => {
 <template>
   <HeadingMember>
     <div class="trainers-page">
+      <p v-if="cargando" class="trainer-api-status">Cargando entrenadores…</p>
+      <p v-if="errorApi" class="trainer-api-status" role="alert">{{ errorApi }} <button type="button" @click="cargarEntrenadores">Reintentar</button></p>
       <main class="trainers-container">
 
         <!-- 1. ENCABEZADO -->
@@ -447,7 +307,7 @@ onUnmounted(() => {
                 <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
                 {{ t('miSedeTitle') }}
               </button>
-              <button type="button" class="btn-ghost" @click="openMembershipModal">
+              <button v-if="false" type="button" class="btn-ghost" @click="openMembershipModal">
                 <svg viewBox="0 0 24 24"><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>
                 {{ t('seePlus') }}
               </button>
@@ -492,7 +352,7 @@ onUnmounted(() => {
             </div>
           </article>
 
-          <article class="kpi-card">
+          <article v-if="false" class="kpi-card">
             <div class="kpi-icon">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.3 2.5 3.5 5.5 3.5 9S14.3 18.5 12 21M12 3c-2.3 2.5-3.5 5.5-3.5 9S9.7 18.5 12 21"/></svg>
             </div>
@@ -502,7 +362,7 @@ onUnmounted(() => {
             </div>
           </article>
 
-          <article class="kpi-card">
+          <article v-if="false" class="kpi-card">
             <div class="kpi-icon warning">
               <svg viewBox="0 0 24 24"><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>
             </div>
@@ -550,7 +410,7 @@ onUnmounted(() => {
             <div class="segmented" role="tablist">
               <button type="button" :class="{ active: scope === 'all' }" @click="scope = 'all'">{{ t('scopeAll') }}</button>
               <button type="button" :class="{ active: scope === 'local' }" @click="scope = 'local'">{{ t('scopeLocal') }}</button>
-              <button type="button" :class="{ active: scope === 'national' }" @click="scope = 'national'">{{ t('scopeNational') }}</button>
+              <button v-if="false" type="button" :class="{ active: scope === 'national' }" @click="scope = 'national'">{{ t('scopeNational') }}</button>
             </div>
           </div>
         </section>
@@ -585,7 +445,7 @@ onUnmounted(() => {
               @keydown.enter="irADetalle(ent.id)"
             >
               <div class="trainer-media">
-                <img v-if="ent.foto" :src="ent.foto" :alt="nombreCompleto(ent)" loading="lazy" />
+                <img v-if="ent.foto" :src="ent.foto" :alt="nombreCompleto(ent)" loading="lazy" @error="e => { e.target.style.display = 'none' }" />
                 <span v-else class="trainer-initials">{{ iniciales(ent) }}</span>
                 <span class="open-badge open"><i></i>{{ t('yourGymBadge') }}</span>
                 <span v-if="ent.aniosExperiencia" class="loc-badge">
@@ -638,7 +498,7 @@ onUnmounted(() => {
               @keydown.enter="irADetalle(ent.id)"
             >
               <div class="trainer-media">
-                <img v-if="ent.foto" :src="ent.foto" :alt="nombreCompleto(ent)" loading="lazy" />
+                <img v-if="ent.foto" :src="ent.foto" :alt="nombreCompleto(ent)" loading="lazy" @error="e => { e.target.style.display = 'none' }" />
                 <span v-else class="trainer-initials">{{ iniciales(ent) }}</span>
                 <span class="loc-badge">
                   <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -753,8 +613,8 @@ onUnmounted(() => {
 
       <!-- MODAL DE MEMBRESÍAS -->
       <transition name="pop">
-        <div v-if="showMembershipModal" class="modal-wrapper" @click.self="closeMembershipModal">
-          <UpgradeMembershipModal @close="closeMembershipModal" />
+        <div v-if="false" class="modal-wrapper" @click.self="closeMembershipModal">
+
         </div>
       </transition>
     </div>
@@ -763,7 +623,6 @@ onUnmounted(() => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
-
 * { box-sizing: border-box; }
 button, input, select { font: inherit; }
 
@@ -1607,4 +1466,7 @@ select:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation-duration: 0.01ms !important; }
 }
+.trainer-api-status {max-width:1200px;margin:12px auto;padding:12px 18px;border:1px solid var(--border-cards,#333);border-radius:12px;}
+.trainer-api-status button {color:var(--color-highlight,#70aaff);text-decoration:underline;}
+@media(max-width:600px){.search-box{min-width:0;max-width:100%;width:100%;}.search-box input{width:100%;min-width:0;min-height:44px;font-size:16px;}}
 </style>
