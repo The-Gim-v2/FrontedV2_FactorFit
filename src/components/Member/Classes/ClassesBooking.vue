@@ -240,7 +240,8 @@
 
                       <ul class="meta">
                         <li>
-                          <img :src="cls.instructorAvatar" :alt="cls.instructor" class="avatar" @error="onImgError" />
+                          <img v-if="avatarInstructor(cls)" :src="avatarInstructor(cls)" :alt="cls.instructor" class="avatar" @error="onInstructorError" />
+                          <span v-else class="avatar instructor-fallback" aria-hidden="true">{{ inicialInstructor(cls.instructor) }}</span>
                           <span>{{ cls.instructor }}</span>
                         </li>
                         <li>
@@ -510,7 +511,8 @@
                 <p v-if="selectedClass.description" class="modal-desc">{{ selectedClass.description }}</p>
 
                 <div class="modal-instructor-row">
-                  <img :src="selectedClass.instructorAvatar" :alt="selectedClass.instructor" class="avatar lg" @error="onImgError" />
+                  <img v-if="avatarInstructor(selectedClass)" :src="avatarInstructor(selectedClass)" :alt="selectedClass.instructor" class="avatar lg" @error="onInstructorError" />
+                  <span v-else class="avatar lg instructor-fallback" aria-hidden="true">{{ inicialInstructor(selectedClass.instructor) }}</span>
                   <div>
                     <strong>{{ selectedClass.instructor }}</strong>
                     <small>{{ t.instructorLabel }}</small>
@@ -569,7 +571,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-import { solicitudMiembro } from '../memberSesion.js';
+import { solicitudMiembro, sesionMiembro, cargarSesionMiembro } from '../memberSesion.js';
 
 const { lang } = useLang();
 const toastRef = ref(null);
@@ -821,6 +823,25 @@ const showMyBookings = () => document.getElementById('my-bookings')?.scrollIntoV
 const emptyImage = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420"><rect width="640" height="420" fill="#17202d"/><path d="M250 205h140M290 155v100M350 155v100" stroke="#4b84b8" stroke-width="18" stroke-linecap="round"/><text x="320" y="330" text-anchor="middle" fill="#a8b8ca" font-size="25" font-family="Arial">FactorFit</text></svg>');
 const onImgError = event => { if (event.target.src !== emptyImage) event.target.src = emptyImage; };
 
+// La identidad visual proviene de la sesión real del miembro; jamás de un logo fijo.
+const logoGimnasio = computed(() => {
+  const gym = sesionMiembro.gimnasio || {};
+  const url = gym.logo_url || gym.logoUrl || gym.logo || '';
+  return typeof url === 'string' && /^https?:\/\//i.test(url) ? url : '';
+});
+const avataresFallidos = ref([]);
+const avatarInstructor = cls => {
+  const propio = cls?.instructorAvatar;
+  const foto = (typeof propio === 'string' && propio !== emptyImage && /^https?:\/\//i.test(propio)) ? propio : logoGimnasio.value;
+  return foto && !avataresFallidos.value.includes(foto) ? foto : '';
+};
+const inicialInstructor = nombre => String(nombre || 'G').trim().charAt(0).toUpperCase();
+const onInstructorError = event => {
+  const src = event?.target?.getAttribute('src');
+  if (src && !avataresFallidos.value.includes(src)) avataresFallidos.value = [...avataresFallidos.value, src];
+};
+
+
 const posterOf = cls => cls?.images?.[0] || (cls?.image && cls.image !== emptyImage ? cls.image : undefined);
 
 const mediaItems = computed(() => {
@@ -929,6 +950,7 @@ onMounted(() => {
   window.addEventListener('focus', refrescarAlVolver);
   recargaReservas = setInterval(refrescarAlVolver, 30000);
   void cargarClases();
+  void cargarSesionMiembro().catch(() => {});
 });
 
 onUnmounted(() => {
@@ -1640,6 +1662,17 @@ input:focus-visible,
 
 .avatar { width: 22px; height: 22px; flex: none; object-fit: cover; border-radius: 50%; border: 1px solid var(--line2); }
 .avatar.lg { width: 46px; height: 46px; border-radius: 14px; }
+.instructor-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hl);
+  background: var(--hl-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+.instructor-fallback.lg { font-size: 18px; }
+
 
 .class-side { display: flex; flex-direction: column; gap: 12px; }
 
@@ -2135,7 +2168,35 @@ input:focus-visible,
     border: 1px solid var(--line2);
     border-radius: 13px;
   }
-  .search-box { height: 46px; }
+  .toolbar-row .search-box {
+    display: flex;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    height: 48px;
+    min-height: 48px;
+    padding: 0 12px;
+    gap: 10px;
+    overflow: hidden;
+    border-radius: 13px;
+  }
+  .toolbar-row .search-box > svg { flex: 0 0 18px; width: 18px; height: 18px; }
+  .toolbar-row .search-box input {
+    display: block;
+    flex: 1 1 0%;
+    width: 100%;
+    min-width: 0;
+    height: 46px;
+    min-height: 46px;
+    padding: 0;
+    font-size: 14px;
+    line-height: normal;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .toolbar-row .search-box .clear-search { flex: 0 0 28px; }
+
 
   .date-block { gap: 12px; }
   .date-head { display: block; }
