@@ -20,7 +20,7 @@ export const traducciones = {
     adminTurnos: "Administración y Turnos",
     anadirHorario: "Añadir Horario",
     gestionTurnos: "Gestión de turnos y clases",
-    verHorario: "Ver Horario",
+    verHorario: "Añadir Eventos",
     calendarioActivo: "Calendario activo Lunes a Domingo",
     
     // Modales y Cámaras
@@ -499,7 +499,7 @@ export const traducciones = {
     adminTurnos: "Administration & Shifts",
     anadirHorario: "Add Schedule",
     gestionTurnos: "Shift and class management",
-    verHorario: "View Schedule",
+    verHorario: "Add Events",
     calendarioActivo: "Active calendar Monday to Sunday",
     
     // Modals & Cameras
