@@ -279,16 +279,8 @@
 
               <div class="map-container-inner">
 
-                <div v-if="entrenador.sedeLat && entrenador.sedeLng" ref="mapElement" class="map-canvas"></div>
-                  <p v-else class="trainer-api-status">Consulta la dirección para localizar esta sede en Google Maps.</p>
-
-                <button type="button" class="recenter-map-btn" :title="t('recenter')" @click="recenterMap">
-
-                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
-
-                  <span>{{ t('recenter') }}</span>
-
-                </button>
+                <iframe v-if="mapaGoogleSrc" :key="entrenador.sedeId" class="map-canvas" :src="mapaGoogleSrc" :title="`Mapa de ${entrenador.sedeNombre}`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+                <p v-else class="trainer-api-status">Esta sede aún no tiene una dirección registrada.</p>
 
                 <div class="map-watermark-overlay">
 
@@ -531,11 +523,8 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 
 import { useRoute, useRouter } from 'vue-router';
 
-import L from 'leaflet';
-
 import HeadingMember from '../HeadingMember.vue';
 
-import 'leaflet/dist/leaflet.css';
 import { solicitudMiembro } from '../memberSesion.js';
 
 const route = useRoute();
@@ -543,10 +532,6 @@ const route = useRoute();
 const router = useRouter();
 
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
-
-const mapElement = ref(null);
-
-let map = null;
 
 const entrenador = ref(null);
 const cargando = ref(true);
@@ -560,9 +545,7 @@ async function cargarDetalle() {
   try {
     const res = await solicitudMiembro(`/api/member/entrenadores/${id}`);
     entrenador.value = res.entrenador || null;
-    await nextTick();
-    destroyMap();
-    initMap();
+
   } catch (e) {
     errorApi.value = e?.message || 'No se pudo consultar el entrenador.';
   } finally { cargando.value = false; }
@@ -578,70 +561,24 @@ const nombreCompleto = computed(() =>
 
 );
 
-const mapsDirectionsUrl = computed(() => {
-  if (!entrenador.value?.sedeDireccion) return null;
-  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(entrenador.value.sedeDireccion);
-});
+const mapsDirectionsUrl = computed(() => ubicacionMapa.value
+  ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ubicacionMapa.value)}`
+  : null);
 
-/* ---------- Mapa ---------- */
-
-const initMap = () => {
-
-  if (!mapElement.value || !entrenador.value || !Number.isFinite(Number(entrenador.value.sedeLat)) || !Number.isFinite(Number(entrenador.value.sedeLng)) || !entrenador.value.sedeLat || !entrenador.value.sedeLng) return;
-
-  map = L.map(mapElement.value, { zoomControl: false, attributionControl: false })
-
-    .setView([entrenador.value.sedeLat, entrenador.value.sedeLng], 15);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-
-    maxZoom: 19,
-
-    subdomains: 'abcd'
-
-  }).addTo(map);
-
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-  const customIcon = L.divIcon({
-
-    className: 'custom-map-marker',
-
-    html: `<div class="marker-pin"></div>`,
-
-    iconSize: [26, 26],
-
-    iconAnchor: [13, 13]
-
-  });
-
-  L.marker([entrenador.value.sedeLat, entrenador.value.sedeLng], { icon: customIcon })
-
-    .addTo(map)
-
-    .bindPopup(`<b>${entrenador.value.sedeNombre}</b><br>${entrenador.value.sedeDireccion}`);
-
-};
-
-const destroyMap = () => {
-
-  if (map) {
-
-    map.remove();
-
-    map = null;
-
+/* Mapa embebido: usa coordenadas reales cuando existen o la dirección registrada. */
+const ubicacionMapa = computed(() => {
+  const e = entrenador.value;
+  if (!e) return '';
+  const lat = Number(e.sedeLat);
+  const lng = Number(e.sedeLng);
+  if (e.sedeLat !== null && e.sedeLng !== null && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+    return `${lat},${lng}`;
   }
-
-};
-
-const recenterMap = () => {
-
-  if (!map || !entrenador.value) return;
-
-  map.setView([entrenador.value.sedeLat, entrenador.value.sedeLng], 15, { animate: true });
-
-};
+  return [e.sedeDireccion, e.sedeNombre].filter(Boolean).join(', ');
+});
+const mapaGoogleSrc = computed(() => ubicacionMapa.value
+  ? `https://maps.google.com/maps?q=${encodeURIComponent(ubicacionMapa.value)}&z=16&output=embed`
+  : null);
 
 const contactarWhatsapp = () => {
 
@@ -785,13 +722,9 @@ onUnmounted(() => {
 
   window.removeEventListener('idioma-changed', handleLangChange);
 
-  destroyMap();
-
 });
 
 watch(() => route.params.id, () => {
-
-  destroyMap();
 
   void cargarDetalle();
 
@@ -800,7 +733,7 @@ watch(() => route.params.id, () => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght\@400;500;600;700;800&family=Oswald:wght\@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght\@400;500;600;700&display=swap');
 * { box-sizing: border-box; }
 
 button { font: inherit; }
@@ -1586,7 +1519,7 @@ a:focus-visible {
 
 }
 
-.map-canvas { width: 100%; height: 100%; z-index: 1; background: #161616; }
+.map-canvas { width: 100%; height: 100%; z-index: 1; background: #161616; border: 0; display: block; }
 
 .recenter-map-btn {
 

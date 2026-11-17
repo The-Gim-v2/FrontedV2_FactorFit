@@ -13,6 +13,8 @@ const entrenadoresLocales = ref([]);
 const entrenadoresNacionales = ref([]); // No hay red Plus contratada ni API para ella.
 const cargando = ref(true);
 const errorApi = ref('');
+const sedeActual = ref(null);
+const logoFallido = ref(false);
 async function cargarEntrenadores() {
   cargando.value = true;
   errorApi.value = '';
@@ -20,9 +22,12 @@ async function cargarEntrenadores() {
     const datos = await solicitudMiembro('/api/member/entrenadores');
     entrenadoresMiSede.value = Array.isArray(datos.mi_sede) ? datos.mi_sede : [];
     entrenadoresLocales.value = Array.isArray(datos.otras_sedes) ? datos.otras_sedes : [];
+    sedeActual.value = datos.mi_sede_info || entrenadoresMiSede.value[0] || null;
+    logoFallido.value = false;
   } catch (e) {
     entrenadoresMiSede.value = [];
     entrenadoresLocales.value = [];
+    sedeActual.value = null;
     errorApi.value = e?.message || 'No se pudieron cargar los entrenadores.';
   } finally {
     cargando.value = false;
@@ -139,7 +144,8 @@ const goPageLocal = (n) => {
 /* =========================================================
    INDICADORES
 ========================================================= */
-const miSedeNombre = computed(() => entrenadoresMiSede.value[0]?.sedeNombre || '');
+const miSedeNombre = computed(() => sedeActual.value?.sedeNombre || entrenadoresMiSede.value[0]?.sedeNombre || '');
+const logoGym = computed(() => sedeActual.value?.logoGym || entrenadoresMiSede.value[0]?.logoGym || null);
 const statesCount = computed(() => new Set(entrenadoresNacionales.value.map((e) => e.estado)).size);
 
 const scrollToMySede = () => {
@@ -316,7 +322,8 @@ onUnmounted(() => {
 
           <button v-if="entrenadoresMiSede.length" type="button" class="hero-base" @click="scrollToMySede">
             <span class="hero-base-img">
-              <img :src="entrenadoresMiSede[0].foto" :alt="miSedeNombre" />
+              <img v-if="logoGym && !logoFallido" :src="logoGym" :alt="`Logo de ${miSedeNombre}`" @error="logoFallido = true" />
+              <span v-else class="gym-logo-fallback">{{ miSedeNombre.slice(0, 2).toUpperCase() }}</span>
             </span>
             <span class="hero-base-copy">
               <small>{{ t('yourGym') }}</small>
@@ -874,7 +881,8 @@ select:focus-visible,
   border: 1px solid var(--line2);
   border-radius: 15px;
 }
-.hero-base-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero-base-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.gym-logo-fallback { display: grid; place-items: center; width: 100%; height: 100%; color: var(--hl); font-size: 17px; font-weight: 800; }
 
 .hero-base-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .hero-base-copy small { color: var(--hl); font-size: 9.5px; font-weight: 800; letter-spacing: 1px; }
