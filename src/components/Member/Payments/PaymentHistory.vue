@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import HeadingMember from '../HeadingMember.vue';
 import PaymentReceiptModal from './PaymentReceiptModal.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 /* ---------------- IDIOMA (es/en) ---------------- */
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
@@ -76,15 +77,24 @@ const toastRef = ref(null);
 const modalReciboVisible = ref(false);
 const pagoSeleccionado = ref(null);
 
-/* --- Datos de ejemplo actualizados --- */
-const pagos = ref([
-  { id: 1, fecha: '2026-08-01', concepto: 'monthly', plan: 'Mensual', monto: 450, metodo: 'Tarjeta', folio: 'TXN-88213', estado: 'pagado', registradoPorStaff: false, cliente: 'Carlos Mendoza' },
-  { id: 2, fecha: '2026-07-14', concepto: 'monthly', plan: 'Mensual', monto: 450, metodo: 'Efectivo', folio: 'CAJA-0456', estado: 'pagado', registradoPorStaff: true, cliente: 'Carlos Mendoza' },
-  { id: 3, fecha: '2026-07-01', concepto: 'monthly', plan: 'Mensual', monto: 450, metodo: 'Transferencia', folio: '00123456', estado: 'pendiente', registradoPorStaff: false, cliente: 'Carlos Mendoza' },
-  { id: 4, fecha: '2026-06-03', concepto: 'monthlySurcharge', plan: 'Mensual', monto: 500, metodo: 'Tarjeta', folio: 'TXN-77094', estado: 'pagado', registradoPorStaff: false, cliente: 'Carlos Mendoza' },
-  { id: 5, fecha: '2026-03-01', concepto: 'membership', plan: 'Trimestral', monto: 1230, metodo: 'Transferencia', folio: '00119820', estado: 'pagado', registradoPorStaff: false, cliente: 'Carlos Mendoza' },
-  { id: 6, fecha: '2025-12-01', concepto: 'membership', plan: 'Semestral', monto: 2250, metodo: 'Efectivo', folio: 'CAJA-0298', estado: 'pagado', registradoPorStaff: true, cliente: 'Carlos Mendoza' },
-]);
+const pagos = ref([]);
+const cargando = ref(true);
+const errorApi = ref('');
+const gimnasio = ref({ nombre: '', logo_url: null });
+async function cargarPagos() {
+  cargando.value = true;
+  errorApi.value = '';
+  try {
+    const data = await solicitudMiembro('/api/member/pagos');
+    pagos.value = Array.isArray(data.pagos) ? data.pagos.map(p => ({ ...p, monto: Number(p.monto || 0), folio: String(p.folio || ''), metodo: String(p.metodo || 'No especificado') })) : [];
+    gimnasio.value = data.gimnasio || { nombre: '', logo_url: null };
+  } catch (e) {
+    errorApi.value = e?.message || 'No se pudo consultar el historial.';
+    toastRef.value?.notify(errorApi.value, 'error');
+  } finally { cargando.value = false; }
+}
+onMounted(() => { void cargarPagos(); window.addEventListener('focus', cargarPagos); });
+onUnmounted(() => window.removeEventListener('focus', cargarPagos));
 
 const conceptoLabel = (clave) => {
   const map = { monthly: 'Mensualidad', monthlySurcharge: 'Mensualidad + recargo', membership: 'Membresía' };
@@ -126,7 +136,7 @@ const totalPagado = computed(() =>
 );
 
 const formatFecha = (iso) =>
-  new Date(iso + 'T00:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' });
+  iso ? new Date(iso + 'T12:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const metodoIcono = (metodo) => {
   if (metodo === 'Tarjeta') return 'card';
@@ -141,6 +151,7 @@ const metodoLabel = (metodo) => {
 };
 
 const abrirRecibo = (pago) => {
+  if (pago.estado !== 'pagado') return;
   pagoSeleccionado.value = pago;
   modalReciboVisible.value = true;
 };
@@ -174,7 +185,9 @@ const handleNotification = ({ message, type }) => {
           </div>
         </div>
 
-        <div class="history-card">
+        <p v-if="cargando" role="status">Cargando pagos…</p>
+        <p v-if="errorApi" role="alert">{{ errorApi }} <button type="button" @click="cargarPagos">Reintentar</button></p>
+        <div v-if="!cargando && !errorApi" class="history-card">
           <div class="filters-row" id="tutorial-history-filters">
             <div class="input-wrapper search-wrapper">
               <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -316,6 +329,7 @@ const handleNotification = ({ message, type }) => {
         <PaymentReceiptModal
           :visible="modalReciboVisible"
           :pago="pagoSeleccionado"
+          :gimnasio="gimnasio"
           :locale="localeActual"
           @close="cerrarModal"
           @notify="handleNotification"

@@ -5,6 +5,7 @@ import { useLang } from '../useLang.js';
 const props = defineProps({
   visible: { type: Boolean, default: false },
   pago: { type: Object, default: null },
+  gimnasio: { type: Object, default: () => ({}) },
   locale: { type: String, default: 'es-MX' }
 });
 
@@ -18,7 +19,7 @@ const { lang } = useLang();
 // Diccionario de traducciones sincronizado con useLang
 const traducciones = {
   es: {
-    subTitle: 'COMPROBANTE DE TRANSACCIÓN BANCARIA',
+    subTitle: 'COMPROBANTE DE PAGO REGISTRADO',
     date: 'Fecha:',
     time: 'Hora:',
     operationNum: 'NÚMERO DE OPERACIÓN',
@@ -36,7 +37,7 @@ const traducciones = {
     subtotal: 'SUBTOTAL:',
     vat: 'IVA (0%):',
     totalAmount: 'IMPORTE TOTAL:',
-    authCode: 'CÓDIGO DE VERIFICACIÓN AUTORIZADO',
+    authCode: 'REFERENCIA REGISTRADA',
     footer1: 'Conserve este comprobante para cualquier aclaración.',
     footer2: 'Gracias por su preferencia.',
     genPng: 'Generando recibo PNG...',
@@ -51,7 +52,7 @@ const traducciones = {
     generating: 'Generando…'
   },
   en: {
-    subTitle: 'BANK TRANSACTION RECEIPT',
+    subTitle: 'REGISTERED PAYMENT RECEIPT',
     date: 'Date:',
     time: 'Time:',
     operationNum: 'OPERATION NUMBER',
@@ -69,7 +70,7 @@ const traducciones = {
     subtotal: 'SUBTOTAL:',
     vat: 'VAT (0%):',
     totalAmount: 'TOTAL AMOUNT:',
-    authCode: 'AUTHORIZED VERIFICATION CODE',
+    authCode: 'REGISTERED REFERENCE',
     footer1: 'Keep this receipt for any inquiries.',
     footer2: 'Thank you for your preference.',
     genPng: 'Generating PNG receipt...',
@@ -93,8 +94,9 @@ const formatFecha = (iso) => {
 };
 
 const formatHora = () => {
-  const now = new Date();
-  return now.toLocaleTimeString(props.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const value = String(props.pago?.fecha_hora || '');
+  const match = value.match(/(?:T|\s)(\d{2}:\d{2}(?::\d{2})?)/);
+  return match ? match[1] : '—';
 };
 
 const cerrar = () => {
@@ -155,6 +157,7 @@ const capturarTicketCompleto = async () => {
 };
 
 const descargarPng = async () => {
+  if (!props.pago?.pago_confirmado) return;
   if (!reciboRef.value || generando.value) return;
   generando.value = true;
   emit('notify', { message: t.value.genPng, type: 'info' });
@@ -180,6 +183,7 @@ const descargarPng = async () => {
 };
 
 const descargarPdf = async () => {
+  if (!props.pago?.pago_confirmado) return;
   if (!reciboRef.value || generando.value) return;
   generando.value = true;
   emit('notify', { message: t.value.genPdf, type: 'info' });
@@ -212,14 +216,13 @@ const descargarPdf = async () => {
 </script>
 
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="cerrar">
+  <div v-if="visible && pago?.pago_confirmado" class="modal-overlay" @click.self="cerrar">
     <div ref="modalContentRef" class="modal-content-container">
 
       <div ref="reciboRef" class="receipt-ticket">
         <div class="ticket-header">
-          <div class="bank-name">ELITE GYM FITNESS CENTER</div>
+          <div class="bank-name">{{ gimnasio?.nombre || "Gimnasio" }}</div>
           <div class="bank-sub">{{ t.subTitle }}</div>
-          <div class="bank-sub">RFC: EGY210415XYZ</div>
         </div>
 
         <div class="ticket-info-top">
@@ -240,7 +243,7 @@ const descargarPdf = async () => {
           </div>
           <div class="row">
             <span class="label">{{ t.registeredBy }}</span>
-            <span class="value">{{ t.mainCashier }}</span>
+            <span class="value">{{ pago?.registradoPorStaff ? (lang === 'en' ? 'At reception' : 'En recepción') : (lang === 'en' ? 'Registered payment' : 'Pago registrado') }}</span>
           </div>
           <div class="row">
             <span class="label">{{ t.paymentMethod }}</span>
@@ -266,7 +269,7 @@ const descargarPdf = async () => {
               </span>
               <span class="sub-desc">({{ pago?.plan }})</span>
             </div>
-            <span class="bold">${{ pago?.monto.toFixed(2) }}</span>
+            <span class="bold">${{ Number(pago?.monto || 0).toFixed(2) }}</span>
           </div>
         </div>
 
@@ -275,15 +278,11 @@ const descargarPdf = async () => {
         <div class="receipt-totals">
           <div class="row">
             <span>{{ t.subtotal }}</span>
-            <span>${{ pago?.monto.toFixed(2) }}</span>
-          </div>
-          <div class="row">
-            <span>{{ t.vat }}</span>
-            <span>$0.00</span>
+            <span>${{ Number(pago?.monto || 0).toFixed(2) }}</span>
           </div>
           <div class="row total-final">
             <span>{{ t.totalAmount }}</span>
-            <span>${{ pago?.monto.toFixed(2) }} MXN</span>
+            <span>${{ Number(pago?.monto || 0).toFixed(2) }} MXN</span>
           </div>
         </div>
 

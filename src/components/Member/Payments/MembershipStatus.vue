@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import HeadingMember from '../HeadingMember.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 /* ---------------- IDIOMA (es/en) ---------------- */
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
@@ -119,172 +120,72 @@ const traducciones = {
 const t = computed(() => traducciones[currentLang.value] || traducciones.es);
 const toastRef = ref(null);
 
-const socio = reactive({
-  nombre: 'ANA SOFÍA',
-  apellido: 'TORRES',
-  id: 'GymAth045',
-});
-
-const iniciales = computed(() => {
-  const a = socio.nombre?.trim()?.[0] || '';
-  const b = socio.apellido?.trim()?.[0] || '';
-  return (a + b).toUpperCase();
-});
-
-const fechaVencimiento = ref(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
-const duracionCicloDias = ref(30);
+const socio = reactive({ nombre: '', apellido: '', id: '', foto: null });
+const iniciales = computed(() => socio.nombre.trim().slice(0, 1).toUpperCase() + socio.apellido.trim().slice(0, 1).toUpperCase());
+const cargando = ref(true);
+const errorApi = ref('');
+const fechaVencimiento = ref(null);
+const diasRestantes = ref(null);
+const saldoPendiente = ref(0);
+const planReal = ref('');
+const precioReal = ref(null);
+const estadoRegistrado = ref('');
 const transferenciaEnRevision = ref(false);
-
-const diasRestantes = computed(() => {
-  const ms = fechaVencimiento.value.getTime() - Date.now();
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
-});
-
+const localeActual = computed(() => currentLang.value === 'en' ? 'en-US' : 'es-MX');
+const fechaFormateada = computed(() => fechaVencimiento.value ? new Date(fechaVencimiento.value + 'T12:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 const estadoMembresia = computed(() => {
-  if (diasRestantes.value < 0) return { label: t.value.statusExpired, color: '#ef4444' };
+  if (diasRestantes.value === null) return { label: 'SIN DATOS', color: '#94a3b8' };
+  if (diasRestantes.value < 0 || /inactivo|vencid/i.test(estadoRegistrado.value)) return { label: t.value.statusExpired, color: '#ef4444' };
   if (diasRestantes.value <= 5) return { label: t.value.statusExpiringSoon, color: '#f59e0b' };
   return { label: t.value.statusActive, color: '#4ade80' };
 });
-
-const localeActual = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
-const fechaFormateada = computed(() =>
-  fechaVencimiento.value.toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' })
-);
-
-const nuevoCorteCalculado = computed(() => {
-  const base = diasRestantes.value < 0 ? new Date() : fechaVencimiento.value;
-  const nuevaFecha = new Date(base.getTime());
-  nuevaFecha.setDate(nuevaFecha.getDate() + (plan.value?.dias || 30));
-  return nuevaFecha.toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' });
-});
-
 const RADIO = 54;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
-const progresoRestante = computed(() => {
-  const pct = Math.min(1, Math.max(0, diasRestantes.value / duracionCicloDias.value));
-  return pct;
-});
-const dashOffset = computed(() => CIRCUNFERENCIA * (1 - progresoRestante.value));
-
-const planesBase = [
-  { id: 'mensual', nombreEs: 'Mensual', nombreEn: 'Monthly', precio: 450, dias: 30, ahorro: null },
-  { id: 'trimestral', nombreEs: 'Trimestral', nombreEn: 'Quarterly', precio: 1230, dias: 90, ahorro: '10%' },
-  { id: 'semestral', nombreEs: 'Semestral', nombreEn: 'Biannual', precio: 2250, dias: 180, ahorro: '17%' },
-  { id: 'anual', nombreEs: 'Anual', nombreEn: 'Annual', precio: 4050, dias: 365, ahorro: '25%' },
-];
-const planes = computed(() =>
-  planesBase.map(p => ({ ...p, nombre: currentLang.value === 'en' ? p.nombreEn : p.nombreEs }))
-);
-const planSeleccionado = ref('mensual');
-const plan = computed(() => planes.value.find(p => p.id === planSeleccionado.value));
-
-const recargoPorVencida = computed(() => (diasRestantes.value < 0 ? 50 : 0));
-const totalAPagar = computed(() => (plan.value ? plan.value.precio + recargoPorVencida.value : 0));
-const saldoPendiente = computed(() => (diasRestantes.value < 0 ? 50 : 0));
-
+const dashOffset = computed(() => CIRCUNFERENCIA * (1 - (diasRestantes.value === null ? 0 : Math.min(1, Math.max(0, diasRestantes.value / 30)))));
+const planes = computed(() => precioReal.value === null ? [] : [{ id: 'registrado', nombre: planReal.value || 'Plan registrado', precio: precioReal.value, ahorro: null }]);
+const planSeleccionado = ref('registrado');
+const plan = computed(() => planes.value[0] || null);
+const totalAPagar = computed(() => saldoPendiente.value);
+const recargoPorVencida = computed(() => 0);
+const nuevoCorteCalculado = computed(() => '—');
 const tipoPago = ref('');
-const numeroTarjeta = ref('');
-const vencimientoTarjeta = ref('');
-const cvvTarjeta = ref('');
-const folioTransferencia = ref('');
-const modalDatosBancarios = ref(false);
-const campoCopiado = ref('');
-
-const numeroTarjetaFormateado = computed({
-  get: () => numeroTarjeta.value,
-  set: (val) => {
-    const digits = val.replace(/\D/g, '').slice(0, 16);
-    numeroTarjeta.value = digits.replace(/(.{4})/g, '$1 ').trim();
-  }
-});
-
-const vencimientoTarjetaFormateado = computed({
-  get: () => vencimientoTarjeta.value,
-  set: (val) => {
-    let cleaned = val.replace(/\D/g, '').slice(0, 4);
-    if (cleaned.length >= 3) {
-      vencimientoTarjeta.value = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-    } else {
-      vencimientoTarjeta.value = cleaned;
-    }
-  }
-});
-
-const datosBancarios = computed(() => ({
-  banco: 'BBVA México',
-  titular: 'Iron Fit Center S.A. de C.V.',
-  cuenta: '0123456789',
-  clabe: '012180001234567895',
-  concepto: `Membresia ${socio.id}`,
-}));
-
-const copiarDato = async (valor, campo) => {
-  try {
-    await navigator.clipboard.writeText(valor);
-  } catch {
-    const temp = document.createElement('textarea');
-    temp.value = valor;
-    document.body.appendChild(temp);
-    temp.select();
-    document.execCommand('copy');
-    document.body.removeChild(temp);
-  }
-  campoCopiado.value = campo;
-  toastRef.value?.notify(t.value.copiedToast, 'success');
-  setTimeout(() => { if (campoCopiado.value === campo) campoCopiado.value = ''; }, 1500);
-};
-
 const procesando = ref(false);
-
-const formularioTarjetaValido = computed(() =>
-  numeroTarjeta.value.replace(/\s/g, '').length === 16
-  && vencimientoTarjeta.value.length === 5
-  && cvvTarjeta.value.length >= 3
-);
-
-const seleccionarPlan = (id) => {
-  planSeleccionado.value = id;
-};
-
-const pagarConTarjeta = () => {
-  if (!formularioTarjetaValido.value) {
-    toastRef.value?.notify(t.value.formInvalidError, 'error');
-    return;
-  }
-  procesando.value = true;
-  setTimeout(() => {
-    procesando.value = false;
-    aplicarRenovacion();
-    numeroTarjeta.value = '';
-    vencimientoTarjeta.value = '';
-    cvvTarjeta.value = '';
-    tipoPago.value = '';
-    toastRef.value?.notify(`${t.value.paymentConfirmedToast} (${plan.value.nombre})`, 'success');
-  }, 1200);
-};
-
-const enviarComprobanteTransferencia = () => {
-  if (!folioTransferencia.value.trim()) {
-    toastRef.value?.notify(t.value.folioRequiredError, 'error');
-    return;
-  }
-  procesando.value = true;
-  setTimeout(() => {
-    procesando.value = false;
-    transferenciaEnRevision.value = true;
-    folioTransferencia.value = '';
-    tipoPago.value = '';
-    toastRef.value?.notify(t.value.transferPendingToast, 'success');
-  }, 1000);
-};
-
-const aplicarRenovacion = () => {
-  const base = diasRestantes.value < 0 ? new Date() : fechaVencimiento.value;
-  const nuevaFecha = new Date(base.getTime());
-  nuevaFecha.setDate(nuevaFecha.getDate() + plan.value.dias);
-  fechaVencimiento.value = nuevaFecha;
-  duracionCicloDias.value = plan.value.dias;
-};
+const modalDatosBancarios = ref(false);
+const datosBancarios = computed(() => null);
+const folioTransferencia = ref('');
+const formularioTarjetaValido = computed(() => false);
+const numeroTarjetaFormateado = ref('');
+const vencimientoTarjetaFormateado = ref('');
+const cvvTarjeta = ref('');
+const seleccionarPlan = () => {};
+const copiarDato = () => {};
+const pagarConTarjeta = () => toastRef.value?.notify('El pago con tarjeta no está disponible hasta integrar Stripe Checkout.', 'warning');
+const enviarComprobanteTransferencia = () => toastRef.value?.notify('Las transferencias deben verificarse en recepción. No se ha registrado ningún pago.', 'warning');
+async function cargarMembresia() {
+  cargando.value = true;
+  errorApi.value = '';
+  try {
+    const datos = await solicitudMiembro('/api/member/pagos');
+    const m = datos.membresia || {};
+    const partes = String(datos.miembro?.nombre || '').trim().split(/\s+/);
+    socio.nombre = partes.shift() || '';
+    socio.apellido = partes.join(' ');
+    socio.id = String(datos.miembro?.id ?? '');
+    socio.foto = datos.miembro?.foto || null;
+    fechaVencimiento.value = m.fecha_vencimiento || null;
+    diasRestantes.value = m.dias_restantes ?? null;
+    saldoPendiente.value = Math.max(0, Number(m.saldo_pendiente || 0));
+    planReal.value = m.plan || '';
+    precioReal.value = m.precio === null || m.precio === undefined ? null : Number(m.precio);
+    estadoRegistrado.value = m.estado || '';
+    transferenciaEnRevision.value = Array.isArray(datos.pagos) && datos.pagos.some(p => p.estado === 'pendiente');
+  } catch (e) {
+    errorApi.value = e?.message || 'No fue posible consultar la membresía.';
+    toastRef.value?.notify(errorApi.value, 'error');
+  } finally { cargando.value = false; }
+}
+onMounted(() => { void cargarMembresia(); window.addEventListener('focus', cargarMembresia); });
+onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
 </script>
 
 <template>
@@ -302,7 +203,9 @@ const aplicarRenovacion = () => {
           </div>
         </div>
 
-        <div class="membership-grid">
+        <p v-if="cargando" role="status">Cargando membresía…</p>
+        <p v-if="errorApi" role="alert">{{ errorApi }} <button type="button" @click="cargarMembresia">Reintentar</button></p>
+        <div v-if="!cargando && !errorApi" class="membership-grid">
 
           <!-- Columna Izquierda: Estado del Atleta -->
           <div id="tutorial-member-status-card" class="status-card">
@@ -320,7 +223,8 @@ const aplicarRenovacion = () => {
                 />
               </svg>
               <div class="avatar-circle">
-                <span class="avatar-initials">{{ iniciales }}</span>
+                <img v-if="socio.foto" :src="socio.foto" alt="Foto del miembro" class="avatar-real" @error="socio.foto = null" />
+                <span v-else class="avatar-initials">{{ iniciales }}</span>
               </div>
             </div>
 
@@ -341,7 +245,7 @@ const aplicarRenovacion = () => {
 
             <div class="dias-restantes">
               <span class="dias-numero" :style="{ color: estadoMembresia.color }">
-                {{ diasRestantes >= 0 ? diasRestantes : Math.abs(diasRestantes) }}
+                {{ diasRestantes === null ? "—" : Math.abs(diasRestantes) }}
               </span>
               <span class="dias-label">{{ diasRestantes >= 0 ? t.daysRemaining : t.daysOverdue }}</span>
             </div>
@@ -378,203 +282,23 @@ const aplicarRenovacion = () => {
               </div>
             </div>
 
-            <!-- Selector de Planes -->
-            <div class="section-subtitle-small">
-              <span class="subtitle-dot"></span>{{ t.choosePlan }}
-            </div>
-
+            <!-- Plan y adeudo reales: no se capturan tarjetas ni se simulan transacciones -->
+            <div class="section-subtitle-small"><span class="subtitle-dot"></span>Plan registrado en el gimnasio</div>
             <div id="tutorial-payment-plans" class="planes-grid">
-              <button
-                v-for="p in planes"
-                :key="p.id"
-                type="button"
-                class="plan-chip"
-                :class="{ active: planSeleccionado === p.id }"
-                @click="seleccionarPlan(p.id)"
-              >
-                <span v-if="p.ahorro" class="plan-tag">{{ t.save }} {{ p.ahorro }}</span>
-                <span class="plan-nombre">{{ p.nombre }}</span>
-                <span class="plan-precio">${{ p.precio.toFixed(2) }}</span>
-              </button>
+              <div v-if="plan" class="plan-chip active"><span class="plan-nombre">{{ plan.nombre }}</span><span class="plan-precio">${{ plan.precio.toFixed(2) }} MXN</span></div>
+              <p v-else>Sin tarifa registrada.</p>
             </div>
-
-            <!-- Resumen Financiero y Estado de Cuenta -->
-            <div class="account-statement-header">
-              <span class="statement-title">{{ t.accountStatement }}</span>
-              <span v-if="saldoPendiente > 0" class="badge-pending">{{ t.pendingBalance }}: ${{ saldoPendiente.toFixed(2) }}</span>
+            <div class="account-statement-header"><span class="statement-title">{{ t.accountStatement }}</span><span v-if="saldoPendiente > 0" class="badge-pending">{{ t.pendingBalance }}: ${{ saldoPendiente.toFixed(2) }}</span></div>
+            <div id="tutorial-account-summary" class="styled-box"><div class="amount-info"><span class="amount-label">Saldo pendiente registrado</span><div class="amount-row"><span class="currency">$</span><span class="amount-val">{{ totalAPagar.toFixed(2) }}</span></div></div><div class="recargo-container"><span class="mensual-text">{{ plan?.nombre || 'Sin plan registrado' }}</span></div></div>
+            <div class="payment-status-message" role="status">
+              Los pagos deben realizarse mediante los métodos autorizados por tu gimnasio. Esta pantalla consulta PostgreSQL y no procesa tarjetas ni confirma transferencias.
             </div>
-
-            <div id="tutorial-account-summary" class="styled-box">
-              <div class="amount-info">
-                <span class="amount-label">{{ t.totalToPay }}</span>
-                <div class="amount-row">
-                  <span class="currency">$</span>
-                  <span class="amount-val">{{ totalAPagar.toFixed(2) }}</span>
-                </div>
-              </div>
-              <div class="recargo-container">
-                <span v-if="recargoPorVencida" class="red">+ $50 {{ t.surcharge }}</span>
-                <span class="mensual-text">{{ plan?.nombre }}</span>
-              </div>
-            </div>
-
-            <!-- Selección del Método de Pago -->
-            <div id="tutorial-payment-method-select" class="input-group">
-              <label>{{ t.paymentMethod }}</label>
-              <div class="input-wrapper select-wrapper-container">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon">
-                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                  <line x1="1" y1="10" x2="23" y2="10"></line>
-                </svg>
-                <select v-model="tipoPago" class="custom-select">
-                  <option disabled value="">{{ t.selectOption }}</option>
-                  <option value="Tarjeta">{{ t.cardOption }}</option>
-                  <option value="Transferencia">{{ t.transferOption }}</option>
-                </select>
-                <svg class="select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-            </div>
-
-            <transition name="fade-slide">
-              <!-- Formulario de Tarjeta -->
-              <div v-if="tipoPago === 'Tarjeta'" class="card-fields">
-                <div class="input-group">
-                  <label>{{ t.cardNumberLabel }}</label>
-                  <div class="input-wrapper input-with-icon-simple">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon">
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                      <line x1="1" y1="10" x2="23" y2="10"></line>
-                    </svg>
-                    <input type="text" v-model="numeroTarjetaFormateado" placeholder="0000 0000 0000 0000" maxlength="19" inputmode="numeric">
-                  </div>
-                </div>
-
-                <div class="payment-details-grid">
-                  <div class="input-group">
-                    <label>{{ t.expiryLabel }}</label>
-                    <input type="text" v-model="vencimientoTarjetaFormateado" placeholder="MM/AA" maxlength="5" inputmode="numeric">
-                  </div>
-                  <div class="input-group">
-                    <label>{{ t.cvvLabel }}</label>
-                    <input type="password" v-model="cvvTarjeta" placeholder="•••" maxlength="4" inputmode="numeric">
-                  </div>
-                </div>
-
-                <div class="action-buttons">
-                  <button
-                    id="tutorial-pay-action-btn"
-                    class="btn-primary"
-                    :disabled="!formularioTarjetaValido || procesando"
-                    :class="{ disabled: !formularioTarjetaValido || procesando }"
-                    @click="pagarConTarjeta"
-                  >
-                    <span v-if="!procesando">{{ t.payButton }}</span>
-                    <span v-else>{{ t.processingLabel }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Formulario de Transferencia Bancaria -->
-              <div v-else-if="tipoPago === 'Transferencia'" class="card-fields">
-                <button type="button" class="btn-bank-details" @click="modalDatosBancarios = true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="10" width="18" height="10" rx="1"></rect>
-                    <path d="M3 10l9-6 9 6"></path>
-                    <line x1="7" y1="14" x2="7" y2="16"></line>
-                    <line x1="12" y1="14" x2="12" y2="16"></line>
-                    <line x1="17" y1="14" x2="17" y2="16"></line>
-                  </svg>
-                  {{ t.viewBankDetailsBtn }}
-                </button>
-
-                <div class="input-group">
-                  <label>{{ t.transferReferenceLabel }}</label>
-                  <div class="input-wrapper input-with-icon-simple">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="input-icon">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="7 10 12 15 17 10"></polyline>
-                      <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    <input type="text" v-model="folioTransferencia" :placeholder="t.transferReferencePlaceholder">
-                  </div>
-                </div>
-                <p class="transfer-note">{{ t.transferNote }}</p>
-
-                <div class="action-buttons">
-                  <button
-                    id="tutorial-pay-action-btn"
-                    class="btn-primary"
-                    :disabled="!folioTransferencia.trim() || procesando"
-                    :class="{ disabled: !folioTransferencia.trim() || procesando }"
-                    @click="enviarComprobanteTransferencia"
-                  >
-                    <span v-if="!procesando">{{ t.submitTransferBtn }}</span>
-                    <span v-else>{{ t.processingLabel }}</span>
-                  </button>
-                </div>
-              </div>
-            </transition>
-
+            <button class="btn-primary" type="button" :disabled="cargando" @click="cargarMembresia">Actualizar estado de cuenta</button>
             <p class="cash-note">{{ t.cashNote }}</p>
           </div>
         </div>
       </div>
 
-      <!-- Modal de Datos Bancarios -->
-      <transition name="pop">
-        <div v-if="modalDatosBancarios" class="modal-wrapper" @click.self="modalDatosBancarios = false">
-          <div class="bank-modal">
-            <h3 class="bank-modal-title">{{ t.bankDetailsTitle }}</h3>
-            <p class="bank-modal-subtitle">{{ t.bankDetailsSubtitle }}</p>
-
-            <div class="bank-field">
-              <div class="bank-field-info">
-                <span class="bank-field-label">{{ t.bankNameLabel }}</span>
-                <span class="bank-field-value">{{ datosBancarios.banco }}</span>
-              </div>
-            </div>
-            <div class="bank-field">
-              <div class="bank-field-info">
-                <span class="bank-field-label">{{ t.accountHolderLabel }}</span>
-                <span class="bank-field-value">{{ datosBancarios.titular }}</span>
-              </div>
-            </div>
-            <div class="bank-field">
-              <div class="bank-field-info">
-                <span class="bank-field-label">{{ t.accountNumberLabel }}</span>
-                <span class="bank-field-value mono">{{ datosBancarios.cuenta }}</span>
-              </div>
-              <button class="btn-copy" @click="copiarDato(datosBancarios.cuenta, 'cuenta')">
-                {{ campoCopiado === 'cuenta' ? '✓' : t.copyBtn }}
-              </button>
-            </div>
-            <div class="bank-field">
-              <div class="bank-field-info">
-                <span class="bank-field-label">{{ t.clabeLabel }}</span>
-                <span class="bank-field-value mono">{{ datosBancarios.clabe }}</span>
-              </div>
-              <button class="btn-copy" @click="copiarDato(datosBancarios.clabe, 'clabe')">
-                {{ campoCopiado === 'clabe' ? '✓' : t.copyBtn }}
-              </button>
-            </div>
-            <div class="bank-field">
-              <div class="bank-field-info">
-                <span class="bank-field-label">{{ t.conceptLabel }}</span>
-                <span class="bank-field-value mono">{{ datosBancarios.concepto }}</span>
-              </div>
-              <button class="btn-copy" @click="copiarDato(datosBancarios.concepto, 'concepto')">
-                {{ campoCopiado === 'concepto' ? '✓' : t.copyBtn }}
-              </button>
-            </div>
-
-            <div class="action-buttons">
-              <button class="btn-primary" @click="modalDatosBancarios = false">{{ t.gotItBtn }}</button>
-            </div>
-          </div>
-        </div>
-      </transition>
     </main>
   </HeadingMember>
 </template>
@@ -1047,4 +771,7 @@ const aplicarRenovacion = () => {
     grid-template-columns: 1fr;
   }
 }
+
+.avatar-real { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.payment-status-message { padding: 16px; border: 1px solid rgba(255,255,255,.15); border-radius: 12px; margin: 18px 0; line-height: 1.6; }
 </style>
