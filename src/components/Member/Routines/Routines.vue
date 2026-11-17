@@ -348,6 +348,7 @@ import { useLang } from '../useLang.js';
 import RoutineDetailModal from '../Modals/RoutineDetailModal.vue';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const { lang } = useLang();
 
@@ -359,9 +360,9 @@ const notify = (message, type = 'success', duration = 4000) => {
 
 // PERFIL ANTROPOMÉTRICO
 const userProfile = ref({
-  age: 28,
-  weight: 75,
-  height: 175,
+  age: null,
+  weight: null,
+  height: null,
   gender: 'male',
   goal: 'hypertrophy'
 });
@@ -369,10 +370,11 @@ const userProfile = ref({
 const hasCalculated = ref(false);
 const calculationTriggerKey = ref(0);
 
-const calculateRoutines = () => {
+const calculateRoutines = async () => {
+  if (!userProfile.value.age || !userProfile.value.weight || !userProfile.value.height) { notify('Registra tu edad, peso y estatura antes de calcular.', 'warning'); return; }
   hasCalculated.value = true;
   calculationTriggerKey.value++;
-  notify(t.value.calculatedToast, 'success');
+  try { await solicitudMiembro('/api/member/rutinas/perfil', { method: 'PUT', body: JSON.stringify({ perfil: userProfile.value }) }); notify(t.value.calculatedToast, 'success'); } catch (e) { notify(e?.message || 'No se pudo guardar tu perfil.', 'error'); }
 };
 
 const calculatedIMC = computed(() => {
@@ -638,6 +640,7 @@ const clearFilters = () => {
 };
 
 const mySavedRoutines = ref([]);
+const guardandoFavorito = ref(false);
 const routineLibrary = ref([]);
 const loadingExercises = ref(true);
 
@@ -707,6 +710,19 @@ onUnmounted(() => {
   window.removeEventListener('resize', calcPerPage);
 });
 
+/* Datos propios del miembro: no usar favoritos compartidos ni locales. */
+const cargarPreferencias = async () => {
+  try {
+    const d = await solicitudMiembro('/api/member/rutinas');
+    mySavedRoutines.value = Array.isArray(d.favoritos) ? d.favoritos.map(String) : [];
+    if (d.perfil && typeof d.perfil === 'object') {
+      for (const campo of ['age', 'weight', 'height', 'gender', 'goal']) {
+        if (d.perfil[campo] !== null && d.perfil[campo] !== undefined) userProfile.value[campo] = d.perfil[campo];
+      }
+    }
+  } catch (error) { notify(error?.message || 'No se pudieron consultar tus rutinas guardadas.', 'error'); }
+};
+onMounted(() => { void cargarPreferencias(); });
 /* ---------- Carga de datos ---------- */
 onMounted(async () => {
   try {
@@ -715,9 +731,7 @@ onMounted(async () => {
     const data = await response.json();
 
     routineLibrary.value = data.map((item, index) => {
-      let assignedLevel = 'Intermedio';
-      if (item.equipment === 'body weight' || index % 3 === 0) assignedLevel = 'Principiante';
-      else if (item.equipment === 'barbell' || item.equipment === 'leverage machine' || index % 5 === 0) assignedLevel = 'Avanzado';
+      const assignedLevel = item.level || 'Sin nivel';
 
       return {
         id: item.id || String(index + 1),
@@ -735,6 +749,7 @@ onMounted(async () => {
     });
   } catch (error) {
     console.error('Error al cargar exercises.json:', error);
+    notify('Falta el catálogo público /data/exercises.json. Debes incluirlo en public/data/.', 'error');
   } finally {
     loadingExercises.value = false;
   }
@@ -751,7 +766,7 @@ const getPrescribedSets = (routine) => {
   const age = userProfile.value.age;
   const goal = userProfile.value.goal;
 
-  if (age < 15 || age >= 60) return '2 - 3';
+  if (age !== null && (age < 15 || age >= 60)) return '2 - 3';
   if (goal === 'strength') return '4 - 5';
   if (routine.category === 'cardio' || routine.category === 'waist') return '3';
   return '3 - 4';
@@ -848,17 +863,24 @@ const categorizedRoutines = computed(() => {
   });
 });
 
-const isRoutineSaved = (id) => mySavedRoutines.value.includes(id);
+const isRoutineSaved = (id) => mySavedRoutines.value.includes(String(id));
 
-const toggleSaveRoutine = (routine) => {
-  const index = mySavedRoutines.value.indexOf(routine.id);
-  if (index > -1) {
-    mySavedRoutines.value.splice(index, 1);
-    notify(t.value.routineRemovedToast, 'info');
-  } else {
-    mySavedRoutines.value.push(routine.id);
+const toggleSaveRoutine = async (routine) => {
+  if (guardandoFavorito.value) return;
+  guardandoFavorito.value = true;
+  const anterior = [...mySavedRoutines.value];
+  const id = String(routine.id);
+  mySavedRoutines.value = anterior.includes(id) ? anterior.filter(x => x !== id) : [...anterior, id];
+  try {
+    const d = await solicitudMiembro('/api/member/rutinas/favoritos', {
+      method: 'PUT', body: JSON.stringify({ favoritos: mySavedRoutines.value })
+    });
+    mySavedRoutines.value = Array.isArray(d.favoritos) ? d.favoritos.map(String) : mySavedRoutines.value;
     notify(t.value.routineSavedToast, 'success');
-  }
+  } catch (error) {
+    mySavedRoutines.value = anterior;
+    notify(error?.message || 'No fue posible guardar la rutina.', 'error');
+  } finally { guardandoFavorito.value = false; }
 };
 
 const viewRoutineDetails = (routine) => {

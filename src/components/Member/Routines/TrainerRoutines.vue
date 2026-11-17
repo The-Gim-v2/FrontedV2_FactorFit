@@ -590,6 +590,8 @@ import { ref, reactive, computed, watch, nextTick } from 'vue';
 import { useLang } from '../useLang.js';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { solicitudMiembro } from '../memberSesion.js';
+import { onMounted } from 'vue';
 
 const { lang } = useLang();
 
@@ -745,55 +747,38 @@ const t = computed(() => traducciones[lang.value] || traducciones.es);
    PROPS
 ========================================================= */
 const props = defineProps({
-  assignedTrainer: {
-    type: Object,
-    default: () => ({
-      id: 1,
-      name: "Carlos Mendoza",
-      specialty: "Hipertrofia y Fuerza",
-      bio: "Especialista en acondicionamiento físico avanzado y optimización biomecánica.",
-      phone: "+52 55 1234 5678",
-      email: "carlos.mendoza@gym.com",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
-      routines: [
-        { id: 101, name: "Rutina Base Hipertrofia A", level: "Intermedio", target: "Pecho y Tríceps", description: "Enfoque en tensión mecánica.", mediaUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=800", completed: false }
-      ]
-    })
-  },
-  trainersList: {
-    type: Array,
-    default: () => [
-      {
-        id: 1,
-        name: "Carlos Mendoza",
-        specialty: "Hipertrofia y Fuerza",
-        bio: "Especialista en acondicionamiento físico avanzado.",
-        phone: "+52 55 1234 5678",
-        email: "carlos.mendoza@gym.com",
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200",
-        routines: [{ id: 101, name: "Rutina Base Hipertrofia A", level: "Intermedio", target: "Pecho y Tríceps", description: "Enfoque en tensión mecánica.", mediaUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=800", completed: false }]
-      },
-      {
-        id: 2,
-        name: "Ana Sofía Valdés",
-        specialty: "Pérdida de Grasa y Funcional",
-        bio: "Entrenadora certificada en circuitos de alta intensidad.",
-        phone: "+52 55 8765 4321",
-        email: "ana.valdes@gym.com",
-        avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200",
-        routines: [{ id: 201, name: "Fullbody Quema Total", level: "Principiante", target: "Cuerpo Completo", description: "Circuito dinámico metabólico.", mediaUrl: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&q=80&w=800", completed: false }]
-      }
-    ]
-  },
-  hasActiveMembership: {
-    type: Boolean,
-    default: false
-  },
-  getRoutineMediaSrc: { type: Function, default: (r) => r.mediaUrl },
-  getRoutineDescription: { type: Function, default: (r) => r.description },
-  translateLevel: { type: Function, default: (l) => l },
-  viewRoutineDetails: { type: Function, default: (r) => console.log(r) }
+  assignedTrainer: { type: Object, default: null },
+  trainersList: { type: Array, default: () => [] },
+  hasActiveMembership: { type: Boolean, default: false },
+  getRoutineMediaSrc: { type: Function, default: r => r.mediaUrl || r.gif_url || r.image || '' },
+  getRoutineDescription: { type: Function, default: r => r.description || r.instructions?.es || '' },
+  translateLevel: { type: Function, default: l => l },
+  viewRoutineDetails: { type: Function, default: () => {} }
 });
+const entrenadoresApi = ref([]);
+const assignedTrainer = computed(() => props.assignedTrainer || null);
+const trainersList = computed(() => props.trainersList.length ? props.trainersList : entrenadoresApi.value);
+const membresiaApiActiva = ref(false);
+const hasActiveMembership = computed(() => props.hasActiveMembership || membresiaApiActiva.value);
+const cargarEntrenadores = async () => {
+  try {
+    const data = await solicitudMiembro('/api/member/entrenadores');
+    const rows = [...(data.mi_sede || []), ...(data.otras_sedes || [])];
+    entrenadoresApi.value = rows.map(e => ({
+      id: e.id, name: e.nombreCompleto || [e.nombres, e.apellidoP, e.apellidoM].filter(Boolean).join(' '),
+      specialty: e.especialidad || '', bio: e.bio || '', phone: e.celular || '',
+      email: e.correo || '', avatar: e.foto || '', routines: []
+    }));
+  } catch (e) { notify(e?.message || 'No se pudieron cargar los entrenadores.', 'error'); }
+};
+const cargarMembresia = async () => {
+  try {
+    const d = await solicitudMiembro('/api/member/pagos');
+    const m = d.membresia || {};
+    membresiaApiActiva.value = Number(m.dias_restantes) >= 0 && !/inactivo|vencid/i.test(m.estado || '') && m.dias_restantes != null;
+  } catch { membresiaApiActiva.value = false; }
+};
+onMounted(() => { void cargarEntrenadores(); void cargarMembresia(); });
 
 /* =========================================================
    ESTADO: LISTADO
@@ -827,19 +812,19 @@ const matchesQuery = (trainer) =>
 const routinesCount = (trainer) => (trainer?.routines ? trainer.routines.length : 0);
 
 const otherTrainers = computed(() => {
-  if (!props.assignedTrainer) return props.trainersList;
-  return props.trainersList.filter((tr) => tr.id !== props.assignedTrainer.id);
+  if (!assignedTrainer.value) return trainersList.value;
+  return trainersList.value.filter((tr) => tr.id !== assignedTrainer.value.id);
 });
 
 const showAssigned = computed(
   () =>
-    !!props.assignedTrainer &&
-    matchesQuery(props.assignedTrainer) &&
-    (!onlyWithRoutines.value || routinesCount(props.assignedTrainer) > 0)
+    !!assignedTrainer.value &&
+    matchesQuery(assignedTrainer.value) &&
+    (!onlyWithRoutines.value || routinesCount(assignedTrainer.value) > 0)
 );
 
 const filteredOthers = computed(() => {
-  if (onlyAvailable.value && !props.hasActiveMembership) return [];
+  if (onlyAvailable.value && !hasActiveMembership.value) return [];
 
   const list = otherTrainers.value.filter(
     (tr) => matchesQuery(tr) && (!onlyWithRoutines.value || routinesCount(tr) > 0)
@@ -899,13 +884,13 @@ const goPage = (n) => {
 
 /* ---------- Indicadores ---------- */
 const allTrainers = computed(() => [
-  ...(props.assignedTrainer ? [props.assignedTrainer] : []),
+  ...(assignedTrainer.value ? [assignedTrainer.value] : []),
   ...otherTrainers.value
 ]);
 
 const kpiTotal = computed(() => allTrainers.value.length);
 const kpiAccessible = computed(() =>
-  props.hasActiveMembership ? allTrainers.value.length : (props.assignedTrainer ? 1 : 0)
+  hasActiveMembership.value ? allTrainers.value.length : (assignedTrainer.value ? 1 : 0)
 );
 const kpiRoutines = computed(() => allTrainers.value.reduce((sum, tr) => sum + routinesCount(tr), 0));
 const kpiSpecialties = computed(() => new Set(allTrainers.value.map((tr) => tr.specialty).filter(Boolean)).size);
@@ -934,7 +919,7 @@ const weeklyPlan = reactive({
 });
 
 const isSelectedAssigned = computed(
-  () => !!props.assignedTrainer && selectedTrainer.value?.id === props.assignedTrainer.id
+  () => !!assignedTrainer.value && selectedTrainer.value?.id === assignedTrainer.value.id
 );
 
 const filteredTrainerRoutines = computed(() => {
@@ -960,7 +945,7 @@ const selectTrainer = (trainer) => {
 };
 
 const handleTrainerClick = (trainer) => {
-  if (!props.hasActiveMembership) {
+  if (!hasActiveMembership.value) {
     notify(t.value.membershipRequiredMsg, 'error');
     return;
   }
@@ -998,7 +983,7 @@ const onDropToDay = (event, day) => {
 };
 
 const onImgError = (event, width) => {
-  event.target.src = `https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=${width}`;
+  event.target.src = ``;
 };
 </script>
 

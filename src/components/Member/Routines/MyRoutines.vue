@@ -120,7 +120,7 @@
             </div>
             <div>
               <h3>{{ t.libraryTitle }}</h3>
-              <p>{{ props.savedRoutines.length }} · {{ t.libraryDesc }}</p>
+              <p>{{ misGuardadas.length }} · {{ t.libraryDesc }}</p>
             </div>
           </header>
 
@@ -143,7 +143,7 @@
                 :src="getRoutineMediaSrc(routine)"
                 :alt="routine.name"
                 loading="lazy"
-                @error="(e) => { e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=200'; }"
+                @error="(e) => { e.target.style.display = 'none'; }"
               />
 
               <div class="mini-info">
@@ -167,7 +167,7 @@
             </div>
 
             <div v-if="!filteredLibraryRoutines.length" class="empty-hint">
-              <p>{{ props.savedRoutines.length ? t.noMatchFilter : t.noSavedRoutines }}</p>
+              <p>{{ misGuardadas.length ? t.noMatchFilter : t.noSavedRoutines }}</p>
             </div>
           </div>
         </aside>
@@ -244,7 +244,7 @@
                   :src="getRoutineMediaSrc(routine)"
                   :alt="routine.name"
                   loading="lazy"
-                  @error="(e) => { e.target.src = 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=800'; }"
+                  @error="(e) => { e.target.style.display = 'none'; }"
                 />
                 <div class="media-overlay"></div>
 
@@ -311,7 +311,7 @@
       </div>
 
       <!-- ESTADO VACÍO GLOBAL -->
-      <div id="tutorial-8" v-if="!props.savedRoutines.length" class="panel global-empty">
+      <div id="tutorial-8" v-if="!misGuardadas.length" class="panel global-empty">
         <div class="waiting-icon-ring">
           <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </div>
@@ -417,6 +417,7 @@ import { useLang } from '../useLang.js';
 import RoutineDetailModal from '../Modals/RoutineDetailModal.vue';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const { lang } = useLang();
 
@@ -425,7 +426,7 @@ const props = defineProps({
   routineLibrary: { type: Array, default: () => [] },
   userProfile: {
     type: Object,
-    default: () => ({ age: 28, weight: 75, height: 175, gender: 'male', goal: 'hypertrophy' })
+    default: () => ({ age: null, weight: null, height: null, gender: 'male', goal: 'hypertrophy' })
   },
   initialWeeklyPlan: { type: Object, default: null }
 });
@@ -681,9 +682,10 @@ const createEmptyPlan = () => {
   return plan;
 };
 
-const weeklyPlan = reactive(
-  props.initialWeeklyPlan ? JSON.parse(JSON.stringify(props.initialWeeklyPlan)) : createEmptyPlan()
-);
+const weeklyPlan = reactive(createEmptyPlan());
+const misGuardadas = ref([]);
+const biblioteca = ref([]);
+const guardando = ref(false);
 
 const selectedDay = ref('mon');
 
@@ -694,12 +696,28 @@ const dayGoals = reactive({
   mon: 'hypertrophy', tue: 'hypertrophy', wed: 'hypertrophy', thu: 'hypertrophy', fri: 'hypertrophy', sat: 'hypertrophy', sun: 'hypertrophy'
 });
 
-const simulatedSavedRoutines = computed(() => {
-  return props.savedRoutines.length ? props.savedRoutines.slice(0, 3) : [
-    { id: 'sim1', name: 'Rutina de Pecho Base', category: 'chest', level: 'Intermedio', target: 'chest', image: 'images/chest.jpg', instructions: { es: 'Instrucciones de prueba', en: 'Test instructions' } }
-  ];
-});
 
+const cargarPlan = async () => {
+  try {
+    const [d, catalogo] = await Promise.all([
+      solicitudMiembro('/api/member/rutinas'),
+      fetch('/data/exercises.json').then(r => r.ok ? r.json() : [])
+    ]);
+    const lista = Array.isArray(catalogo) ? catalogo : [];
+    biblioteca.value = lista.map((r, i) => ({ ...r, id: String(r.id ?? i + 1), name: r.name || 'Ejercicio sin nombre' }));
+    const ids = new Set(Array.isArray(d.favoritos) ? d.favoritos.map(String) : []);
+    misGuardadas.value = biblioteca.value.filter(r => ids.has(String(r.id)));
+    const p = d.plan;
+    if (p && typeof p === 'object') for (const day of dayKeys) {
+      const record = p[day];
+      weeklyPlan[day] = {
+        isRest: !!record?.isRest,
+        routines: Array.isArray(record?.routines) ? record.routines : []
+      };
+    }
+  } catch (e) { notify(e?.message || 'No se pudo cargar el plan semanal.', 'error'); }
+};
+onMounted(() => { void cargarPlan(); });
 const openGenerateModal = () => { showGenerateModal.value = true; };
 
 const toggleGenDay = (day) => {
@@ -713,9 +731,9 @@ const generateWeeklyPlan = () => {
     if (genSelectedDays.value.includes(day)) {
       weeklyPlan[day].isRest = false;
       let pool = [];
-      if (genSource.value === 'saved' || genSource.value === 'both') pool = pool.concat(props.savedRoutines);
-      if (genSource.value === 'library' || genSource.value === 'both') pool = pool.concat(props.routineLibrary);
-      if (!pool.length) pool = simulatedSavedRoutines.value;
+      if (genSource.value === 'saved' || genSource.value === 'both') pool = pool.concat(misGuardadas.value);
+      if (genSource.value === 'library' || genSource.value === 'both') pool = pool.concat(biblioteca.value);
+
 
       if (pool.length) {
         const shuffled = [...pool].sort(() => 0.5 - Math.random());
@@ -734,9 +752,16 @@ const generateWeeklyPlan = () => {
   notify(t.value.generatedToast, 'success');
 };
 
-const saveWeeklyPlan = () => {
-  emit('save-weekly-plan', JSON.parse(JSON.stringify(weeklyPlan)));
-  notify(t.value.savedToast, 'success');
+const saveWeeklyPlan = async () => {
+  if (guardando.value) return;
+  guardando.value = true;
+  const plan = JSON.parse(JSON.stringify(weeklyPlan));
+  try {
+    await solicitudMiembro('/api/member/rutinas/plan', { method: 'PUT', body: JSON.stringify({ plan }) });
+    emit('save-weekly-plan', plan);
+    notify(t.value.savedToast, 'success');
+  } catch (e) { notify(e?.message || 'No se pudo guardar el plan.', 'error'); }
+  finally { guardando.value = false; }
 };
 
 const summary = computed(() => {
@@ -755,7 +780,7 @@ const ringOffset = computed(() => RING_LENGTH * (1 - summary.value.trainingDays 
 // -------------------- BIBLIOTECA / FILTRO --------------------
 const libraryFilterText = ref('');
 const filteredLibraryRoutines = computed(() => {
-  return props.savedRoutines.filter((r) => {
+  return misGuardadas.value.filter((r) => {
     if (!libraryFilterText.value) return true;
     return r.name.toLowerCase().includes(libraryFilterText.value.toLowerCase());
   });
@@ -834,7 +859,7 @@ const onDropToDay = (event, day) => {
 };
 
 const isRoutineSaved = (routine) => {
-  return props.savedRoutines.some(r => r.id === routine.id);
+  return misGuardadas.value.some(r => r.id === routine.id);
 };
 </script>
 
