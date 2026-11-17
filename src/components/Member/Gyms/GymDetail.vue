@@ -3,6 +3,9 @@
     <NotificationSystem ref="toastRef" />
 
     <div class="gym-detail-wrapper">
+      <p v-if="cargando" class="gym-api-state">Cargando sede…</p>
+      <p v-if="errorApi" class="gym-api-state" role="alert">{{ errorApi }} <button type="button" @click="cargarDetalle">Reintentar</button></p>
+      <template v-if="!errorApi && !cargando && currentBranch.id">
 
       <!-- Barra superior: regresar + estado -->
       <div class="top-bar">
@@ -14,12 +17,12 @@
 
       <!-- 1. HERO -->
       <section id="tutor-hero-card" class="gym-hero-card">
-        <div class="hero-bg" :style="{ backgroundImage: `url(${gymData.image})` }"></div>
+        <div class="hero-bg" :style="{ backgroundImage: gymData.image ? `url(${gymData.image})` : 'none' }"></div>
         <div class="hero-overlay"></div>
 
         <div class="hero-content-flex">
           <div id="tutor-logo-box" class="gym-logo-box">
-            <img :src="gymData.logo" alt="Logo" class="gym-logo-img" />
+            <img v-if="gymData.logo" :src="gymData.logo" alt="Logo" class="gym-logo-img" @error="fotoError" /><span v-else>{{ gymData.name.slice(0,2).toUpperCase() }}</span>
           </div>
 
           <div class="hero-texts">
@@ -40,7 +43,7 @@
 
           <button v-if="!isEnrolled" type="button" class="hero-cta" @click="handleJoin">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            {{ t('join') }}
+            Consultar inscripción en recepción
           </button>
 
           <div v-else class="enrolled-pill">
@@ -130,9 +133,9 @@
             </header>
 
             <div class="map-container-inner">
-              <div ref="mapElement" class="map-canvas"></div>
+              <iframe v-if="mapUrl" :key="currentBranch.id" class="map-canvas" :src="mapUrl" :title="`Ubicación de ${currentBranch.name}`" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe><p v-else class="gym-api-state">Dirección no registrada.</p>
 
-              <button id="tutor-recenter-btn" type="button" class="recenter-map-btn" :title="t('recenterMap')" @click="recenterMap">
+              <button v-if="false" id="tutor-recenter-btn" type="button" class="recenter-map-btn" :title="t('recenterMap')" @click="recenterMap">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
                 <span>{{ t('recenter') }}</span>
               </button>
@@ -153,7 +156,7 @@
 
           <!-- Acerca + Amenidades -->
           <div class="info-split-row">
-            <section id="tutor-about-box" class="panel-box">
+            <section v-if="gymData.description" id="tutor-about-box" class="panel-box">
               <header class="card-header">
                 <div class="card-header-icon">
                   <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
@@ -165,7 +168,7 @@
               <p class="about-text">{{ gymData.description }}</p>
             </section>
 
-            <section id="tutor-amenities-box" class="panel-box">
+            <section v-if="gymData.amenities.length" id="tutor-amenities-box" class="panel-box">
               <header class="card-header">
                 <div class="card-header-icon success">
                   <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
@@ -203,21 +206,21 @@
             </header>
 
             <ul class="contact-list">
-              <li>
+              <li v-if="currentBranch.phone">
                 <span class="contact-ico"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg></span>
                 <div>
                   <small>{{ t('phone') }}</small>
                   <a :href="telUrl">{{ currentBranch.phone }}</a>
                 </div>
               </li>
-              <li>
+              <li v-if="currentBranch.email">
                 <span class="contact-ico"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="m4 7 8 6 8-6"/></svg></span>
                 <div>
                   <small>{{ t('email') }}</small>
                   <a :href="`mailto:${currentBranch.email}`">{{ currentBranch.email }}</a>
                 </div>
               </li>
-              <li>
+              <li v-if="currentBranch.manager">
                 <span class="contact-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></span>
                 <div>
                   <small>{{ t('manager') }}</small>
@@ -226,7 +229,7 @@
               </li>
             </ul>
 
-            <button type="button" class="whatsapp-contact-btn" @click="contactOwner">
+            <button v-if="currentBranch.phone" type="button" class="whatsapp-contact-btn" @click="contactOwner">
               <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
               {{ t('contactOwnerWhatsapp') }}
             </button>
@@ -297,266 +300,85 @@
           <!-- CTA -->
           <button v-if="!isEnrolled" id="tutor-join-btn" type="button" class="cta-main-btn" @click="handleJoin">
             <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            {{ t('join') }}
+            Consultar inscripción en recepción
           </button>
         </aside>
       </div>
 
+      </template>
     </div>
   </HeadingMember>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRoute } from 'vue-router';
-import L from 'leaflet';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet-routing-machine';
-import 'leaflet-routing-machine/dist/leaflet-routing-machine.css';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const route = useRoute();
-const gymId = route.params.id;
-
-const mapElement = ref(null);
-const selectedBranchId = ref(1);
+const router = useRouter();
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
-let map = null;
-let routingControl = null;
-
-const hasActiveRoute = ref(false);
-const showInstructions = ref(true);
-const routeInfo = ref(null);
-
-/* ---------- Notificaciones (mismo componente que Rutinas Semanales) ---------- */
 const toastRef = ref(null);
-const notify = (message, type = 'success', duration = 4000) => {
-  toastRef.value?.notify(message, type, duration);
-};
-
-/* ---------- Datos ---------- */
-const gymData = ref({
-  id: gymId,
-  name: 'Iron Fitness Center Pro',
-  category: 'Musculación & Crossfit',
-  logo: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=200&auto=format&fit=crop',
-  description: 'Instalaciones de clase mundial con tecnología de seguimiento biomecánico y áreas especializadas para entrenamiento de alto rendimiento.',
-  image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1200&auto=format&fit=crop',
-  amenities: ['Estacionamiento Gratuito', 'Regaderas y Lockers', 'Wi-Fi de Alta Velocidad', 'Zona de Sauna', 'Bebidas Energéticas'],
-  schedule: {
-    weekdays: '06:00 AM - 11:00 PM',
-    saturday: '07:00 AM - 08:00 PM',
-    sunday: '08:00 AM - 04:00 PM'
-  },
-  branches: [
-    {
-      id: 1,
-      lat: 21.9902,
-      lng: -99.0301,
-      name: 'Sede Principal Centro',
-      address: 'Av. Universitaria #420, Zona Centro',
-      phone: '+52 (481) 381-9021',
-      email: 'centro@ironfitness.com',
-      manager: 'Lic. Roberto Garza'
-    },
-    {
-      id: 2,
-      lat: 22.0050,
-      lng: -99.0210,
-      name: 'Sede Norte Galerías',
-      address: 'Blvd. Industrial #1200, Plaza Norte',
-      phone: '+52 (481) 384-1192',
-      email: 'norte@ironfitness.com',
-      manager: 'Ing. Carlos Mendoza'
-    }
-  ]
+const notify = (message, type = 'info') => toastRef.value?.notify(message,type,4000);
+const cargando = ref(true);
+const errorApi = ref('');
+const selectedBranchId = ref(0);
+const gymData = ref({ id:null,name:'',category:'Gimnasio',logo:null,image:null,description:'',amenities:[],branches:[],schedule:{} });
+const currentBranch = computed(() => gymData.value.branches.find(b => b.id === selectedBranchId.value) || gymData.value.branches[0] || { id:0,name:'',address:'',phone:'',email:'',manager:'',lat:null,lng:null,hours:{},today_hours:'—',isOpen:false,is_enrolled:false });
+const isEnrolled = computed(() => Boolean(currentBranch.value.is_enrolled));
+const isOpenNow = computed(() => Boolean(currentBranch.value.isOpen));
+const emptyImage = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400"><rect width="100%" height="100%" fill="#202133"/><text x="50%" y="50%" text-anchor="middle" fill="white" font-size="25" font-family="Arial">Sin fotografía</text></svg>');
+const fotoError = e => { if(e?.target && e.target.src !== emptyImage) e.target.src = emptyImage; };
+async function cargarDetalle() {
+  const id = Number(route.params.id);
+  if(!Number.isSafeInteger(id) || id < 1) { errorApi.value='Identificador de sede inválido.'; cargando.value=false; return; }
+  cargando.value=true; errorApi.value='';
+  try {
+    const res=await solicitudMiembro(`/api/member/gimnasios/${id}`);
+    const sede=res.sede;
+    if(!sede) throw new Error('La API no devolvió la sede solicitada.');
+    const branches=Array.isArray(res.sedes) ? res.sedes.map(x=>({...x, phone:x.phone||'', email:'',manager:'', hours:x.hours||{},isOpen:Boolean(x.isOpen)})) : [];
+    gymData.value={ id:res.gimnasio?.id, name:res.gimnasio?.nombre||sede.gym_name||'Mi gimnasio',category:'Gimnasio',logo:sede.logo||null,image:sede.image||null,description:sede.description||'',amenities:sede.amenities||[],branches,schedule:sede.hours||{} };
+    selectedBranchId.value=Number(sede.id);
+  } catch(e) {
+    errorApi.value=e?.message||'No fue posible consultar la sede.';
+  } finally { cargando.value=false; }
+}
+const locationQuery = computed(() => {
+  const b=currentBranch.value;
+  const lat=b.lat != null && b.lat !== '' ? Number(b.lat):NaN;
+  const lng=b.lng != null && b.lng !== '' ? Number(b.lng):NaN;
+  if(Number.isFinite(lat)&&Number.isFinite(lng)&&Math.abs(lat)<=90&&Math.abs(lng)<=180) return `${lat},${lng}`;
+  return [b.address,b.name].filter(Boolean).join(', ');
 });
-
-/* Sedes en las que el usuario ya está inscrito.
-   Reemplaza este arreglo con los datos del backend (ids de sucursal). */
-const enrolledBranchIds = ref([]);
-
-const currentBranch = computed(() => {
-  return gymData.value.branches.find(b => b.id === selectedBranchId.value) || gymData.value.branches[0];
-});
-
-const isEnrolled = computed(() => enrolledBranchIds.value.includes(currentBranch.value.id));
-
-const telUrl = computed(() => `tel:${String(currentBranch.value.phone || '').replace(/[^\d+]/g, '')}`);
-
-/* ---------- Horarios: hoy y "abierto ahora" ---------- */
-const todayKey = computed(() => {
-  const d = new Date().getDay();
-  return d === 0 ? 'sunday' : d === 6 ? 'saturday' : 'weekdays';
-});
-
-const scheduleRows = computed(() => [
-  { key: 'weekdays', label: t('weekdays'), time: gymData.value.schedule.weekdays },
-  { key: 'saturday', label: t('saturday'), time: gymData.value.schedule.saturday },
-  { key: 'sunday', label: t('sunday'), time: gymData.value.schedule.sunday }
-]);
-
-const todayHours = computed(() => gymData.value.schedule[todayKey.value]);
-
-const parseClock = (str) => {
-  const m = String(str).trim().match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!m) return null;
-  let h = Number(m[1]) % 12;
-  if (m[3].toUpperCase() === 'PM') h += 12;
-  return h * 60 + Number(m[2]);
-};
-
-const isOpenNow = computed(() => {
-  const [a, b] = todayHours.value.split('-');
-  const open = parseClock(a);
-  const close = parseClock(b);
-  if (open == null || close == null) return false;
-  const now = new Date();
-  const mins = now.getHours() * 60 + now.getMinutes();
-  return mins >= open && mins < close;
-});
-
-/* ---------- Mapa ---------- */
-const markerIcon = (extra = '') =>
-  L.divIcon({
-    className: 'custom-map-marker',
-    html: `<div class="marker-pin ${extra}"></div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15]
-  });
-
-const initMap = () => {
-  if (!mapElement.value) return;
-
-  map = L.map(mapElement.value, {
-    zoomControl: false,
-    attributionControl: false
-  }).setView([currentBranch.value.lat, currentBranch.value.lng], 16);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd'
-  }).addTo(map);
-
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-  updateBranchMarkerOnly();
-};
-
-const removeRoute = () => {
-  if (routingControl && map) {
-    map.removeControl(routingControl);
-  }
-  routingControl = null;
-  hasActiveRoute.value = false;
-  routeInfo.value = null;
-};
-
-const updateBranchMarkerOnly = () => {
-  if (!map) return;
-
-  removeRoute();
-
-  map.eachLayer((layer) => {
-    if (layer instanceof L.Marker) map.removeLayer(layer);
-  });
-
-  L.marker([currentBranch.value.lat, currentBranch.value.lng], { icon: markerIcon() })
-    .addTo(map)
-    .bindPopup(`<b>${currentBranch.value.name}</b><br>${currentBranch.value.address}`)
-    .openPopup();
-
-  map.setView([currentBranch.value.lat, currentBranch.value.lng], 16, { animate: true });
-};
-
-const updateMapLocation = (branch) => {
-  selectedBranchId.value = branch.id;
-  updateBranchMarkerOnly();
-};
-
-const calculateRouteFromCurrentLocation = () => {
-  if (!navigator.geolocation) {
-    notify(t('geoUnsupported'), 'error');
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      const userLat = position.coords.latitude;
-      const userLng = position.coords.longitude;
-
-      if (!map) return;
-      if (routingControl) map.removeControl(routingControl);
-
-      routingControl = L.Routing.control({
-        waypoints: [
-          L.latLng(userLat, userLng),
-          L.latLng(currentBranch.value.lat, currentBranch.value.lng)
-        ],
-        routeWhileDragging: false,
-        language: currentLang.value === 'en' ? 'en' : 'es',
-        createMarker: (i, waypoint) =>
-          L.marker(waypoint.latLng, { icon: markerIcon(i === 0 ? 'user-loc' : '') }),
-        lineOptions: {
-          styles: [{ color: '#3b82f6', opacity: 0.85, weight: 5 }]
-        },
-        show: true,
-        fitSelectedRoutes: true
-      }).addTo(map);
-
-      routingControl.on('routesfound', (e) => {
-        const s = e.routes?.[0]?.summary;
-        if (s) {
-          routeInfo.value = {
-            km: (s.totalDistance / 1000).toFixed(1),
-            min: Math.max(1, Math.round(s.totalTime / 60))
-          };
-        }
-      });
-
-      hasActiveRoute.value = true;
-      showInstructions.value = true;
-    },
-    (error) => {
-      console.error(error);
-      notify(t('geoError'), 'error');
-    },
-    { enableHighAccuracy: true }
-  );
-};
-
-const toggleInstructions = () => {
-  showInstructions.value = !showInstructions.value;
-  if (routingControl) {
-    const container = routingControl.getContainer();
-    if (container) container.style.display = showInstructions.value ? 'block' : 'none';
-  }
-};
-
-const clearRoute = () => updateBranchMarkerOnly();
-
-const recenterMap = () => {
-  if (!map) return;
-  map.setView([currentBranch.value.lat, currentBranch.value.lng], 16, { animate: true });
-  notify(`${t('centeredOn')} ${currentBranch.value.name}`, 'info');
-};
-
-const handleJoin = () => {
-  if (isEnrolled.value) return;
-  enrolledBranchIds.value.push(currentBranch.value.id);
-  notify(`${t('joinedOk')} ${currentBranch.value.name}`, 'success');
-};
-
+const mapUrl = computed(()=>locationQuery.value ? `https://maps.google.com/maps?q=${encodeURIComponent(locationQuery.value)}&z=16&output=embed` : '');
+const directionsUrl = computed(()=>locationQuery.value ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(locationQuery.value)}` : '');
+const hasActiveRoute = ref(false);
+const showInstructions = ref(false);
+const routeInfo = ref(null);
+const calculateRouteFromCurrentLocation = () => { if(directionsUrl.value) window.open(directionsUrl.value,'_blank','noopener,noreferrer'); };
+const toggleInstructions=()=>{};
+const clearRoute=()=>{};
+const recenterMap=()=>{};
+const updateMapLocation = branch => { if(branch?.id) router.push({name:'member-gym-detail', params:{id:branch.id}}); };
 const contactOwner = () => {
-  const cleanPhone = currentBranch.value.phone.replace(/[^0-9]/g, '');
-  const message = encodeURIComponent(
-    `Hola ${currentBranch.value.manager}, me comunico desde la plataforma para consultar información sobre la sucursal ${currentBranch.value.name}.`
-  );
-  window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+  const digits=String(currentBranch.value.phone||'').replace(/\D/g,'');
+  if(!digits) return notify('No hay teléfono registrado para el gimnasio.','warning');
+  const phone=digits.length===10?'52'+digits:digits;
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent('Hola, me gustaría consultar información sobre la sede '+currentBranch.value.name+'.')}`,'_blank','noopener,noreferrer');
 };
-
-/* ---------- Traducciones ---------- */
+const handleJoin = () => notify('Para inscribirte en otra sede, solicita el cambio en recepción.','info');
+const telUrl = computed(()=>`tel:${String(currentBranch.value.phone||'').replace(/[^\d+]/g,'')}`);
+const dayOrder = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+const todayKey = computed(()=>dayOrder[(new Date(new Date().toLocaleString('en-US',{timeZone:'America/Monterrey'})).getDay()+6)%7]);
+const scheduleRows = computed(()=>dayOrder.map(key=>{
+  const h=currentBranch.value.hours?.[key];
+  const names={monday:'Lunes',tuesday:'Martes',wednesday:'Miércoles',thursday:'Jueves',friday:'Viernes',saturday:'Sábado',sunday:'Domingo'};
+  return {key,label:names[key],time:h?.abierto&&h?.inicio&&h?.fin?`${h.inicio} - ${h.fin}`:'Cerrado'};
+}));
+const todayHours = computed(()=>currentBranch.value.today_hours||'—');
 const translations = {
   es: {
     back: 'Regresar a sedes',
@@ -632,21 +454,17 @@ const translations = {
   }
 };
 
-const t = (key) => {
-  const table = translations[currentLang.value] || translations.es;
-  return table[key] || translations.es[key] || key;
-};
-
-onMounted(() => {
-  nextTick(() => initMap());
-});
-
-onUnmounted(() => {
-  if (map) map.remove();
-});
+const t = (key) => (translations[currentLang.value]||translations.es)[key] || translations.es[key] || key;
+const handleLangChange=e=>{const value=e?.detail?.idioma||localStorage.getItem('member-idioma');if(value)currentLang.value=value;};
+onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);void cargarDetalle();});
+onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
+watch(()=>route.params.id,()=>{void cargarDetalle();});
 </script>
 
 <style scoped>
+.gym-api-state {padding:20px; margin:12px 0;border:1px solid rgba(255,255,255,.15);border-radius:12px;}
+.gym-api-state button {margin-left:12px;color:var(--color-highlight,#f97316);cursor:pointer;}
+.map-canvas {display:block;width:100%;min-height:320px;border:0;border-radius:14px;}
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 
 * { box-sizing: border-box; }

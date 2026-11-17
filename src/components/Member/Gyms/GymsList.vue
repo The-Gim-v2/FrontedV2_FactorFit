@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import HeadingMember from '../HeadingMember.vue';
 import UpgradeMembershipModal from '../Modals/UpgradeMembershipModal.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
 const router = useRouter();
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
@@ -17,122 +18,30 @@ const notify = (message, type = 'success', duration = 4000) => {
   toastRef.value?.notify(message, type, duration);
 };
 
-/* =========================================================
-   DATOS (de prueba: reemplázalos por los del backend)
-========================================================= */
-
-const registeredGym = ref({
-  id: 1,
-  name: 'IronFit Valles Centro',
-  address: 'Blvd. Carlos Lasso #120, Centro',
-  schedule: 'Lun - Sáb: 6:00 AM - 10:00 PM',
-  phone: '+52 481 382 0011',
-  isOpen: true,
-  occupancy: 45,
-  image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=80',
-  ciudad: 'Ciudad Valles',
-  estado: 'San Luis Potosí',
-  lat: 21.9902,
-  lng: -99.0301
-});
-
-const localGyms = ref([
-  {
-    id: 2,
-    name: 'IronFit Norte - Plaza San José',
-    address: 'Carretera Mante #450, Local 4',
-    schedule: 'Lun - Dom: 5:00 AM - 11:00 PM',
-    phone: '+52 481 382 9922',
-    isOpen: true,
-    occupancy: 82,
-    image: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    lat: 22.005,
-    lng: -99.021
-  },
-  {
-    id: 3,
-    name: 'IronFit Poniente',
-    address: 'Av. Pedro Antonio Santos #800',
-    schedule: 'Lun - Sáb: 6:00 AM - 10:00 PM',
-    phone: '+52 481 383 4455',
-    isOpen: false,
-    occupancy: 15,
-    image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    lat: 21.985,
-    lng: -99.045
-  },
-  {
-    id: 6,
-    name: 'IronFit Sur - Plaza Tangamanga',
-    address: 'Blvd. México-Laredo #2200',
-    schedule: 'Lun - Dom: 6:00 AM - 11:00 PM',
-    phone: '+52 481 384 1234',
-    isOpen: true,
-    occupancy: 60,
-    image: 'https://images.unsplash.com/photo-1571902943202-507f2718ea0d?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    lat: 21.97,
-    lng: -99.015
-  },
-  {
-    id: 7,
-    name: 'IronFit Ébano Express',
-    address: 'Av. Juárez #115, Col. Obrera',
-    schedule: 'Lun - Sáb: 7:00 AM - 9:00 PM',
-    phone: '+52 481 385 6789',
-    isOpen: true,
-    occupancy: 30,
-    image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Ciudad Valles',
-    estado: 'San Luis Potosí',
-    lat: 21.95,
-    lng: -99.0
-  }
-]);
-
-const nationalGyms = ref([
-  {
-    id: 4,
-    name: 'IronFit CDMX Polanco (Plus)',
-    address: 'Campos Elíseos #204, Polanco',
-    schedule: '24 Horas',
-    image: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Polanco',
-    estado: 'Ciudad de México'
-  },
-  {
-    id: 5,
-    name: 'IronFit Monterrey San Pedro (Plus)',
-    address: 'Av. Vasconcelos #400, Del Valle',
-    schedule: '24 Horas',
-    image: 'https://images.unsplash.com/photo-1584735935682-2f2b69dff9d2?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'San Pedro Garza García',
-    estado: 'Nuevo León'
-  },
-  {
-    id: 8,
-    name: 'IronFit Guadalajara Andares (Plus)',
-    address: 'Boulevard Puerta de Hierro #4965',
-    schedule: '24 Horas',
-    image: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Zapopan',
-    estado: 'Jalisco'
-  },
-  {
-    id: 9,
-    name: 'IronFit Querétaro Antea (Plus)',
-    address: 'Carretera Pista Panamericana #10200',
-    schedule: '24 Horas',
-    image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=800&q=80',
-    ciudad: 'Querétaro',
-    estado: 'Querétaro'
-  }
-]);
+/* Sedes reales del gimnasio al que pertenece el miembro. */
+const registeredGym = ref(null);
+const localGyms = ref([]);
+const nationalGyms = ref([]);
+const cargando = ref(true);
+const errorApi = ref('');
+const emptyImage = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420"><rect width="100%" height="100%" fill="#1d2031"/><text x="50%" y="52%" text-anchor="middle" fill="#e5e7eb" font-size="28" font-family="Arial">Sin fotografía</text></svg>');
+const fotoError = e => { if (!e?.target || e.target.src === emptyImage) return; e.target.src = emptyImage; };
+async function cargarGimnasios() {
+  cargando.value = true;
+  errorApi.value = '';
+  try {
+    const res = await solicitudMiembro('/api/member/gimnasios');
+    const sedes = Array.isArray(res.sedes) ? res.sedes : [];
+    const sede = sedes.find(s => s.is_home || Number(s.id) === Number(res.sede_actual_id));
+    registeredGym.value = sede ? { ...sede, schedule: sede.today_hours, image: sede.image || sede.logo || emptyImage } : null;
+    localGyms.value = sedes.filter(s => !sede || s.id !== sede.id).map(s => ({ ...s, schedule: s.today_hours, image: s.image || s.logo || emptyImage }));
+    nationalGyms.value = [];
+  } catch(e) {
+    registeredGym.value = null;
+    localGyms.value = [];
+    errorApi.value = e?.message || 'No se pudieron consultar las sedes.';
+  } finally { cargando.value = false; }
+}
 
 const estadoAbrevMap = {
   'San Luis Potosí': 'SLP',
@@ -412,9 +321,9 @@ const sortList = (list) => {
 };
 
 const passesLocalFilters = (gym) =>
-  matchesQuery(gym, query.value) &&
+  !!gym && matchesQuery(gym, query.value) &&
   (!onlyOpen.value || gym.isOpen) &&
-  (!lowCrowd.value || gym.occupancy < 50);
+  (!lowCrowd.value || (gym.occupancy != null && gym.occupancy < 50));
 
 const showHome = computed(
   () => scope.value !== 'national' && stateFilter.value === 'all' && passesLocalFilters(registeredGym.value)
@@ -460,18 +369,17 @@ const resultsCount = computed(
   () => (showHome.value ? 1 : 0) + filteredLocal.value.length + nationalCount.value
 );
 
-const hasNoResults = computed(() => resultsCount.value === 0);
+const hasNoResults = computed(() => !cargando.value && !errorApi.value && resultsCount.value === 0);
 
 /* =========================================================
    INDICADORES
 ========================================================= */
 
-const allLocal = computed(() => [registeredGym.value, ...localGyms.value]);
+const allLocal = computed(() => [registeredGym.value, ...localGyms.value].filter(Boolean));
 const openNowCount = computed(() => allLocal.value.filter((g) => g.isOpen).length);
 const avgOccupancy = computed(() => {
-  const list = allLocal.value.filter((g) => g.isOpen);
-  if (!list.length) return 0;
-  return Math.round(list.reduce((sum, g) => sum + g.occupancy, 0) / list.length);
+  const list = allLocal.value.filter(g => g.occupancy != null);
+  return list.length ? Math.round(list.reduce((sum,g)=>sum+g.occupancy,0)/list.length) : null;
 });
 const statesCount = computed(() => stateChips.value.length);
 
@@ -479,8 +387,8 @@ const statesCount = computed(() => stateChips.value.length);
    UTILIDADES DE TARJETAS
 ========================================================= */
 
-const occLevel = (n) => (n > 75 ? 'high' : n >= 50 ? 'mid' : 'low');
-const occLabel = (n) => t(n > 75 ? 'occHigh' : n >= 50 ? 'occMid' : 'occLow');
+const occLevel = (n) => n == null ? 'low' : (n > 75 ? 'high' : n >= 50 ? 'mid' : 'low');
+const occLabel = (n) => n == null ? 'Sin datos' : t(n > 75 ? 'occHigh' : n >= 50 ? 'occMid' : 'occLow');
 
 const mapsUrl = (gym) =>
   gym.lat != null && gym.lng != null
@@ -513,6 +421,7 @@ onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
   window.addEventListener('language-changed', handleLangChange);
   window.addEventListener('keydown', handleKeydown);
+  void cargarGimnasios();
 });
 
 onUnmounted(() => {
@@ -528,6 +437,8 @@ onUnmounted(() => {
 
     <div class="gyms-page">
       <main class="gyms-container">
+        <p v-if="cargando" class="gym-api-status">Cargando sucursales…</p>
+        <p v-if="errorApi" class="gym-api-status" role="alert">{{ errorApi }} <button type="button" @click="cargarGimnasios">Reintentar</button></p>
 
         <!-- 1. ENCABEZADO -->
         <section class="hero">
@@ -538,14 +449,14 @@ onUnmounted(() => {
               {{ titleParts.first }} <span>{{ titleParts.last }}</span>
             </h1>
 
-            <p>{{ t('gymsListDesc') }}</p>
+            <p>Sucursales reales de tu gimnasio, sus horarios y ubicación.</p>
 
             <div class="hero-actions">
               <button type="button" class="btn-primary" :disabled="locating" @click="requestLocation">
                 <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                 {{ locating ? t('locating') : t('nearMe') }}
               </button>
-              <button type="button" class="btn-ghost" @click="openMembershipModal">
+              <button v-if="false" type="button" class="btn-ghost" @click="openMembershipModal">
                 <svg viewBox="0 0 24 24"><path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>
                 {{ t('seePlus') }}
               </button>
@@ -553,9 +464,9 @@ onUnmounted(() => {
           </div>
 
           <!-- Tu base actual -->
-          <button type="button" class="hero-base" @click="openGym(registeredGym)">
+          <button v-if="registeredGym" type="button" class="hero-base" @click="openGym(registeredGym)">
             <span class="hero-base-img">
-              <img :src="registeredGym.image" :alt="registeredGym.name" />
+              <img :src="registeredGym.image" :alt="registeredGym.name" @error="fotoError" />
             </span>
             <span class="hero-base-copy">
               <small>{{ t('yourBase') }}</small>
@@ -563,7 +474,7 @@ onUnmounted(() => {
               <span class="hero-base-meta">
                 <i class="dot" :class="registeredGym.isOpen ? 'open' : 'closed'"></i>
                 {{ registeredGym.isOpen ? t('statusOpen') : t('statusClosed') }}
-                · {{ registeredGym.occupancy }}%
+                · {{ registeredGym.occupancy == null ? '—' : registeredGym.occupancy + '%' }}
               </span>
             </span>
             <svg class="hero-base-arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
@@ -577,7 +488,7 @@ onUnmounted(() => {
               <svg viewBox="0 0 24 24"><path d="M12 21s6-5.33 6-11a6 6 0 1 0-12 0c0 5.67 6 11 6 11z"/><circle cx="12" cy="10" r="2"/></svg>
             </div>
             <div class="kpi-body">
-              <strong class="highlight">{{ localGyms.length + 1 }}</strong>
+              <strong class="highlight">{{ localGyms.length + (registeredGym ? 1 : 0) }}</strong>
               <span>{{ t('kpiBranches') }}</span>
             </div>
           </article>
@@ -592,7 +503,7 @@ onUnmounted(() => {
             </div>
           </article>
 
-          <article class="kpi-card">
+          <article v-if="false" class="kpi-card">
             <div class="kpi-icon">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.3 2.5 3.5 5.5 3.5 9S14.3 18.5 12 21M12 3c-2.3 2.5-3.5 5.5-3.5 9S9.7 18.5 12 21"/></svg>
             </div>
@@ -602,12 +513,12 @@ onUnmounted(() => {
             </div>
           </article>
 
-          <article class="kpi-card">
+          <article v-if="false" class="kpi-card">
             <div class="kpi-icon warning">
               <svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>
             </div>
             <div class="kpi-body">
-              <strong>{{ avgOccupancy }}%</strong>
+              <strong>{{ avgOccupancy === null ? "—" : avgOccupancy + "%" }}</strong>
               <span>{{ t('kpiOccupancy') }}</span>
             </div>
           </article>
@@ -669,14 +580,14 @@ onUnmounted(() => {
             <div class="segmented" role="tablist">
               <button type="button" :class="{ active: scope === 'all' }" @click="scope = 'all'">{{ t('scopeAll') }}</button>
               <button type="button" :class="{ active: scope === 'local' }" @click="scope = 'local'; stateFilter = 'all'">{{ t('scopeLocal') }}</button>
-              <button type="button" :class="{ active: scope === 'national' }" @click="scope = 'national'">{{ t('scopeNational') }}</button>
+              <button v-if="false" type="button" :class="{ active: scope === 'national' }" @click="scope = 'national'">{{ t('scopeNational') }}</button>
             </div>
 
             <div class="chips">
               <button type="button" class="chip" :class="{ active: onlyOpen }" @click="onlyOpen = !onlyOpen">
                 <i class="dot open"></i>{{ t('filterOpen') }}
               </button>
-              <button type="button" class="chip" :class="{ active: lowCrowd }" @click="lowCrowd = !lowCrowd">
+              <button v-if="false" type="button" class="chip" :class="{ active: lowCrowd }" @click="lowCrowd = !lowCrowd">
                 <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/></svg>
                 {{ t('filterQuiet') }}
               </button>
@@ -715,7 +626,7 @@ onUnmounted(() => {
             @keydown.enter="openGym(registeredGym)"
           >
             <div class="home-media">
-              <img :src="registeredGym.image" :alt="registeredGym.name" />
+              <img :src="registeredGym.image" :alt="registeredGym.name" @error="fotoError" />
               <span class="open-badge" :class="{ open: registeredGym.isOpen }">
                 <i></i>{{ registeredGym.isOpen ? t('statusOpen') : t('statusClosed') }}
               </span>
@@ -743,15 +654,15 @@ onUnmounted(() => {
                 </li>
               </ul>
 
-              <div class="occ">
+              <div v-if="registeredGym.occupancy != null" class="occ">
                 <div class="occ-head">
                   <span>{{ t('liveOccupancyLabel') }}</span>
                   <b :class="occLevel(registeredGym.occupancy)">
-                    {{ occLabel(registeredGym.occupancy) }} · {{ registeredGym.occupancy }}%
+                    {{ occLabel(registeredGym.occupancy) }} · {{ registeredGym.occupancy == null ? '—' : registeredGym.occupancy + '%' }}
                   </b>
                 </div>
                 <div class="occ-track" :class="occLevel(registeredGym.occupancy)">
-                  <i :style="{ width: registeredGym.occupancy + '%' }"></i>
+                  <i :style="{ width: (registeredGym.occupancy ?? 0) + '%' }"></i>
                 </div>
               </div>
 
@@ -761,7 +672,7 @@ onUnmounted(() => {
                   <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                   {{ t('directions') }}
                 </a>
-                <a class="btn-ghost icon-only" :href="telUrl(registeredGym)" :title="t('call')" :aria-label="t('call')" @click.stop>
+                <a v-if="registeredGym.phone" class="btn-ghost icon-only" :href="telUrl(registeredGym)" :title="t('call')" :aria-label="t('call')" @click.stop>
                   <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>
                 </a>
               </div>
@@ -775,7 +686,7 @@ onUnmounted(() => {
             <div>
               <span class="section-eyebrow">{{ t('scopeLocal').toUpperCase() }}</span>
               <h2>{{ t('localGymsTitle') }}</h2>
-              <p>{{ t('localGymsSub') }}</p>
+              <p>Otras sedes del mismo gimnasio; consulta con recepción si tu membresía permite el acceso.</p>
             </div>
             <span class="count-pill">{{ filteredLocal.length }}</span>
           </header>
@@ -792,7 +703,7 @@ onUnmounted(() => {
               @keydown.enter="openGym(gym)"
             >
               <div class="gym-media">
-                <img :src="gym.image" :alt="gym.name" loading="lazy" />
+                <img :src="gym.image" :alt="gym.name" loading="lazy" @error="fotoError" />
                 <span class="open-badge" :class="{ open: gym.isOpen }">
                   <i></i>{{ gym.isOpen ? t('statusOpen') : t('statusClosed') }}
                 </span>
@@ -817,13 +728,13 @@ onUnmounted(() => {
                   </li>
                 </ul>
 
-                <div class="occ">
+                <div v-if="gym.occupancy != null" class="occ">
                   <div class="occ-head">
                     <span>{{ t('liveOccupancyLabel') }}</span>
-                    <b :class="occLevel(gym.occupancy)">{{ occLabel(gym.occupancy) }} · {{ gym.occupancy }}%</b>
+                    <b :class="occLevel(gym.occupancy)">{{ occLabel(gym.occupancy) }} · {{ gym.occupancy == null ? '—' : gym.occupancy + '%' }}</b>
                   </div>
                   <div class="occ-track" :class="occLevel(gym.occupancy)">
-                    <i :style="{ width: gym.occupancy + '%' }"></i>
+                    <i :style="{ width: (gym.occupancy ?? 0) + '%' }"></i>
                   </div>
                 </div>
 
@@ -832,7 +743,7 @@ onUnmounted(() => {
                   <a class="btn-ghost icon-only" :href="mapsUrl(gym)" target="_blank" rel="noopener noreferrer" :title="t('directions')" :aria-label="t('directions')" @click.stop>
                     <svg viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                   </a>
-                  <a class="btn-ghost icon-only" :href="telUrl(gym)" :title="t('call')" :aria-label="t('call')" @click.stop>
+                  <a v-if="gym.phone" class="btn-ghost icon-only" :href="telUrl(gym)" :title="t('call')" :aria-label="t('call')" @click.stop>
                     <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8.01 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z"/></svg>
                   </a>
                 </div>
@@ -842,7 +753,7 @@ onUnmounted(() => {
         </section>
 
         <!-- 6. RED NACIONAL PLUS -->
-        <section v-if="scope !== 'local' && !lowCrowd" id="turtor5" class="block">
+        <section v-if="false" id="turtor5" class="block">
           <header class="block-head">
             <div>
               <span class="section-eyebrow">PLUS</span>
@@ -891,7 +802,7 @@ onUnmounted(() => {
             <div class="gyms-grid" :class="viewMode">
               <article v-for="gym in gyms" :key="gym.id" class="gym-card locked">
                 <div class="gym-media">
-                  <img :src="gym.image" :alt="gym.name" loading="lazy" />
+                  <img :src="gym.image" :alt="gym.name" loading="lazy" @error="fotoError" />
                   <span class="plus-badge">
                     <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
                     {{ t('plusBadge') }}
@@ -950,6 +861,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.gym-api-status { margin: 12px 28px; padding: 14px; border: 1px solid rgba(255,255,255,.18); border-radius: 12px; }
+.gym-api-status button { margin-left: 12px; color: var(--color-highlight,#f97316); cursor:pointer; }
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap');
 
 * {
