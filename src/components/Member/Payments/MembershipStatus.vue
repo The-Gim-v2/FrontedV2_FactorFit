@@ -9,119 +9,78 @@ const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
 const handleLangChange = (e) => {
   if (e.detail && e.detail.idioma) currentLang.value = e.detail.idioma;
 };
-onMounted(() => window.addEventListener('idioma-changed', handleLangChange));
-onUnmounted(() => window.removeEventListener('idioma-changed', handleLangChange));
 
 const traducciones = {
   es: {
     pageTitlePrefix: 'Portal de',
     pageTitleHighlight: 'Pagos',
-    pageSubtitle: 'Realiza el pago de tu membresía de forma rápida, segura y mantén tu cuenta al día.',
+    pageSubtitle: 'Consulta el estado de tu membresía y mantén tu cuenta al día.',
     statusActive: 'ACTIVA',
     statusExpiringSoon: 'POR VENCER',
     statusExpired: 'VENCIDA',
+    statusNoData: 'SIN DATOS',
     daysRemaining: 'días restantes',
     daysOverdue: 'días de atraso',
     dueDate: 'Vence el',
-    reviewPill: 'Transferencia en revisión',
-    choosePlan: '1. Selecciona tu plan de pago',
-    save: 'AHORRA',
-    totalToPay: 'Total a pagar',
-    surcharge: 'recargo por atraso',
-    paymentMethod: '2. Elige tu método de pago',
-    selectOption: 'Selecciona una opción',
-    cardOption: 'Tarjeta de crédito / débito',
-    transferOption: 'Transferencia bancaria',
-    cardNumberLabel: 'Número de tarjeta',
-    expiryLabel: 'Vencimiento (MM/AA)',
-    cvvLabel: 'CVV / CVC',
-    viewBankDetailsBtn: 'Ver datos bancarios para depósito',
-    bankDetailsTitle: 'Datos bancarios',
-    bankDetailsSubtitle: 'Realiza tu depósito o transferencia a la siguiente cuenta',
-    bankNameLabel: 'Banco',
-    accountHolderLabel: 'Titular de la cuenta',
-    accountNumberLabel: 'Número de cuenta',
-    clabeLabel: 'CLABE interbancaria',
-    conceptLabel: 'Concepto de pago',
-    copyBtn: 'Copiar',
-    copiedToast: 'Copiado al portapapeles',
-    closeBtn: 'Cerrar',
-    gotItBtn: 'Ya realicé la transferencia',
-    transferReferenceLabel: 'Número de folio o referencia',
-    transferReferencePlaceholder: 'Ej. 00123456',
-    transferNote: 'Importante: Después de realizar tu transferencia, ingresa el folio o número de autorización para agilizar la validación por parte de administración.',
-    submitTransferBtn: 'Enviar comprobante de pago',
-    payButton: 'Pagar membresía ahora',
-    processingLabel: 'Procesando pago seguro…',
-    selectPaymentTypeError: 'Selecciona un método de pago',
-    formInvalidError: 'Por favor verifica que los datos de tu tarjeta estén completos y correctos',
-    folioRequiredError: 'Ingresa el número de folio de tu transferencia',
-    paymentConfirmedToast: '¡Pago confirmado con éxito!',
-    transferPendingToast: 'Comprobante enviado. Tu pago se encuentra en proceso de verificación.',
+    reviewPill: 'Pago en revisión',
+    memberPhotoAlt: 'Foto del miembro',
+    idLabel: 'ID',
+    loading: 'Cargando tu membresía…',
+    loadError: 'No pudimos cargar tu membresía. Intenta de nuevo.',
+    retryBtn: 'Reintentar',
+    nextCut: 'Próximo corte',
+    newCut: 'Nuevo corte al pagar',
+    registeredPlan: 'Tu plan',
+    noPlan: 'Aún no tienes un plan asignado.',
+    accountStatement: 'Resumen de cuenta',
+    pendingBalance: 'Saldo pendiente',
+    upToDate: 'Cuenta al corriente',
+    paymentInfoMessage: 'Los pagos se realizan mediante los métodos autorizados por tu gimnasio. Si ya realizaste un pago, tu estado de cuenta se actualizará cuando sea verificado en recepción.',
+    refreshStatementBtn: 'Actualizar estado de cuenta',
     cashNote: '¿Prefieres efectivo? Los pagos en efectivo se reciben directamente en recepción del centro deportivo.',
-    accountStatement: 'Resumen de Cuenta',
-    nextCut: 'Próximo Corte',
-    newCut: 'Nuevo Corte (Al Pagar)',
-    pendingBalance: 'Saldo Pendiente',
+    cardUnavailable: 'Esta opción no está disponible por el momento. Realiza tu pago en recepción.',
+    transferUnavailable: 'Las transferencias se verifican en recepción. Aún no se ha registrado ningún pago.',
   },
   en: {
     pageTitlePrefix: 'Payment',
     pageTitleHighlight: 'Portal',
-    pageSubtitle: 'Pay your membership quickly, securely, and keep your account up to date.',
+    pageSubtitle: 'Check your membership status and keep your account up to date.',
     statusActive: 'ACTIVE',
     statusExpiringSoon: 'EXPIRING SOON',
     statusExpired: 'EXPIRED',
+    statusNoData: 'NO DATA',
     daysRemaining: 'days remaining',
     daysOverdue: 'days overdue',
     dueDate: 'Due on',
-    reviewPill: 'Transfer under review',
-    choosePlan: '1. Select your payment plan',
-    save: 'SAVE',
-    totalToPay: 'Total to pay',
-    surcharge: 'late fee',
-    paymentMethod: '2. Choose your payment method',
-    selectOption: 'Select an option',
-    cardOption: 'Credit / debit card',
-    transferOption: 'Bank transfer',
-    cardNumberLabel: 'Card number',
-    expiryLabel: 'Expiry (MM/YY)',
-    cvvLabel: 'CVV / CVC',
-    viewBankDetailsBtn: 'View bank details for deposit',
-    bankDetailsTitle: 'Bank details',
-    bankDetailsSubtitle: 'Make your deposit or transfer to the following account',
-    bankNameLabel: 'Bank',
-    accountHolderLabel: 'Account holder',
-    accountNumberLabel: 'Account number',
-    clabeLabel: 'CLABE / IBAN',
-    conceptLabel: 'Reference concept',
-    copyBtn: 'Copy',
-    copiedToast: 'Copied to clipboard',
-    closeBtn: 'Close',
-    gotItBtn: 'I have made the transfer',
-    transferReferenceLabel: 'Transfer reference or folio',
-    transferReferencePlaceholder: 'e.g. 00123456',
-    transferNote: 'Important: After making your transfer, enter the reference folio so administration can quickly verify your payment.',
-    submitTransferBtn: 'Submit proof of payment',
-    payButton: 'Pay membership now',
-    processingLabel: 'Processing secure payment…',
-    selectPaymentTypeError: 'Select a payment method',
-    formInvalidError: 'Please check that your card details are complete and correct',
-    folioRequiredError: 'Enter your transfer reference folio',
-    paymentConfirmedToast: 'Payment successfully confirmed!',
-    transferPendingToast: 'Proof submitted. Your payment is pending verification.',
+    reviewPill: 'Payment under review',
+    memberPhotoAlt: 'Member photo',
+    idLabel: 'ID',
+    loading: 'Loading your membership…',
+    loadError: 'We could not load your membership. Please try again.',
+    retryBtn: 'Retry',
+    nextCut: 'Next cut-off',
+    newCut: 'New cut-off after payment',
+    registeredPlan: 'Your plan',
+    noPlan: 'You do not have a plan assigned yet.',
+    accountStatement: 'Account summary',
+    pendingBalance: 'Pending balance',
+    upToDate: 'Account up to date',
+    paymentInfoMessage: 'Payments are made through the methods authorized by your gym. If you have already made a payment, your account status will be updated once it is verified at reception.',
+    refreshStatementBtn: 'Refresh account status',
     cashNote: 'Prefer cash? Cash payments are accepted directly at the facility reception desk.',
-    accountStatement: 'Account Summary',
-    nextCut: 'Next Cut',
-    newCut: 'New Cut (Upon Payment)',
-    pendingBalance: 'Pending Balance',
+    cardUnavailable: 'This option is not available at the moment. Please pay at reception.',
+    transferUnavailable: 'Transfers are verified at reception. No payment has been recorded yet.',
   },
 };
 
 const t = computed(() => traducciones[currentLang.value] || traducciones.es);
 const toastRef = ref(null);
 
+/* ---------------- DATOS ---------------- */
 const socio = reactive({ nombre: '', apellido: '', id: '', foto: null });
-const iniciales = computed(() => socio.nombre.trim().slice(0, 1).toUpperCase() + socio.apellido.trim().slice(0, 1).toUpperCase());
+const iniciales = computed(() =>
+  socio.nombre.trim().slice(0, 1).toUpperCase() + socio.apellido.trim().slice(0, 1).toUpperCase()
+);
 const cargando = ref(true);
 const errorApi = ref('');
 const fechaVencimiento = ref(null);
@@ -131,36 +90,43 @@ const planReal = ref('');
 const precioReal = ref(null);
 const estadoRegistrado = ref('');
 const transferenciaEnRevision = ref(false);
-const localeActual = computed(() => currentLang.value === 'en' ? 'en-US' : 'es-MX');
-const fechaFormateada = computed(() => fechaVencimiento.value ? new Date(fechaVencimiento.value + 'T12:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+const nuevoCorte = ref(null); // se muestra solo cuando exista un valor real
+
+const localeActual = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
+const fechaFormateada = computed(() =>
+  fechaVencimiento.value
+    ? new Date(fechaVencimiento.value + 'T12:00:00').toLocaleDateString(localeActual.value, {
+        day: '2-digit', month: 'short', year: 'numeric',
+      })
+    : '—'
+);
+
 const estadoMembresia = computed(() => {
-  if (diasRestantes.value === null) return { label: 'SIN DATOS', color: '#94a3b8' };
-  if (diasRestantes.value < 0 || /inactivo|vencid/i.test(estadoRegistrado.value)) return { label: t.value.statusExpired, color: '#ef4444' };
+  if (diasRestantes.value === null) return { label: t.value.statusNoData, color: '#94a3b8' };
+  if (diasRestantes.value < 0 || /inactivo|vencid/i.test(estadoRegistrado.value))
+    return { label: t.value.statusExpired, color: '#ef4444' };
   if (diasRestantes.value <= 5) return { label: t.value.statusExpiringSoon, color: '#f59e0b' };
   return { label: t.value.statusActive, color: '#4ade80' };
 });
+
+/* Anillo de progreso */
 const RADIO = 54;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
-const dashOffset = computed(() => CIRCUNFERENCIA * (1 - (diasRestantes.value === null ? 0 : Math.min(1, Math.max(0, diasRestantes.value / 30)))));
-const planes = computed(() => precioReal.value === null ? [] : [{ id: 'registrado', nombre: planReal.value || 'Plan registrado', precio: precioReal.value, ahorro: null }]);
-const planSeleccionado = ref('registrado');
-const plan = computed(() => planes.value[0] || null);
+const dashOffset = computed(() => {
+  const progreso = diasRestantes.value === null ? 0 : Math.min(1, Math.max(0, diasRestantes.value / 30));
+  return CIRCUNFERENCIA * (1 - progreso);
+});
+
+const plan = computed(() =>
+  precioReal.value === null ? null : { nombre: planReal.value || t.value.registeredPlan, precio: precioReal.value }
+);
 const totalAPagar = computed(() => saldoPendiente.value);
-const recargoPorVencida = computed(() => 0);
-const nuevoCorteCalculado = computed(() => '—');
-const tipoPago = ref('');
-const procesando = ref(false);
-const modalDatosBancarios = ref(false);
-const datosBancarios = computed(() => null);
-const folioTransferencia = ref('');
-const formularioTarjetaValido = computed(() => false);
-const numeroTarjetaFormateado = ref('');
-const vencimientoTarjetaFormateado = ref('');
-const cvvTarjeta = ref('');
-const seleccionarPlan = () => {};
-const copiarDato = () => {};
-const pagarConTarjeta = () => toastRef.value?.notify('El pago con tarjeta no está disponible hasta integrar Stripe Checkout.', 'warning');
-const enviarComprobanteTransferencia = () => toastRef.value?.notify('Las transferencias deben verificarse en recepción. No se ha registrado ningún pago.', 'warning');
+const tienePendiente = computed(() => saldoPendiente.value > 0);
+
+/* Pagos en línea no disponibles todavía */
+const pagarConTarjeta = () => toastRef.value?.notify(t.value.cardUnavailable, 'warning');
+const enviarComprobanteTransferencia = () => toastRef.value?.notify(t.value.transferUnavailable, 'warning');
+
 async function cargarMembresia() {
   cargando.value = true;
   errorApi.value = '';
@@ -178,14 +144,24 @@ async function cargarMembresia() {
     planReal.value = m.plan || '';
     precioReal.value = m.precio === null || m.precio === undefined ? null : Number(m.precio);
     estadoRegistrado.value = m.estado || '';
-    transferenciaEnRevision.value = Array.isArray(datos.pagos) && datos.pagos.some(p => p.estado === 'pendiente');
+    transferenciaEnRevision.value = Array.isArray(datos.pagos) && datos.pagos.some((p) => p.estado === 'pendiente');
   } catch (e) {
-    errorApi.value = e?.message || 'No fue posible consultar la membresía.';
+    errorApi.value = t.value.loadError;
     toastRef.value?.notify(errorApi.value, 'error');
-  } finally { cargando.value = false; }
+  } finally {
+    cargando.value = false;
+  }
 }
-onMounted(() => { void cargarMembresia(); window.addEventListener('focus', cargarMembresia); });
-onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
+
+onMounted(() => {
+  window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('focus', cargarMembresia);
+  void cargarMembresia();
+});
+onUnmounted(() => {
+  window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('focus', cargarMembresia);
+});
 </script>
 
 <template>
@@ -195,48 +171,50 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
     <main class="main-content">
       <div class="page-container">
 
-        <div class="view-header-flex">
-          <div class="view-header">
-            <h1 class="title">{{ t.pageTitlePrefix }} <span class="highlight-text">{{ t.pageTitleHighlight }}</span></h1>
-            <span class="title-underline"></span>
-            <p class="subtitle">{{ t.pageSubtitle }}</p>
-          </div>
+        <div class="view-header">
+          <h1 class="title">{{ t.pageTitlePrefix }} <span class="highlight-text">{{ t.pageTitleHighlight }}</span></h1>
+          <span class="title-underline"></span>
+          <p class="subtitle">{{ t.pageSubtitle }}</p>
         </div>
 
-        <p v-if="cargando" role="status">Cargando membresía…</p>
-        <p v-if="errorApi" role="alert">{{ errorApi }} <button type="button" @click="cargarMembresia">Reintentar</button></p>
+        <p v-if="cargando" class="state-message" role="status">{{ t.loading }}</p>
+        <p v-if="errorApi" class="state-message state-error" role="alert">
+          {{ errorApi }}
+          <button type="button" class="btn-retry" @click="cargarMembresia">{{ t.retryBtn }}</button>
+        </p>
+
         <div v-if="!cargando && !errorApi" class="membership-grid">
 
-          <!-- Columna Izquierda: Estado del Atleta -->
-          <div id="tutorial-member-status-card" class="status-card">
+          <!-- Columna izquierda: estado del socio -->
+          <section id="tutorial-member-status-card" class="status-card">
             <div class="avatar-ring-wrapper">
-              <svg class="progress-ring" viewBox="0 0 120 120">
+              <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
                 <circle class="progress-ring__bg" cx="60" cy="60" r="54" />
                 <circle
                   class="progress-ring__value"
                   cx="60" cy="60" r="54"
                   :style="{
                     stroke: estadoMembresia.color,
-                    strokeDasharray: `${2 * Math.PI * 54}px`,
+                    strokeDasharray: `${CIRCUNFERENCIA}px`,
                     strokeDashoffset: `${dashOffset}px`
                   }"
                 />
               </svg>
               <div class="avatar-circle">
-                <img v-if="socio.foto" :src="socio.foto" alt="Foto del miembro" class="avatar-real" @error="socio.foto = null" />
+                <img v-if="socio.foto" :src="socio.foto" :alt="t.memberPhotoAlt" class="avatar-real" @error="socio.foto = null" />
                 <span v-else class="avatar-initials">{{ iniciales }}</span>
               </div>
             </div>
 
             <h2 class="member-name">{{ socio.nombre }} <span class="highlight-text">{{ socio.apellido }}</span></h2>
-            <p class="user-id">ID: {{ socio.id }}</p>
+            <p class="user-id">{{ t.idLabel }}: {{ socio.id }}</p>
 
             <div class="status-badge" :style="{ background: estadoMembresia.color }">
               {{ estadoMembresia.label }}
             </div>
 
             <div v-if="transferenciaEnRevision" class="review-pill">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
@@ -245,13 +223,13 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
 
             <div class="dias-restantes">
               <span class="dias-numero" :style="{ color: estadoMembresia.color }">
-                {{ diasRestantes === null ? "—" : Math.abs(diasRestantes) }}
+                {{ diasRestantes === null ? '—' : Math.abs(diasRestantes) }}
               </span>
-              <span class="dias-label">{{ diasRestantes >= 0 ? t.daysRemaining : t.daysOverdue }}</span>
+              <span class="dias-label">{{ diasRestantes !== null && diasRestantes < 0 ? t.daysOverdue : t.daysRemaining }}</span>
             </div>
 
             <div class="vencimiento-row">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
                 <line x1="8" y1="2" x2="8" y2="6"></line>
@@ -259,46 +237,72 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
               </svg>
               <span>{{ t.dueDate }} <strong>{{ fechaFormateada }}</strong></span>
             </div>
-          </div>
+          </section>
 
-          <!-- Columna Derecha: Panel de Transacción y Pagos -->
-          <div class="payment-card">
+          <!-- Columna derecha: cuenta y pagos -->
+          <section class="payment-card">
 
-            <!-- Fechas de Corte -->
-            <div id="tutorial-billing-cuts" class="account-info-grid">
+            <!-- Fechas de corte -->
+            <div id="tutorial-billing-cuts" class="account-info-grid" :class="{ single: !nuevoCorte }">
               <div class="info-box-date">
                 <span class="info-box-label">{{ t.nextCut }}</span>
                 <div class="info-box-val-row">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   <span>{{ fechaFormateada }}</span>
                 </div>
               </div>
-              <div class="info-box-date highlight-box">
+              <div v-if="nuevoCorte" class="info-box-date highlight-box">
                 <span class="info-box-label">{{ t.newCut }}</span>
                 <div class="info-box-val-row">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  <span>{{ nuevoCorteCalculado }}</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  <span>{{ nuevoCorte }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Plan y adeudo reales: no se capturan tarjetas ni se simulan transacciones -->
-            <div class="section-subtitle-small"><span class="subtitle-dot"></span>Plan registrado en el gimnasio</div>
-            <div id="tutorial-payment-plans" class="planes-grid">
-              <div v-if="plan" class="plan-chip active"><span class="plan-nombre">{{ plan.nombre }}</span><span class="plan-precio">${{ plan.precio.toFixed(2) }} MXN</span></div>
-              <p v-else>Sin tarifa registrada.</p>
+            <!-- Plan -->
+            <div class="section-subtitle-small"><span class="subtitle-dot"></span>{{ t.registeredPlan }}</div>
+            <div id="tutorial-payment-plans" class="plan-row">
+              <div v-if="plan" class="plan-chip">
+                <span class="plan-nombre">{{ plan.nombre }}</span>
+                <span class="plan-precio">${{ plan.precio.toFixed(2) }} MXN</span>
+              </div>
+              <p v-else class="empty-note">{{ t.noPlan }}</p>
             </div>
-            <div class="account-statement-header"><span class="statement-title">{{ t.accountStatement }}</span><span v-if="saldoPendiente > 0" class="badge-pending">{{ t.pendingBalance }}: ${{ saldoPendiente.toFixed(2) }}</span></div>
-            <div id="tutorial-account-summary" class="styled-box"><div class="amount-info"><span class="amount-label">Saldo pendiente registrado</span><div class="amount-row"><span class="currency">$</span><span class="amount-val">{{ totalAPagar.toFixed(2) }}</span></div></div><div class="recargo-container"><span class="mensual-text">{{ plan?.nombre || 'Sin plan registrado' }}</span></div></div>
+
+            <!-- Resumen de cuenta -->
+            <div class="account-statement-header">
+              <span class="statement-title">{{ t.accountStatement }}</span>
+              <span v-if="tienePendiente" class="badge-pending">{{ t.pendingBalance }}</span>
+              <span v-else class="badge-ok">{{ t.upToDate }}</span>
+            </div>
+            <div id="tutorial-account-summary" class="styled-box">
+              <div class="amount-info">
+                <span class="amount-label">{{ t.pendingBalance }}</span>
+                <div class="amount-row">
+                  <span class="currency">$</span>
+                  <span class="amount-val">{{ totalAPagar.toFixed(2) }}</span>
+                </div>
+              </div>
+              <span class="mensual-text">{{ plan?.nombre || '' }}</span>
+            </div>
+
             <div class="payment-status-message" role="status">
-              Los pagos deben realizarse mediante los métodos autorizados por tu gimnasio. Esta pantalla consulta PostgreSQL y no procesa tarjetas ni confirma transferencias.
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              <p>{{ t.paymentInfoMessage }}</p>
             </div>
-            <button class="btn-primary" type="button" :disabled="cargando" @click="cargarMembresia">Actualizar estado de cuenta</button>
+
+            <button class="btn-primary" type="button" :disabled="cargando" @click="cargarMembresia">
+              {{ t.refreshStatementBtn }}
+            </button>
             <p class="cash-note">{{ t.cashNote }}</p>
-          </div>
+          </section>
         </div>
       </div>
-
     </main>
   </HeadingMember>
 </template>
@@ -316,35 +320,22 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
   padding: 24px 32px;
   position: relative;
 }
-
 .page-container { max-width: 1100px; margin: 0 auto; }
 
-.view-header-flex { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.view-header { flex: 1; min-width: 240px; }
+/* Encabezado */
+.view-header { margin-bottom: 24px; }
 .title { font-family: 'Anton', sans-serif; font-size: clamp(1.8rem, 5vw, 2.5rem); color: var(--color-titulos, #fff); margin: 0; letter-spacing: 1px; text-transform: uppercase; }
 .highlight-text { color: var(--color-highlight, #3b82f6); }
-.title-underline {
-  display: block;
-  width: 70px;
-  height: 4px;
-  margin: 6px 0 10px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, var(--color-highlight, #3b82f6), transparent);
-}
+.title-underline { display: block; width: 70px; height: 4px; margin: 6px 0 10px; border-radius: 4px; background: linear-gradient(90deg, var(--color-highlight, #3b82f6), transparent); }
 .subtitle { font-size: 0.95rem; color: rgba(245, 245, 244, 0.85); margin: 0; line-height: 1.5; font-weight: 500; }
 
-@keyframes floatCard {
-  0% { transform: translateY(0px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.1); }
-  50% { transform: translateY(-8px); box-shadow: 0 25px 45px rgba(0, 0, 0, 0.7), 0 0 25px rgba(59, 130, 246, 0.2); }
-  100% { transform: translateY(0px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.1); }
-}
+/* Estados de carga / error */
+.state-message { padding: 16px 18px; border: 1px solid var(--border-line, rgba(255,255,255,.15)); border-radius: 12px; margin: 0 0 16px; }
+.state-error { border-color: rgba(239, 68, 68, 0.45); color: #fca5a5; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.btn-retry { background: transparent; border: 1px solid currentColor; color: inherit; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.membership-grid {
-  display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 24px;
-  align-items: start;
-}
+/* Rejilla principal */
+.membership-grid { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
 
 .status-card, .payment-card {
   background: var(--bg-cards, rgba(18, 18, 18, 0.85));
@@ -355,73 +346,23 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
   position: relative;
 }
 
-.status-card {
-  padding: 32px 26px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  animation: floatCard 4s ease-in-out infinite;
-  will-change: transform;
-}
+/* Tarjeta de estado */
+.status-card { padding: 32px 26px; display: flex; flex-direction: column; align-items: center; text-align: center; }
 
 .avatar-ring-wrapper { position: relative; width: 160px; height: 160px; margin-bottom: 20px; }
 .progress-ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
 .progress-ring__bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 6; }
 .progress-ring__value { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease, stroke 0.3s ease; }
-
-.avatar-circle {
-  position: absolute;
-  top: 10px; left: 10px; right: 10px; bottom: 10px;
-  background: var(--bg-input, #09090b);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 25px rgba(59, 130, 246, 0.25);
-}
+.avatar-circle { position: absolute; inset: 10px; background: var(--bg-input, #09090b); border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 0 25px rgba(59, 130, 246, 0.25); }
+.avatar-real { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .avatar-initials { font-family: 'Anton', sans-serif; font-size: 2.4rem; color: var(--color-highlight, #3b82f6); letter-spacing: 1px; }
 
-.member-name { 
-  font-family: 'Inter', sans-serif; 
-  font-size: 1.35rem; 
-  font-weight: 800;
-  color: var(--color-titulos, #fff); 
-  margin: 0 0 6px 0; 
-  line-height: 1.2; 
-  letter-spacing: 0.5px; 
-  text-transform: uppercase; 
-}
-.user-id { margin: 0 0 16px 0; color: rgba(245, 245, 244, 0.9); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.5px; }
+.member-name { font-size: 1.35rem; font-weight: 800; color: var(--color-titulos, #fff); margin: 0 0 6px; line-height: 1.2; letter-spacing: 0.5px; text-transform: uppercase; }
+.user-id { margin: 0 0 16px; color: rgba(245, 245, 244, 0.9); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.5px; }
 
-.status-badge {
-  padding: 8px 28px;
-  border-radius: var(--app-border-radius, 20px);
-  font-weight: 700;
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.95rem;
-  color: #ffffff;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
+.status-badge { padding: 8px 28px; border-radius: var(--app-border-radius, 20px); font-weight: 700; font-family: 'Oswald', sans-serif; font-size: 0.95rem; color: #fff; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
 
-.review-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-family: 'Oswald', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-  margin-bottom: 16px;
-}
+.review-pill { display: flex; align-items: center; gap: 8px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 16px; }
 
 .dias-restantes { display: flex; flex-direction: column; align-items: center; margin-bottom: 14px; }
 .dias-numero { font-family: 'Anton', sans-serif; font-size: 2.6rem; line-height: 1; }
@@ -430,194 +371,55 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
 .vencimiento-row { display: flex; align-items: center; gap: 8px; color: rgba(245, 245, 244, 0.85); font-size: 0.9rem; font-weight: 500; }
 .vencimiento-row strong { color: #fff; font-weight: 700; }
 
-.payment-card { padding: 32px; }
+/* Tarjeta de cuenta */
+.payment-card { padding: 32px; display: flex; flex-direction: column; }
 
-.account-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 22px;
-}
-.info-box-date {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12));
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.highlight-box {
-  border-color: rgba(59, 130, 246, 0.5);
-  background: rgba(59, 130, 246, 0.08);
-}
-.info-box-label {
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  color: rgba(245, 245, 244, 0.75);
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-.info-box-val-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #fff;
-}
+.account-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; }
+.account-info-grid.single { grid-template-columns: 1fr; }
+.info-box-date { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12)); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.highlight-box { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.08); }
+.info-box-label { font-family: 'Oswald', sans-serif; font-size: 0.8rem; text-transform: uppercase; color: rgba(245, 245, 244, 0.75); letter-spacing: 0.5px; font-weight: 600; }
+.info-box-val-row { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.95rem; color: #fff; }
 .info-box-val-row svg { color: var(--color-highlight, #3b82f6); flex-shrink: 0; }
 
-.account-statement-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.statement-title {
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--color-highlight, #3b82f6);
-  letter-spacing: 0.5px;
-}
-.badge-pending {
-  background: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-family: 'Oswald', sans-serif;
-  font-weight: 700;
-}
-
-.section-subtitle-small {
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--color-highlight, #3b82f6);
-  margin-bottom: 14px;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.section-subtitle-small { font-family: 'Oswald', sans-serif; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--color-highlight, #3b82f6); margin-bottom: 12px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
 .subtitle-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-highlight, #3b82f6); box-shadow: 0 0 8px var(--color-highlight, #3b82f6); flex-shrink: 0; }
 
-.planes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+/* Plan: una sola tarjeta horizontal */
+.plan-row { margin-bottom: 26px; }
+.plan-chip { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid var(--color-highlight, #3b82f6); border-radius: var(--app-border-radius, 12px); padding: 16px 20px; }
+.plan-nombre { font-size: 0.95rem; font-weight: 700; text-transform: uppercase; color: rgba(245, 245, 244, 0.9); letter-spacing: 0.5px; }
+.plan-precio { font-family: 'Anton', sans-serif; font-size: 1.3rem; color: #fff; letter-spacing: 0.5px; }
+.empty-note { margin: 0; color: rgba(245, 245, 244, 0.7); font-size: 0.9rem; }
 
-.plan-chip {
-  position: relative;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12));
-  border-radius: var(--app-border-radius, 12px);
-  padding: 16px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--color-texto-general, #f5f5f4);
-}
-.plan-chip:hover { border-color: var(--color-highlight, #3b82f6); }
-.plan-chip.active { border-color: var(--color-highlight, #3b82f6); background: rgba(59, 130, 246, 0.1); }
-.plan-tag {
-  position: absolute;
-  top: -8px;
-  background: var(--color-highlight, #3b82f6);
-  color: #fff;
-  font-size: 0.65rem;
-  font-family: 'Oswald', sans-serif;
-  padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-.plan-nombre { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; color: rgba(245, 245, 244, 0.8); }
-.plan-precio { font-family: 'Anton', sans-serif; font-size: 1.15rem; color: #fff; letter-spacing: 0.5px; }
+/* Resumen de cuenta */
+.account-statement-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.statement-title { font-family: 'Oswald', sans-serif; font-size: 0.95rem; font-weight: 600; text-transform: uppercase; color: var(--color-highlight, #3b82f6); letter-spacing: 0.5px; }
+.badge-pending, .badge-ok { padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-family: 'Oswald', sans-serif; font-weight: 700; }
+.badge-pending { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+.badge-ok { background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); }
 
-/* Caja de Total a Pagar */
-.styled-box {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12));
-  border-radius: var(--app-border-radius, 14px);
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 22px;
-}
+.styled-box { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12)); border-radius: var(--app-border-radius, 14px); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
 .amount-info { display: flex; flex-direction: column; gap: 2px; }
 .amount-label { font-family: 'Oswald', sans-serif; font-size: 0.85rem; text-transform: uppercase; color: rgba(245, 245, 244, 0.75); letter-spacing: 0.5px; }
 .amount-row { display: flex; align-items: flex-start; gap: 4px; }
 .currency { font-family: 'Anton', sans-serif; font-size: 1.2rem; color: var(--color-highlight, #3b82f6); margin-top: 2px; }
 .amount-val { font-family: 'Anton', sans-serif; font-size: 2rem; color: #fff; line-height: 1; letter-spacing: 1px; }
-.recargo-container { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
-.red { color: #f87171; font-size: 0.8rem; font-weight: 700; font-family: 'Oswald', sans-serif; text-transform: uppercase; }
-.mensual-text { font-size: 0.85rem; font-weight: 600; color: rgba(245, 245, 244, 0.7); text-transform: uppercase; }
+.mensual-text { font-size: 0.85rem; font-weight: 600; color: rgba(245, 245, 244, 0.7); text-transform: uppercase; text-align: right; }
 
-/* Grupos de Inputs y Select */
-.input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
-.input-group label { font-family: 'Oswald', sans-serif; font-size: 0.9rem; font-weight: 600; text-transform: uppercase; color: var(--color-highlight, #3b82f6); letter-spacing: 0.5px; }
-.input-wrapper { position: relative; display: flex; align-items: center; }
-.input-icon { position: absolute; left: 14px; color: rgba(245, 245, 244, 0.4); pointer-events: none; }
-.select-wrapper-container { position: relative; width: 100%; }
-.custom-select {
-  width: 100%;
-  background: var(--bg-input, #09090b);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.15));
-  border-radius: 12px;
-  padding: 12px 14px 12px 44px;
-  color: var(--color-texto-general, #f5f5f4);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  appearance: none;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-.custom-select:focus { outline: none; border-color: var(--color-highlight, #3b82f6); }
-.select-arrow { position: absolute; right: 14px; color: rgba(245, 245, 244, 0.5); pointer-events: none; }
+/* Mensaje informativo */
+.payment-status-message { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(59, 130, 246, 0.07); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; margin-bottom: 18px; }
+.payment-status-message svg { color: var(--color-highlight, #3b82f6); flex-shrink: 0; margin-top: 2px; }
+.payment-status-message p { margin: 0; font-size: 0.9rem; line-height: 1.55; color: rgba(245, 245, 244, 0.9); }
 
-.card-fields { display: flex; flex-direction: column; gap: 14px; animation: fadeIn 0.3s ease; }
-.input-with-icon-simple input { padding-left: 44px !important; }
-.payment-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.card-fields input {
-  width: 100%;
-  background: var(--bg-input, #09090b);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.15));
-  border-radius: 12px;
-  padding: 12px 14px;
-  color: var(--color-texto-general, #f5f5f4);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-}
-.card-fields input:focus { outline: none; border-color: var(--color-highlight, #3b82f6); }
+/* Botón y nota */
+.btn-primary { width: 100%; background: var(--color-highlight, #3b82f6); color: #fff; border: none; border-radius: 12px; padding: 14px; font-family: 'Oswald', sans-serif; font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: filter 0.2s ease, opacity 0.2s ease; }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary:focus-visible, .btn-retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.cash-note { font-size: 0.8rem; color: rgba(245, 245, 244, 0.6); text-align: center; margin: 16px 0 0; line-height: 1.4; }
 
-.btn-bank-details {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px dashed var(--color-highlight, #3b82f6);
-  color: var(--color-highlight, #3b82f6);
-  padding: 12px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-family: 'Oswald', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background 0.2s ease;
-}
-.btn-bank-details:hover { background: rgba(59, 130, 246, 0.2); }
-.transfer-note { font-size: 0.8rem; color: rgba(245, 245, 244, 0.7); line-height: 1.4; margin: 0; }
+/* Notificaciones centradas */
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important;
@@ -628,150 +430,18 @@ onUnmounted(() => window.removeEventListener('focus', cargarMembresia));
   right: auto !important;
   margin: 0 auto !important;
 }
-.action-buttons { display: flex; gap: 12px; margin-top: 6px; }
-.btn-primary {
-  flex: 1;
-  background: var(--color-highlight, #3b82f6);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 14px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: background 0.2s ease, opacity 0.2s ease;
-}
-.btn-primary:hover:not(.disabled) { background: #2563eb; }
-.btn-primary.disabled { opacity: 0.5; cursor: not-allowed; }
 
-.cash-note { font-size: 0.8rem; color: rgba(245, 245, 244, 0.6); text-align: center; margin-top: 18px; line-height: 1.4; }
-
-/* Modal de Datos Bancarios */
-.modal-wrapper {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-.bank-modal {
-  background: var(--bg-cards, #121212);
-  border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.2));
-  border-radius: 20px;
-  padding: 28px;
-  width: 100%;
-  max-width: 440px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.bank-modal-title { font-family: 'Anton', sans-serif; font-size: 1.5rem; color: #fff; margin: 0; letter-spacing: 0.5px; text-transform: uppercase; }
-.bank-modal-subtitle { font-size: 0.85rem; color: rgba(245, 245, 244, 0.75); margin: 0 0 4px 0; line-height: 1.4; }
-.bank-field {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bank-field-info { display: flex; flex-direction: column; gap: 2px; }
-.bank-field-label { font-size: 0.75rem; font-family: 'Oswald', sans-serif; text-transform: uppercase; color: rgba(245, 245, 244, 0.6); letter-spacing: 0.5px; }
-.bank-field-value { font-size: 0.95rem; font-weight: 600; color: #fff; }
-.bank-field-value.mono { font-family: monospace; letter-spacing: 1px; color: var(--color-highlight, #3b82f6); }
-.btn-copy {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.4);
-  color: var(--color-highlight, #3b82f6);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-family: 'Oswald', sans-serif;
-  text-transform: uppercase;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.btn-copy:hover { background: rgba(59, 130, 246, 0.3); }
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pop {
-  0% { opacity: 0; transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
-}
-.pop-enter-active { animation: pop 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-.pop-leave-active { animation: pop 0.2s reverse ease-in; }
-
-/* Estilos responsivos */
+/* Responsivo */
 @media (max-width: 900px) {
-  .membership-grid { grid-template-columns: 1fr; }
-  .status-card { animation: none; }
+  .membership-grid { grid-template-columns: 1fr; gap: 16px; }
 }
-
 @media (max-width: 600px) {
   .main-content { padding: 16px 12px; }
-  .payment-card { padding: 20px 16px; }
-  .planes-grid { grid-template-columns: repeat(2, 1fr); }
-  .account-info-grid { grid-template-columns: 1fr; }
+  .status-card, .payment-card { padding: 20px 16px; }
+  .account-info-grid { grid-template-columns: 1fr; gap: 10px; }
   .member-name { font-size: 1.2rem; }
+  .plan-chip { flex-direction: column; align-items: flex-start; }
+  .styled-box { flex-direction: column; align-items: flex-start; }
+  .mensual-text { text-align: left; }
 }
-/* =========================================
-   ESTILOS RESPONSIVOS PARA MÓVIL
-   ========================================= */
-
-@media (max-width: 768px) {
-  .main-content {
-    padding: 16px 12px;
-  }
-
-  /* La rejilla principal pasa a una sola columna */
-  .membership-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  /* Reducir padding de las tarjetas principales en móvil */
-  .status-card, .payment-card {
-    padding: 20px 16px;
-  }
-
-  /* El selector de planes pasa a 2 columnas en lugar de 4 */
-  .planes-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  /* Las fechas de corte se acomodan mejor */
-  .account-info-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-}
-
-@media (max-width: 480px) {
-  /* En pantallas muy pequeñas, los planes pasan a 1 columna o mantienen 2 compactas */
-  .planes-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .payment-details-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.avatar-real { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.payment-status-message { padding: 16px; border: 1px solid rgba(255,255,255,.15); border-radius: 12px; margin: 18px 0; line-height: 1.6; }
 </style>

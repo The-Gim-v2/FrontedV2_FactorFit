@@ -10,8 +10,6 @@ const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
 const handleLangChange = (e) => {
   if (e.detail && e.detail.idioma) currentLang.value = e.detail.idioma;
 };
-onMounted(() => window.addEventListener('idioma-changed', handleLangChange));
-onUnmounted(() => window.removeEventListener('idioma-changed', handleLangChange));
 
 const traducciones = {
   es: {
@@ -40,6 +38,14 @@ const traducciones = {
     staffTag: 'Registrado en recepción',
     emptyState: 'No se encontraron pagos con esos filtros.',
     downloadReceiptTitle: 'Ver y descargar recibo',
+    loading: 'Cargando tus pagos…',
+    loadError: 'No pudimos cargar tu historial. Intenta de nuevo.',
+    retryBtn: 'Reintentar',
+    conceptMonthly: 'Mensualidad',
+    conceptMonthlySurcharge: 'Mensualidad + recargo',
+    conceptMembership: 'Membresía',
+    methodUnspecified: 'Sin especificar',
+    folioFull: 'Folio completo',
   },
   en: {
     pageTitlePrefix: 'Payment',
@@ -67,6 +73,14 @@ const traducciones = {
     staffTag: 'Registered at front desk',
     emptyState: 'No payments matched those filters.',
     downloadReceiptTitle: 'View and download receipt',
+    loading: 'Loading your payments…',
+    loadError: 'We could not load your history. Please try again.',
+    retryBtn: 'Retry',
+    conceptMonthly: 'Monthly fee',
+    conceptMonthlySurcharge: 'Monthly fee + late fee',
+    conceptMembership: 'Membership',
+    methodUnspecified: 'Not specified',
+    folioFull: 'Full reference',
   },
 };
 
@@ -81,24 +95,58 @@ const pagos = ref([]);
 const cargando = ref(true);
 const errorApi = ref('');
 const gimnasio = ref({ nombre: '', logo_url: null });
+
 async function cargarPagos() {
   cargando.value = true;
   errorApi.value = '';
   try {
     const data = await solicitudMiembro('/api/member/pagos');
-    pagos.value = Array.isArray(data.pagos) ? data.pagos.map(p => ({ ...p, monto: Number(p.monto || 0), folio: String(p.folio || ''), metodo: String(p.metodo || 'No especificado') })) : [];
+    pagos.value = Array.isArray(data.pagos)
+      ? data.pagos.map((p) => ({
+          ...p,
+          monto: Number(p.monto || 0),
+          folio: String(p.folio || ''),
+          metodo: String(p.metodo || 'No especificado'),
+        }))
+      : [];
     gimnasio.value = data.gimnasio || { nombre: '', logo_url: null };
   } catch (e) {
-    errorApi.value = e?.message || 'No se pudo consultar el historial.';
+    errorApi.value = t.value.loadError;
     toastRef.value?.notify(errorApi.value, 'error');
-  } finally { cargando.value = false; }
+  } finally {
+    cargando.value = false;
+  }
 }
-onMounted(() => { void cargarPagos(); window.addEventListener('focus', cargarPagos); });
-onUnmounted(() => window.removeEventListener('focus', cargarPagos));
 
+onMounted(() => {
+  window.addEventListener('idioma-changed', handleLangChange);
+  window.addEventListener('focus', cargarPagos);
+  void cargarPagos();
+});
+onUnmounted(() => {
+  window.removeEventListener('idioma-changed', handleLangChange);
+  window.removeEventListener('focus', cargarPagos);
+});
+
+/* ---------------- TEXTOS DE CADA PAGO ---------------- */
 const conceptoLabel = (clave) => {
-  const map = { monthly: 'Mensualidad', monthlySurcharge: 'Mensualidad + recargo', membership: 'Membresía' };
-  return map[clave] || clave;
+  const map = {
+    monthly: t.value.conceptMonthly,
+    monthlySurcharge: t.value.conceptMonthlySurcharge,
+    membership: t.value.conceptMembership,
+    Membresía: t.value.conceptMembership,
+    Membresia: t.value.conceptMembership,
+    Mensualidad: t.value.conceptMonthly,
+  };
+  return map[clave] || clave || '—';
+};
+
+/* Folio corto: "OP-EE622FD46FE0335F330B2844" -> "OP-…0B2844" */
+const folioCorto = (folio) => {
+  if (!folio) return '—';
+  if (folio.length <= 14) return folio;
+  const prefijo = folio.includes('-') ? folio.split('-')[0] + '-' : '';
+  return `${prefijo}…${folio.slice(-6)}`;
 };
 
 const filtro = ref('');
@@ -112,19 +160,20 @@ const pagosFiltrados = computed(() => {
     const meses = { '3m': 3, '6m': 6, '12m': 12 };
     const limite = new Date();
     limite.setMonth(limite.getMonth() - meses[rangoTiempo.value]);
-    lista = lista.filter(p => new Date(p.fecha) >= limite);
+    lista = lista.filter((p) => new Date(p.fecha) >= limite);
   }
 
   if (metodoFiltro.value !== 'todos') {
-    lista = lista.filter(p => p.metodo === metodoFiltro.value);
+    lista = lista.filter((p) => p.metodo === metodoFiltro.value);
   }
 
   if (filtro.value.trim()) {
     const q = filtro.value.trim().toLowerCase();
-    lista = lista.filter(p =>
-      conceptoLabel(p.concepto).toLowerCase().includes(q) ||
-      p.folio.toLowerCase().includes(q) ||
-      p.metodo.toLowerCase().includes(q)
+    lista = lista.filter(
+      (p) =>
+        conceptoLabel(p.concepto).toLowerCase().includes(q) ||
+        p.folio.toLowerCase().includes(q) ||
+        p.metodo.toLowerCase().includes(q)
     );
   }
 
@@ -132,11 +181,16 @@ const pagosFiltrados = computed(() => {
 });
 
 const totalPagado = computed(() =>
-  pagosFiltrados.value.filter(p => p.estado === 'pagado').reduce((sum, p) => sum + p.monto, 0)
+  pagosFiltrados.value.filter((p) => p.estado === 'pagado').reduce((sum, p) => sum + p.monto, 0)
 );
 
+const formatoMoneda = (n) =>
+  new Intl.NumberFormat(localeActual.value, { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(n);
+
 const formatFecha = (iso) =>
-  iso ? new Date(iso + 'T12:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  iso
+    ? new Date(iso + 'T12:00:00').toLocaleDateString(localeActual.value, { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
 
 const metodoIcono = (metodo) => {
   if (metodo === 'Tarjeta') return 'card';
@@ -147,7 +201,8 @@ const metodoIcono = (metodo) => {
 const metodoLabel = (metodo) => {
   if (metodo === 'Tarjeta') return t.value.methodCard;
   if (metodo === 'Transferencia') return t.value.methodTransfer;
-  return t.value.methodCash;
+  if (metodo === 'Efectivo') return t.value.methodCash;
+  return t.value.methodUnspecified;
 };
 
 const abrirRecibo = (pago) => {
@@ -173,6 +228,7 @@ const handleNotification = ({ message, type }) => {
     <main class="main-content">
       <div class="page-container">
 
+        <!-- Encabezado -->
         <div class="view-header-flex">
           <div class="view-header" id="tutorial-history-header">
             <h1 class="title">{{ t.pageTitlePrefix }} <span class="highlight-text">{{ t.pageTitleHighlight }}</span></h1>
@@ -181,47 +237,53 @@ const handleNotification = ({ message, type }) => {
           </div>
           <div class="total-chip" id="tutorial-total-period">
             <span class="total-label">{{ t.totalPeriodLabel }}</span>
-            <span class="total-value">${{ totalPagado.toFixed(2) }}</span>
+            <span class="total-value">{{ formatoMoneda(totalPagado) }}</span>
           </div>
         </div>
 
-        <p v-if="cargando" role="status">Cargando pagos…</p>
-        <p v-if="errorApi" role="alert">{{ errorApi }} <button type="button" @click="cargarPagos">Reintentar</button></p>
+        <p v-if="cargando" class="state-message" role="status">{{ t.loading }}</p>
+        <p v-if="errorApi" class="state-message state-error" role="alert">
+          {{ errorApi }}
+          <button type="button" class="btn-retry" @click="cargarPagos">{{ t.retryBtn }}</button>
+        </p>
+
         <div v-if="!cargando && !errorApi" class="history-card">
+
+          <!-- Filtros -->
           <div class="filters-row" id="tutorial-history-filters">
             <div class="input-wrapper search-wrapper">
-              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <input type="text" v-model="filtro" :placeholder="t.searchPlaceholder">
+              <input type="text" v-model="filtro" :placeholder="t.searchPlaceholder" :aria-label="t.searchPlaceholder">
             </div>
 
             <div class="input-wrapper select-wrapper-container filter-select">
-              <select v-model="metodoFiltro" class="custom-select">
+              <select v-model="metodoFiltro" class="custom-select" :aria-label="t.colMethod">
                 <option value="todos">{{ t.methodAll }}</option>
                 <option value="Tarjeta">{{ t.methodCard }}</option>
                 <option value="Transferencia">{{ t.methodTransfer }}</option>
                 <option value="Efectivo">{{ t.methodCash }}</option>
               </select>
-              <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </div>
 
             <div class="input-wrapper select-wrapper-container filter-select">
-              <select v-model="rangoTiempo" class="custom-select">
+              <select v-model="rangoTiempo" class="custom-select" :aria-label="t.colDate">
                 <option value="todos">{{ t.timeAll }}</option>
                 <option value="3m">{{ t.time3m }}</option>
                 <option value="6m">{{ t.time6m }}</option>
                 <option value="12m">{{ t.time12m }}</option>
               </select>
-              <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg class="select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </div>
           </div>
 
-          <!-- Tabla (desktop) -->
+          <!-- Tabla (escritorio) -->
           <div class="table-wrapper" id="tutorial-payments-table">
             <div class="table-head">
               <span>{{ t.colDate }}</span>
@@ -237,40 +299,48 @@ const handleNotification = ({ message, type }) => {
 
             <div v-for="pago in pagosFiltrados" :key="pago.id" class="table-row">
               <span class="cell fecha-cell">{{ formatFecha(pago.fecha) }}</span>
+
               <span class="cell">
                 <span class="concepto-nombre">{{ conceptoLabel(pago.concepto) }}</span>
-                <span class="concepto-plan">{{ pago.plan }}</span>
+                <span v-if="pago.plan" class="concepto-plan">{{ pago.plan }}</span>
               </span>
+
               <span class="cell metodo-cell">
-                <div class="metodo-main-info">
-                  <svg v-if="metodoIcono(pago.metodo) === 'card'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <span class="metodo-main-info">
+                  <svg v-if="metodoIcono(pago.metodo) === 'card'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                     <line x1="1" y1="10" x2="23" y2="10"></line>
                   </svg>
-                  <svg v-else-if="metodoIcono(pago.metodo) === 'transfer'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg v-else-if="metodoIcono(pago.metodo) === 'transfer'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <polyline points="17 1 21 5 17 9"></polyline>
                     <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                     <polyline points="7 23 3 19 7 15"></polyline>
                     <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                   </svg>
-                  <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="2" y="6" width="20" height="12" rx="2"></rect>
                     <circle cx="12" cy="12" r="3"></circle>
                   </svg>
                   <span>{{ metodoLabel(pago.metodo) }}</span>
-                </div>
+                </span>
                 <span v-if="pago.registradoPorStaff" class="staff-tag">{{ t.staffTag }}</span>
               </span>
-              <span class="cell folio-cell">{{ pago.folio }}</span>
-              <span class="cell align-right monto-cell">${{ pago.monto.toFixed(2) }}</span>
+
+              <span class="cell">
+                <span class="folio-pill" :title="`${t.folioFull}: ${pago.folio}`">{{ folioCorto(pago.folio) }}</span>
+              </span>
+
+              <span class="cell align-right monto-cell">{{ formatoMoneda(pago.monto) }}</span>
+
               <span class="cell align-center">
                 <span class="estado-badge" :class="pago.estado">
                   {{ pago.estado === 'pagado' ? t.statusPaid : t.statusPending }}
                 </span>
               </span>
+
               <span class="cell align-center">
-                <button v-if="pago.estado === 'pagado'" class="btn-download" type="button" @click="abrirRecibo(pago)" :title="t.downloadReceiptTitle">
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <button v-if="pago.estado === 'pagado'" class="btn-download" type="button" @click="abrirRecibo(pago)" :title="t.downloadReceiptTitle" :aria-label="t.downloadReceiptTitle">
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
                     <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                   </svg>
                 </button>
@@ -279,43 +349,48 @@ const handleNotification = ({ message, type }) => {
             </div>
           </div>
 
-          <!-- Cards (mobile) -->
+          <!-- Tarjetas (móvil) -->
           <div class="cards-wrapper">
             <div v-if="pagosFiltrados.length === 0" class="empty-state">{{ t.emptyState }}</div>
 
             <div v-for="pago in pagosFiltrados" :key="pago.id" class="payment-card-mobile">
               <div class="pcm-top">
-                <div>
+                <div class="pcm-title">
                   <span class="concepto-nombre">{{ conceptoLabel(pago.concepto) }}</span>
-                  <span class="concepto-plan">{{ pago.plan }} · {{ formatFecha(pago.fecha) }}</span>
+                  <span class="concepto-plan">{{ pago.plan }}<template v-if="pago.plan"> · </template>{{ formatFecha(pago.fecha) }}</span>
                 </div>
                 <span class="estado-badge" :class="pago.estado">
                   {{ pago.estado === 'pagado' ? t.statusPaid : t.statusPending }}
                 </span>
               </div>
+
               <div v-if="pago.registradoPorStaff" class="staff-tag mobile">{{ t.staffTag }}</div>
+
               <div class="pcm-bottom">
                 <div class="pcm-metodo">
-                  <svg v-if="metodoIcono(pago.metodo) === 'card'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                    <line x1="1" y1="10" x2="23" y2="10"></line>
-                  </svg>
-                  <svg v-else-if="metodoIcono(pago.metodo) === 'transfer'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="17 1 21 5 17 9"></polyline>
-                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-                    <polyline points="7 23 3 19 7 15"></polyline>
-                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-                  </svg>
-                  <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  <span>{{ metodoLabel(pago.metodo) }} · {{ pago.folio }}</span>
+                  <span class="metodo-main-info">
+                    <svg v-if="metodoIcono(pago.metodo) === 'card'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                      <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    <svg v-else-if="metodoIcono(pago.metodo) === 'transfer'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <polyline points="17 1 21 5 17 9"></polyline>
+                      <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                      <polyline points="7 23 3 19 7 15"></polyline>
+                      <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span>{{ metodoLabel(pago.metodo) }}</span>
+                  </span>
+                  <span class="folio-pill" :title="`${t.folioFull}: ${pago.folio}`">{{ folioCorto(pago.folio) }}</span>
                 </div>
                 <div class="pcm-actions">
-                  <span class="monto-cell">${{ pago.monto.toFixed(2) }}</span>
-                  <button v-if="pago.estado === 'pagado'" class="btn-download" type="button" @click="abrirRecibo(pago)" :title="t.downloadReceiptTitle">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                  <span class="monto-cell">{{ formatoMoneda(pago.monto) }}</span>
+                  <button v-if="pago.estado === 'pagado'" class="btn-download" type="button" @click="abrirRecibo(pago)" :title="t.downloadReceiptTitle" :aria-label="t.downloadReceiptTitle">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
                       <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
                     </svg>
                   </button>
@@ -325,7 +400,7 @@ const handleNotification = ({ message, type }) => {
           </div>
         </div>
 
-        <!-- LLAMADA AL MODAL EXTERNO -->
+        <!-- Modal de recibo -->
         <PaymentReceiptModal
           :visible="modalReciboVisible"
           :pago="pagoSeleccionado"
@@ -353,6 +428,7 @@ const handleNotification = ({ message, type }) => {
   padding: 24px 32px;
   position: relative;
 }
+
 :deep(.notification-container),
 :deep(.toast-container) {
   width: calc(100% - 32px) !important;
@@ -363,176 +439,209 @@ const handleNotification = ({ message, type }) => {
   right: auto !important;
   margin: 0 auto !important;
 }
-.page-container { max-width: 1050px; margin: 0 auto; }
 
-.view-header-flex { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+.page-container { max-width: 1100px; margin: 0 auto; }
+
+/* Encabezado */
+.view-header-flex { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .view-header { flex: 1; min-width: 240px; }
-.title { font-family: 'Anton', sans-serif; font-size: clamp(1.7rem, 5vw, 2.4rem); color: var(--color-titulos, #fff); margin: 0; letter-spacing: 1px; text-transform: uppercase; }
+.title { font-family: 'Anton', sans-serif; font-size: clamp(1.8rem, 5vw, 2.5rem); color: var(--color-titulos, #fff); margin: 0; letter-spacing: 1px; text-transform: uppercase; }
 .highlight-text { color: var(--color-highlight, #3b82f6); }
-.title-underline {
-  display: block;
-  width: 64px;
-  height: 4px;
-  margin: 4px 0 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, var(--color-highlight, #3b82f6), transparent);
-}
-.subtitle { font-size: 0.85rem; color: rgba(245, 245, 244, 0.6); margin: 0; line-height: 1.4; font-weight: 400; }
+.title-underline { display: block; width: 70px; height: 4px; margin: 6px 0 10px; border-radius: 4px; background: linear-gradient(90deg, var(--color-highlight, #3b82f6), transparent); }
+.subtitle { font-size: 0.95rem; color: rgba(245, 245, 244, 0.8); margin: 0; line-height: 1.5; font-weight: 500; }
 
+/* Total del periodo */
 .total-chip {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
+  gap: 2px;
   background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  border-radius: var(--app-border-radius, 12px);
-  padding: 10px 18px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: var(--app-border-radius, 14px);
+  padding: 12px 22px;
+  min-width: 190px;
 }
-.total-label { font-family: 'Oswald', sans-serif; font-size: 0.7rem; color: rgba(245, 245, 244, 0.6); text-transform: uppercase; letter-spacing: 0.5px; }
-.total-value { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--color-highlight, #3b82f6); }
+.total-label { font-family: 'Oswald', sans-serif; font-size: 0.75rem; color: rgba(245, 245, 244, 0.7); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+.total-value { font-family: 'Anton', sans-serif; font-size: 1.8rem; line-height: 1.1; letter-spacing: 0.5px; color: var(--color-highlight, #3b82f6); }
 
+/* Estados de carga / error */
+.state-message { padding: 16px 18px; border: 1px solid var(--border-line, rgba(255,255,255,.15)); border-radius: 12px; margin: 0 0 16px; }
+.state-error { border-color: rgba(239, 68, 68, 0.45); color: #fca5a5; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.btn-retry { background: transparent; border: 1px solid currentColor; color: inherit; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Tarjeta contenedora */
 .history-card {
-  background: var(--bg-cards, rgba(18, 18, 18, 0.75));
+  background: var(--bg-cards, rgba(18, 18, 18, 0.8));
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-cards, rgba(255, 255, 255, 0.12));
   border-radius: var(--app-border-radius, 24px);
-  padding: 26px;
+  padding: 24px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
-.filters-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+/* Filtros */
+.filters-row { display: flex; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
 .input-wrapper { position: relative; display: flex; align-items: center; }
-.search-wrapper { flex: 1; min-width: 220px; }
-.filter-select { min-width: 180px; flex: 1; }
-.input-icon { position: absolute; left: 12px; color: rgba(245, 245, 244, 0.45); pointer-events: none; }
+.search-wrapper { flex: 2 1 260px; }
+.filter-select { flex: 1 1 180px; }
+.input-icon { position: absolute; left: 14px; color: rgba(245, 245, 244, 0.5); pointer-events: none; }
 
-.search-wrapper input {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.1));
-  border-radius: var(--app-border-radius, 8px);
-  color: var(--color-texto-general, #f5f5f4);
-  padding: 10px 12px 10px 36px;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.9rem;
-  outline: none;
-}
-
+.search-wrapper input,
 .custom-select {
   width: 100%;
+  height: 44px;
   background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.1));
-  border-radius: var(--app-border-radius, 8px);
+  border: 1px solid var(--border-line, rgba(255, 255, 255, 0.12));
+  border-radius: var(--app-border-radius, 12px);
   color: var(--color-texto-general, #f5f5f4);
-  padding: 10px 32px 10px 14px;
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
   outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
+  transition: border-color 0.2s ease;
 }
+.search-wrapper input { padding: 0 14px 0 40px; }
+.search-wrapper input::placeholder { color: rgba(245, 245, 244, 0.45); }
+.custom-select { padding: 0 36px 0 14px; appearance: none; -webkit-appearance: none; cursor: pointer; }
 .custom-select option { background-color: #18181b; color: #fff; }
-.select-arrow { position: absolute; right: 12px; color: rgba(245, 245, 244, 0.45); pointer-events: none; }
+.search-wrapper input:focus,
+.custom-select:focus { border-color: var(--color-highlight, #3b82f6); }
+.select-arrow { position: absolute; right: 14px; color: rgba(245, 245, 244, 0.5); pointer-events: none; }
 
+/* Tabla */
 .table-wrapper { display: block; overflow-x: auto; }
-.table-head, .table-row {
-  display: grid;
-  grid-template-columns: 1.1fr 1.8fr 1.6fr 1.1fr 0.9fr 1fr 0.7fr;
-  align-items: center;
-  gap: 12px;
-}
-.table-head {
-  padding: 0 14px 12px 14px;
-  border-bottom: 1px solid var(--border-line, rgba(255, 255, 255, 0.08));
-  font-family: 'Oswald', sans-serif;
-  font-size: 0.72rem;
-  color: rgba(245, 245, 244, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+
+.table-head,
 .table-row {
-  padding: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  font-family: 'Inter', sans-serif;
-  color: var(--color-texto-general, #f5f5f4);
-  font-size: 0.86rem;
-  transition: background 0.2s ease;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 120px minmax(130px, 1.3fr) minmax(170px, 1.5fr) minmax(120px, 1fr) 110px 110px 70px;
+  align-items: center;
+  column-gap: 16px;
+  min-width: 860px;
 }
-.table-row:hover { background: rgba(255,255,255,0.02); }
+
+.table-head {
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border-line, rgba(255, 255, 255, 0.1));
+  font-family: 'Oswald', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(245, 245, 244, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.table-row {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+}
+.table-row:hover { background: rgba(255, 255, 255, 0.03); }
 .table-row:last-child { border-bottom: none; }
 
-.cell { display: flex; flex-direction: column; justify-content: center; }
-.fecha-cell { color: rgba(245, 245, 244, 0.6); }
-.concepto-nombre { font-weight: 600; line-height: 1.3; }
-.concepto-plan { font-size: 0.74rem; color: rgba(245, 245, 244, 0.45); margin-top: 2px; }
+.cell { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.fecha-cell { color: rgba(245, 245, 244, 0.75); font-weight: 500; white-space: nowrap; }
+.concepto-nombre { font-weight: 700; line-height: 1.3; color: #fff; }
+.concepto-plan { font-size: 0.78rem; color: rgba(245, 245, 244, 0.55); margin-top: 2px; }
 
-.metodo-cell { flex-direction: column; align-items: flex-start; gap: 4px; }
-.metodo-main-info { display: flex; align-items: center; gap: 6px; color: rgba(245, 245, 244, 0.75); font-weight: 500; }
-.folio-cell { color: rgba(245, 245, 244, 0.55); font-family: 'Inter', monospace; font-size: 0.8rem; }
-.monto-cell { font-weight: 700; }
+.metodo-cell { align-items: flex-start; gap: 6px; }
+.metodo-main-info { display: inline-flex; align-items: center; gap: 8px; color: rgba(245, 245, 244, 0.9); font-weight: 600; }
+.metodo-main-info svg { color: var(--color-highlight, #3b82f6); flex-shrink: 0; }
+
+/* Folio corto en pastilla */
+.folio-pill {
+  display: inline-block;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.3px;
+  color: rgba(245, 245, 244, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+
+.monto-cell { font-weight: 800; color: #fff; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .staff-tag {
   display: inline-block;
-  font-size: 0.58rem;
+  align-self: flex-start;
+  font-size: 0.65rem;
+  font-weight: 600;
   color: #93c5fd;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.3);
-  padding: 1px 6px;
+  padding: 2px 8px;
   border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 }
-.staff-tag.mobile { margin: -2px 0 8px; display: inline-block; }
+.staff-tag.mobile { margin: 0 0 10px; }
 
 .align-right { text-align: right; align-items: flex-end; }
 .align-center { text-align: center; align-items: center; justify-content: center; }
 
+/* Estado */
 .estado-badge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
   font-family: 'Oswald', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   text-align: center;
+  white-space: nowrap;
 }
-.estado-badge.pagado { background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35); }
-.estado-badge.pendiente { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); }
+.estado-badge.pagado { background: rgba(74, 222, 128, 0.12); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); }
+.estado-badge.pendiente { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
 
-.cell-dash { color: rgba(245, 245, 244, 0.25); }
+.cell-dash { color: rgba(245, 245, 244, 0.3); }
 
+/* Botón de recibo */
 .btn-download {
   background: transparent;
   border: 1px solid var(--color-highlight, #3b82f6);
   color: var(--color-highlight, #3b82f6);
-  border-radius: var(--app-border-radius, 8px);
-  width: 32px;
-  height: 32px;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
-.btn-download:hover { background: rgba(59, 130, 246, 0.1); transform: scale(1.05); }
+.btn-download:hover { background: var(--color-highlight, #3b82f6); color: #fff; }
+.btn-download:focus-visible,
+.btn-retry:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-.empty-state { padding: 40px 14px; text-align: center; color: rgba(245, 245, 244, 0.45); font-size: 0.9rem; }
+.empty-state { padding: 48px 14px; text-align: center; color: rgba(245, 245, 244, 0.55); font-size: 0.95rem; }
 
-/* Cards mobile */
-.cards-wrapper { display: none; flex-direction: column; gap: 10px; }
-.payment-card-mobile { background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-line, rgba(255, 255, 255, 0.08)); border-radius: var(--app-border-radius, 12px); padding: 14px; }
-.pcm-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 10px; }
-.pcm-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-.pcm-metodo { display: flex; align-items: center; gap: 6px; color: rgba(245, 245, 244, 0.6); font-size: 0.8rem; }
-.pcm-actions { display: flex; align-items: center; gap: 10px; }
+/* Tarjetas móvil */
+.cards-wrapper { display: none; flex-direction: column; gap: 12px; }
+.payment-card-mobile { background: rgba(0, 0, 0, 0.28); border: 1px solid var(--border-line, rgba(255, 255, 255, 0.1)); border-radius: var(--app-border-radius, 14px); padding: 16px; }
+.pcm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.pcm-title { display: flex; flex-direction: column; min-width: 0; }
+.pcm-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.pcm-metodo { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; font-size: 0.85rem; }
+.pcm-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.pcm-actions .monto-cell { font-size: 1.05rem; }
 
-@media(max-width: 768px) {
+/* Responsivo */
+@media (max-width: 768px) {
+  .main-content { padding: 16px 12px; }
+  .history-card { padding: 16px; }
   .table-wrapper { display: none; }
   .cards-wrapper { display: flex; }
-  .main-content { padding: 16px; }
+  .total-chip { width: 100%; }
 }
 </style>
