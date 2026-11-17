@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import HeadingMember from '../HeadingMember.vue';
 import MascotasColeccion from '@/components/MascotasColeccion.vue';
+import FitnessPet from '@/components/FitnessPet.vue';
 import LineChartSimple from '@/components/LineChartSimple.vue';
 import DonutChart from '@/components/DonutChart.vue';
 import AvatarCuerpo from '@/components/AvatarCuerpo.vue';
@@ -100,10 +101,19 @@ const hoyISO = () => {
 };
 const hoy = ref(hoyISO());
 const usuarioReal = ref(null);
+const fotoError = ref(false);
+const mostrarColeccion = ref(false);
+const mascotaReal = ref({tipo:'perro', nombre:'Mi mascota', nivel:'Nivel 1'});
 const medidasReales = ref(null);
 const fechasAsistencia = ref([]);
 const fechaInscripcion = ref(null);
 const rachaInfo = ref({dias:0,activoHoy:false});
+const UMBRALES_MASCOTA = [0,1,10,30,100,200,365];
+const siguienteMeta = computed(() => UMBRALES_MASCOTA.find(n => n > rachaInfo.value.dias) ?? null);
+const anteriorMeta = computed(() => [...UMBRALES_MASCOTA].reverse().find(n => n <= rachaInfo.value.dias) ?? 0);
+const faltanMeta = computed(() => siguienteMeta.value === null ? 0 : Math.max(0,siguienteMeta.value - rachaInfo.value.dias));
+const progresoMeta = computed(() => siguienteMeta.value === null ? 100 : Math.round(Math.min(100,Math.max(0,(rachaInfo.value.dias - anteriorMeta.value) * 100 / Math.max(1,siguienteMeta.value - anteriorMeta.value)))));
+const edadVisible = computed(() => user.value.edad === null ? '' : `${user.value.edad} años`);
 const user = computed(() => {
   const c=usuarioReal.value||{},m=medidasReales.value||{};
   const f=(v,s='')=>v===null||v===undefined||v===''?'—':`${Number(v).toLocaleString(currentLang.value==='en'?'en-US':'es-MX',{maximumFractionDigits:2})}${s}`;
@@ -155,6 +165,7 @@ const porcentajeMes = computed(()=>diasRegistradosMes.value?Math.round(diasAsist
 const rachaActualMes = computed(()=>diasAsistidosMes.value);
 const mejorRachaMes = computed(()=>diasAsistidosMes.value);
 const iconoEstado = estado => estado==='asistio'?'✓':estado==='falto'?'✕':'';
+// Sin mediciones de fuerza en las tablas actuales: mantener la gráfica visible sin inventar datos.
 const fuerzaHistorico = ref([]);
 const caloriasSemanales = ref([]);
 const pesoHistorico = computed(()=>{
@@ -175,6 +186,8 @@ async function cargarEstadisticas(){
  try{
   const r=await solicitudMiembro('/api/member/estadisticas');
   usuarioReal.value=r.cliente||null;
+   fotoError.value=false;
+   mascotaReal.value={tipo:r.mascota?.tipo||'perro',nombre:r.mascota?.nombre||'Mi mascota',nivel:r.mascota?.nivel||'Nivel 1'};
   medidasReales.value=r.medidas||null;
   fechasAsistencia.value=Array.isArray(r.asistencia?.fechas)?r.asistencia.fechas:[];
   fechaInscripcion.value=r.fecha_inscripcion||null;
@@ -210,7 +223,8 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
             <div class="profile-main-info">
               <div class="avatar-wrapper">
                 <div class="avatar-circle">
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <img v-if="user.foto && !fotoError" :src="user.foto" :alt="user.nombre" class="profile-photo-real" @error="fotoError = true" />
+                  <span v-else class="profile-photo-initials">{{ (user.nombre || '?').split(' ').filter(Boolean).slice(0,2).map(p => p[0]).join('').toUpperCase() }}</span>
                 </div>
                 <div class="attendance-badge">{{ user.asistenciaPorcentaje }}% {{ t.attendanceBadgeSuffix }}</div>
               </div>
@@ -218,10 +232,8 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
                 <h2>{{ user.nombre }}</h2>
                 <div class="user-sub-info">
                   <span class="user-id">ID: {{ user.id }}</span>
-                  <span class="user-meta-dot">•</span>
-                  <span v-if="user.sexo" class="user-sex">Sexo: {{ user.sexo }}</span>
-                  <span class="user-meta-dot">•</span>
-                  <span v-if="user.edad !== null" class="user-age">Edad: {{ user.edad }} años</span>
+                  <template v-if="user.sexo"><span class="user-meta-dot">•</span><span class="user-sex">Sexo: {{ user.sexo }}</span></template>
+                  <template v-if="user.edad !== null"><span class="user-meta-dot">•</span><span class="user-age">Edad: {{ user.edad }} años</span></template>
                 </div>
               </div>
             </div>
@@ -375,10 +387,12 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
             </div>
 
             <div class="mascotas-wrapper-flex">
-              <MascotasColeccion
-                :dias-totales="rachaInfo.dias"
-                :activo-hoy="rachaInfo.activoHoy"
-              />
+              <div class="member-real-pet">
+                <FitnessPet :nombre="mascotaReal.nombre" :nivel="mascotaReal.nivel" :tipo="mascotaReal.tipo" :racha="rachaInfo.dias" :activo-hoy="rachaInfo.activoHoy" />
+                <div class="member-pet-identity"><strong>{{ mascotaReal.nombre }}</strong><span>{{ mascotaReal.nivel }} · {{ rachaInfo.dias }} asistencias acumuladas</span></div>
+              </div>
+              <button class="member-collection-toggle" type="button" :aria-expanded="mostrarColeccion" @click="mostrarColeccion = !mostrarColeccion">{{ mostrarColeccion ? 'Ocultar colección' : 'Ver colección de compañeros' }}</button>
+              <MascotasColeccion v-if="mostrarColeccion" :dias-totales="rachaInfo.dias" :activo-hoy="rachaInfo.activoHoy" />
             </div>
 
             <div class="streak-bottom-analytics">
@@ -391,17 +405,17 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
               </div>
               <div class="analytics-mini-card">
                 <span class="analytics-label">Siguiente recompensa</span>
-                <span class="analytics-value accent">—</span>
+                <span class="analytics-value accent">{{ siguienteMeta === null ? 'Etapa máxima' : `Faltan ${faltanMeta} días` }}</span>
               </div>
             </div>
 
             <div class="next-pet-progress-container">
               <div class="next-pet-info-header">
                 <span>Progreso de tu compañero</span>
-                <span class="next-pet-pct">—</span>
+                <span class="next-pet-pct">{{ progresoMeta }}%</span>
               </div>
               <div class="next-pet-track">
-                <div class="next-pet-fill" style="width: 0%;"></div>
+                <div class="next-pet-fill" :style="{ width: progresoMeta + '%' }"></div>
               </div>
             </div>
           </div>
@@ -428,12 +442,20 @@ onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
+.member-real-pet { width:100%; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.member-pet-identity { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:12px; color:var(--color-texto-general,#eee); }
+.member-pet-identity span { font-size:10px; opacity:.7; }
+.member-collection-toggle { align-self:center; margin-top:8px; border:1px solid rgba(236,72,153,.35); padding:7px 12px; border-radius:9px; background:rgba(236,72,153,.1); color:#f9a8d4; cursor:pointer; font:inherit; font-size:11px; }
+.member-collection-toggle:hover { background:rgba(236,72,153,.18); }
+.profile-photo-initials { font-size:18px;font-weight:800; }
+
 .profile-photo-real { width:100%; height:100%; object-fit:cover; border-radius:50%; }
 .stats-no-data { display:flex; align-items:center; justify-content:center; min-height:125px; padding:18px; color:rgba(245,245,244,.65); font-size:13px; text-align:center; }
 .stats-real-status { margin:8px auto 12px; max-width:1360px; padding:12px 16px; border:1px solid var(--border-cards,rgba(255,255,255,.12)); border-radius:12px; }
 .stats-real-status button { cursor:pointer; text-decoration:underline; color:var(--color-highlight,#93c5fd); background:none; border:0; }
 
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Oswald:wght@400;600;700&display=swap');
+
 
 * { box-sizing: border-box; }
 
