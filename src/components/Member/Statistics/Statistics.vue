@@ -2,21 +2,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import HeadingMember from '../HeadingMember.vue';
 import MascotasColeccion from '@/components/MascotasColeccion.vue';
-import AvatarCuerpo from '@/components/AvatarCuerpo.vue';
 import LineChartSimple from '@/components/LineChartSimple.vue';
-import CalorieRingsChart from '@/components/CalorieRingsChart.vue';
 import DonutChart from '@/components/DonutChart.vue';
+import { solicitudMiembro } from '../memberSesion.js';
 
-/* ---------------- IDIOMA (es/en) ----------------
-   Mismo patrón que MascotasColeccion.vue: localStorage + evento global
-   'idioma-changed'. Autocontenido, sin depender de rutas de import inciertas. */
 const currentLang = ref(localStorage.getItem('member-idioma') || 'es');
-const handleLangChange = (e) => {
-  if (e.detail && e.detail.idioma) currentLang.value = e.detail.idioma;
-};
-onMounted(() => window.addEventListener('idioma-changed', handleLangChange));
-onUnmounted(() => window.removeEventListener('idioma-changed', handleLangChange));
-
+const handleLangChange = (e) => { if (e.detail?.idioma) currentLang.value = e.detail.idioma; };
 const traducciones = {
   es: {
     statsTitlePrefix: 'Mis',
@@ -45,8 +36,8 @@ const traducciones = {
     legendMissed: 'Faltaste',
     legendToday: 'Hoy',
     legendFuture: 'Pendiente',
-    currentStreakLabel: 'Racha actual',
-    bestStreakLabel: 'Mejor racha del mes',
+    currentStreakLabel: 'Asistencias del mes',
+    bestStreakLabel: 'Total acumulado',
     weekLabel: 'Sem',
     weeklyCaloriesTitle: 'Calorías quemadas',
     bodyCompositionChartTitle: 'Composición corporal',
@@ -83,8 +74,8 @@ const traducciones = {
     legendMissed: 'Missed',
     legendToday: 'Today',
     legendFuture: 'Pending',
-    currentStreakLabel: 'Current streak',
-    bestStreakLabel: 'Best streak this month',
+    currentStreakLabel: 'Visits this month',
+    bestStreakLabel: 'Lifetime total',
     weekLabel: 'Wk',
     weeklyCaloriesTitle: 'Calories burned',
     bodyCompositionChartTitle: 'Body composition',
@@ -97,170 +88,107 @@ const traducciones = {
 };
 
 const t = computed(() => traducciones[currentLang.value] || traducciones.es);
-
-// --- Datos propios del atleta (sin fecha de corte ni saldo: eso vive en la vista de pagos) ---
-const user = ref({
-  nombre: 'Jose Luis Ramirez Sanchez',
-  id: 'Gym001',
-  sexo: 'hombre', // 'hombre' | 'mujer' -> usado por AvatarCuerpo
-  pesoInicial: '70 kg',
-  pesoActual: '40 kg',
-  estatura: '1.78 m',
-  grasaCorporal: '18.5%',
-  masaMuscular: '72.0 kg',
-  aguaCorporal: '58.2%',
-  imc: '28.4',
-  aumentoFuerza: '+35.5 kg',
-  caloriasPromedio: '2,450 kcal',
-  asistenciaPorcentaje: 76,
-});
-
-// Racha total del atleta: alimenta el sistema de mascotas por generaciones (ver MascotasColeccion)
-const rachaInfo = ref({
-  dias: 460,
-  activoHoy: true,
-});
-
-const diasCalendario = ref([
-  { dia: 1, estado: 'asistio' }, { dia: 2, estado: 'asistio' }, { dia: 3, estado: 'asistio' },
-  { dia: 4, estado: 'asistio' }, { dia: 5, estado: 'falto' }, { dia: 6, estado: 'falto' },
-  { dia: 7, estado: 'falto' }, { dia: 8, estado: 'falto' }, { dia: 9, estado: 'asistio' },
-  { dia: 10, estado: 'hoy' }, { dia: 11, estado: 'futuro' }, { dia: 12, estado: 'futuro' },
-  { dia: 13, estado: 'futuro' }, { dia: 14, estado: 'futuro' }, { dia: 15, estado: 'futuro' },
-  { dia: 16, estado: 'futuro' }, { dia: 17, estado: 'futuro' }, { dia: 18, estado: 'futuro' },
-  { dia: 19, estado: 'futuro' }, { dia: 20, estado: 'futuro' }, { dia: 21, estado: 'futuro' },
-  { dia: 22, estado: 'futuro' }, { dia: 23, estado: 'futuro' }, { dia: 24, estado: 'futuro' },
-  { dia: 25, estado: 'futuro' }, { dia: 26, estado: 'futuro' }, { dia: 27, estado: 'futuro' },
-  { dia: 28, estado: 'futuro' }, { dia: 29, estado: 'futuro' }, { dia: 30, estado: 'futuro' },
-  { dia: 31, estado: 'futuro' },
-]);
-
-// Alinea cada día con la columna de la semana correcta (el mock arranca fijo en Domingo;
-// si prefieres alinearlo al calendario real, calcula el offset con el primer día del mes).
-const OFFSET_PRIMER_DIA = 0;
-const celdasCalendario = computed(() => {
-  const relleno = Array.from({ length: OFFSET_PRIMER_DIA }, () => null);
-  return [...relleno, ...diasCalendario.value];
-});
-
-// Agrupa las celdas (incluyendo relleno) en semanas de 7 para las mini-barras
-// de resumen semanal y para el trazo de "cadena" de racha por fila.
-const semanasCalendario = computed(() => {
-  const celdas = celdasCalendario.value;
-  const semanas = [];
-  for (let i = 0; i < celdas.length; i += 7) {
-    semanas.push(celdas.slice(i, i + 7));
-  }
-  return semanas;
-});
-
-const resumenSemanas = computed(() =>
-  semanasCalendario.value.map((semana, idx) => {
-    const dias = semana.filter(Boolean);
-    const asistidos = dias.filter((d) => d.estado === 'asistio' || d.estado === 'hoy').length;
-    const registrados = dias.filter((d) => d.estado === 'asistio' || d.estado === 'falto' || d.estado === 'hoy').length;
-    return {
-      numero: idx + 1,
-      asistidos,
-      total: dias.length,
-      pct: registrados > 0 ? Math.round((asistidos / registrados) * 100) : 0,
-    };
-  })
-);
-
-// --- Métricas del calendario, usadas en la barra de progreso del encabezado ---
-const diasAsistidosMes = computed(() => diasCalendario.value.filter((d) => d.estado === 'asistio').length);
-const diasFaltoMes = computed(() => diasCalendario.value.filter((d) => d.estado === 'falto').length);
-const diasRegistradosMes = computed(() => diasAsistidosMes.value + diasFaltoMes.value);
-const porcentajeMes = computed(() =>
-  diasRegistradosMes.value > 0 ? Math.round((diasAsistidosMes.value / diasRegistradosMes.value) * 100) : 0
-);
-
-// Racha actual dentro del mes (cuenta hacia atrás desde "hoy") y mejor racha
-// registrada en el mes: dan al calendario contexto extra sin depender de
-// la tarjeta de mascotas.
-const rachaActualMes = computed(() => {
-  const idx = diasCalendario.value.findIndex((d) => d.estado === 'hoy');
-  if (idx === -1) return 0;
-  let racha = rachaInfo.value.activoHoy ? 1 : 0;
-  for (let i = idx - 1; i >= 0; i--) {
-    if (diasCalendario.value[i].estado === 'asistio') racha++;
-    else break;
-  }
-  return racha;
-});
-
-const mejorRachaMes = computed(() => {
-  let max = 0;
-  let actual = 0;
-  diasCalendario.value.forEach((d) => {
-    const cuenta = d.estado === 'asistio' || (d.estado === 'hoy' && rachaInfo.value.activoHoy);
-    if (cuenta) {
-      actual++;
-      max = Math.max(max, actual);
-    } else {
-      actual = 0;
-    }
-  });
-  return Math.max(max, rachaActualMes.value);
-});
-
-const etiquetaMes = computed(() => {
-  const hoy = new Date();
-  const texto = hoy.toLocaleDateString(t.value.locale, { month: 'long' });
-  return texto.charAt(0).toUpperCase() + texto.slice(1);
-});
-const anioActual = computed(() => new Date().getFullYear());
-
-const iconoEstado = (estado) => {
-  if (estado === 'asistio') return '✓';
-  if (estado === 'falto') return '✕';
-  return '';
+const cargando = ref(true);
+const errorApi = ref('');
+const hoyISO = () => {
+  // Fecha civil del gimnasio, no UTC; coincide con el servidor Laravel.
+  const parts = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Monterrey',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const p = Object.fromEntries(parts.map(x=>[x.type,x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
 };
-
-// --- Datos para las gráficas (mock; reemplaza con datos reales del backend) ---
-const pesoHistorico = ref([
-  { label: 'Mar', value: 74 },
-  { label: 'Abr', value: 78 },
-  { label: 'May', value: 82 },
-  { label: 'Jun', value: 85 },
-  { label: 'Jul', value: 88 },
-  { label: 'Ago', value: 90 },
+const hoy = ref(hoyISO());
+const usuarioReal = ref(null);
+const medidasReales = ref(null);
+const fechasAsistencia = ref([]);
+const fechaInscripcion = ref(null);
+const rachaInfo = ref({dias:0,activoHoy:false});
+const user = computed(() => {
+  const c=usuarioReal.value||{},m=medidasReales.value||{};
+  const f=(v,s='')=>v===null||v===undefined||v===''?'—':`${Number(v).toLocaleString(currentLang.value==='en'?'en-US':'es-MX',{maximumFractionDigits:2})}${s}`;
+  return {nombre:c.nombre||'—',id:c.id||'—',foto:c.foto_url||null,edad:c.edad??null,
+    pesoInicial:f(m.peso_inicial,' kg'),pesoActual:f(m.peso_actual,' kg'),estatura:f(m.altura_m,' m'),
+    grasaCorporal:f(m.grasa_corporal,'%'),masaMuscular:f(m.masa_muscular,' kg'),imc:f(m.imc),
+    asistenciaPorcentaje:porcentajeMes.value};
+});
+const mesISO = computed(()=>hoy.value.slice(0,7));
+const anioActual = computed(()=>Number(hoy.value.slice(0,4)));
+const mesActual = computed(()=>Number(hoy.value.slice(5,7)));
+const etiquetaMes = computed(()=>{
+ const d=new Date(`${mesISO.value}-01T12:00:00`);
+ const s=d.toLocaleDateString(t.value.locale,{month:'long'});
+ return s.charAt(0).toUpperCase()+s.slice(1);
+});
+const diasCalendario = computed(()=>{
+ const count=new Date(anioActual.value,mesActual.value,0).getDate();
+ const asistidos=new Set(fechasAsistencia.value);
+ return Array.from({length:count},(_,i)=>{
+   const dia=i+1,fecha=`${mesISO.value}-${String(dia).padStart(2,'0')}`;
+   let estado='futuro';
+   if(fecha>hoy.value)estado='futuro';
+   else if(asistidos.has(fecha))estado='asistio';
+   else if(fecha===hoy.value)estado='hoy';
+   else if(!fechaInscripcion.value||fecha<fechaInscripcion.value)estado='futuro';
+   else estado='falto';
+   return {dia,fecha,estado};
+ });
+});
+const celdasCalendario = computed(()=>[
+ ...Array.from({length:new Date(anioActual.value,mesActual.value-1,1).getDay()},()=>null),
+ ...diasCalendario.value
 ]);
-
-const fuerzaHistorico = ref([
-  { label: 'Mar', value: 40 },
-  { label: 'Abr', value: 48 },
-  { label: 'May', value: 58 },
-  { label: 'Jun', value: 65 },
-  { label: 'Jul', value: 72 },
-  { label: 'Ago', value: 75.5 },
-]);
-
-// Antes aquí iba "asistencia semanal" (%), pero eso ya lo muestra el calendario
-// de al lado. Ahora se usa un dato distinto y complementario: calorías quemadas
-// por semana (kcal), para no repetir información.
-const caloriasSemanales = ref([
-  { label: 'S1', value: 1850 },
-  { label: 'S2', value: 2100 },
-  { label: 'S3', value: 2450 },
-  { label: 'S4', value: 1600 },
-  { label: 'S5', value: 2380 },
-  { label: 'S6', value: 2200 },
-  { label: 'S7', value: 1950 },
-  { label: 'S8', value: 2300 },
-]);
-
-const composicionCorporal = computed(() => [
-  { label: t.value.muscleMassLabel, value: 47, color: '#4ade80' },
-  { label: t.value.bodyFatLabel, value: 18, color: '#facc15' },
-  { label: t.value.bodyWaterLabel, value: 35, color: '#38bdf8' },
-]);
+const semanasCalendario = computed(()=>{
+ const result=[];for(let i=0;i<celdasCalendario.value.length;i+=7)result.push(celdasCalendario.value.slice(i,i+7));return result;
+});
+const resumenSemanas = computed(()=>semanasCalendario.value.map((semana,i)=>{
+ const dias=semana.filter(Boolean);
+ const asistidos=dias.filter(d=>d.estado==='asistio').length;
+ const elegibles=dias.filter(d=>d.estado==='asistio'||d.estado==='falto').length;
+ return {numero:i+1,pct:elegibles?Math.round(asistidos/elegibles*100):0};
+}));
+const diasAsistidosMes = computed(()=>diasCalendario.value.filter(d=>d.estado==='asistio').length);
+const diasFaltoMes = computed(()=>diasCalendario.value.filter(d=>d.estado==='falto').length);
+const diasRegistradosMes = computed(()=>diasAsistidosMes.value+diasFaltoMes.value);
+const porcentajeMes = computed(()=>diasRegistradosMes.value?Math.round(diasAsistidosMes.value/diasRegistradosMes.value*100):0);
+// Racha de asistencia ACUMULADA, no consecutiva: ninguna falta resta puntos.
+const rachaActualMes = computed(()=>diasAsistidosMes.value);
+const mejorRachaMes = computed(()=>diasAsistidosMes.value);
+const iconoEstado = estado => estado==='asistio'?'✓':estado==='falto'?'✕':'';
+const pesoHistorico = computed(()=>{
+ const a=medidasReales.value?.historial_peso||[];
+ return a.map(m=>({label:m.fecha,value:Number(m.peso)}));
+});
+const composicionCorporal = computed(()=>{
+ const m=medidasReales.value||{};
+ // Masa muscular en kg y grasa en porcentaje no son categorías equivalentes.
+ // Solo mostrar grasa corporal si existe; no inventar el resto de la composición.
+ const grasa=Number(m.grasa_corporal);
+ if(m.grasa_corporal===null||m.grasa_corporal===undefined||!Number.isFinite(grasa))return [];
+ return [{label:t.value.bodyFatLabel,value:Math.max(0,Math.min(100,grasa)),color:'#facc15'},
+         {label:currentLang.value==='en'?'Other':'Otros',value:Math.max(0,100-grasa),color:'#64748b'}];
+});
+async function cargarEstadisticas(){
+ cargando.value=true;errorApi.value='';
+ try{
+  const r=await solicitudMiembro('/api/member/estadisticas');
+  usuarioReal.value=r.cliente||null;
+  medidasReales.value=r.medidas||null;
+  fechasAsistencia.value=Array.isArray(r.asistencia?.fechas)?r.asistencia.fechas:[];
+  fechaInscripcion.value=r.fecha_inscripcion||null;
+  rachaInfo.value={dias:Number(r.asistencia?.dias_acumulados||0),activoHoy:Boolean(r.asistencia?.asistio_hoy)};
+  hoy.value=hoyISO();
+ }catch(e){errorApi.value=e?.message||'No se pudieron cargar las estadísticas';}
+ finally{cargando.value=false;}
+}
+onMounted(()=>{window.addEventListener('idioma-changed',handleLangChange);void cargarEstadisticas();});
+onUnmounted(()=>window.removeEventListener('idioma-changed',handleLangChange));
 </script>
+
 
 <template>
   <HeadingMember>
     <main class="main-content">
+      <div v-if="cargando" role="status" class="stats-msg">Cargando estadísticas reales…</div>
+      <div v-if="errorApi" role="alert" class="stats-msg">{{ errorApi }} <button type="button" @click="cargarEstadisticas">Reintentar</button></div>
 
       <div class="stats-container">
 
@@ -279,7 +207,8 @@ const composicionCorporal = computed(() => [
             <div class="profile-main-info">
               <div class="avatar-wrapper">
                 <div class="avatar-circle">
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <img v-if="user.foto" :src="user.foto" :alt="user.nombre" class="profile-photo-real" />
+                  <svg v-else width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 </div>
                 <div class="attendance-badge">{{ user.asistenciaPorcentaje }}% {{ t.attendanceBadgeSuffix }}</div>
               </div>
@@ -288,9 +217,8 @@ const composicionCorporal = computed(() => [
                 <div class="user-sub-info">
                   <span class="user-id">ID: {{ user.id }}</span>
                   <span class="user-meta-dot">•</span>
-                  <span class="user-sex">Sexo: {{ user.sexo }}</span>
-                  <span class="user-meta-dot">•</span>
-                  <span class="user-age">Edad: {{ user.edad || '28' }} años</span>
+                  
+                  <span class="user-age">Edad: {{ user.edad ?? '—' }} años</span>
                 </div>
               </div>
             </div>
@@ -302,36 +230,16 @@ const composicionCorporal = computed(() => [
               <div class="metric-box"><span class="metric-label">{{ t.heightLabel }}</span><span class="metric-value">{{ user.estatura }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.bodyFatLabel }}</span><span class="metric-value warning">{{ user.grasaCorporal }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.muscleMassLabel }}</span><span class="metric-value accent">{{ user.masaMuscular }}</span></div>
-              <div class="metric-box"><span class="metric-label">{{ t.avgCaloriesLabel }}</span><span class="metric-value">{{ user.caloriasPromedio }}</span></div>
             </div>
 
             <div class="section-subtitle-small"><span class="subtitle-dot"></span>{{ t.advancedMetricsTitle }}</div>
             <div class="metrics-grid advanced-metrics">
-              <div class="metric-box"><span class="metric-label">{{ t.bodyWaterLabel }}</span><span class="metric-value info">{{ user.aguaCorporal }}</span></div>
               <div class="metric-box"><span class="metric-label">{{ t.bmiLabel }}</span><span class="metric-value">{{ user.imc }}</span></div>
-              <div class="metric-box"><span class="metric-label">{{ t.strengthGainLabel }}</span><span class="metric-value accent">{{ user.aumentoFuerza }}</span></div>
             </div>
           </div>
 
-          <div class="body-avatar-card area-avatar">
-            <span class="section-subtitle-small"><span class="subtitle-dot"></span>{{ t.physiqueTitle }}</span>
-            <span class="streak-sub">{{ t.physiqueDesc }}</span>
-            <div class="body-avatar-display-box">
-              <AvatarCuerpo
-                :sexo="user.sexo"
-                :imc="user.imc"
-                :grasa-corporal="user.grasaCorporal"
-                tamano="md"
-              />
-            </div>
-          </div>
-
-          <div class="chart-card area-peso">
+          <div v-if="pesoHistorico.length" class="chart-card area-peso">
             <LineChartSimple :data="pesoHistorico" color="#3b82f6" unit=" kg" :titulo="t.weightProgressTitle" />
-          </div>
-
-          <div class="chart-card area-fuerza">
-            <LineChartSimple :data="fuerzaHistorico" color="#4ade80" unit=" kg" :titulo="t.strengthProgressTitle" />
           </div>
 
           <!-- ===== Calendario de asistencia ===== -->
@@ -362,7 +270,7 @@ const composicionCorporal = computed(() => [
                 </div>
                 <div class="calendar-stat-chip best">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17h4v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-                  <span>{{ t.bestStreakLabel }}: <b>{{ mejorRachaMes }}</b></span>
+                  <span>{{ t.bestStreakLabel }}: <b>{{ rachaInfo.dias }}</b></span>
                 </div>
               </div>
 
@@ -371,7 +279,7 @@ const composicionCorporal = computed(() => [
                   <div class="progress-fill" :style="{ width: porcentajeMes + '%' }"></div>
                 </div>
                 <div class="progress-label">
-                  <span>{{ diasAsistidosMes }}/{{ diasRegistradosMes }} {{ t.calendarDaysAttended }}</span>
+                  <span>{{ diasAsistidosMes }} {{ t.calendarDaysAttended }} · {{ diasFaltoMes }} {{ t.legendMissed.toLowerCase() }}</span>
                   <span class="progress-percent">{{ porcentajeMes }}%</span>
                 </div>
               </div>
@@ -441,7 +349,7 @@ const composicionCorporal = computed(() => [
                 <span class="status-indicator-dot" :class="{ active: rachaInfo.activoHoy }"></span>
                 <span>{{ rachaInfo.activoHoy ? '¡Entrenamiento registrado hoy!' : 'Pendiente de registrar hoy' }}</span>
               </div>
-              <span class="streak-motivation-tip">⚡ ¡Mantén el ritmo activo para desbloquear recompensas!</span>
+              <span class="streak-motivation-tip">Las faltas no descuentan las asistencias acumuladas.</span>
             </div>
 
             <div class="mascotas-wrapper-flex">
@@ -450,43 +358,15 @@ const composicionCorporal = computed(() => [
                 :activo-hoy="rachaInfo.activoHoy"
               />
             </div>
-
-            <div class="streak-bottom-analytics">
-              <div class="analytics-mini-card">
-                <span class="analytics-label">Récord histórico</span>
-                <span class="analytics-value">
-                  520 días 
-                  <svg style="display:inline-block; vertical-align:middle; margin-left:2px;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17h4v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-                </span>
-              </div>
-              <div class="analytics-mini-card">
-                <span class="analytics-label">Siguiente recompensa</span>
-                <span class="analytics-value accent">Faltan 340 días</span>
-              </div>
-            </div>
-
-            <div class="next-pet-progress-container">
-              <div class="next-pet-info-header">
-                <span>Progreso hacia Gen. 3</span>
-                <span class="next-pet-pct">57%</span>
-              </div>
-              <div class="next-pet-track">
-                <div class="next-pet-fill" style="width: 57%;"></div>
-              </div>
-            </div>
           </div>
 
-          <div class="chart-card area-composicion">
+          <div v-if="composicionCorporal.length" class="chart-card area-composicion">
             <DonutChart
               :segmentos="composicionCorporal"
               :titulo="t.bodyCompositionChartTitle"
-              :centro-valor="`${composicionCorporal[0].value}%`"
-              :centro-label="t.muscleCenterLabel"
+              :centro-valor="`${composicionCorporal[0]?.value ?? 0}%`"
+              :centro-label="t.bodyFatLabel"
             />
-          </div>
-
-          <div class="chart-card area-semanal">
-            <CalorieRingsChart :data="caloriasSemanales" color="#fb923c" unit=" kcal" :titulo="t.weeklyCaloriesTitle" />
           </div>
 
         </div>
@@ -532,10 +412,10 @@ const composicionCorporal = computed(() => [
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   grid-template-areas:
-    "perfil avatar"
-    "peso fuerza"
+    "perfil perfil"
+    "peso peso"
     "calendario mascotas"
-    "composicion semanal";
+    "composicion composicion";
   gap: 20px;
   align-items: stretch;
   position: relative;
@@ -557,13 +437,10 @@ const composicionCorporal = computed(() => [
     grid-template-columns: 1fr;
     grid-template-areas:
       "perfil"
-      "avatar"
       "peso"
-      "fuerza"
       "calendario"
       "mascotas"
-      "composicion"
-      "semanal";
+      "composicion";
   }
 }
 
@@ -1076,4 +953,8 @@ const composicionCorporal = computed(() => [
   .animate-bounce, .animate-pulse { animation: none; }
   .progress-fill, .next-pet-fill, .week-bar-fill { transition: none; }
 }
+
+.stats-msg{padding:12px 16px;margin-bottom:12px;border:1px solid var(--border-cards,#444);border-radius:12px;color:var(--color-texto-general,#fff)}
+.stats-msg button{color:var(--color-highlight,#60a5fa);background:none;border:0;cursor:pointer;font-weight:bold}
+.profile-photo-real{width:100%;height:100%;object-fit:cover;border-radius:50%}
 </style>

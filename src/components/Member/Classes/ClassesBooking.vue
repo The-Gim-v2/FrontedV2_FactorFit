@@ -409,7 +409,7 @@
                 />
                 <video
                   v-else
-                  :key="currentMedia.src"
+                  :key="currentMedia?.src"
                   class="viewer-video"
                   :src="currentMedia.src"
                   :poster="posterOf(selectedClass)"
