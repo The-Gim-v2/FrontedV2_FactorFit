@@ -123,37 +123,42 @@
                 </label>
               </div>
 
-              <!-- Fechas: se desliza para ver más días -->
+              <!-- Fechas -->
               <div class="date-block">
                 <div class="date-head">
-                  <span class="date-month">{{ monthTitle }}</span>
+                  <span class="date-month">{{ weekTitle }}</span>
                   <div class="date-nav">
-                    <button type="button" class="date-arrow" :aria-label="t.prevDays" @click="scrollStrip(-1)">
+                    <button type="button" class="date-cal-btn" :aria-label="t.calendarBtn" @click="openCalendar">
+                      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      <span>{{ t.calendarBtn }}</span>
+                    </button>
+                    <button type="button" class="date-arrow" :disabled="!canPrev" :aria-label="t.prevWeek" @click="shiftWeek(-1)">
                       <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
                     </button>
                     <button type="button" class="date-today" @click="goToday">{{ t.todayShort }}</button>
-                    <button type="button" class="date-arrow" :aria-label="t.nextDays" @click="scrollStrip(1)">
+                    <button type="button" class="date-arrow" :disabled="!canNext" :aria-label="t.nextWeek" @click="shiftWeek(1)">
                       <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                   </div>
                 </div>
 
-                <div ref="stripRef" class="date-strip custom-scrollbar-x" role="tablist">
+                <div class="date-grid" role="tablist" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
                   <button
-                    v-for="d in stripDays"
+                    v-for="d in weekDays"
                     :key="d.iso"
-                    :ref="el => { if (d.iso === selectedIso && el) activeChipEl = el }"
                     type="button"
                     role="tab"
                     class="date-chip"
-                    :class="{ active: d.iso === selectedIso, today: d.isToday, empty: !d.count }"
+                    :class="{ active: d.iso === selectedIso, today: d.isToday, past: d.isPast, empty: !d.count }"
                     :aria-selected="d.iso === selectedIso"
+                    :aria-label="d.label + ', ' + d.count + ' ' + (lang === 'en' ? 'classes' : 'clases')"
                     @click="selectIso(d.iso)"
                   >
                     <span class="date-chip-day">{{ t.daysShort[d.dayKey] }}</span>
                     <span class="date-chip-num">{{ d.num }}</span>
-                    <span class="date-chip-month">{{ d.monthShort }}</span>
-                    <span class="date-chip-count" :class="{ none: !d.count }">{{ d.count }}</span>
+                    <span class="date-chip-dots">
+                      <i v-for="(col, i) in d.colors" :key="i" :style="{ background: col }"></i>
+                    </span>
                     <svg v-if="d.booked" class="date-chip-booked" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
                     <span v-else-if="d.isToday" class="date-chip-today-dot"></span>
                   </button>
@@ -350,131 +355,207 @@
         </div>
       </main>
 
+      <!-- MODAL DE CALENDARIO -->
+      <transition name="pop">
+        <div v-if="calendarOpen" class="modal-backdrop cal-backdrop" @click.self="closeCalendar">
+          <div class="cal-modal" role="dialog" aria-modal="true" :aria-label="t.calendarTitle">
+            <header class="cal-head">
+              <div class="cal-title">
+                <span class="card-eyebrow">{{ t.calendarTitle }}</span>
+                <h3>{{ calTitle }}</h3>
+              </div>
+              <div class="cal-nav">
+                <button type="button" class="date-arrow" :disabled="!canPrevMonth" :aria-label="t.prevMonth" @click="shiftMonth(-1)">
+                  <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <button type="button" class="date-arrow" :aria-label="t.nextMonth" @click="shiftMonth(1)">
+                  <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button type="button" class="date-arrow" :aria-label="t.close" @click="closeCalendar">
+                  <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </header>
+
+            <div class="cal-weekdays" aria-hidden="true">
+              <span v-for="k in dayKeys" :key="k">{{ t.daysShort[k] }}</span>
+            </div>
+
+            <div class="cal-grid" role="grid">
+              <button
+                v-for="c in monthCells"
+                :key="c.iso"
+                type="button"
+                class="cal-cell"
+                :class="{ out: !c.inMonth, today: c.isToday, past: c.isPast, has: c.count > 0, selected: c.iso === selectedIso }"
+                :disabled="c.isPast && !c.count"
+                :aria-label="c.label + ', ' + c.count + ' ' + (lang === 'en' ? 'classes' : 'clases')"
+                :aria-pressed="c.iso === selectedIso"
+                @click="pickCalendarDay(c)"
+              >
+                <span class="cal-num">{{ c.num }}</span>
+                <span class="cal-dots">
+                  <i v-for="(col, i) in c.colors" :key="i" :style="{ background: col }"></i>
+                </span>
+                <svg v-if="c.booked" class="cal-booked" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+
+            <footer class="cal-foot">
+              <div class="cal-legend">
+                <span><i class="lg-dot"></i>{{ t.legendClasses }}</span>
+                <span><i class="lg-ring"></i>{{ t.todayShort }}</span>
+                <span><svg viewBox="0 0 24 24" class="lg-check"><path d="M20 6 9 17l-5-5"/></svg>{{ t.bookedBadge }}</span>
+              </div>
+              <span class="cal-summary">{{ monthClassCount }} {{ t.monthClasses }}</span>
+            </footer>
+          </div>
+        </div>
+      </transition>
+
       <!-- MODAL DE DETALLE -->
       <transition name="pop">
         <div v-if="selectedClass" class="modal-backdrop" @click.self="closeDetail">
           <div
-            class="modal-content custom-scrollbar"
+            class="modal-content"
+            :class="{ 'no-media': !mediaOpen }"
             role="dialog"
             aria-modal="true"
             :aria-label="selectedClass.name"
             :style="{ '--cat-color': catColor(selectedClass.category) }"
           >
-            <!-- Foto / video principal -->
-            <div class="modal-hero-media">
-              <div class="viewer-bg" :style="{ backgroundImage: viewerBg ? `url('${viewerBg}')` : 'none' }"></div>
+            <button type="button" class="modal-close" :aria-label="t.close" @click="closeDetail">
+              <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
 
-              <img
-                v-if="currentMedia.type === 'image'"
-                :key="'img-' + currentMedia.src"
-                class="viewer-img"
-                :src="currentMedia.src"
-                :alt="selectedClass.name"
-                @error="onImgError"
-              />
-              <video
-                v-else
-                :key="'vid-' + currentMedia.src"
-                class="viewer-video"
-                :src="currentMedia.src"
-                :poster="posterOf(selectedClass)"
-                controls
-                playsinline
-                preload="metadata"
-              >
-                {{ lang === 'en' ? 'Your browser cannot play this video.' : 'Tu navegador no puede reproducir este video.' }}
-              </video>
+            <!-- Fotos y video (completos, se pueden ocultar) -->
+            <section v-if="mediaOpen" class="modal-media">
+              <div class="viewer">
+                <div class="viewer-bg" :style="{ backgroundImage: viewerBg ? `url('${viewerBg}')` : 'none' }"></div>
 
-              <div v-if="currentMedia.type === 'image'" class="modal-hero-overlay"></div>
+                <img
+                  v-if="currentMedia.type === 'image'"
+                  :key="'img-' + currentMedia.src"
+                  class="viewer-img"
+                  :src="currentMedia.src"
+                  :alt="selectedClass.name"
+                  @error="onImgError"
+                />
+                <video
+                  v-else
+                  :key="'vid-' + currentMedia.src"
+                  class="viewer-video"
+                  :src="currentMedia.src"
+                  :poster="posterOf(selectedClass)"
+                  controls
+                  playsinline
+                  preload="metadata"
+                >
+                  {{ lang === 'en' ? 'Your browser cannot play this video.' : 'Tu navegador no puede reproducir este video.' }}
+                </video>
+              </div>
 
-              <button type="button" class="close-btn" :aria-label="t.close" @click="closeDetail">&times;</button>
+              <div class="media-bar">
+                <div v-if="mediaItems.length > 1" class="media-step">
+                  <button type="button" class="date-arrow" :aria-label="t.prevMedia" @click="stepMedia(-1)">
+                    <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <span class="media-count">{{ activeMediaIndex + 1 }} / {{ mediaItems.length }}</span>
+                  <button type="button" class="date-arrow" :aria-label="t.nextMedia" @click="stepMedia(1)">
+                    <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                </div>
+                <span v-else></span>
 
-              <template v-if="mediaItems.length > 1">
-                <button type="button" class="viewer-arrow left" :aria-label="t.prevMedia" @click="stepMedia(-1)">
-                  <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+                <button type="button" class="media-toggle" @click="mediaOpen = false">
+                  <svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A9.8 9.8 0 0 1 12 5c5 0 8.5 4.5 10 7a17 17 0 0 1-3.2 3.9M6.1 6.1A17 17 0 0 0 2 12c1.5 2.5 5 7 10 7a9.7 9.7 0 0 0 4-.9"/></svg>
+                  {{ t.hideMedia }}
                 </button>
-                <button type="button" class="viewer-arrow right" :aria-label="t.nextMedia" @click="stepMedia(1)">
-                  <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+
+              <div v-if="mediaItems.length > 1" class="thumbs custom-scrollbar-x">
+                <button
+                  v-for="(m, i) in mediaItems"
+                  :key="m.src + i"
+                  type="button"
+                  class="thumb"
+                  :class="{ active: i === activeMediaIndex }"
+                  :aria-label="m.type === 'video' ? 'Video' : (lang === 'en' ? 'Photo ' : 'Foto ') + (i + 1)"
+                  @click="activeMediaIndex = i"
+                >
+                  <img :src="m.type === 'image' ? m.src : (posterOf(selectedClass) || emptyImage)" alt="" loading="lazy" @error="onImgError" />
+                  <span v-if="m.type === 'video'" class="thumb-play">
+                    <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
+                  </span>
                 </button>
-                <span class="viewer-count">{{ activeMediaIndex + 1 }} / {{ mediaItems.length }}</span>
-              </template>
-            </div>
+              </div>
+            </section>
 
-            <!-- Miniaturas -->
-            <div v-if="mediaItems.length > 1" class="thumbs custom-scrollbar-x">
-              <button
-                v-for="(m, i) in mediaItems"
-                :key="m.src + i"
-                type="button"
-                class="thumb"
-                :class="{ active: i === activeMediaIndex }"
-                :aria-label="m.type === 'video' ? 'Video' : (lang === 'en' ? 'Photo ' : 'Foto ') + (i + 1)"
-                @click="activeMediaIndex = i"
-              >
-                <img :src="m.type === 'image' ? m.src : (posterOf(selectedClass) || emptyImage)" alt="" loading="lazy" @error="onImgError" />
-                <span v-if="m.type === 'video'" class="thumb-play">
-                  <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
-                </span>
-              </button>
-            </div>
+            <!-- Información -->
+            <div class="modal-info">
+              <div class="modal-info-scroll custom-scrollbar">
+                <button v-if="!mediaOpen" type="button" class="btn-ghost media-show" @click="mediaOpen = true">
+                  <svg viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  {{ t.showMedia }} ({{ mediaItems.length }})
+                </button>
 
-            <div class="modal-body">
-              <div class="class-tags">
-                <span class="cat-tag">{{ t.cats[selectedClass.category] || selectedClass.category }}</span>
-                <span class="level-tag">{{ translateLevel(selectedClass.level) }}</span>
-                <span class="level-tag">{{ priceLabel(selectedClass) }}</span>
+                <div class="class-tags">
+                  <span class="cat-tag">{{ t.cats[selectedClass.category] || selectedClass.category }}</span>
+                  <span class="level-tag">{{ translateLevel(selectedClass.level) }}</span>
+                  <span class="level-tag">{{ priceLabel(selectedClass) }}</span>
+                </div>
+
+                <h2 class="modal-title">{{ selectedClass.name }}</h2>
+
+                <p v-if="selectedClass.description" class="modal-desc">{{ selectedClass.description }}</p>
+
+                <div class="modal-instructor-row">
+                  <img :src="selectedClass.instructorAvatar" :alt="selectedClass.instructor" class="avatar lg" @error="onImgError" />
+                  <div>
+                    <strong>{{ selectedClass.instructor }}</strong>
+                    <small>{{ t.instructorLabel }}</small>
+                  </div>
+                </div>
+
+                <div class="modal-info-grid">
+                  <div class="modal-info-item">
+                    <span class="info-label">{{ t.scheduleLabel }}</span>
+                    <span class="info-value">{{ shortDate(selectedClass.date) }}</span>
+                    <span class="info-sub">{{ selectedClass.startTime }} – {{ endTime(selectedClass) }}</span>
+                  </div>
+                  <div class="modal-info-item">
+                    <span class="info-label">{{ t.durationLabel }}</span>
+                    <span class="info-value">{{ selectedClass.duration }} {{ t.minutesShort }}</span>
+                  </div>
+                  <div class="modal-info-item">
+                    <span class="info-label">{{ t.spotsLabel }}</span>
+                    <span class="info-value">{{ spotsLeft(selectedClass) }} / {{ selectedClass.capacity }}</span>
+                  </div>
+                  <div class="modal-info-item">
+                    <span class="info-label">{{ t.levelLabel }}</span>
+                    <span class="info-value">{{ translateLevel(selectedClass.level) }}</span>
+                  </div>
+                </div>
+
+                <div class="occ">
+                  <div class="occ-head">
+                    <span>{{ spotsLeft(selectedClass) }} {{ t.spotsShort }}</span>
+                    <b :class="occLevel(selectedClass)">{{ occupancyPct(selectedClass) }}%</b>
+                  </div>
+                  <div class="occ-track" :class="occLevel(selectedClass)">
+                    <i :style="{ width: occupancyPct(selectedClass) + '%' }"></i>
+                  </div>
+                </div>
               </div>
 
-              <h2 class="modal-title">{{ selectedClass.name }}</h2>
-
-              <p v-if="selectedClass.description" class="modal-desc">{{ selectedClass.description }}</p>
-
-              <div class="modal-instructor-row">
-                <img :src="selectedClass.instructorAvatar" :alt="selectedClass.instructor" class="avatar lg" @error="onImgError" />
-                <div>
-                  <strong>{{ selectedClass.instructor }}</strong>
-                  <small>{{ t.instructorLabel }}</small>
-                </div>
+              <div class="modal-cta">
+                <button v-if="isBooked(selectedClass.key)" type="button" class="btn-danger wide" :disabled="busy" @click="cancelBooking(selectedClass)">
+                  {{ t.cancelBookingBtn }}
+                </button>
+                <button v-else type="button" class="btn-primary wide" :disabled="busy || spotsLeft(selectedClass) <= 0 || selectedClass.price > 0" @click="bookClass(selectedClass)">
+                  {{ bookLabel(selectedClass) }}
+                </button>
               </div>
-
-              <div class="modal-info-grid">
-                <div class="modal-info-item">
-                  <span class="info-label">{{ t.scheduleLabel }}</span>
-                  <span class="info-value">{{ shortDate(selectedClass.date) }}</span>
-                  <span class="info-sub">{{ selectedClass.startTime }} – {{ endTime(selectedClass) }}</span>
-                </div>
-                <div class="modal-info-item">
-                  <span class="info-label">{{ t.durationLabel }}</span>
-                  <span class="info-value">{{ selectedClass.duration }} {{ t.minutesShort }}</span>
-                </div>
-                <div class="modal-info-item">
-                  <span class="info-label">{{ t.spotsLabel }}</span>
-                  <span class="info-value">{{ spotsLeft(selectedClass) }} / {{ selectedClass.capacity }}</span>
-                </div>
-                <div class="modal-info-item">
-                  <span class="info-label">{{ t.levelLabel }}</span>
-                  <span class="info-value">{{ translateLevel(selectedClass.level) }}</span>
-                </div>
-              </div>
-
-              <div class="occ">
-                <div class="occ-head">
-                  <span>{{ spotsLeft(selectedClass) }} {{ t.spotsShort }}</span>
-                  <b :class="occLevel(selectedClass)">{{ occupancyPct(selectedClass) }}%</b>
-                </div>
-                <div class="occ-track" :class="occLevel(selectedClass)">
-                  <i :style="{ width: occupancyPct(selectedClass) + '%' }"></i>
-                </div>
-              </div>
-            </div>
-
-            <div class="modal-cta">
-              <button v-if="isBooked(selectedClass.key)" type="button" class="btn-danger wide" :disabled="busy" @click="cancelBooking(selectedClass)">
-                {{ t.cancelBookingBtn }}
-              </button>
-              <button v-else type="button" class="btn-primary wide" :disabled="busy || spotsLeft(selectedClass) <= 0 || selectedClass.price > 0" @click="bookClass(selectedClass)">
-                {{ bookLabel(selectedClass) }}
-              </button>
             </div>
           </div>
         </div>
@@ -484,7 +565,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useLang } from '../useLang.js';
 import HeadingMember from '../HeadingMember.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
@@ -515,19 +596,21 @@ const myBookings = computed(() => classesList.value.filter(c => c.myBooking).map
 const categoryKeys = computed(() => [...new Set(classesList.value.map(c => c.category))].sort());
 
 /* =========================================================
-   FECHAS (tira deslizable)
+   FECHAS (semana por botones + calendario)
 ========================================================= */
 const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const localIso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parseIso = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
 const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const mondayOf = d => addDays(d, -((d.getDay() + 6) % 7));
 const jsDayToKey = day => dayKeys[(day + 6) % 7];
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 const todayIso = localIso(todayStart());
 const selectedIso = ref(todayIso);
-const stripRef = ref(null);
-let activeChipEl = null;
+const weekStart = ref(mondayOf(todayStart()));
+const calendarOpen = ref(false);
+const monthCursor = ref(new Date(todayStart().getFullYear(), todayStart().getMonth(), 1));
 
 const locale = computed(() => (lang.value === 'en' ? 'en-US' : 'es-MX'));
 const selectedDate = computed(() => selectedIso.value);
@@ -535,9 +618,6 @@ const selectedDateObj = computed(() => parseIso(selectedIso.value));
 const selectedDayKey = computed(() => jsDayToKey(selectedDateObj.value.getDay()));
 const selectedDateLabel = computed(() =>
   cap(selectedDateObj.value.toLocaleDateString(locale.value, { weekday: 'long', day: 'numeric', month: 'long' }))
-);
-const monthTitle = computed(() =>
-  cap(selectedDateObj.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }))
 );
 const shortDate = iso => parseIso(iso).toLocaleDateString(locale.value, { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -550,42 +630,100 @@ const classesByDate = computed(() => {
   return map;
 });
 
-// Hoy + 4 semanas (se extiende si hay clases más adelante, máx. 90 días)
-const stripDays = computed(() => {
-  const start = todayStart();
-  let total = 28;
-  for (const iso of classesByDate.value.keys()) {
-    const diff = Math.round((parseIso(iso) - start) / 86400000) + 1;
-    if (diff > total && diff <= 90) total = diff;
+const makeDay = d => {
+  const iso = localIso(d);
+  const list = classesByDate.value.get(iso) || [];
+  return {
+    iso,
+    num: d.getDate(),
+    dayKey: jsDayToKey(d.getDay()),
+    isToday: iso === todayIso,
+    isPast: iso < todayIso,
+    count: list.length,
+    colors: [...new Set(list.map(c => catColor(c.category)))].slice(0, 3),
+    booked: list.some(c => c.myBooking),
+    label: d.toLocaleDateString(locale.value, { weekday: 'long', day: 'numeric', month: 'long' })
+  };
+};
+
+/* ---- Semana (7 botones, sin barra de scroll) ---- */
+const weekDays = computed(() => Array.from({ length: 7 }, (_, i) => makeDay(addDays(weekStart.value, i))));
+
+const weekTitle = computed(() => {
+  const s = weekStart.value;
+  const e = addDays(s, 6);
+  if (s.getMonth() === e.getMonth()) {
+    return cap(s.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' }));
   }
-  return Array.from({ length: total }, (_, i) => {
-    const d = addDays(start, i);
-    const iso = localIso(d);
-    const list = classesByDate.value.get(iso) || [];
-    return {
-      iso,
-      num: d.getDate(),
-      dayKey: jsDayToKey(d.getDay()),
-      monthShort: d.toLocaleDateString(locale.value, { month: 'short' }).replace('.', ''),
-      isToday: iso === todayIso,
-      count: list.length,
-      booked: list.some(c => c.myBooking)
-    };
-  });
+  const short = (d, withYear) => d.toLocaleDateString(locale.value, withYear ? { month: 'short', year: 'numeric' } : { month: 'short' }).replace(/\./g, '');
+  return cap(`${short(s, false)} – ${short(e, true)}`);
 });
 
-const scrollToActive = () => {
-  nextTick(() => {
-    activeChipEl?.scrollIntoView?.({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  });
+const minWeekStart = mondayOf(todayStart());
+const lastDate = computed(() => {
+  let last = addDays(todayStart(), 90);
+  for (const iso of classesByDate.value.keys()) {
+    const d = parseIso(iso);
+    if (d > last) last = d;
+  }
+  return last;
+});
+const canPrev = computed(() => weekStart.value.getTime() > minWeekStart.getTime());
+const canNext = computed(() => addDays(weekStart.value, 7).getTime() <= lastDate.value.getTime());
+
+const selectIso = iso => {
+  selectedIso.value = iso;
+  const d = parseIso(iso);
+  weekStart.value = mondayOf(d);
+  monthCursor.value = new Date(d.getFullYear(), d.getMonth(), 1);
 };
-const selectIso = iso => { selectedIso.value = iso; scrollToActive(); };
 const goToday = () => selectIso(todayIso);
-const scrollStrip = dir => {
-  const el = stripRef.value;
-  if (!el) return;
-  el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' });
+const shiftWeek = dir => {
+  if ((dir < 0 && !canPrev.value) || (dir > 0 && !canNext.value)) return;
+  let target = addDays(selectedDateObj.value, 7 * dir);
+  if (localIso(target) < todayIso) target = todayStart();
+  selectIso(localIso(target));
 };
+
+let touchX = 0;
+let touchY = 0;
+const onTouchStart = e => { const p = e.changedTouches[0]; touchX = p.clientX; touchY = p.clientY; };
+const onTouchEnd = e => {
+  const p = e.changedTouches[0];
+  const dx = p.clientX - touchX;
+  const dy = p.clientY - touchY;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) shiftWeek(dx < 0 ? 1 : -1);
+};
+
+/* ---- Calendario completo (botón) ---- */
+const firstOfTodayMonth = new Date(todayStart().getFullYear(), todayStart().getMonth(), 1);
+const openCalendar = () => {
+  const d = selectedDateObj.value;
+  monthCursor.value = new Date(d.getFullYear(), d.getMonth(), 1);
+  calendarOpen.value = true;
+};
+const closeCalendar = () => { calendarOpen.value = false; };
+const shiftMonth = dir => {
+  if (dir < 0 && !canPrevMonth.value) return;
+  const c = monthCursor.value;
+  monthCursor.value = new Date(c.getFullYear(), c.getMonth() + dir, 1);
+};
+const calTitle = computed(() => cap(monthCursor.value.toLocaleDateString(locale.value, { month: 'long', year: 'numeric' })));
+const canPrevMonth = computed(() => monthCursor.value.getTime() > firstOfTodayMonth.getTime());
+const monthCells = computed(() => {
+  const first = monthCursor.value;
+  const y = first.getFullYear();
+  const m = first.getMonth();
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(y, m + 1, 0).getDate();
+  const total = Math.ceil((lead + days) / 7) * 7;
+  return Array.from({ length: total }, (_, i) => {
+    const d = new Date(y, m, 1 - lead + i);
+    return { ...makeDay(d), inMonth: d.getMonth() === m };
+  });
+});
+const monthClassCount = computed(() => monthCells.value.filter(c => c.inMonth).reduce((sum, c) => sum + c.count, 0));
+const pickCalendarDay = c => { selectIso(c.iso); calendarOpen.value = false; };
 
 const nextClassIso = computed(() => {
   let best = null;
@@ -610,7 +748,9 @@ const traducciones = {
     scheduleLabel: 'Horario', durationLabel: 'Duración', spotsLabel: 'Cupo', levelLabel: 'Nivel', emptyTitle: 'No hay clases con ese criterio',
     emptyDesc: 'Prueba otro día o cambia los filtros.', goNextDay: 'Ir al siguiente día con clases',
     levelBeginner: 'Principiante', levelIntermediate: 'Intermedio', levelAdvanced: 'Avanzado',
-    todayShort: 'Hoy', prevDays: 'Días anteriores', nextDays: 'Días siguientes', prevMedia: 'Anterior', nextMedia: 'Siguiente',
+    todayShort: 'Hoy', prevWeek: 'Semana anterior', nextWeek: 'Semana siguiente', prevMonth: 'Mes anterior', nextMonth: 'Mes siguiente',
+    calendarBtn: 'Calendario', calendarTitle: 'Calendario de clases', legendClasses: 'Con clases', monthClasses: 'clases este mes',
+    hideMedia: 'Ocultar fotos y video', showMedia: 'Ver fotos y video', prevMedia: 'Anterior', nextMedia: 'Siguiente',
     days: { mon: 'Lunes', tue: 'Martes', wed: 'Miércoles', thu: 'Jueves', fri: 'Viernes', sat: 'Sábado', sun: 'Domingo' },
     daysShort: { mon: 'Lun', tue: 'Mar', wed: 'Mié', thu: 'Jue', fri: 'Vie', sat: 'Sáb', sun: 'Dom' },
     cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxeo', pilates: 'Pilates', zumba: 'Zumba' }
@@ -626,7 +766,9 @@ const traducciones = {
     scheduleLabel: 'Schedule', durationLabel: 'Duration', spotsLabel: 'Capacity', levelLabel: 'Level', emptyTitle: 'No classes match your filters',
     emptyDesc: 'Try another day or change the filters.', goNextDay: 'Go to the next day with classes',
     levelBeginner: 'Beginner', levelIntermediate: 'Intermediate', levelAdvanced: 'Advanced',
-    todayShort: 'Today', prevDays: 'Previous days', nextDays: 'Next days', prevMedia: 'Previous', nextMedia: 'Next',
+    todayShort: 'Today', prevWeek: 'Previous week', nextWeek: 'Next week', prevMonth: 'Previous month', nextMonth: 'Next month',
+    calendarBtn: 'Calendar', calendarTitle: 'Class calendar', legendClasses: 'With classes', monthClasses: 'classes this month',
+    hideMedia: 'Hide photos and video', showMedia: 'Show photos and video', prevMedia: 'Previous', nextMedia: 'Next',
     days: { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' },
     daysShort: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
     cats: { yoga: 'Yoga', spinning: 'Spinning', crossfit: 'CrossFit', boxing: 'Boxing', pilates: 'Pilates', zumba: 'Zumba' }
@@ -698,10 +840,11 @@ const stepMedia = dir => {
   activeMediaIndex.value = (activeMediaIndex.value + dir + n) % n;
 };
 
-const openDetail = cls => { activeMediaIndex.value = 0; selectedClass.value = cls; };
+const mediaOpen = ref(true);
+const openDetail = cls => { activeMediaIndex.value = 0; mediaOpen.value = true; selectedClass.value = cls; };
 const closeDetail = () => { selectedClass.value = null; };
 
-watch(selectedClass, open => { document.body.style.overflow = open ? 'hidden' : ''; });
+watch([selectedClass, calendarOpen], ([cls, cal]) => { document.body.style.overflow = (cls || cal) ? 'hidden' : ''; });
 
 /* =========================================================
    API
@@ -769,8 +912,11 @@ const cancelBooking = async cls => {
    CICLO DE VIDA
 ========================================================= */
 const handleKeydown = e => {
-  if (e.key === 'Escape') selectedClass.value = null;
-  if (selectedClass.value && mediaItems.value.length > 1) {
+  if (e.key === 'Escape') {
+    if (calendarOpen.value) calendarOpen.value = false;
+    else selectedClass.value = null;
+  }
+  if (selectedClass.value && mediaOpen.value && mediaItems.value.length > 1) {
     if (e.key === 'ArrowLeft') stepMedia(-1);
     if (e.key === 'ArrowRight') stepMedia(1);
   }
@@ -1204,17 +1350,37 @@ input:focus-visible,
 .only-booked-toggle input:focus-visible + .toggle-track { outline: 2px solid var(--hl); outline-offset: 2px; }
 .toggle-label-text { color: var(--text2); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
 
-/* ---------- Fechas deslizables ---------- */
-.date-block { display: flex; flex-direction: column; gap: 10px; }
+/* ---------- Fechas (botones por semana) ---------- */
+.date-block { display: flex; flex-direction: column; gap: 12px; }
 
-.date-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.date-month { overflow: hidden; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.date-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 12px; }
+.date-month { min-width: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 600; line-height: 1.2; }
 
 .date-nav { display: flex; flex: none; align-items: center; gap: 6px; }
 
+.date-cal-btn {
+  height: 34px;
+  margin-right: 6px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--title);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.date-cal-btn svg { width: 15px; height: 15px; color: var(--hl); }
+.date-cal-btn:hover { background: var(--surface-hover); border-color: var(--hl-line); }
+
 .date-arrow {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
+  flex: none;
   display: grid;
   place-items: center;
   padding: 0;
@@ -1226,11 +1392,12 @@ input:focus-visible,
   transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 .date-arrow svg { width: 16px; height: 16px; }
-.date-arrow:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); }
+.date-arrow:hover:not(:disabled) { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); }
+.date-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .date-today {
-  height: 32px;
-  padding: 0 12px;
+  height: 34px;
+  padding: 0 14px;
   color: var(--hl);
   cursor: pointer;
   background: var(--hl-soft);
@@ -1242,35 +1409,26 @@ input:focus-visible,
 }
 .date-today:hover { background: var(--hl-mid); }
 
-.date-strip {
-  display: flex;
-  gap: 8px;
-  padding: 2px 2px 8px;
-  overflow-x: auto;
-  scroll-snap-type: x proximity;
-  scroll-behavior: smooth;
-}
+.date-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; touch-action: pan-y; }
 
 .date-chip {
   position: relative;
-  flex: 0 0 calc((100% - 32px) / 5);
-  min-width: 68px;
-  padding: 10px 4px 9px;
+  min-width: 0;
+  padding: 11px 2px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   color: var(--text2);
   cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--line2);
-  border-radius: 16px;
-  scroll-snap-align: start;
+  border-radius: 14px;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s var(--ease), box-shadow 0.2s ease;
 }
 .date-chip:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); transform: translateY(-1px); }
-.date-chip.empty:not(.active) { opacity: 0.6; }
-.date-chip.today:not(.active) { border-color: var(--hl-line); background: var(--hl-soft); }
+.date-chip.past:not(.active) { opacity: 0.45; }
+.date-chip.today:not(.active) { background: var(--hl-soft); border-color: var(--hl-line); }
 .date-chip.today:not(.active) .date-chip-num { color: var(--hl); }
 
 .date-chip.active {
@@ -1282,24 +1440,15 @@ input:focus-visible,
 }
 
 .date-chip-day { font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.8; }
-.date-chip-num { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; line-height: 1.1; }
-.date-chip-month { margin-bottom: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.6; }
-.date-chip-count {
-  min-width: 22px;
-  padding: 1px 7px;
-  font-size: 10px;
-  font-weight: 800;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-}
-.date-chip-count.none { opacity: 0.35; }
-.date-chip.active .date-chip-count { background: rgba(255, 255, 255, 0.25); }
+.date-chip-num { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; line-height: 1.05; }
+.date-chip-dots { height: 6px; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.date-chip-dots i { width: 6px; height: 6px; display: block; border-radius: 50%; }
+.date-chip.active .date-chip-dots i { background: rgba(255, 255, 255, 0.92) !important; }
 
 .date-chip-today-dot {
   position: absolute;
-  top: 8px;
-  right: 9px;
+  top: 7px;
+  right: 8px;
   width: 6px;
   height: 6px;
   background: var(--green);
@@ -1308,8 +1457,8 @@ input:focus-visible,
 }
 .date-chip-booked {
   position: absolute;
-  top: 6px;
-  right: 7px;
+  top: 5px;
+  right: 6px;
   width: 15px;
   height: 15px;
   padding: 3px;
@@ -1616,13 +1765,13 @@ input:focus-visible,
 .empty-actions .btn-primary { text-transform: capitalize; }
 
 /* =========================================================
-   MODAL (una columna, foto/video arriba)
+   MODAL DE DETALLE
 ========================================================= */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 5000;
-  padding: 18px;
+  padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1634,24 +1783,62 @@ input:focus-visible,
   --cat-color: var(--hl);
   position: relative;
   width: 100%;
-  max-width: 540px;
-  max-height: 92vh;
-  max-height: 92dvh;
-  overflow-y: auto;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
+  max-width: 1080px;
+  max-height: min(92vh, 820px);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  background: var(--card);
   border: 1px solid var(--line2);
   border-radius: 26px;
   box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
 }
+.modal-content.no-media { max-width: 520px; grid-template-columns: minmax(0, 1fr); }
 
-/* Visor principal: alto fijo, el contenido se ve completo sobre fondo difuminado */
-.modal-hero-media {
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 8;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s ease;
+}
+.modal-close svg { width: 16px; height: 16px; stroke-width: 2.4; }
+.modal-close:hover { background: rgba(0, 0, 0, 0.85); }
+
+/* Media completa */
+.modal-media {
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.28);
+  border-right: 1px solid var(--line);
+}
+
+.viewer {
   position: relative;
-  height: 300px;
+  width: 100%;
+  min-height: 200px;
   overflow: hidden;
   display: grid;
   place-items: center;
   background: #06070a;
+  border: 1px solid var(--line2);
+  border-radius: 18px;
 }
 
 .viewer-bg {
@@ -1659,7 +1846,7 @@ input:focus-visible,
   inset: -24px;
   background-position: center;
   background-size: cover;
-  filter: blur(28px) brightness(0.5) saturate(1.2);
+  filter: blur(28px) brightness(0.45) saturate(1.2);
   transform: scale(1.1);
 }
 
@@ -1668,80 +1855,37 @@ input:focus-visible,
   position: relative;
   z-index: 1;
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: min(64vh, 620px);
   display: block;
   object-fit: contain;
 }
 .viewer-video { background: transparent; }
 
-.modal-hero-overlay {
-  position: absolute;
-  inset: auto 0 0 0;
-  z-index: 2;
-  height: 70px;
-  background: linear-gradient(180deg, transparent, rgba(10, 10, 10, 0.55));
-  pointer-events: none;
-}
+.media-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.media-step { display: flex; align-items: center; gap: 8px; }
+.media-count { min-width: 46px; color: var(--text2); font-size: 12px; font-weight: 700; text-align: center; }
 
-.close-btn {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 5;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  color: #fff;
-  font-size: 22px;
-  line-height: 1;
+.media-toggle {
+  height: 34px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text2);
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--surface);
   border: 1px solid var(--line2);
-  border-radius: 50%;
-  backdrop-filter: blur(6px);
-  transition: background 0.2s ease;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
-.close-btn:hover { background: rgba(0, 0, 0, 0.85); }
+.media-toggle svg { width: 15px; height: 15px; }
+.media-toggle:hover { color: #fff; background: var(--surface-hover); border-color: var(--hl-line); }
 
-.viewer-arrow {
-  position: absolute;
-  top: 50%;
-  z-index: 4;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  color: #fff;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid var(--line2);
-  border-radius: 50%;
-  backdrop-filter: blur(6px);
-  transform: translateY(-50%);
-  transition: background 0.2s ease;
-}
-.viewer-arrow:hover { background: rgba(0, 0, 0, 0.82); }
-.viewer-arrow svg { width: 18px; height: 18px; }
-.viewer-arrow.left { left: 12px; }
-.viewer-arrow.right { right: 12px; }
-
-.viewer-count {
-  position: absolute;
-  left: 12px;
-  top: 14px;
-  z-index: 4;
-  padding: 4px 10px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.62);
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.thumbs { display: flex; gap: 8px; padding: 12px 22px 0; overflow-x: auto; }
+.thumbs { display: flex; gap: 8px; padding: 2px 0 4px; overflow-x: auto; }
 
 .thumb {
   position: relative;
@@ -1763,8 +1907,23 @@ input:focus-visible,
 .thumb-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.45); }
 .thumb-play svg { width: 18px; height: 18px; }
 
-.modal-body { padding: 20px 22px 8px; display: flex; flex-direction: column; gap: 16px; }
-.modal-title { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 600; line-height: 1.15; }
+/* Información */
+.modal-info { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+.modal-info-scroll {
+  min-height: 0;
+  flex: 1;
+  padding: 30px 26px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+.modal-content.no-media .modal-info-scroll { padding-top: 66px; }
+.modal-info-scroll .class-tags { padding-right: 46px; }
+.media-show { width: 100%; }
+
+.modal-title { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 600; line-height: 1.15; }
 .modal-desc { margin: 0; color: var(--text2); font-size: 13.5px; line-height: 1.7; }
 
 .modal-instructor-row { display: flex; align-items: center; gap: 12px; }
@@ -1773,28 +1932,120 @@ input:focus-visible,
 .modal-instructor-row small { color: var(--text3); font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
 
 .modal-info-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.modal-info-item { padding: 11px 14px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
+.modal-info-item { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }
 .info-label { color: var(--text3); font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; }
 .info-value { color: var(--title); font-size: 13.5px; font-weight: 600; text-transform: capitalize; }
 .info-sub { color: var(--text2); font-size: 12px; font-weight: 600; }
 
-.modal-cta {
-  position: sticky;
-  bottom: 0;
-  z-index: 6;
-  padding: 14px 22px calc(18px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, color-mix(in srgb, var(--card) 70%, transparent), var(--card) 35%);
-  backdrop-filter: blur(10px);
+.modal-cta { padding: 14px 26px 22px; border-top: 1px solid var(--line); background: var(--card); }
+
+/* =========================================================
+   MODAL DE CALENDARIO
+========================================================= */
+.cal-modal {
+  width: 100%;
+  max-width: 460px;
+  max-height: 92vh;
+  max-height: 92dvh;
+  padding: 22px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 38%), var(--card);
+  border: 1px solid var(--line2);
+  border-radius: 26px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
 }
+
+.cal-head { margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cal-title { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cal-title h3 { margin: 0; color: var(--title); font-family: 'Oswald', sans-serif; font-size: 23px; font-weight: 600; line-height: 1.15; }
+.cal-nav { display: flex; flex: none; align-items: center; gap: 6px; }
+
+.cal-weekdays,
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-weekdays { margin-bottom: 6px; }
+.cal-weekdays span { padding: 4px 0; color: var(--text3); font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-align: center; text-transform: uppercase; }
+
+.cal-cell {
+  position: relative;
+  height: 54px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--text2);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.cal-cell:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--line2); }
+.cal-cell:disabled { cursor: not-allowed; }
+.cal-num { font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 500; line-height: 1; }
+.cal-cell.has .cal-num { color: var(--title); font-weight: 600; }
+.cal-cell.out { opacity: 0.3; }
+.cal-cell.out.has { opacity: 0.55; }
+.cal-cell.past:not(.selected) { opacity: 0.35; }
+.cal-cell.has:not(.past):not(.selected) { background: var(--surface); border-color: var(--line2); }
+.cal-cell.today { border-color: var(--hl-line); background: var(--hl-soft); }
+.cal-cell.today .cal-num { color: var(--hl); }
+.cal-cell.selected {
+  color: var(--color-texto-botones, #fff);
+  background: var(--color-botones, var(--hl));
+  border-color: var(--color-botones, var(--hl));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--hl) 30%, transparent);
+  opacity: 1;
+}
+.cal-cell.selected .cal-num { color: inherit; }
+.cal-cell.selected .cal-dots i { background: rgba(255, 255, 255, 0.92) !important; }
+
+.cal-dots { height: 5px; display: flex; justify-content: center; gap: 3px; }
+.cal-dots i { width: 5px; height: 5px; display: block; border-radius: 50%; }
+
+.cal-booked {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+  padding: 2px;
+  color: #04210f;
+  background: var(--green);
+  border-radius: 50%;
+  stroke-width: 4;
+}
+
+.cal-foot {
+  margin-top: 16px;
+  padding-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  border-top: 1px solid var(--line);
+}
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.cal-legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--text3); font-size: 11px; font-weight: 600; }
+.lg-dot { width: 6px; height: 6px; display: block; background: var(--hl); border-radius: 50%; }
+.lg-ring { width: 12px; height: 12px; display: block; background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 4px; }
+.lg-check { width: 13px; height: 13px; padding: 2px; color: #04210f; background: var(--green); border-radius: 50%; stroke-width: 4; }
+.cal-summary { padding: 5px 11px; color: var(--hl); background: var(--hl-soft); border: 1px solid var(--hl-line); border-radius: 999px; font-size: 11px; font-weight: 800; }
 
 .pop-enter-active,
 .pop-leave-active { transition: opacity 0.25s ease; }
 .pop-enter-active .modal-content,
-.pop-leave-active .modal-content { transition: transform 0.25s var(--ease); }
+.pop-leave-active .modal-content,
+.pop-enter-active .cal-modal,
+.pop-leave-active .cal-modal { transition: transform 0.28s var(--ease); }
 .pop-enter-from,
 .pop-leave-to { opacity: 0; }
 .pop-enter-from .modal-content,
-.pop-leave-to .modal-content { transform: translateY(14px) scale(0.97); }
+.pop-leave-to .modal-content,
+.pop-enter-from .cal-modal,
+.pop-leave-to .cal-modal { transform: translateY(16px) scale(0.97); }
 
 /* =========================================================
    RESPONSIVE
@@ -1814,6 +2065,39 @@ input:focus-visible,
   .class-side .occ { flex: 1; }
   .class-side .btn-primary,
   .class-side .btn-danger { flex: none; min-width: 130px; }
+}
+
+@media (max-width: 860px) {
+  /* Detalle: hoja de una columna, foto/video completos arriba */
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal-content,
+  .modal-content.no-media {
+    max-width: none;
+    max-height: 94vh;
+    max-height: 94dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+  }
+  .modal-media { flex: none; padding: 12px; overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
+  .viewer { border-radius: 16px; }
+  .viewer-img,
+  .viewer-video { max-height: 52vh; max-height: 52dvh; }
+  .modal-info { flex: none; overflow: visible; }
+  .modal-info-scroll { flex: none; overflow: visible; padding: 18px 16px 12px; }
+  .modal-content.no-media .modal-info-scroll { padding-top: 62px; }
+  .modal-title { font-size: 23px; }
+  .modal-cta {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 80%, transparent), var(--card) 30%);
+    backdrop-filter: blur(10px);
+  }
+  .modal-close { top: 12px; right: 12px; }
 }
 
 @media (max-width: 760px) {
@@ -1842,11 +2126,17 @@ input:focus-visible,
   .toolbar { padding: 12px; gap: 12px; border-radius: 18px; }
   .toolbar-row { flex-direction: column; align-items: stretch; gap: 12px; }
 
-  /* ~4.5 chips visibles para que se note que se desliza */
-  .date-strip { scrollbar-width: none; margin: 0 -12px; padding: 2px 12px 6px; }
-  .date-strip::-webkit-scrollbar { display: none; }
-  .date-chip { flex: 0 0 64px; min-width: 64px; }
-  .date-arrow { display: none; }
+  .date-head { flex-wrap: nowrap; }
+  .date-month { font-size: 17px; }
+  .date-cal-btn { width: 34px; padding: 0; justify-content: center; margin-right: 2px; }
+  .date-cal-btn span { display: none; }
+  .date-grid { gap: 5px; }
+  .date-chip { padding: 9px 0 8px; border-radius: 12px; gap: 3px; }
+  .date-chip-day { font-size: 9px; letter-spacing: 0.2px; }
+  .date-chip-num { font-size: 19px; }
+  .date-chip-dots i { width: 5px; height: 5px; }
+  .date-chip-today-dot { top: 5px; right: 5px; width: 5px; height: 5px; }
+  .date-chip-booked { top: 3px; right: 3px; width: 13px; height: 13px; padding: 2px; }
 
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px; padding: 0 12px 2px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
@@ -1869,14 +2159,19 @@ input:focus-visible,
   .panel-box { padding: 18px 16px; border-radius: 18px; }
   .right-column { gap: 16px; }
 
-  .modal-backdrop { padding: 0; align-items: flex-end; }
-  .modal-content { max-width: none; max-height: 94vh; max-height: 94dvh; border-radius: 24px 24px 0 0; border-bottom: 0; }
-  .modal-hero-media { height: 250px; }
-  .thumbs { padding: 10px 16px 0; }
   .thumb { width: 64px; height: 50px; }
-  .modal-body { padding: 16px 16px 8px; }
-  .modal-title { font-size: 22px; }
-  .modal-cta { padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .modal-info-grid { gap: 8px; }
+
+  /* Calendario como hoja inferior */
+  .cal-backdrop { padding: 0; align-items: flex-end; }
+  .cal-modal {
+    max-width: none;
+    padding: 18px 14px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+  }
+  .cal-cell { height: 50px; }
+  .cal-num { font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
