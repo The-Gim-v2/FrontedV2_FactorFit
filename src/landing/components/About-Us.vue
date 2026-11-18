@@ -21,11 +21,13 @@ const hero = ref<HTMLElement | null>(null);
 let raf = 0;
 let tx = 50;
 let ty = 40;
+let bounds: DOMRect | null = null;
+const refreshBounds = () => { bounds = hero.value?.getBoundingClientRect() ?? null; };
 
 function onMove(e: PointerEvent) {
   const el = hero.value;
   if (!el) return;
-  const r = el.getBoundingClientRect();
+  const r = bounds ?? el.getBoundingClientRect();
   tx = ((e.clientX - r.left) / r.width) * 100;
   ty = ((e.clientY - r.top) / r.height) * 100;
   if (!raf) {
@@ -40,10 +42,16 @@ function onMove(e: PointerEvent) {
 onMounted(() => {
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (fine && !calm) hero.value?.addEventListener('pointermove', onMove);
+  if (fine && !calm) {
+    hero.value?.addEventListener('pointerenter', refreshBounds);
+    hero.value?.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('resize', refreshBounds, { passive: true });
+  }
 });
 onBeforeUnmount(() => {
+  hero.value?.removeEventListener('pointerenter', refreshBounds);
   hero.value?.removeEventListener('pointermove', onMove);
+  window.removeEventListener('resize', refreshBounds);
   if (raf) cancelAnimationFrame(raf);
 });
 </script>

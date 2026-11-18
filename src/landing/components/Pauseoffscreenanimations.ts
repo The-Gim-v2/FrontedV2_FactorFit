@@ -1,52 +1,51 @@
 /**
- * Marca con data-offscreen las <section> y <footer> que no están en pantalla
- * (con 150px de margen). El CSS de mobile-performance.css pausa las
- * animaciones de esas secciones, así el celular solo anima lo que se ve.
- *
- * Uso (en main.ts, después de app.mount):
- *   pauseOffscreenAnimations()
+ * Pausa animaciones CSS de las secciones que están fuera de la pantalla.
+ * No desactiva ni elimina animaciones: vuelven a continuar al acercarse.
+ * Compatible con Vue Router y nuevos componentes montados después.
  */
 export function pauseOffscreenAnimations(selector = 'section, footer'): () => void {
-  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
-    return () => {};
-  }
+  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return () => {};
 
-  const io = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        entry.target.toggleAttribute('data-offscreen', !entry.isIntersecting);
-      }
-    },
-    { rootMargin: '150px 0px' }
-  );
+  const observed = new WeakSet<Element>();
+  const io = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      entry.target.toggleAttribute('data-offscreen', !entry.isIntersecting);
+    }
+  }, { rootMargin: '200px 0px', threshold: 0 });
 
-  const seen = new WeakSet<Element>();
-
-  const scan = () => {
-    document.querySelectorAll(selector).forEach((el) => {
-      if (seen.has(el)) return;
-      seen.add(el);
-      io.observe(el);
-    });
+  const observe = (node: Element) => {
+    if (!observed.has(node)) {
+      observed.add(node);
+      io.observe(node);
+    }
   };
+  const scan = (node: Element) => {
+    if (node.matches(selector)) observe(node);
+    node.querySelectorAll(selector).forEach(observe);
+  };
+  scan(document.body);
 
-  /* Las secciones aparecen al cambiar de ruta: se revisan de nuevo,
-     agrupando los cambios en un solo cuadro */
-  let queued = false;
-  const mo = new MutationObserver(() => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      scan();
+  let raf = 0;
+  const pending = new Set<Element>();
+  const mo = new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE) pending.add(node as Element);
+      }
+    }
+    if (!pending.size || raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      for (const el of pending) if (el.isConnected) scan(el);
+      pending.clear();
     });
   });
-
-  scan();
   mo.observe(document.body, { childList: true, subtree: true });
-
   return () => {
     io.disconnect();
     mo.disconnect();
+    cancelAnimationFrame(raf);
+    pending.clear();
+    document.querySelectorAll('[data-offscreen]').forEach(el => el.removeAttribute('data-offscreen'));
   };
 }

@@ -159,7 +159,7 @@ function loop(now: number) {
   raf = requestAnimationFrame(loop);
 }
 function start() {
-  if (reduced.value || running) return;
+  if (reduced.value || running || document.hidden) return;
   running = true;
   last = performance.now();
   raf = requestAnimationFrame(loop);
@@ -168,12 +168,17 @@ function stop() {
   running = false;
   cancelAnimationFrame(raf);
 }
+const onDocumentVisibility = () => {
+  if (document.hidden) stop();
+  else if (visible.value) start();
+};
 const onHold = (e: PointerEvent, v: boolean) => {
   if (e.pointerType === 'mouse') holding.value = v;
 };
 
 onMounted(() => {
   loadFeed();
+  document.addEventListener('visibilitychange', onDocumentVisibility);
   reduced.value = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduced.value || !('IntersectionObserver' in window)) {
     revealed.value = true;
@@ -194,6 +199,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   io?.disconnect();
+  document.removeEventListener('visibilitychange', onDocumentVisibility);
   stop();
 });
 </script>

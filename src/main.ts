@@ -1,5 +1,8 @@
+
 import './assets/main.css'
 import './assets/mobile-performance.css'
+import './assets/landing-performance.css'
+
 import { pauseOffscreenAnimations } from './landing/components/Pauseoffscreenanimations'
 
 import { createApp } from 'vue'
@@ -14,4 +17,6 @@ app.use(createPinia())
 app.use(router)
 
 app.mount('#app')
+
+// Pausa animaciones de secciones fuera de pantalla
 pauseOffscreenAnimations()

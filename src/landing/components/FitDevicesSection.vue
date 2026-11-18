@@ -142,9 +142,10 @@ function render(p: number) {
     put(el, 'visibility', 'visible');
     put(el, 'opacity', op.toFixed(2));
     put(el, 'pointerEvents', op > 0.7 ? 'auto' : 'none');
-    el.style.transform =
+    const transform =
       `translate3d(${(W / 2 + XS[i]! * W).toFixed(1)}px, ${(H / 2 + YS[i]! * H).toFixed(1)}px, ${rel.toFixed(1)}px) ` +
       `translate(-50%, -50%) rotateY(${TURN[i]}deg) rotateZ(${ROT[i]}deg)`;
+    put(el, 'transform', transform);
   }
   // Rejilla: solo se desplaza con transform (antes usaba background-position, que repinta)
   put(gridInEl.value, 'transform', `translate3d(0, ${((cam * 0.16) % GRID_CELL).toFixed(1)}px, 0)`);

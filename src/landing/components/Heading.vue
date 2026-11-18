@@ -182,7 +182,10 @@ onUnmounted(() => {
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 .nav-wrapper.scrolled {
-  background: rgba(13, 9, 34, 0.94);
+  /* Al desplazarse el header ya es opaco: no necesita recalcular blur detrás */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(13, 9, 34, 0.96);
   box-shadow: 0 10px 30px rgba(5, 2, 20, 0.5);
 }
 

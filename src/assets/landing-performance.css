@@ -1,0 +1,39 @@
+/* Importar una sola vez en main.ts. No elimina ninguna animación. */
+
+/* Evita repintados por animaciones invisibles que compiten por GPU/CPU. */
+section[data-offscreen] *,
+section[data-offscreen] *::before,
+section[data-offscreen] *::after,
+footer[data-offscreen] *,
+footer[data-offscreen] *::before,
+footer[data-offscreen] *::after {
+  animation-play-state: paused !important;
+}
+
+/* No reservar capas GPU indefinidamente para elementos fuera de pantalla. */
+section[data-offscreen] .watermark,
+section[data-offscreen] .beam,
+section[data-offscreen] .card,
+footer[data-offscreen] .blob {
+  will-change: auto !important;
+}
+
+/* Ajustes específicos para celulares: efectos presentes, menor área de blur. */
+@media (max-width: 768px) {
+  .nav-wrapper:not(.menu-open) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  .nav-wrapper.scrolled:not(.menu-open) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .events .blob,
+  .ff .blob {
+    filter: blur(45px);
+  }
+  .pricing-card {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+}
