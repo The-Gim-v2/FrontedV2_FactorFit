@@ -77,7 +77,6 @@ onUnmounted(() => observer?.disconnect());
       <div class="grid">
         <!-- Texto -->
         <div class="col-text">
-          <span class="eyebrow"><i class="e-dot"></i> Conócenos · Factor FIT</span>
           <h2 class="title" aria-label="Sobre nosotros">
             <span
               v-for="w in titleWords"
@@ -293,17 +292,6 @@ onUnmounted(() => observer?.disconnect());
   transition: opacity 0.8s var(--ease), transform 0.9s var(--ease);
 }
 .revealed .col-text { opacity: 1; transform: none; }
-
-.eyebrow {
-  display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 7px 16px; border-radius: 999px;
-  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: #f3d3ff;
-  background: rgba(24, 10, 52, 0.8); border: 1px solid rgba(220, 150, 255, 0.4);
-  opacity: 0; transform: translate3d(0, 10px, 0);
-  transition: opacity 0.6s 0.05s var(--ease), transform 0.8s 0.05s var(--ease);
-}
-.revealed .eyebrow { opacity: 1; transform: none; }
-.e-dot { width: 8px; height: 8px; border-radius: 50%; background: #7ef0b8; box-shadow: 0 0 10px #7ef0b8; animation: ping 2s ease-out infinite; }
-@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(126, 240, 184, 0.8); } 70%, 100% { box-shadow: 0 0 0 9px rgba(126, 240, 184, 0); } }
 
 .title {
   margin: 0 0 clamp(22px, 3vw, 32px);
@@ -681,7 +669,7 @@ onUnmounted(() => observer?.disconnect());
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .col-text, .col-visual, .pillars li, .ch, .dots, .chip { opacity: 1 !important; transform: none !important; translate: none !important; }
   .squiggle path { stroke-dashoffset: 0 !important; }
-  .eyebrow, .quote, .text-card p, .divider, .card-border { opacity: 1 !important; transform: none !important; filter: none !important; }
+  .quote, .text-card p, .divider, .card-border { opacity: 1 !important; transform: none !important; filter: none !important; }
   .text-card mark { background-size: 100% 100% !important; }
   .ripple, .spark, .aurora, .beam, .float, .halo { display: none; }
 }

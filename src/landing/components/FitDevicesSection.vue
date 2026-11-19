@@ -80,7 +80,6 @@ const world = ref<HTMLElement | null>(null);
 const spotEl = ref<HTMLElement | null>(null);
 const introEl = ref<HTMLElement | null>(null);
 const outroEl = ref<HTMLElement | null>(null);
-const wmEl = ref<HTMLElement | null>(null);
 const gridInEl = ref<HTMLElement | null>(null);
 const floorEl = ref<HTMLElement | null>(null);
 const barEl = ref<HTMLElement | null>(null);
@@ -149,7 +148,6 @@ function render(p: number) {
   }
   // Rejilla: solo se desplaza con transform (antes usaba background-position, que repinta)
   put(gridInEl.value, 'transform', `translate3d(0, ${((cam * 0.16) % GRID_CELL).toFixed(1)}px, 0)`);
-  put(wmEl.value, 'transform', `translate3d(${(10 - p * 55).toFixed(2)}%, -50%, 0)`);
 
   // 3) Capítulos: palabras gigantes que se relevan
   let ac = 0;
@@ -301,7 +299,9 @@ onUnmounted(() => {
       <div ref="spotEl" class="bg-spot" aria-hidden="true"></div>
       <div ref="floorEl" class="floor" aria-hidden="true"></div>
       <div class="grid" aria-hidden="true"><div ref="gridInEl" class="grid-in"></div></div>
-      <div ref="wmEl" class="watermark" aria-hidden="true">FACTOR FIT</div>
+      <div class="aurora aurora-a" aria-hidden="true"></div>
+      <div class="aurora aurora-b" aria-hidden="true"></div>
+      <div class="aurora aurora-c" aria-hidden="true"></div>
       <div class="beam beam-a" aria-hidden="true"></div>
       <div class="beam beam-b" aria-hidden="true"></div>
       <svg class="float f1" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-7.5-10.2A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 7.5 3.1c0 5.8-7.5 10.2-7.5 10.2Z"/></svg>
@@ -464,14 +464,22 @@ onUnmounted(() => {
   will-change: transform;
 }
 
-.watermark {
-  position: absolute; z-index: 1; pointer-events: none; white-space: nowrap;
-  left: 0; top: 50%;
-  font: 400 clamp(8rem, 30vw, 24rem) 'Anton', 'Inter', sans-serif;
-  letter-spacing: 0.02em; line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 2px rgba(243, 211, 255, 0.08);
+/* Manchas de color que se mueven despacio (reemplazan el texto de fondo) */
+.aurora {
+  position: absolute; z-index: 0; pointer-events: none; border-radius: 50%;
+  width: clamp(300px, 46vw, 640px); aspect-ratio: 1;
+  background: radial-gradient(circle, var(--ac) 0%, transparent 68%);
+  filter: blur(36px); opacity: 0.32;
+  animation: aurora-drift 24s ease-in-out infinite alternate;
   will-change: transform;
+}
+.aurora-a { --ac: #b25cff; left: -12%; top: 2%; }
+.aurora-b { --ac: #ff6ad5; right: -14%; top: 30%; opacity: 0.24; animation-duration: 30s; animation-delay: -10s; }
+.aurora-c { --ac: #5b8cff; left: 26%; bottom: -24%; opacity: 0.2; animation-duration: 36s; animation-delay: -18s; }
+@keyframes aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(8vw, -6vh, 0) scale(1.15); }
+  100% { transform: translate3d(-6vw, 7vh, 0) scale(0.92); }
 }
 
 /* Haces de luz */
@@ -500,7 +508,7 @@ onUnmounted(() => {
   12%  { opacity: 0.7; }
   100% { transform: translate3d(28px, -62vh, 0) scale(1.2); opacity: 0; }
 }
-.paused .beam, .paused .float, .paused .badge::after, .paused .btn::before { animation-play-state: paused; }
+.paused .beam, .paused .float, .paused .aurora, .paused .badge::after, .paused .btn::before { animation-play-state: paused; }
 
 /* ---------- Túnel ---------- */
 .scene {
@@ -525,8 +533,9 @@ onUnmounted(() => {
   color: #fff; text-decoration: none;
   opacity: 0; visibility: hidden;
   box-shadow:
-    0 18px 40px rgba(6, 2, 20, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.16);
+    0 22px 48px rgba(6, 2, 20, 0.62),
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 40px rgba(178, 92, 255, 0.22);
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -552,9 +561,12 @@ onUnmounted(() => {
 }
 .fb-dot svg { width: 15px; height: 15px; }
 .cap {
-  position: absolute; left: 14px; right: 14px; bottom: 12px; z-index: 2;
-  font: 700 clamp(0.78rem, 1.2vw, 0.95rem) 'Inter', sans-serif;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  position: absolute; left: 12px; bottom: 12px; z-index: 2;
+  display: inline-block; width: max-content; max-width: calc(100% - 24px);
+  padding: 5px 11px; border-radius: 999px;
+  font: 700 clamp(0.74rem, 1.1vw, 0.9rem) 'Inter', sans-serif;
+  color: #fff; background: rgba(12, 5, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 @media (hover: hover) and (pointer: fine) {
   .card:hover .shine { transform: translateX(120%); }
@@ -634,7 +646,15 @@ onUnmounted(() => {
     transform 0.9s var(--ease-out) calc(var(--w) * 0.09s + 0.1s);
 }
 .revealed .word { opacity: 1; filter: none; transform: none; }
-.word.hot { color: #a9ceff; }
+.word.hot {
+  background: linear-gradient(90deg, #a9ceff, #ff9be0, #d7b6ff, #a9ceff);
+  background-size: 250% auto;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  filter: drop-shadow(0 0 18px rgba(169, 206, 255, 0.35));
+}
+.revealed .word.hot { animation: shimmer 5s linear 1.4s infinite; }
+@keyframes shimmer { to { background-position: -250% center; } }
 
 .subtitle {
   margin: 0; max-width: 40ch;
@@ -681,7 +701,13 @@ onUnmounted(() => {
   text-wrap: balance;
   text-shadow: 0 3px 0 rgba(40, 10, 84, 0.7), 0 8px 24px rgba(20, 8, 44, 0.55);
 }
-.out-title span { color: #a9ceff; }
+.out-title span {
+  background: linear-gradient(90deg, #a9ceff, #ff9be0, #d7b6ff, #a9ceff);
+  background-size: 250% auto;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+.revealed .out-title span { animation: shimmer 5s linear infinite; }
 .out-sub {
   margin: 0 0 clamp(16px, 3vh, 28px); max-width: 42ch;
   font-size: clamp(0.88rem, 1.6vw, 1.05rem); line-height: 1.55; color: rgba(255, 255, 255, 0.86);
@@ -761,7 +787,8 @@ onUnmounted(() => {
 .reduced .intro, .reduced .outro { position: static; opacity: 1; visibility: visible; transform: none; filter: none; }
 .reduced .outro { order: 3; }
 .reduced .intro { order: 1; }
-.reduced .chapters, .reduced .rail, .reduced .vignette, .reduced .beam, .reduced .float, .reduced .watermark { display: none; }
+.reduced .chapters, .reduced .rail, .reduced .vignette, .reduced .beam, .reduced .float, .reduced .aurora { display: none; }
 .reduced .eyebrow, .reduced .word, .reduced .subtitle { opacity: 1; filter: none; transform: none; transition: none; }
 .reduced *, .reduced *::before, .reduced *::after { animation: none !important; }
+.ch-word { filter: drop-shadow(0 0 26px rgba(200, 110, 255, 0.4)); }
 </style>
