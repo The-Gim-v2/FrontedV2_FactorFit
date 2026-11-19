@@ -675,7 +675,7 @@ onUnmounted(() => {
 .ch-kicker b { color: var(--pink); margin-right: 6px; }
 .ch-word {
   position: relative; display: block;
-  font: 400 clamp(3rem, min(14vw, 24svh), 10rem) 'Anton', 'Inter', sans-serif;
+  font: 400 clamp(4.5rem, min(17vw, 30svh), 14rem) 'Anton', 'Inter', sans-serif;
   line-height: 0.98; text-transform: uppercase; letter-spacing: 0.01em;
   background: linear-gradient(180deg, #fff 10%, #e6bdff 55%, #b25cff 100%);
   -webkit-background-clip: text; background-clip: text;
@@ -769,6 +769,9 @@ onUnmounted(() => {
   .actions { width: 100%; }
   .beam { display: none; }
   .ch-word::before { -webkit-text-stroke-width: 1.5px; }
+  .ch-word { font-size: clamp(4.6rem, 21vw, 6.2rem); line-height: 0.95; }
+  .ch-kicker { font-size: 0.7rem; }
+  .ch-line { font-size: 1rem; }
   .title { font-size: clamp(1.9rem, min(9vw, 9.5svh), 3rem); }
   .out-title { font-size: clamp(1.8rem, min(8vw, 8.5svh), 2.8rem); }
 }
