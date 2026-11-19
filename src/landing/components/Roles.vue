@@ -438,7 +438,9 @@ onUnmounted(() => {
     <div class="spot" aria-hidden="true"></div>
     <div class="floor" aria-hidden="true"></div>
     <div class="grid-bg" aria-hidden="true"><div class="grid-in"></div></div>
-    <div class="watermark" aria-hidden="true">FACTOR FIT</div>
+    <div class="aurora aurora-a" aria-hidden="true"></div>
+    <div class="aurora aurora-b" aria-hidden="true"></div>
+    <div class="aurora aurora-c" aria-hidden="true"></div>
     <div class="beam beam-a" aria-hidden="true"></div>
     <div class="beam beam-b" aria-hidden="true"></div>
     <div class="floaters" aria-hidden="true">
@@ -554,13 +556,7 @@ onUnmounted(() => {
               @load="onMapLoad"
             ></iframe>
             <p v-else class="map-empty">Esta sede todavía no tiene dirección ni coordenadas registradas.</p>
-            <!-- Sombreado de los bordes para que el mapa se funda con el tema oscuro -->
-            <span class="map-vignette" aria-hidden="true"></span>
           </div>
-          <a v-if="sede.openUrl" class="map-open" :href="sede.openUrl" target="_blank" rel="noopener">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
-            Abrir en Google Maps
-          </a>
         </article>
       </div>
 
@@ -736,18 +732,23 @@ onUnmounted(() => {
 }
 @keyframes grid-run { to { transform: translate3d(0, 70px, 0); } }
 
-.watermark {
-  position: absolute; z-index: -4; pointer-events: none; white-space: nowrap;
-  left: 0; top: 36%;
-  font: 400 clamp(8rem, 30vw, 24rem) 'Anton', 'Inter', sans-serif;
-  letter-spacing: 0.02em; line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 2px rgba(243, 211, 255, 0.065);
-  transform: translate3d(-6%, -50%, 0);
-  animation: wm-slide 80s linear infinite alternate;
+/* Auroras: tres manchas de color que se mueven despacio (sustituyen al texto de fondo) */
+.aurora {
+  position: absolute; z-index: -4; pointer-events: none; border-radius: 50%;
+  width: clamp(280px, 46vw, 620px); aspect-ratio: 1;
+  background: radial-gradient(circle at 50% 50%, var(--ac, var(--accent)) 0%, transparent 68%);
+  opacity: 0.32; filter: blur(30px);
+  animation: aurora-drift 22s ease-in-out infinite alternate;
   will-change: transform;
 }
-@keyframes wm-slide { from { transform: translate3d(-6%, -50%, 0); } to { transform: translate3d(-48%, -50%, 0); } }
+.aurora-a { --ac: var(--accent); left: -10%; top: 6%; }
+.aurora-b { --ac: #ff6ad5; right: -12%; top: 30%; animation-duration: 28s; animation-delay: -9s; opacity: 0.24; }
+.aurora-c { --ac: #5b8cff; left: 28%; bottom: -18%; animation-duration: 34s; animation-delay: -16s; opacity: 0.2; }
+@keyframes aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(8vw, -6vh, 0) scale(1.15); }
+  100% { transform: translate3d(-6vw, 7vh, 0) scale(0.92); }
+}
 
 .beam {
   position: absolute; z-index: -4; pointer-events: none; top: -20%; width: 34%; height: 140%;
@@ -778,7 +779,7 @@ onUnmounted(() => {
 }
 
 /* Fuera de pantalla: se pausa todo lo infinito */
-.paused .grid-in, .paused .watermark, .paused .beam, .paused .pt, .paused .dot,
+.paused .grid-in, .paused .aurora, .paused .beam, .paused .pt, .paused .dot,
 .paused .btn-main::after, .paused .pulse, .paused .spinner, .paused .map-skel::after, .paused .skel-pin { animation-play-state: paused; }
 
 .container { max-width: 1240px; margin: 0 auto; position: relative; }
@@ -977,28 +978,8 @@ onUnmounted(() => {
 /* Mapa */
 .map { padding: 8px; min-height: 0; transition-delay: 1s; box-shadow: 0 24px 50px rgba(5, 2, 20, 0.5), 0 0 60px color-mix(in srgb, var(--accent) 20%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.18); }
 .map-frame { position: absolute; inset: 8px; overflow: hidden; border-radius: clamp(14px, 2vw, 22px); background: #1a1030; }
-/* El iframe es MÁS GRANDE que el marco y está centrado: la tarjeta con texto que Google pone arriba a la
-   izquierda ("Sede…", dirección, "Abrir en Maps") queda fuera del recuadro visible, y el pin sigue al centro.
-   Así todas las sedes se ven igual, con el mismo encuadre. */
-.map-frame iframe {
-  --ox: 340px; --oy: 240px;
-  position: absolute; left: calc(var(--ox) * -1); top: calc(var(--oy) * -1);
-  width: calc(100% + var(--ox) * 2); height: calc(100% + var(--oy) * 2);
-  border: 0; opacity: 0; transition: opacity 0.6s var(--ease-out);
-}
+.map-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; opacity: 0; transition: opacity 0.6s var(--ease-out); }
 .map-frame iframe.ready { opacity: 1; }
-.map-vignette { position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), inset 0 0 42px rgba(20, 8, 44, 0.45); }
-.map-open {
-  position: absolute; z-index: 2; right: 22px; bottom: 22px; display: inline-flex; align-items: center; gap: 8px;
-  min-height: 42px; padding: 0 16px 0 14px; border-radius: 999px; text-decoration: none; color: #fff;
-  font: 800 0.82rem 'Inter', sans-serif;
-  background: rgba(16, 8, 40, 0.78); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 10px 24px rgba(5, 2, 20, 0.45);
-  transition: transform 0.25s var(--ease-out), background-color 0.25s ease;
-}
-.map-open:active { transform: scale(0.97); }
-.map-open:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-@media (hover: hover) and (pointer: fine) { .map-open:hover { transform: translateY(-2px); background: linear-gradient(135deg, var(--accent), var(--accent2)); } }
 /* Esqueleto mientras carga el mapa */
 .map-skel {
   position: absolute; inset: 0; overflow: hidden; display: grid; place-items: center;
@@ -1214,7 +1195,6 @@ onUnmounted(() => {
   .grid-in { background-size: 48px 48px; }
   .beam { display: none; }
   .where { grid-template-rows: auto 340px; }
-  .map-open { right: 16px; bottom: 16px; }
   .t { min-width: 92px; font-size: 0.9rem; }
   .n { font-size: 0.98rem; }
   .swipe-hint { display: block; }
@@ -1224,7 +1204,8 @@ onUnmounted(() => {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .eyebrow, .word, .subtitle, .sedes, .card { opacity: 1 !important; transform: none !important; filter: none !important; }
   .pt { opacity: 0.4 !important; }
-  .watermark, .beam { display: none; }
+  .aurora { animation: none; }
+  .beam { display: none; }
   .map-frame iframe { opacity: 1 !important; }
 }
 </style>
