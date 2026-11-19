@@ -18,6 +18,20 @@ const titleWords = ['Sobre', 'nosotros'].map((text) => ({
 }));
 
 const el = ref<HTMLElement | null>(null);
+const visualEl = ref<HTMLElement | null>(null);
+
+/* Inclinación suave del círculo con el cursor (solo con mouse; en celular no hace nada) */
+function tilt(e: PointerEvent) {
+  const v = visualEl.value;
+  if (!v || e.pointerType !== 'mouse') return;
+  const r = v.getBoundingClientRect();
+  v.style.setProperty('--tx', String(Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2))));
+  v.style.setProperty('--ty', String(Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2))));
+}
+function untilt() {
+  visualEl.value?.style.setProperty('--tx', '0');
+  visualEl.value?.style.setProperty('--ty', '0');
+}
 const revealed = ref(false); // ya entró en pantalla alguna vez
 const inview = ref(false); // está en pantalla ahora (las animaciones infinitas solo corren así)
 let observer: IntersectionObserver | null = null;
@@ -46,18 +60,24 @@ onUnmounted(() => observer?.disconnect());
     <!-- Fondo cinematográfico (igual que Facebook e Instagram) -->
     <div class="floor" aria-hidden="true"></div>
     <div class="grid-bg" aria-hidden="true"></div>
-    <div class="watermark" aria-hidden="true">FACTOR FIT</div>
+    <div class="aurora aurora-a" aria-hidden="true"></div>
+    <div class="aurora aurora-b" aria-hidden="true"></div>
+    <div class="aurora aurora-c" aria-hidden="true"></div>
     <div class="beam beam-a" aria-hidden="true"></div>
     <div class="beam beam-b" aria-hidden="true"></div>
     <svg class="float f1" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-7.5-10.2A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 7.5 3.1c0 5.8-7.5 10.2-7.5 10.2Z"/></svg>
     <svg class="float f2" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8L12 2.5Z"/></svg>
     <svg class="float f3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 5.4 4.6 9.4 10 10-5.4.6-9.4 4.6-10 10-.6-5.4-4.6-9.4-10-10 5.4-.6 9.4-4.6 10-10Z"/></svg>
     <svg class="float f4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 20.5s-7.5-4.4-7.5-10.2A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 7.5 3.1c0 5.8-7.5 10.2-7.5 10.2Z"/></svg>
+    <i class="float bub b1" aria-hidden="true"></i>
+    <i class="float bub b2" aria-hidden="true"></i>
+    <i class="float bub b3" aria-hidden="true"></i>
 
     <div class="container">
       <div class="grid">
         <!-- Texto -->
         <div class="col-text">
+          <span class="eyebrow"><i class="e-dot"></i> Conócenos · Factor FIT</span>
           <h2 class="title" aria-label="Sobre nosotros">
             <span
               v-for="w in titleWords"
@@ -75,22 +95,28 @@ onUnmounted(() => observer?.disconnect());
             </span>
           </h2>
 
-          <div class="text-card">
-            <p>
-              En Factor FIT creemos que cada persona tiene el poder de
-              <mark>transformar su vida a través del movimiento</mark>. No solo somos un gimnasio, somos una
-              <mark>comunidad</mark> dedicada a ayudarte a alcanzar tu mejor versión, tanto física como mentalmente.
-            </p>
-            <p>
-              Aquí no solo entrenas, creces, te inspiras y te conviertes en la
-              <mark>mejor versión de ti mismo</mark>. En Factor FIT tu bienestar es nuestra prioridad.
-            </p>
+          <div class="card-wrap">
+            <span class="card-border" aria-hidden="true"></span>
+            <div class="text-card">
+              <svg class="quote" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.2 6C4.9 7.2 3.5 9.4 3.5 12.3V18h6v-6H6.3c.1-1.6.9-2.8 2.2-3.5L7.2 6Zm9.5 0c-2.3 1.2-3.7 3.4-3.7 6.3V18h6v-6h-3.2c.1-1.6.9-2.8 2.2-3.5L16.7 6Z"/></svg>
+              <p class="lead" style="--pd: 0.5s">
+                En Factor FIT creemos que cada persona tiene el poder de
+                <mark>transformar su vida a través del movimiento</mark>. No solo somos un gimnasio, somos una
+                <mark>comunidad</mark> dedicada a ayudarte a alcanzar tu mejor versión, tanto física como mentalmente.
+              </p>
+              <span class="divider" aria-hidden="true"></span>
+              <p style="--pd: 0.75s">
+                Aquí no solo entrenas, creces, te inspiras y te conviertes en la
+                <mark>mejor versión de ti mismo</mark>. En Factor FIT tu bienestar es nuestra prioridad.
+              </p>
+            </div>
           </div>
         </div>
 
         <!-- Visual -->
         <div class="col-visual">
-          <div class="visual">
+          <div ref="visualEl" class="visual" @pointermove="tilt" @pointerleave="untilt">
+            <span class="halo" aria-hidden="true"></span>
             <span class="ripple r1"></span>
             <span class="ripple r2"></span>
 
@@ -190,18 +216,23 @@ onUnmounted(() => observer?.disconnect());
 }
 @keyframes grid-run { to { background-position: 0 70px; } }
 
-.watermark {
-  position: absolute; z-index: -1; pointer-events: none; white-space: nowrap;
-  left: 0; top: 50%;
-  font: 400 clamp(10rem, 34vw, 30rem) 'Anton', 'Inter', sans-serif;
-  letter-spacing: 0.02em; line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 2px rgba(243, 211, 255, 0.08);
-  transform: translate3d(-6%, -50%, 0);
-  animation: wm-slide 70s linear infinite alternate;
+/* Auroras: manchas de color que se mueven despacio (sustituyen al texto de fondo) */
+.aurora {
+  position: absolute; z-index: -1; pointer-events: none; border-radius: 50%;
+  width: clamp(300px, 48vw, 680px); aspect-ratio: 1;
+  background: radial-gradient(circle at 50% 50%, var(--ac) 0%, transparent 68%);
+  opacity: 0.3; filter: blur(34px);
+  animation: aurora-drift 24s ease-in-out infinite alternate;
   will-change: transform;
 }
-@keyframes wm-slide { from { transform: translate3d(-6%, -50%, 0); } to { transform: translate3d(-48%, -50%, 0); } }
+.aurora-a { --ac: #a020ff; left: -12%; top: 4%; }
+.aurora-b { --ac: #ff6ad5; right: -14%; top: 34%; animation-duration: 30s; animation-delay: -10s; opacity: 0.22; }
+.aurora-c { --ac: #5b8cff; left: 30%; bottom: -22%; animation-duration: 36s; animation-delay: -18s; opacity: 0.18; }
+@keyframes aurora-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(8vw, -6vh, 0) scale(1.15); }
+  100% { transform: translate3d(-6vw, 7vh, 0) scale(0.92); }
+}
 
 /* Haces de luz */
 .beam {
@@ -223,6 +254,10 @@ onUnmounted(() => observer?.disconnect());
 .f2 { left: 30%; bottom: 2%; width: 20px; height: 20px; color: #ffd6f4; animation-delay: -3.6s; }
 .f3 { right: 22%; bottom: 3%; width: 18px; height: 18px; color: #f3d3ff; animation-delay: -7s; }
 .f4 { right: 6%; bottom: 3%; width: 20px; height: 20px; color: #ff9be0; animation-delay: -5s; }
+.bub { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, rgba(255, 255, 255, 0.05) 70%); border: 1px solid rgba(255, 255, 255, 0.3); }
+.b1 { left: 18%; bottom: 3%; width: 12px; height: 12px; animation-duration: 14s; animation-delay: -2s; }
+.b2 { left: 62%; bottom: 2%; width: 9px; height: 9px; animation-duration: 12s; animation-delay: -8s; }
+.b3 { right: 14%; bottom: 3%; width: 15px; height: 15px; animation-duration: 16s; animation-delay: -5s; }
 @keyframes rise {
   0%   { transform: translate3d(0, 0, 0) scale(0.7); opacity: 0; }
   12%  { opacity: 0.75; }
@@ -259,6 +294,17 @@ onUnmounted(() => observer?.disconnect());
 }
 .revealed .col-text { opacity: 1; transform: none; }
 
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 10px; margin-bottom: 16px; padding: 7px 16px; border-radius: 999px;
+  font-size: 0.74rem; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: #f3d3ff;
+  background: rgba(24, 10, 52, 0.8); border: 1px solid rgba(220, 150, 255, 0.4);
+  opacity: 0; transform: translate3d(0, 10px, 0);
+  transition: opacity 0.6s 0.05s var(--ease), transform 0.8s 0.05s var(--ease);
+}
+.revealed .eyebrow { opacity: 1; transform: none; }
+.e-dot { width: 8px; height: 8px; border-radius: 50%; background: #7ef0b8; box-shadow: 0 0 10px #7ef0b8; animation: ping 2s ease-out infinite; }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(126, 240, 184, 0.8); } 70%, 100% { box-shadow: 0 0 0 9px rgba(126, 240, 184, 0); } }
+
 .title {
   margin: 0 0 clamp(22px, 3vw, 32px);
   font-family: 'Permanent Marker', 'Inter', cursive;
@@ -282,6 +328,8 @@ onUnmounted(() => observer?.disconnect());
   transition-delay: calc(var(--i) * 45ms + 150ms);
 }
 .revealed .ch { opacity: 1; transform: none; }
+/* "nosotros" en rosa claro con brillo, para que resalte */
+.word.last .ch { color: #ffd6fb; text-shadow: 0 3px 0 rgba(120, 20, 150, 0.7), 0 0 28px rgba(255, 140, 240, 0.55); }
 
 /* Línea ondulada que se dibuja sola bajo "nosotros" */
 .squiggle {
@@ -331,60 +379,83 @@ onUnmounted(() => observer?.disconnect());
 .dots i:nth-child(2) { animation-delay: 0.18s; }
 .dots i:nth-child(3) { animation-delay: 0.36s; }
 
+/* Borde de luz que gira alrededor de la tarjeta */
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.card-wrap { position: relative; border-radius: 26px; }
+.card-border {
+  position: absolute; inset: -1.5px; border-radius: 27px; pointer-events: none;
+  background: conic-gradient(from var(--ang), rgba(255, 255, 255, 0.14), #ff6ad5, rgba(255, 255, 255, 0.14) 30%, #a020ff 55%, rgba(255, 255, 255, 0.14) 80%, #ff6ad5);
+  animation: ang 7s linear infinite;
+  opacity: 0; transition: opacity 0.9s 0.5s ease;
+}
+.revealed .card-border { opacity: 0.9; }
+@keyframes ang { to { --ang: 360deg; } }
+
 .text-card {
   position: relative;
   overflow: hidden;
-  padding: clamp(22px, 3vw, 34px) clamp(20px, 3vw, 36px);
-  border-radius: 24px;
-  /* Fondo casi sólido: se ve igual de bien y no obliga a desenfocar lo de atrás */
-  background: linear-gradient(150deg, rgba(40, 14, 80, 0.9), rgba(24, 10, 54, 0.88));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 24px 60px rgba(15, 6, 36, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  padding: clamp(26px, 3.4vw, 40px) clamp(22px, 3.4vw, 42px) clamp(24px, 3vw, 36px);
+  border-radius: 25px;
+  /* Fondo oscuro casi sólido: las letras blancas se leen perfecto */
+  background: linear-gradient(155deg, #1d0b42 0%, #120728 100%);
+  box-shadow: 0 28px 70px rgba(10, 4, 28, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
-/* Barra lateral que crece de arriba hacia abajo */
-.text-card::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 24px; bottom: 24px;
-  width: 4px;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #ffd0ff, var(--purple));
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 1s 0.6s var(--ease);
-}
-.revealed .text-card::before { transform: scaleY(1); }
 /* Destello de luz que cruza la tarjeta una sola vez */
 .text-card::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.14) 50%, transparent 62%);
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.13) 50%, transparent 62%);
   transform: translateX(-130%);
 }
-.revealed .text-card::after { animation: shine 1.6s 0.9s var(--ease) 1 both; }
+.revealed .text-card::after { animation: shine 1.8s 1s var(--ease) 1 both; }
 
+.quote {
+  position: absolute; top: 18px; right: 22px; width: clamp(38px, 5vw, 56px); height: auto;
+  color: rgba(255, 140, 240, 0.28); pointer-events: none;
+  transform: scale(0.6) rotate(-12deg); opacity: 0;
+  transition: transform 1s 0.7s var(--ease), opacity 0.8s 0.7s ease;
+}
+.revealed .quote { transform: none; opacity: 1; }
+
+/* Los párrafos suben y se enfocan uno tras otro */
 .text-card p {
-  margin: 0 0 16px;
-  font-size: clamp(1rem, 1.5vw, 1.1rem);
-  line-height: 1.72;
+  position: relative;
+  margin: 0;
+  font-size: clamp(1.02rem, 1.5vw, 1.12rem);
+  line-height: 1.78;
   font-weight: 500;
   color: #fff;
+  text-shadow: 0 1px 14px rgba(8, 2, 22, 0.7);
+  opacity: 0; transform: translate3d(0, 16px, 0); filter: blur(6px);
+  transition: opacity 0.8s var(--pd, 0.5s) var(--ease), transform 0.9s var(--pd, 0.5s) var(--ease), filter 0.8s var(--pd, 0.5s) var(--ease);
 }
-.text-card p:last-child { margin-bottom: 0; }
+.revealed .text-card p { opacity: 1; transform: none; filter: none; }
+.text-card p.lead { font-size: clamp(1.1rem, 1.8vw, 1.26rem); font-weight: 600; padding-right: clamp(0px, 3vw, 28px); }
 
-/* Subrayado que se dibuja de izquierda a derecha */
+.divider {
+  display: block; height: 2px; margin: 20px 0; border-radius: 2px;
+  background: linear-gradient(90deg, #ff6ad5, #a020ff 60%, transparent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 1s 0.65s var(--ease);
+}
+.revealed .divider { transform: scaleX(1); }
+
+/* Palabras clave: marcador rosa-morado que se dibuja de izquierda a derecha */
 .text-card mark {
   color: #fff;
-  font-weight: 700;
-  padding: 0 3px;
-  background: linear-gradient(rgba(206, 110, 255, 0.6), rgba(206, 110, 255, 0.6)) 0 100% / 0% 38% no-repeat;
-  transition: background-size 0.9s 1s var(--ease);
+  font-weight: 800;
+  padding: 1px 6px;
+  margin: 0 -2px;
+  border-radius: 7px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  background: linear-gradient(90deg, rgba(255, 106, 213, 0.5), rgba(160, 32, 255, 0.62)) 0 50% / 0% 100% no-repeat;
+  transition: background-size 0.9s 1.1s var(--ease);
 }
-.revealed .text-card mark { background-size: 100% 38%; }
-.revealed .text-card mark:nth-of-type(2) { transition-delay: 1.25s; }
-.revealed .text-card p:last-child mark { transition-delay: 1.5s; }
+.revealed .text-card mark { background-size: 100% 100%; }
+.revealed .text-card mark:nth-of-type(2) { transition-delay: 1.4s; }
+.revealed .text-card p:last-of-type mark { transition-delay: 1.7s; }
 
 /* ---------- Visual ---------- */
 .col-visual {
@@ -397,9 +468,19 @@ onUnmounted(() => observer?.disconnect());
 .revealed .col-visual { opacity: 1; transform: none; }
 
 .visual {
+  --tx: 0; --ty: 0;
   position: relative;
   width: min(100%, 480px);
   aspect-ratio: 1;
+  transform: perspective(900px) rotateX(calc(var(--ty) * -6deg)) rotateY(calc(var(--tx) * 6deg));
+  transition: transform 0.35s var(--ease);
+}
+/* Resplandor de colores que gira detrás de la foto */
+.halo {
+  position: absolute; inset: 3%; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, #ff6ad5, #a020ff, #5b8cff, #a020ff, #ff6ad5);
+  filter: blur(38px); opacity: 0.45;
+  animation: spin 18s linear infinite;
 }
 
 .ripple {
@@ -452,6 +533,7 @@ onUnmounted(() => observer?.disconnect());
   box-shadow: 0 26px 60px rgba(10, 4, 28, 0.5);
   background: #2a1646;
 }
+.photo-circle { transition: translate 0.35s var(--ease); translate: calc(var(--tx) * 8px) calc(var(--ty) * 8px); }
 .photo-circle img {
   width: 100%; height: 100%;
   object-fit: cover;
@@ -545,6 +627,14 @@ onUnmounted(() => observer?.disconnect());
 }
 .pillars li:hover .pillar-icon { transform: scale(1.08) rotate(-8deg); }
 .pillar-icon svg { width: 24px; height: 24px; }
+/* Brillo que cruza cada pilar al pasar el cursor */
+.pillars li { overflow: hidden; }
+.pillars li::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
+  transform: translateX(-130%);
+}
+@media (hover: hover) { .pillars li:hover::after { transition: transform 0.9s var(--ease); transform: translateX(130%); } }
 .pillar-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding-right: 26px; }
 .pillar-text strong { font-size: 1.05rem; font-weight: 700; }
 .pillar-text small { font-size: 0.86rem; line-height: 1.4; color: rgba(255, 255, 255, 0.72); }
@@ -575,7 +665,10 @@ onUnmounted(() => observer?.disconnect());
   .pillar-icon { flex-basis: 46px; width: 46px; height: 46px; }
 }
 @media (max-width: 640px) {
-  .text-card::before { display: none; }
+  .quote { display: none; }
+  .card-wrap { border-radius: 22px; }
+  .text-card { border-radius: 21px; }
+  .card-border { border-radius: 23px; }
   .chip { padding: 8px 13px 8px 10px; }
   .chip svg { width: 16px; height: 16px; }
   .grid-bg { background-size: 48px 48px; }
@@ -588,8 +681,8 @@ onUnmounted(() => observer?.disconnect());
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .col-text, .col-visual, .pillars li, .ch, .dots, .chip { opacity: 1 !important; transform: none !important; translate: none !important; }
   .squiggle path { stroke-dashoffset: 0 !important; }
-  .text-card::before { transform: none !important; }
-  .text-card mark { background-size: 100% 38% !important; }
-  .ripple, .spark, .watermark, .beam, .float { display: none; }
+  .eyebrow, .quote, .text-card p, .divider, .card-border { opacity: 1 !important; transform: none !important; filter: none !important; }
+  .text-card mark { background-size: 100% 100% !important; }
+  .ripple, .spark, .aurora, .beam, .float, .halo { display: none; }
 }
 </style>
