@@ -6,13 +6,14 @@ type Sucursal = { ID_Gym: number; ID_Sede: number; Nombre_Gym: string; Nombre_Se
 type Tarifa = { ID_Precio: number; Nombre_Paquete: string; Precio: number; Periodo?: string };
 type CampoNombre = 'nombres' | 'apellidoP' | 'apellidoM';
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
+const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '/docs/terminos-y-condiciones.pdf';
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const gymSearchInput = ref<HTMLInputElement | null>(null);
 const gymPickerRef = ref<HTMLElement | null>(null);
 const foto = ref<File | null>(null);
 const previewImage = ref<string | null>(null);
-const showPassword = ref(false), showConfirmPassword = ref(false), showNoGymModal = ref(false);
+const showPassword = ref(false), showConfirmPassword = ref(false), showNoGymModal = ref(false), aceptaTerminos = ref(false);
 const isGymDropdownOpen = ref(false), gymSearch = ref(''), selectedGym = ref<Sucursal | null>(null);
 const sucursales = ref<Sucursal[]>([]), tarifas = ref<Tarifa[]>([]), selectedTarifa = ref<number | null>(null);
 const loadingGyms = ref(false), loadingTarifas = ref(false), guardando = ref(false);
@@ -29,30 +30,30 @@ const validarCurp = (valor: string) => {
   const curp = valor.trim().toUpperCase();
   if (curp.length !== 18) return 'La CURP debe tener exactamente 18 caracteres.';
   if (!/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(curp)) return 'El formato de la CURP no es válido.';
-  const mes = Number(curp.slice(6,8)), dia = Number(curp.slice(8,10));
+  const mes = Number(curp.slice(6, 8)), dia = Number(curp.slice(8, 10));
   if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return 'La CURP contiene una fecha no válida.';
   return '';
 };
 const errorCurp = computed(() => form.curp ? validarCurp(form.curp) : '');
 const soloNumeros = (v: string) => String(v || '').replace(/\D/g, '');
-const formatearCelular = (v: string) => { const n = soloNumeros(v).slice(0,10); return n.length <= 3 ? n : n.length <= 6 ? `${n.slice(0,3)} ${n.slice(3)}` : `${n.slice(0,3)} ${n.slice(3,6)} ${n.slice(6)}`; };
+const formatearCelular = (v: string) => { const n = soloNumeros(v).slice(0, 10); return n.length <= 3 ? n : n.length <= 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`; };
 function actualizarCelular(event: Event) { const input = event.target as HTMLInputElement; const raw = input.value; if (raw.includes('+') || soloNumeros(raw).length > 10) { notify('El celular debe tener 10 dígitos, sin +52.', 'warning'); input.value = form.celular; return; } form.celular = formatearCelular(raw); input.value = form.celular; }
 function pegarCelular(event: ClipboardEvent) { const valor = event.clipboardData?.getData('text') || ''; if (valor.includes('+') || soloNumeros(valor).length > 10) { event.preventDefault(); notify('Ingresa solamente 10 dígitos, sin +52.', 'warning'); } }
-const limitarMedida = (value: string, decimal = false) => { const partes = String(value || '').replace(',', '.').replace(/[^0-9.]/g,'').split('.'); const entero = (partes[0] ?? '').slice(0,3); return decimal && partes.length > 1 ? entero + '.' + (partes[1] || '').slice(0,1) : entero; };
+const limitarMedida = (value: string, decimal = false) => { const partes = String(value || '').replace(',', '.').replace(/[^0-9.]/g, '').split('.'); const entero = (partes[0] ?? '').slice(0, 3); return decimal && partes.length > 1 ? entero + '.' + (partes[1] || '').slice(0, 1) : entero; };
 function normalizarPeso(event: Event) { form.peso = limitarMedida((event.target as HTMLInputElement).value, true); (event.target as HTMLInputElement).value = form.peso; }
 function normalizarAltura(event: Event) { form.altura = limitarMedida((event.target as HTMLInputElement).value); (event.target as HTMLInputElement).value = form.altura; }
 function rellenarEjemplo() {
   // Datos ilustrativos. No son identidad ni contacto de una persona real.
-  Object.assign(form, { nombres:'Luis', apellidoP:'Posada', apellidoM:'Lopez', curp:'LOPL010515HSLPRS09', fechaNac:'2001-05-15', celular:'481 000 0000', email:'luis.posada@ejemplo.test', password:'DemoFactorFit2026!', confirmPassword:'DemoFactorFit2026!', peso:'72.5', altura:'175' });
+  Object.assign(form, { nombres: 'Luis', apellidoP: 'Posada', apellidoM: 'Lopez', curp: 'LOPL010515HSLPRS09', fechaNac: '2001-05-15', celular: '481 000 0000', email: 'luis.posada@ejemplo.test', password: 'DemoFactorFit2026!', confirmPassword: 'DemoFactorFit2026!', peso: '72.5', altura: '175' });
   notify('Datos ficticios cargados; sustituye CURP, correo y celular por los tuyos antes de registrarte.', 'success');
 }
 async function jsonGet(url: string) { const res = await fetch(`${API}${url}`, { headers: { Accept: 'application/json' } }); const data = await res.json().catch(() => null); if (!res.ok) throw new Error(data?.message || `Error HTTP ${res.status}`); return data; }
-async function cargarSucursales() { loadingGyms.value = true; errorSucursales.value = ''; try { const data = await jsonGet('/api/public/sucursales'); sucursales.value = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []); } catch(e) { errorSucursales.value = e instanceof Error ? e.message : 'No se pudieron cargar las sucursales.'; notify(errorSucursales.value, 'error'); } finally { loadingGyms.value = false; } }
-async function selectGym(gym: Sucursal) { selectedGym.value = gym; selectedTarifa.value = null; tarifas.value = []; gymSearch.value = ''; isGymDropdownOpen.value = false; loadingTarifas.value = true; try { const data = await jsonGet(`/api/public/sucursales/${gym.ID_Sede}/tarifas`); tarifas.value = Array.isArray(data) ? data : (data?.data || []); } catch(e) { notify(e instanceof Error ? e.message : 'No se pudieron cargar las tarifas.', 'error'); } finally { loadingTarifas.value = false; } }
+async function cargarSucursales() { loadingGyms.value = true; errorSucursales.value = ''; try { const data = await jsonGet('/api/public/sucursales'); sucursales.value = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []); } catch (e) { errorSucursales.value = e instanceof Error ? e.message : 'No se pudieron cargar las sucursales.'; notify(errorSucursales.value, 'error'); } finally { loadingGyms.value = false; } }
+async function selectGym(gym: Sucursal) { selectedGym.value = gym; selectedTarifa.value = null; tarifas.value = []; gymSearch.value = ''; isGymDropdownOpen.value = false; loadingTarifas.value = true; try { const data = await jsonGet(`/api/public/sucursales/${gym.ID_Sede}/tarifas`); tarifas.value = Array.isArray(data) ? data : (data?.data || []); } catch (e) { notify(e instanceof Error ? e.message : 'No se pudieron cargar las tarifas.', 'error'); } finally { loadingTarifas.value = false; } }
 function clearGym() { selectedGym.value = null; selectedTarifa.value = null; tarifas.value = []; }
 function triggerFileInput() { fileInput.value?.click(); }
-function onFileSelected(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size >= 3 * 1024 * 1024) { notify('La fotografía debe ser JPG, PNG o WebP y pesar menos de 3 MB.', 'warning'); input.value=''; return; } if (previewImage.value) URL.revokeObjectURL(previewImage.value); foto.value = file; previewImage.value = URL.createObjectURL(file); }
-async function onAddGym() { showNoGymModal.value = false; await nextTick(); gymPickerRef.value?.scrollIntoView({ behavior:'smooth', block:'center' }); isGymDropdownOpen.value = true; gymSearchInput.value?.focus(); }
+function onFileSelected(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size >= 3 * 1024 * 1024) { notify('La fotografía debe ser JPG, PNG o WebP y pesar menos de 3 MB.', 'warning'); input.value = ''; return; } if (previewImage.value) URL.revokeObjectURL(previewImage.value); foto.value = file; previewImage.value = URL.createObjectURL(file); }
+async function onAddGym() { showNoGymModal.value = false; await nextTick(); gymPickerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }); isGymDropdownOpen.value = true; gymSearchInput.value?.focus(); }
 async function handleRegisterClick() {
   if (guardando.value) return;
   normalizarCampo('nombres'); normalizarCampo('apellidoP'); normalizarCampo('apellidoM'); normalizarCorreo(); limpiarCurp();
@@ -66,19 +67,20 @@ async function handleRegisterClick() {
   if (form.password !== form.confirmPassword) return notify('Las contraseñas no coinciden.');
   if (!selectedGym.value) { showNoGymModal.value = true; return; }
   if (!selectedTarifa.value) return notify('Selecciona una tarifa.');
+  if (!aceptaTerminos.value) return notify('Debes leer y aceptar los Términos y Condiciones para registrarte.');
   guardando.value = true; mensaje.value = '';
   try {
     const data = new FormData();
-    const fields: Record<string, string | number> = { sede_id: selectedGym.value.ID_Sede, id_precio: selectedTarifa.value, nombres:form.nombres, apellidoP:form.apellidoP, apellidoM:form.apellidoM, curp:form.curp, fechaNacimiento:form.fechaNac, celular:soloNumeros(form.celular), email:form.email, password:form.password, password_confirmation:form.confirmPassword };
+    const fields: Record<string, string | number> = { sede_id: selectedGym.value.ID_Sede, id_precio: selectedTarifa.value, nombres: form.nombres, apellidoP: form.apellidoP, apellidoM: form.apellidoM, curp: form.curp, fechaNacimiento: form.fechaNac, celular: soloNumeros(form.celular), email: form.email, password: form.password, password_confirmation: form.confirmPassword, acepta_terminos: '1', terminos_version: TERMINOS_VERSION };
     for (const [key, value] of Object.entries(fields)) if (String(value)) data.append(key, String(value));
-    if (form.peso) data.append('peso',form.peso);
-    if (form.altura) data.append('altura',form.altura);
-    if (foto.value) data.append('foto',foto.value);
-    const res = await fetch(`${API}/api/public/registro`, { method:'POST', headers:{Accept:'application/json'}, body:data });
+    if (form.peso) data.append('peso', form.peso);
+    if (form.altura) data.append('altura', form.altura);
+    if (foto.value) data.append('foto', foto.value);
+    const res = await fetch(`${API}/api/public/registro`, { method: 'POST', headers: { Accept: 'application/json' }, body: data });
     const result = await res.json().catch(() => ({}));
     if (!res.ok) { const errors = result?.errors ? Object.values(result.errors).flat().join(' ') : ''; throw new Error(errors || result?.message || `Error HTTP ${res.status}`); }
-    registroExitoso.value = true; notify(result?.message || 'Registro completado. Tu membresía está pendiente de activación.','success');
-  } catch(e) { notify(e instanceof Error ? e.message : 'No se pudo completar el registro.', 'error'); } finally { guardando.value = false; }
+    registroExitoso.value = true; notify(result?.message || 'Registro completado. Te enviamos tu QR al correo; tu membresía está pendiente de activación.', 'success');
+  } catch (e) { notify(e instanceof Error ? e.message : 'No se pudo completar el registro.', 'error'); } finally { guardando.value = false; }
 }
 onMounted(() => { void cargarSucursales(); });
 onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage.value); });
@@ -257,8 +259,15 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 
           <!-- ===== Acciones a todo el ancho ===== -->
           <div class="actions">
+            <label class="terms-check">
+              <input v-model="aceptaTerminos" type="checkbox" />
+              <span>
+                He leído y acepto los
+                <a :href="TERMINOS_PDF_URL" target="_blank" rel="noopener noreferrer" @click.stop>Términos y Condiciones (PDF)</a>.
+              </span>
+            </label>
             <p v-if="mensaje" role="alert" class="form-message">{{ mensaje }}</p>
-            <button type="submit" class="submit-btn" :disabled="guardando || loadingTarifas || !selectedGym || !selectedTarifa">
+            <button type="submit" class="submit-btn" :disabled="guardando || loadingTarifas || !selectedGym || !selectedTarifa || !aceptaTerminos">
               {{ guardando ? 'Registrando...' : 'Registrarme' }}
               <svg v-if="!guardando" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
@@ -367,7 +376,8 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 .login-link a:focus-visible,
 .submit-btn:focus-visible,
 .demo-fill:focus-visible,
-.curp-link:focus-visible {
+.curp-link:focus-visible,
+.terms-check a:focus-visible {
   outline: 2px solid var(--soft);
   outline-offset: 3px;
 }
@@ -489,7 +499,7 @@ label small {
   text-transform: uppercase;
 }
 label { color: #e6e0e8; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.4; }
-input {
+input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
   min-height: 48px;
@@ -504,9 +514,9 @@ input {
   font-weight: 500;
   transition: .2s ease;
 }
-input::placeholder { color: #716e83; font-weight: 400; }
-input:hover { border-color: rgba(255, 255, 255, .24); }
-input:focus { border-color: var(--accent); background: rgba(212, 80, 110, .06); box-shadow: 0 0 0 3px rgba(212, 80, 110, .2); }
+input:not([type="checkbox"])::placeholder { color: #716e83; font-weight: 400; }
+input:not([type="checkbox"]):hover { border-color: rgba(255, 255, 255, .24); }
+input:not([type="checkbox"]):focus { border-color: var(--accent); background: rgba(212, 80, 110, .06); box-shadow: 0 0 0 3px rgba(212, 80, 110, .2); }
 input[type="date"] { color-scheme: dark; }
 
 .field-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 16px; }
@@ -681,6 +691,36 @@ input[type="date"] { color-scheme: dark; }
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
 }
+.terms-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .03);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.terms-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.terms-check a {
+  color: var(--soft);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 4px;
+}
+.terms-check a:hover { color: #fff; }
 .form-message { margin: 0; color: #ffb5c5; font-size: 13px; text-align: center; }
 .submit-btn {
   width: 100%;
@@ -738,7 +778,7 @@ input[type="date"] { color-scheme: dark; }
   .membership-options { grid-template-columns: 1fr; }
   .actions { margin-top: 28px; padding-top: 24px; }
   .actions::before { left: 0; right: 0; }
-  input { font-size: 16px; } /* evita el zoom automático en iOS */
+  input:not([type="checkbox"]) { font-size: 16px; } /* evita el zoom automático en iOS */
 }
 @media (max-width: 420px) {
   .topbar { height: 62px; padding: 0 14px; }
