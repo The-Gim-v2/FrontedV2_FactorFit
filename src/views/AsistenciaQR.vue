@@ -12,6 +12,7 @@ const titulo = ref('Verificando asistencia...');
 const mensaje = ref('Un momento por favor.');
 const sedeNombre = ref('');
 const gymNombre = ref('Factor Fit');
+const logoUrl = ref<string | null>(null);
 const estatusMembresia = ref('');
 
 // Mini-login cuando la cámara abre una pestaña nueva sin sessionStorage
@@ -40,6 +41,7 @@ const cargarInfoSede = async () => {
     if (encontrada) {
       sedeNombre.value = encontrada.Nombre_Sede || '';
       gymNombre.value = encontrada.Nombre_Gym || 'Factor Fit';
+      logoUrl.value = typeof encontrada.logo_url === 'string' && encontrada.logo_url ? encontrada.logo_url : null;
     }
   } catch { /* No bloquea el flujo */ }
 };
@@ -179,7 +181,21 @@ onMounted(async () => {
     <section class="qr-card" :class="estado">
       <span class="kicker">{{ gymNombre }} · {{ sedeNombre || `Sede ${sedeId}` }}</span>
 
-      <div class="icon-wrap" aria-hidden="true">
+      <!-- Logo del gimnasio (estilo Dashboard) con insignia de estado -->
+      <div v-if="logoUrl" class="gym-logo-wrap">
+        <div class="gym-logo-frame">
+          <img :src="logoUrl" :alt="gymNombre" @error="logoUrl = null" />
+        </div>
+        <span v-if="estado !== 'login'" class="logo-badge" aria-hidden="true">
+          <span v-if="estado === 'cargando'" class="loader sm"></span>
+          <svg v-else-if="estado === 'ok'" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+          <svg v-else-if="estado === 'duplicado'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8v4l3 2" /></svg>
+          <svg v-else viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01" /></svg>
+        </span>
+      </div>
+
+      <!-- Respaldo si el gimnasio aún no tiene logo -->
+      <div v-else class="icon-wrap" aria-hidden="true">
         <span v-if="estado === 'cargando'" class="loader"></span>
         <svg v-else-if="estado === 'login'" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v6h-6v-2" /></svg>
         <svg v-else-if="estado === 'ok'" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
@@ -243,6 +259,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.qr-checkin-page,
+.qr-checkin-page * {
+  box-sizing: border-box;
+}
 .qr-checkin-page {
   min-height: 100dvh;
   display: grid;
@@ -263,7 +283,7 @@ onMounted(async () => {
 }
 .kicker {
   display: inline-block;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   padding: 5px 12px;
   border-radius: 999px;
   background: rgba(233, 176, 138, 0.12);
@@ -273,6 +293,62 @@ onMounted(async () => {
   letter-spacing: 0.8px;
   text-transform: uppercase;
 }
+
+/* Logo del gimnasio */
+.gym-logo-wrap {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 18px;
+}
+.gym-logo-frame {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #111;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
+}
+.gym-logo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.qr-card.ok .gym-logo-frame { border-color: rgba(52, 211, 153, 0.55); }
+.qr-card.duplicado .gym-logo-frame { border-color: rgba(96, 165, 250, 0.55); }
+.qr-card.aviso .gym-logo-frame { border-color: rgba(251, 191, 36, 0.55); }
+.qr-card.error .gym-logo-frame { border-color: rgba(248, 113, 113, 0.55); }
+
+.logo-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 3px solid #181928;
+  background: #2a2c42;
+  color: #e9b08a;
+}
+.logo-badge svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.qr-card.ok .logo-badge { background: #10b981; color: #052e16; }
+.qr-card.duplicado .logo-badge { background: #3b82f6; color: #fff; }
+.qr-card.aviso .logo-badge { background: #f59e0b; color: #1c1917; }
+.qr-card.error .logo-badge { background: #ef4444; color: #fff; }
+
+/* Ícono de respaldo */
 .icon-wrap {
   width: 64px;
   height: 64px;
@@ -303,6 +379,11 @@ onMounted(async () => {
   border-top-color: #e9b08a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+.loader.sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 h1 { margin: 0 0 8px; font-size: 23px; font-weight: 800; }
