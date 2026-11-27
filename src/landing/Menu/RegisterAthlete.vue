@@ -6,7 +6,7 @@ type Sucursal = { ID_Gym: number; ID_Sede: number; Nombre_Gym: string; Nombre_Se
 type Tarifa = { ID_Precio: number; Nombre_Paquete: string; Precio: number; Periodo?: string };
 type CampoNombre = 'nombres' | 'apellidoP' | 'apellidoM';
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '../../docs/terminos-y-condiciones.pdf';
+const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '../../../public/docs/terminos-y-condiciones.pdf';
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const gymSearchInput = ref<HTMLInputElement | null>(null);
@@ -124,8 +124,8 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 
         <form v-else @submit.prevent="handleRegisterClick">
           <div class="rg-grid">
-            <!-- ===== Columna izquierda: persona ===== -->
-            <div class="form-column">
+            <!-- ===== Fotografía ===== -->
+            <div class="form-column area-foto">
               <h3 class="section-title first">Fotografía</h3>
               <div class="upload-container">
                 <div class="image-preview" role="button" tabindex="0" aria-label="Subir fotografía" @click="triggerFileInput" @keydown.enter="triggerFileInput">
@@ -139,7 +139,11 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
                 <p>Sube una fotografía reciente<br /><span class="hint">JPG, PNG o WebP, menos de 3 MB</span></p>
               </div>
 
-              <h3 class="section-title">Datos personales</h3>
+            </div>
+
+            <!-- ===== Datos personales ===== -->
+            <div class="form-column area-datos">
+              <h3 class="section-title first">Datos personales</h3>
               <div class="fields">
                 <div class="field">
                   <label>Nombre(s)</label>
@@ -187,8 +191,8 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
               </div>
             </div>
 
-            <!-- ===== Columna derecha: cuenta y sucursal ===== -->
-            <div class="form-column">
+            <!-- ===== Cuenta y sucursal ===== -->
+            <div class="form-column area-cuenta">
               <h3 class="section-title first">Cuenta de acceso</h3>
               <div class="fields">
                 <div class="field">
@@ -759,7 +763,17 @@ input[type="date"] { color-scheme: dark; }
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
 }
 @media (min-width: 900px) {
-  .rg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "datos foto"
+      "datos cuenta";
+    row-gap: 30px;
+  }
+  .area-foto { grid-area: foto; }
+  .area-datos { grid-area: datos; }
+  .area-cuenta { grid-area: cuenta; }
   /* En escritorio el botón de ejemplo sale del flujo y queda en la esquina */
   .demo-fill { position: absolute; top: -12px; right: -12px; order: 0; margin: 0; background: rgba(18, 18, 28, .5); }
 }
