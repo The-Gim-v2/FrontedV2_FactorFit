@@ -8,7 +8,11 @@
     <!-- ENCABEZADO -->
     <header class="access-head">
       <div class="head-icon" aria-hidden="true">
-        <svg v-if="mode === 'scanner'" viewBox="0 0 24 24">
+        <svg v-if="mode === 'scanner' && scanTab === 'pago'" viewBox="0 0 24 24">
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M2 10h20M7 15h4" />
+        </svg>
+        <svg v-else-if="mode === 'scanner'" viewBox="0 0 24 24">
           <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h3v2h-3zM18 13h2v2h-2zM13 17h2v3h-2zM17 17h3v3h-3z" />
         </svg>
         <svg v-else viewBox="0 0 24 24">
@@ -16,11 +20,13 @@
         </svg>
       </div>
       <div class="head-copy">
-        <span class="eyebrow">Control de acceso · Sede {{ sedeId }}</span>
-        <h2>{{ mode === 'scanner' ? 'Escáner QR' : 'Asistencia facial' }}</h2>
+        <span class="eyebrow">{{ scanTab === 'pago' && mode === 'scanner' ? 'Cobro rápido' : 'Control de acceso' }} · Sede {{ sedeId }}</span>
+        <h2>{{ mode === 'scanner' ? (scanTab === 'pago' ? 'Escáner de Pago' : 'Escáner QR') : 'Asistencia facial' }}</h2>
         <p>
           {{ mode === 'scanner'
-            ? 'Acerca el QR del pase digital al centro del recuadro.'
+            ? (scanTab === 'pago'
+                ? 'Escanea el QR del cliente para ir directo a su pasarela de pago.'
+                : 'Acerca el QR del pase digital al centro del recuadro.')
             : 'Reconocimiento biométrico: pendiente de integración.' }}
         </p>
       </div>
@@ -30,6 +36,32 @@
     </header>
 
     <div class="access-body">
+      <!-- SELECTOR DE MODO (solo en Escáner QR) -->
+      <div v-if="mode === 'scanner'" class="scanner-tabs" role="tablist" aria-label="Modo del escáner">
+        <button
+          type="button"
+          role="tab"
+          class="scanner-tab"
+          :class="{ active: scanTab === 'asistencia' }"
+          :aria-selected="scanTab === 'asistencia'"
+          @click="cambiarTab('asistencia')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h6v2h-6z" /></svg>
+          Asistencia
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="scanner-tab"
+          :class="{ active: scanTab === 'pago' }"
+          :aria-selected="scanTab === 'pago'"
+          @click="cambiarTab('pago')"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20M7 15h4" /></svg>
+          Cobrar / Pago
+        </button>
+      </div>
+
       <!-- CÁMARA -->
       <div class="camera-frame">
         <video ref="video" autoplay playsinline muted @loadeddata="cameraReady = true"></video>
@@ -54,7 +86,11 @@
 
         <span v-if="cameraReady" class="cam-chip" :class="{ live: mode === 'scanner' && scanning }">
           <i></i>
-          {{ mode === 'facial' ? 'Vista previa' : scanning ? 'Escaneando' : 'Cámara activa' }}
+          {{ mode === 'facial'
+            ? 'Vista previa'
+            : scanning
+              ? (scanTab === 'pago' ? 'Listo para cobrar' : 'Escaneando')
+              : 'Cámara activa' }}
         </span>
       </div>
 
@@ -68,18 +104,22 @@
         <span>{{ error }}</span>
       </p>
 
-      <!-- MODO ESCÁNER: registro alternativo plegable -->
+      <!-- MODO ESCÁNER: registro / búsqueda alternativa plegable -->
       <div v-if="mode === 'scanner'" class="manual" :class="{ open: manualOpen }">
         <button type="button" class="manual-toggle" :aria-expanded="manualOpen" @click="manualOpen = !manualOpen">
           <span class="manual-title">
-            <strong>Registro alternativo</strong>
-            <span>Busca al socio por nombre, correo o inscripción</span>
+            <strong>{{ scanTab === 'pago' ? 'Buscar socio para cobrar' : 'Registro alternativo' }}</strong>
+            <span>{{ scanTab === 'pago' ? 'Busca por nombre, correo o inscripción para ir directo a pago' : 'Busca al socio por nombre, correo o inscripción' }}</span>
           </span>
           <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
         </button>
 
         <div v-if="manualOpen" class="manual-body">
-          <p class="access-help">Verifica la identidad del socio antes de registrar su entrada.</p>
+          <p class="access-help">
+            {{ scanTab === 'pago'
+              ? 'Selecciona al cliente (pendiente, inactivo o próximo a vencer) para abrir su pantalla de pago.'
+              : 'Verifica la identidad del socio antes de registrar su entrada.' }}
+          </p>
 
           <form class="access-form" @submit.prevent="buscarClientes">
             <div class="field">
@@ -117,11 +157,14 @@
           <p v-else-if="busquedaRealizada" class="access-help">No se encontraron inscripciones con esa búsqueda.</p>
 
           <p v-if="seleccionado" class="access-help">
-            Seleccionado: <strong>{{ seleccionado.nombre }}</strong>. Confirma visualmente su identidad antes de registrar.
+            Seleccionado: <strong>{{ seleccionado.nombre }}</strong>
+            {{ scanTab === 'pago' ? `(${seleccionado.estatus}).` : '. Confirma visualmente su identidad antes de registrar.' }}
           </p>
 
           <button class="manual-submit" type="button" :disabled="saving || !seleccionado" @click="registrarManual">
-            {{ saving ? 'Registrando…' : 'Registrar entrada del cliente seleccionado' }}
+            {{ scanTab === 'pago'
+              ? 'Ir a cobrar al cliente seleccionado'
+              : (saving ? 'Registrando…' : 'Registrar entrada del cliente seleccionado') }}
           </button>
         </div>
       </div>
@@ -155,6 +198,14 @@
           <div><dt>Escaneado en</dt><dd>Sede {{ resultado.sede_escaneo }}</dd></div>
         </dl>
         <p v-if="resultado.aviso" class="result-notice">{{ resultado.aviso }}</p>
+        <button
+          v-if="!resultado.permitido && (resultado.id_inscripto || resultado.ID_Inscripto)"
+          type="button"
+          class="result-pay-btn"
+          @click="irAPago(Number(resultado.id_inscripto || resultado.ID_Inscripto))"
+        >
+          Ir a cobrar ahora →
+        </button>
       </div>
     </div>
 
@@ -166,11 +217,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 
 type Cliente = { id_inscripto: number; nombre: string; correo: string | null; estatus: string; sede_registro: number };
 
 const props = defineProps<{ mode: 'facial' | 'scanner'; sedeId: number }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'registered'): void }>();
+
+const router = useRouter();
+const scanTab = ref<'asistencia' | 'pago'>('asistencia');
 
 const video = ref<HTMLVideoElement | null>(null);
 const codigo = ref('');
@@ -234,6 +289,27 @@ const api = async (path: string, options: RequestInit = {}) => {
   return d;
 };
 
+const cambiarTab = (tab: 'asistencia' | 'pago') => {
+  if (scanTab.value === tab) return;
+  scanTab.value = tab;
+  error.value = '';
+  resultado.value = null;
+  lastQR = '';
+};
+
+const irAPago = async (idInscripto: number) => {
+  if (!Number.isInteger(idInscripto) || idInscripto <= 0) {
+    error.value = 'No se encontró una inscripción válida para cobrar.';
+    return;
+  }
+  const rol = (sessionStorage.getItem('user_role') || localStorage.getItem('user_role') || 'GYM_ACCOUNT').trim();
+  emit('close');
+  await router.push({
+    path: `/${rol}/pay/${idInscripto}`,
+    query: { sede_id: props.sedeId || undefined }
+  });
+};
+
 const buscarClientes = async () => {
   if (buscando.value || busqueda.value.trim().length < 3) return;
   buscando.value = true;
@@ -275,11 +351,47 @@ const registrarSolicitud = async (payload: { codigo_qr?: string; id_inscripto?: 
   }
 };
 
-const registrar = async () => {
-  if (codigo.value.length === 64) await registrarSolicitud({ codigo_qr: codigo.value });
+const resolverParaPago = async (codigoQr: string) => {
+  if (busy) return;
+  busy = true;
+  saving.value = true;
+  error.value = '';
+  resultado.value = null;
+  try {
+    const d = await api('resolver-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sede_id: props.sedeId, codigo_qr: codigoQr })
+    });
+    const idInscripto = Number(d.ID_Inscripto ?? d.id_inscripto ?? 0);
+    if (!idInscripto) throw new Error('No se encontró la inscripción asociada a este QR.');
+    codigo.value = '';
+    await irAPago(idInscripto);
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'No fue posible abrir el pago de este QR.';
+    lastQR = '';
+  } finally {
+    busy = false;
+    saving.value = false;
+  }
 };
+
+const registrar = async () => {
+  if (codigo.value.length !== 64) return;
+  if (scanTab.value === 'pago') {
+    await resolverParaPago(codigo.value);
+    return;
+  }
+  await registrarSolicitud({ codigo_qr: codigo.value });
+};
+
 const registrarManual = async () => {
-  if (seleccionado.value) await registrarSolicitud({ id_inscripto: seleccionado.value.id_inscripto });
+  if (!seleccionado.value) return;
+  if (scanTab.value === 'pago') {
+    await irAPago(seleccionado.value.id_inscripto);
+    return;
+  }
+  await registrarSolicitud({ id_inscripto: seleccionado.value.id_inscripto });
 };
 
 /* Lee un cuadro de la cámara y devuelve el texto del QR (o '') */
@@ -435,7 +547,8 @@ onUnmounted(() => {
 .manual-toggle svg,
 .facial-note svg,
 .camera-placeholder svg,
-.result-icon svg {
+.result-icon svg,
+.scanner-tab svg {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.9;
@@ -509,8 +622,42 @@ onUnmounted(() => {
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
 
-/* Nada dentro del cuerpo se encoge: la cámara conserva su tamaño */
 .access-body > * { flex: none; }
+
+/* ---------- Pestañas Asistencia / Cobrar ---------- */
+.scanner-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 4px;
+  background: var(--a-surface);
+  border: 1px solid var(--a-line2);
+  border-radius: 14px;
+}
+
+.scanner-tab {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--a-text2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.scanner-tab svg { width: 16px; height: 16px; }
+.scanner-tab:hover:not(.active) { color: #fff; background: rgba(255, 255, 255, 0.05); }
+.scanner-tab.active {
+  background: var(--a-hl);
+  color: #12121c;
+  box-shadow: 0 6px 18px -6px var(--a-hl);
+}
 
 /* ---------- Cámara (grande) ---------- */
 .camera-frame {
@@ -549,7 +696,6 @@ onUnmounted(() => {
 }
 .camera-placeholder svg { width: 42px; height: 42px; opacity: 0.8; }
 
-/* Visor QR: cuadrado grande basado en la altura de la cámara */
 .scan-box {
   position: absolute;
   top: 50%;
@@ -590,7 +736,6 @@ onUnmounted(() => {
   50% { top: 92%; }
 }
 
-/* Guía de rostro */
 .face-guide {
   position: absolute;
   top: 50%;
@@ -690,12 +835,11 @@ onUnmounted(() => {
 .manual.open .chev { transform: rotate(180deg); }
 
 .manual-body {
-  padding: 4px 16px 16px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   border-top: 1px solid var(--a-line);
-  padding-top: 14px;
 }
 
 .access-help { margin: 0; color: var(--a-text2); font-size: 12.5px; line-height: 1.5; }
@@ -874,6 +1018,21 @@ onUnmounted(() => {
   border-radius: 10px;
 }
 
+.result-pay-btn {
+  grid-column: 1 / -1;
+  margin-top: 12px;
+  height: 42px;
+  border: 1px solid var(--a-hl-line);
+  border-radius: 11px;
+  background: var(--a-hl);
+  color: #12121c;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 0.18s ease, transform 0.18s var(--ease);
+}
+.result-pay-btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
 /* ---------- Pie ---------- */
 .access-foot {
   flex: none;
@@ -897,10 +1056,12 @@ onUnmounted(() => {
 
 /* ---------- Accesibilidad ---------- */
 .close-btn:focus-visible,
+.scanner-tab:focus-visible,
 .manual-toggle:focus-visible,
 .access-form button:focus-visible,
 .manual-submit:focus-visible,
 .client-result:focus-visible,
+.result-pay-btn:focus-visible,
 .access-foot button:focus-visible {
   outline: 2px solid var(--a-hl);
   outline-offset: 2px;
@@ -925,7 +1086,7 @@ onUnmounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .access-panel, .result { animation: none; }
-  .scan-line, .cam-chip.live i, .spinner { animation-duration: 0.01ms; animation-iteration-count: 1; }
+  .scan-line, .cam-chip.live i, .spinner { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
   .close-btn:hover { transform: none; }
 }
 </style>
