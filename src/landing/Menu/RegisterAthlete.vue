@@ -26,6 +26,14 @@ const nombreTitulo = (valor: string) => String(valor ?? '').toLocaleLowerCase('e
 function normalizarCampo(campo: CampoNombre) { form[campo] = nombreTitulo(form[campo]); }
 function normalizarCorreo() { form.email = form.email.trim().toLowerCase(); }
 function limpiarCurp() { form.curp = String(form.curp).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18); }
+// La CURP trae la fecha (AAMMDD); el carácter 17 es número antes del 2000 y letra desde el 2000
+function fechaDesdeCurp() {
+  if (validarCurp(form.curp)) return;
+  const siglo = /\d/.test(form.curp.charAt(16)) ? '19' : '20';
+  const fecha = `${siglo}${form.curp.slice(4, 6)}-${form.curp.slice(6, 8)}-${form.curp.slice(8, 10)}`;
+  const d = new Date(`${fecha}T00:00:00Z`);
+  if (!Number.isNaN(d.getTime()) && d.toISOString().startsWith(fecha) && d.getTime() <= Date.now()) form.fechaNac = fecha;
+}
 const validarCurp = (valor: string) => {
   const curp = valor.trim().toUpperCase();
   if (curp.length !== 18) return 'La CURP debe tener exactamente 18 caracteres.';
@@ -88,17 +96,30 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
 /* ===== Registro con Google: solo autocompleta nombre, apellidos y correo ===== */
 const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
 const googleBtn = ref<HTMLElement | null>(null);
+const vieneDeGoogle = ref(false);
+const datosRef = ref<HTMLElement | null>(null);
+function ponerNombre(nombres: string, apellidos: string) {
+  const [paterno = '', ...resto] = apellidos.trim().split(/\s+/);
+  form.nombres = nombreTitulo(nombres);
+  form.apellidoP = nombreTitulo(paterno);
+  form.apellidoM = nombreTitulo(resto.join(' '));
+}
+function intercambiarNombre() { ponerNombre(`${form.apellidoP} ${form.apellidoM}`.trim(), form.nombres); }
 function usarDatosGoogle({ credential }: { credential: string }) {
   try {
     const base64 = (credential.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
     const u = JSON.parse(new TextDecoder().decode(bytes));
-    const [paterno = '', ...resto] = String(u.family_name || '').trim().split(/\s+/);
-    form.nombres = nombreTitulo(u.given_name || '');
-    form.apellidoP = nombreTitulo(paterno);
-    form.apellidoM = nombreTitulo(resto.join(' '));
+    let nombres = String(u.given_name || '').trim(), apellidos = String(u.family_name || '').trim();
+    // Hay cuentas con los datos al revés: si el correo empieza con los "apellidos", se intercambian
+    const simple = (v: string) => v.normalize('NFD').toLowerCase().replace(/[^a-z]/g, '');
+    const correo = simple(String(u.email || '').split('@')[0] ?? '');
+    if (nombres && apellidos && correo.startsWith(simple(apellidos))) [nombres, apellidos] = [apellidos, nombres];
+    ponerNombre(nombres, apellidos);
+    vieneDeGoogle.value = true;
     form.email = String(u.email || '').toLowerCase();
     notify('Datos de Google cargados. Revísalos y completa los que faltan.', 'success');
+    datosRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch {
     notify('No se pudieron leer los datos de Google.', 'error');
   }
@@ -157,9 +178,6 @@ onMounted(() => {
         </div>
 
         <form v-else @submit.prevent="handleRegisterClick">
-          <!-- ===== Registro con Google ===== -->
-          <div ref="googleBtn" class="google-btn"></div>
-
           <div class="rg-grid">
             <!-- ===== Fotografía ===== -->
             <div class="form-column area-foto">
@@ -179,8 +197,9 @@ onMounted(() => {
             </div>
 
             <!-- ===== Datos personales ===== -->
-            <div class="form-column area-datos">
+            <div ref="datosRef" class="form-column area-datos">
               <h3 class="section-title first">Datos personales</h3>
+              <button v-if="vieneDeGoogle" type="button" class="swap-name" @click="intercambiarNombre">⇄ ¿Nombre y apellidos al revés? Intercambiar</button>
               <div class="fields">
                 <div class="field">
                   <label>Nombre(s)</label>
@@ -198,7 +217,7 @@ onMounted(() => {
                 </div>
                 <div class="field">
                   <label>CURP</label>
-                  <input v-model="form.curp" @input="limpiarCurp" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="ABCD010101HDFXXX00" required />
+                  <input v-model="form.curp" @input="limpiarCurp(); fechaDesdeCurp()" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="ABCD010101HDFXXX00" required />
                   <div class="field-foot">
                     <small v-if="errorCurp" class="field-note invalid">{{ errorCurp }}</small>
                     <small v-else-if="form.curp.length === 18" class="field-note">CURP con formato válido (sin consulta oficial).</small>
@@ -315,6 +334,11 @@ onMounted(() => {
               {{ guardando ? 'Registrando...' : 'Registrarme' }}
               <svg v-if="!guardando" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
+            <!-- ===== Registro con Google ===== -->
+            <div v-show="GOOGLE_CLIENT_ID" class="google-box">
+              <span class="google-sep">o</span>
+              <div ref="googleBtn" class="google-btn"></div>
+            </div>
             <p class="login-link">¿Ya tienes cuenta? <router-link :to="{ name: 'login' }">Inicia sesión</router-link></p>
           </div>
         </form>
@@ -800,8 +824,12 @@ input[type="date"] { color-scheme: dark; }
 .success-box a { color: var(--soft); font-weight: 650; }
 
 /* GOOGLE */
-.google-btn { display: flex; justify-content: center; margin-bottom: 28px; color-scheme: light; }
-.google-btn:empty { display: none; }
+.google-box { display: flex; flex-direction: column; gap: 14px; }
+.google-sep { display: flex; align-items: center; gap: 12px; color: var(--text-3); font-size: 12px; }
+.google-sep::before, .google-sep::after { content: ''; flex: 1; height: 1px; background: var(--line-strong); }
+.google-btn { display: flex; justify-content: center; min-height: 40px; color-scheme: light; }
+.swap-name { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--soft); font-family: inherit; font-size: 11.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.swap-name:hover { color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }

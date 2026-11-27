@@ -595,12 +595,12 @@
         class="modal-wrapper"
         @click.self="activeModal = null"
       >
-        <!-- QR -->
+        <!-- QR DE ASISTENCIA EN PARED (POR SEDE) -->
         <div v-if="activeModal === 'qr'" class="custom-panel">
           <div class="panel-header">
             <div>
-              <span class="modal-kicker">GYMPRO</span>
-              <h3>{{ t.codigoQrAcceso }}</h3>
+              <span class="modal-kicker">FACTOR FIT · {{ selectedGym?.Sede_Colonia || 'SUCURSAL' }}</span>
+              <h3>{{ t.codigoQrAcceso || 'QR de asistencia en sucursal' }}</h3>
             </div>
 
             <button type="button" class="close-panel" @click="activeModal = null">
@@ -610,16 +610,24 @@
 
           <div class="panel-body">
             <div class="qr-container">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ULTRAFITNESS"
-                alt="QR Code"
-              />
+              <img :src="attendanceQrImg" alt="QR de asistencia de la sucursal" />
             </div>
 
-            <p>{{ t.muestraCodigoAsistencia }}</p>
+            <p>
+              Coloca este código en la entrada de <strong>{{ selectedGym?.Sede_Colonia || 'tu sucursal' }}</strong>.
+              Al escanearlo con su celular, el cliente registrará su asistencia automáticamente en esta sede.
+            </p>
 
-            <button type="button" class="action-btn-full">
-              {{ t.descargarImprimir }}
+            <button
+              type="button"
+              class="action-btn-full outline"
+              @click="downloadQrImage(attendanceQrImg, `qr-asistencia-sede-${selectedGym?.ID_Sede || 1}.png`)"
+            >
+              {{ t.descargarQr || 'Descargar QR (PNG)' }}
+            </button>
+
+            <button type="button" class="action-btn-full" @click="printAttendanceQr">
+              {{ t.descargarImprimir || 'Imprimir cartel con QR' }}
             </button>
           </div>
         </div>
@@ -628,8 +636,8 @@
         <div v-if="activeModal === 'website'" class="custom-panel">
           <div class="panel-header">
             <div>
-              <span class="modal-kicker">GYMPRO</span>
-              <h3>{{ t.tuSitioWeb }}</h3>
+              <span class="modal-kicker">FACTOR FIT</span>
+              <h3>{{ t.tuSitioWeb || 'Sitio web público' }}</h3>
             </div>
 
             <button type="button" class="close-panel" @click="activeModal = null">
@@ -639,21 +647,21 @@
 
           <div class="panel-body">
             <div class="qr-preview-container">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ULTRAFITNESS-WEB"
-                alt="QR Sitio Web"
-                class="preview-qr-img"
-              />
+              <img :src="websiteQrImg" alt="QR Sitio Web Factor Fit" class="preview-qr-img" />
             </div>
 
-            <p>{{ t.gestionaApariencia }}</p>
+            <p>{{ PUBLIC_SITE_URL }}</p>
 
-            <button type="button" class="action-btn-full outline">
-              {{ t.visitarSitioPublico }}
+            <button type="button" class="action-btn-full outline" @click="visitPublicSite">
+              {{ t.visitarSitioPublico || 'Visitar sitio público' }}
             </button>
 
-            <button type="button" class="action-btn-full">
-              {{ t.descargarQr }}
+            <button
+              type="button"
+              class="action-btn-full"
+              @click="downloadQrImage(websiteQrImg, 'qr-sitio-factorfit.png')"
+            >
+              {{ t.descargarQr || 'Descargar QR' }}
             </button>
           </div>
         </div>
@@ -743,7 +751,6 @@ const navAdmin = [
   }
 ];
 
-
 const navReports = [
   {
     to: '/GYM_ACCOUNT/revenue', key: 'revenue',
@@ -794,13 +801,11 @@ const navReports = [
   }
 ];
 
-
 /* =========================================================
    ESTADOS GENERALES
 ========================================================= */
 
 const isNotificationsOpen = ref(false);
-
 const activeModal = ref(null);
 const desktopDropdown = ref(null);
 
@@ -813,7 +818,62 @@ const selectedGym = ref(gyms.value.find(g => String(g.ID_Sede) === sessionStorag
 const syncBranch = () => { const account = readAccount(); gyms.value = Array.isArray(account.sedes) ? account.sedes : []; const stored = sessionStorage.getItem('selected_sede_id'); selectedGym.value = gyms.value.find(g => String(g.ID_Sede) === stored) || gyms.value[0] || null; const validId = selectedGym.value ? String(selectedGym.value.ID_Sede) : ''; if (validId && validId !== stored) { sessionStorage.setItem('selected_sede_id', validId); localStorage.setItem('selected_sede_id', validId); return true; } if (!validId) { sessionStorage.removeItem('selected_sede_id'); localStorage.removeItem('selected_sede_id'); } return false; };
 const onBranchChanged = () => { syncBranch(); refreshNotificationsOnBranch(); };
 
-const notifications = ref([]); // Notificaciones reales de Laravel, sin datos de prueba
+const notifications = ref([]);
+
+/* =========================================================
+   QR DEL SITIO WEB Y QR DE ASISTENCIA EN PARED (POR SEDE)
+========================================================= */
+
+const PUBLIC_SITE_URL = 'https://factorfit.sahwa-system.workers.dev';
+
+const attendanceQrLink = computed(() => {
+  const sedeId = Number(selectedGym.value?.ID_Sede || sessionStorage.getItem('selected_sede_id') || 0);
+  return sedeId > 0 ? `${PUBLIC_SITE_URL}/asistencia-qr?sede=${sedeId}` : `${PUBLIC_SITE_URL}/asistencia-qr`;
+});
+
+const websiteQrImg = computed(() =>
+  `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=12&data=${encodeURIComponent(PUBLIC_SITE_URL)}`
+);
+
+const attendanceQrImg = computed(() =>
+  `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=12&data=${encodeURIComponent(attendanceQrLink.value)}`
+);
+
+const visitPublicSite = () => {
+  window.open(PUBLIC_SITE_URL, '_blank', 'noopener,noreferrer');
+};
+
+const downloadQrImage = async (imgUrl, filename) => {
+  try {
+    const res = await fetch(imgUrl);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch {
+    window.open(imgUrl, '_blank', 'noopener,noreferrer');
+  }
+};
+
+const printAttendanceQr = () => {
+  const sede = selectedGym.value?.Sede_Colonia || 'Sucursal';
+  const w = window.open('', '_blank', 'width=520,height=680');
+  if (!w) return;
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>QR Asistencia - ${sede}</title>
+    <style>body{font-family:Inter,Arial,sans-serif;text-align:center;padding:36px;color:#12121c}
+    h1{margin:0 0 6px;font-size:28px;letter-spacing:2px}h2{margin:0 0 18px;color:#d4506e;font-size:18px}
+    img{width:280px;height:280px;border:10px solid #12121c;border-radius:18px}
+    p{margin:18px auto 0;max-width:340px;font-size:14px;color:#444;line-height:1.5}</style></head>
+    <body><h1>FACTOR FIT</h1><h2>${sede}</h2>
+    <img src="${attendanceQrImg.value}" alt="QR Asistencia" onload="window.print()" />
+    <p>Escanea este código con la cámara de tu celular para registrar tu asistencia en esta sucursal.</p></body></html>`);
+  w.document.close();
+};
 
 /* =========================================================
    PROPIETARIO: dato real de Gym_Account.Nombre_Propietario
@@ -826,7 +886,6 @@ const ownerWordCount = computed(() =>
   ownerName.value.trim().split(/\s+/u).filter(Boolean).length
 );
 
-// Un nombre: "Geova". Nombre compuesto: "Geova Lopez Gutierrez" -> "GLG".
 const GYM_ACCOUNTInitials = computed(() => {
   const words = ownerName.value.trim().split(/\s+/u).filter(Boolean);
   if (!words.length) return '—';
@@ -853,7 +912,6 @@ const loadOwnerName = async () => {
   const token = notificationsToken();
   if (!token) { ownerName.value = ''; return; }
 
-  // El nombre pertenece a Gym_Account, independientemente de la sede.
   const sede = Number(sessionStorage.getItem('selected_sede_id') || selectedGym.value?.ID_Sede || 0);
   const query = sede > 0 ? `?sede_id=${encodeURIComponent(sede)}` : '';
   try {
@@ -866,13 +924,11 @@ const loadOwnerName = async () => {
     if (version !== ownerRequestVersion) return;
     const name = data?.perfil?.nombrePropietario ?? data?.perfil?.Nombre_Propietario
       ?? data?.nombrePropietario ?? data?.Nombre_Propietario;
-    // Nunca inventar nombre o usar el nombre del gimnasio como propietario.
     ownerName.value = typeof name === 'string' && name.trim()
       ? name.trim().replace(/\s+/gu, ' ')
       : '';
   } catch (error) {
     if (version !== ownerRequestVersion) return;
-    // Solo respaldo si la sesión realmente contiene el nombre del propietario.
     ownerName.value = ownerNameFromSession();
     console.warn('No se pudo consultar el nombre del propietario:', error);
   }
@@ -942,7 +998,7 @@ const refreshNotificationsOnBranch = () => { notificationsRequestVersion++; noti
 const refreshNotificationsOnFocus = () => { if (document.visibilityState === 'visible') void fetchNotifications(true); };
 
 /* =========================================================
-   GRUPO ACTIVO (resalta el menú cuando estás en una de sus páginas)
+   GRUPO ACTIVO
 ========================================================= */
 
 const grupos = {
@@ -953,17 +1009,15 @@ const grupos = {
     '/GYM_ACCOUNT/register-staff'
   ],
   administration: ['/GYM_ACCOUNT/pricing', '/GYM_ACCOUNT/fees'],
-  
-reports: [
-  '/GYM_ACCOUNT/revenue',
-  '/GYM_ACCOUNT/debtors',
-  '/GYM_ACCOUNT/attendance',
-  '/GYM_ACCOUNT/renewals',
-  '/GYM_ACCOUNT/membership-history',
-  '/GYM_ACCOUNT/cash-history',
-  '/GYM_ACCOUNT/audit-log'
-]
-
+  reports: [
+    '/GYM_ACCOUNT/revenue',
+    '/GYM_ACCOUNT/debtors',
+    '/GYM_ACCOUNT/attendance',
+    '/GYM_ACCOUNT/renewals',
+    '/GYM_ACCOUNT/membership-history',
+    '/GYM_ACCOUNT/cash-history',
+    '/GYM_ACCOUNT/audit-log'
+  ]
 };
 
 const isGroupActive = (name) =>
@@ -973,7 +1027,6 @@ const isGroupActive = (name) =>
    BARRA INFERIOR MÓVIL
 ========================================================= */
 
-/* Pestaña que corresponde a la página actual */
 const activeTab = computed(() => {
   const path = route.path;
 
@@ -993,7 +1046,6 @@ const activeTab = computed(() => {
   return '';
 });
 
-/* Si hay una hoja abierta, se resalta esa pestaña; si no, la de la página */
 const isTabOn = (name) =>
   mobileSheet.value ? mobileSheet.value === name : activeTab.value === name;
 
@@ -1011,7 +1063,6 @@ const openModal = (name) => {
   activeModal.value = name;
 };
 
-/* Bloquea el scroll del fondo mientras la hoja está abierta */
 watch(mobileSheet, (value) => {
   document.body.style.overflow = value ? 'hidden' : '';
 });
@@ -1019,22 +1070,16 @@ watch(mobileSheet, (value) => {
 /* ---------- Ocultar / mostrar la barra inferior ---------- */
 
 const NAV_HIDDEN_KEY = 'GYM_ACCOUNT-nav-hidden';
-
 const navHidden = ref(localStorage.getItem(NAV_HIDDEN_KEY) === '1');
 
 const setNavHidden = (value) => {
   navHidden.value = value;
   localStorage.setItem(NAV_HIDDEN_KEY, value ? '1' : '0');
-
-  /* Al ocultar la barra se cierra cualquier hoja abierta */
-  if (value) {
-    closeSheet();
-  }
+  if (value) closeSheet();
 };
 
 const toggleBottomNav = () => setNavHidden(!navHidden.value);
 
-/* Deslizar hacia abajo sobre la barra para ocultarla */
 let touchStartY = 0;
 
 const onNavTouchStart = (event) => {
@@ -1043,10 +1088,7 @@ const onNavTouchStart = (event) => {
 
 const onNavTouchEnd = (event) => {
   const deltaY = event.changedTouches[0].clientY - touchStartY;
-
-  if (deltaY > 40) {
-    setNavHidden(true);
-  }
+  if (deltaY > 40) setNavHidden(true);
 };
 
 /* =========================================================
@@ -1075,45 +1117,25 @@ const selectGym = (gym) => {
 };
 
 /* =========================================================
-   CERRAR MENÚ AL HACER CLICK AFUERA
+   CERRAR MENÚ AL HACER CLICK AFUERA / ESC / RESIZE
 ========================================================= */
 
 const handleDocumentClick = (event) => {
   const target = event.target;
-
-  if (!(target instanceof Element)) {
-    return;
-  }
-
-  if (!target.closest('.nav-dropdown-root')) {
-    closeDesktopDropdown();
-  }
+  if (!(target instanceof Element)) return;
+  if (!target.closest('.nav-dropdown-root')) closeDesktopDropdown();
 };
 
-/* =========================================================
-   ESC
-========================================================= */
-
 const handleKeydown = (event) => {
-  if (event.key !== 'Escape') {
-    return;
-  }
-
+  if (event.key !== 'Escape') return;
   closeDesktopDropdown();
   closeSheet();
   activeModal.value = null;
 };
 
-/* =========================================================
-   RESIZE
-========================================================= */
-
 const handleResize = () => {
-  if (window.innerWidth >= 900) {
-    closeSheet();
-  } else {
-    closeDesktopDropdown();
-  }
+  if (window.innerWidth >= 900) closeSheet();
+  else closeDesktopDropdown();
 };
 
 /* =========================================================
@@ -1144,68 +1166,30 @@ const handleLogout = async () => {
 
 const aplicarEstilosGlobales = () => {
   let savedColors = null;
-
-  try {
-    savedColors = JSON.parse(localStorage.getItem('app-colors') || 'null');
-  } catch {
-    savedColors = null;
-  }
+  try { savedColors = JSON.parse(localStorage.getItem('app-colors') || 'null'); } catch { savedColors = null; }
 
   const savedRadius = localStorage.getItem('app-radius');
   const savedDensidad = localStorage.getItem('app-densidad');
-
   const root = document.documentElement;
 
   if (savedColors) {
-    if (savedColors.headingBg) {
-      root.style.setProperty('--color-heading-bg', savedColors.headingBg);
-    }
-
-    if (savedColors.tablas) {
-      root.style.setProperty('--color-tablas', savedColors.tablas);
-    }
-
+    if (savedColors.headingBg) root.style.setProperty('--color-heading-bg', savedColors.headingBg);
+    if (savedColors.tablas) root.style.setProperty('--color-tablas', savedColors.tablas);
     if (savedColors.interfaz) {
       root.style.setProperty('--color-interfaz', savedColors.interfaz);
       root.style.setProperty('--bg-custom', savedColors.interfaz);
     }
-
-    if (savedColors.botones) {
-      root.style.setProperty('--color-botones', savedColors.botones);
-    }
-
-    if (savedColors.tarjetas) {
-      root.style.setProperty('--bg-cards', savedColors.tarjetas);
-    }
-
-    if (savedColors.titulos) {
-      root.style.setProperty('--color-titulos', savedColors.titulos);
-    }
-
-    if (savedColors.highlight) {
-      root.style.setProperty('--color-highlight', savedColors.highlight);
-    }
-
-    if (savedColors.etiquetas) {
-      root.style.setProperty('--color-etiquetas', savedColors.etiquetas);
-    }
-
-    if (savedColors.textoGeneral) {
-      root.style.setProperty('--color-texto-general', savedColors.textoGeneral);
-    }
-
-    if (savedColors.textoBotones) {
-      root.style.setProperty('--color-texto-botones', savedColors.textoBotones);
-    }
-
-    if (savedColors.svgColor) {
-      root.style.setProperty('--color-svg', savedColors.svgColor);
-    }
+    if (savedColors.botones) root.style.setProperty('--color-botones', savedColors.botones);
+    if (savedColors.tarjetas) root.style.setProperty('--bg-cards', savedColors.tarjetas);
+    if (savedColors.titulos) root.style.setProperty('--color-titulos', savedColors.titulos);
+    if (savedColors.highlight) root.style.setProperty('--color-highlight', savedColors.highlight);
+    if (savedColors.etiquetas) root.style.setProperty('--color-etiquetas', savedColors.etiquetas);
+    if (savedColors.textoGeneral) root.style.setProperty('--color-texto-general', savedColors.textoGeneral);
+    if (savedColors.textoBotones) root.style.setProperty('--color-texto-botones', savedColors.textoBotones);
+    if (savedColors.svgColor) root.style.setProperty('--color-svg', savedColors.svgColor);
   }
 
-  if (savedRadius) {
-    root.style.setProperty('--app-border-radius', savedRadius);
-  }
+  if (savedRadius) root.style.setProperty('--app-border-radius', savedRadius);
 
   if (savedDensidad === 'compacto') {
     root.style.setProperty('--panel-padding', '16px');
@@ -1263,10 +1247,6 @@ onUnmounted(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&display=swap');
 
-/* =========================================================
-   BASE
-========================================================= */
-
 * {
   box-sizing: border-box;
 }
@@ -1294,16 +1274,11 @@ onUnmounted(() => {
   transition: background-color .25s ease;
 }
 
-/* Ocultos por defecto; cada breakpoint activa los suyos */
 .desktop-navbar,
 .bottom-nav,
 .nav-toggle {
   display: none;
 }
-
-/* =========================================================
-   LAYOUT
-========================================================= */
 
 .main-layout-container {
   width: 100%;
@@ -1318,10 +1293,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
 }
-
-/* =========================================================
-   ICONOS Y TEXTOS COMPARTIDOS (dropdowns de escritorio y hojas móviles)
-========================================================= */
 
 .dropdown-icon {
   width: 38px;
@@ -1390,10 +1361,6 @@ onUnmounted(() => {
 }
 
 .logout-link { color: #f87171; }
-
-/* =========================================================
-   TOP NAV MÓVIL
-========================================================= */
 
 .mobile-top-nav {
   min-height: 64px;
@@ -1523,10 +1490,6 @@ onUnmounted(() => {
   background: var(--accent);
 }
 
-/* =========================================================
-   BARRA INFERIOR MÓVIL
-========================================================= */
-
 .bottom-nav {
   height: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom));
   position: fixed;
@@ -1545,8 +1508,6 @@ onUnmounted(() => {
   transition: transform .3s cubic-bezier(.32, .72, 0, 1);
 }
 
-/* Barra oculta: baja fuera de pantalla.
-   +40px para que también se esconda el botón central flotante */
 .bottom-nav.is-hidden {
   transform: translateY(calc(100% + 40px));
   pointer-events: none;
@@ -1601,7 +1562,6 @@ onUnmounted(() => {
   transform: scale(.88);
 }
 
-/* Barrita superior de la pestaña activa */
 .tab::before {
   content: '';
   width: 36px;
@@ -1628,7 +1588,6 @@ onUnmounted(() => {
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 
-/* Botón central flotante */
 .tab-center {
   justify-content: flex-end;
   padding-bottom: 15px;
@@ -1679,8 +1638,6 @@ onUnmounted(() => {
     0 0 0 8px color-mix(in srgb, var(--button) 45%, transparent);
 }
 
-/* ---------- Botón para ocultar / mostrar la barra ---------- */
-
 .nav-toggle {
   width: 38px;
   height: 20px;
@@ -1714,7 +1671,6 @@ onUnmounted(() => {
   color: var(--accent);
 }
 
-/* Barra oculta: el botón baja al borde y la flecha apunta hacia arriba */
 .nav-toggle.collapsed {
   bottom: calc(env(safe-area-inset-bottom) + 8px);
 }
@@ -1722,10 +1678,6 @@ onUnmounted(() => {
 .nav-toggle.collapsed svg {
   transform: rotate(180deg);
 }
-
-/* =========================================================
-   HOJAS INFERIORES (móvil)
-========================================================= */
 
 .sheet-overlay {
   position: fixed;
@@ -1799,7 +1751,6 @@ onUnmounted(() => {
   color: #f87171;
 }
 
-/* Flecha que indica que la fila abre una página */
 .sheet-link:not(.branch):not(.logout-link)::after {
   content: '›';
   margin-left: auto;
@@ -1814,7 +1765,6 @@ onUnmounted(() => {
   border-radius: 12px;
 }
 
-/* Cuadrícula de accesos rápidos en "Más" */
 .sheet-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1895,10 +1845,6 @@ onUnmounted(() => {
 .sheet-leave-to .sheet {
   transform: translateY(100%);
 }
-
-/* =========================================================
-   MODALES
-========================================================= */
 
 .modal-wrapper {
   position: fixed;
@@ -1981,6 +1927,7 @@ onUnmounted(() => {
   color: var(--muted);
   font-size: .83rem;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .qr-container,
@@ -2038,12 +1985,6 @@ onUnmounted(() => {
   color: var(--text);
 }
 
-/* =========================================================
-   DESKTOP >= 900
-   (900 y no 1024, porque el "modo escritorio" de los
-   navegadores móviles simula una pantalla de ~980px)
-========================================================= */
-
 @media (min-width: 900px) {
 
   .mobile-top-nav,
@@ -2052,8 +1993,6 @@ onUnmounted(() => {
   .sheet-overlay {
     display: none !important;
   }
-
-  /* ---------- NAVBAR (grid: sucursal | menú | acciones) ---------- */
 
   .desktop-navbar {
     width: 100%;
@@ -2076,8 +2015,6 @@ onUnmounted(() => {
     gap: 16px;
     padding: 0 clamp(18px, 2.3vw, 40px);
   }
-
-  /* ---------- SUCURSAL (izquierda) ---------- */
 
   .desktop-brand {
     min-width: 0;
@@ -2161,8 +2098,6 @@ onUnmounted(() => {
 
   .brand-chevron.rotated { transform: rotate(180deg); }
 
-  /* ---------- MENÚ CENTRAL ---------- */
-
   .desktop-menu {
     min-width: 0;
     display: flex;
@@ -2171,7 +2106,6 @@ onUnmounted(() => {
     gap: 4px;
   }
 
-  /* Divisor fino entre el menú y los botones de la derecha */
   .desktop-menu::after {
     content: '';
     width: 1px;
@@ -2250,8 +2184,6 @@ onUnmounted(() => {
     outline-offset: 2px;
   }
 
-  /* ---------- DROPDOWNS ---------- */
-
   .nav-dropdown-root { position: relative; }
 
   .desktop-dropdown {
@@ -2267,7 +2199,6 @@ onUnmounted(() => {
     box-shadow: 0 22px 55px rgba(0, 0, 0, 0.5);
   }
 
-  /* Los menús de la derecha se abren hacia la izquierda */
   .desktop-dropdown.dropdown-end {
     right: 0;
     left: auto;
@@ -2375,8 +2306,6 @@ onUnmounted(() => {
     color: var(--accent);
   }
 
-  /* ---------- ACCIONES DERECHA ---------- */
-
   .desktop-actions {
     min-width: 0;
     display: flex;
@@ -2445,8 +2374,6 @@ onUnmounted(() => {
     background: var(--nav-line);
   }
 
-  /* ---------- PERFIL (solo avatar) ---------- */
-
   .profile-menu-root { position: relative; }
 
   .desktop-profile {
@@ -2508,15 +2435,11 @@ onUnmounted(() => {
 
   .logout-link:hover { background: rgba(239, 68, 68, 0.1); }
 
-  /* ---------- MAIN ---------- */
-
   .main-layout-container {
     width: 100%;
     min-height: calc(100vh - var(--nav-height));
     margin-left: 0 !important;
   }
-
-  /* ---------- TRANSICIONES ---------- */
 
   .desktop-dropdown-enter-active,
   .desktop-dropdown-leave-active {
@@ -2530,173 +2453,59 @@ onUnmounted(() => {
   }
 }
 
-/* =========================================================
-   LAPTOPS (900 - 1439)
-========================================================= */
-
 @media (min-width: 900px) and (max-width: 1439px) {
-
-  .desktop-navbar-inner {
-    gap: 10px;
-    padding: 0 20px;
-  }
-
+  .desktop-navbar-inner { gap: 10px; padding: 0 20px; }
   .desktop-brand { max-width: 230px; }
-
   .desktop-menu { gap: 2px; }
-
-  .desktop-nav-item {
-    padding: 0 11px;
-    font-size: 0.84rem;
-  }
-
+  .desktop-nav-item { padding: 0 11px; font-size: 0.84rem; }
   .desktop-separator { margin: 0 6px; }
 }
 
-/* =========================================================
-   900 - 1279: logo solo icono, sucursal solo icono
-========================================================= */
-
 @media (min-width: 900px) and (max-width: 1279px) {
-
-  .desktop-navbar-inner {
-    gap: 6px;
-    padding: 0 14px;
-  }
-
+  .desktop-navbar-inner { gap: 6px; padding: 0 14px; }
   .brand-copy { display: none; }
-
   .desktop-brand { max-width: 84px; }
-
-  .desktop-nav-item {
-    padding: 0 8px;
-    font-size: 0.8rem;
-  }
-
-  .desktop-action {
-    width: 38px;
-    height: 38px;
-  }
+  .desktop-nav-item { padding: 0 8px; font-size: 0.8rem; }
+  .desktop-action { width: 38px; height: 38px; }
 }
 
-/* =========================================================
-   900 - 1160: menú sin iconos
-========================================================= */
-
 @media (min-width: 900px) and (max-width: 1160px) {
-
-  .desktop-nav-item {
-    padding: 0 7px;
-    font-size: 0.78rem;
-  }
-
+  .desktop-nav-item { padding: 0 7px; font-size: 0.78rem; }
   .desktop-nav-item > svg:first-child { display: none; }
-
   .nav-chevron { display: none; }
-
   .brand-chevron { display: none; }
-
   .desktop-brand { max-width: 56px; }
-
   .brand-button { padding: 0 8px; }
 }
 
-/* =========================================================
-   MÓVIL / TABLET (< 900)
-========================================================= */
-
 @media (max-width: 899px) {
-
-  .desktop-navbar {
-    display: none;
-  }
-
-  .mobile-top-nav {
-    display: flex;
-  }
-
-  .bottom-nav {
-    display: grid;
-  }
-
-  .nav-toggle {
-    display: flex;
-  }
-
-  /* Deja espacio para que la barra inferior no tape el contenido */
+  .desktop-navbar { display: none; }
+  .mobile-top-nav { display: flex; }
+  .bottom-nav { display: grid; }
+  .nav-toggle { display: flex; }
   .main-content-wrapper {
     padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 14px);
     transition: padding-bottom .3s ease;
   }
-
-  /* Barra oculta: solo queda espacio para el botón de mostrar */
   .main-content-wrapper.nav-collapsed {
     padding-bottom: calc(env(safe-area-inset-bottom) + 48px);
   }
 }
 
-/* =========================================================
-   TELÉFONO
-========================================================= */
-
 @media (max-width: 560px) {
-
-  .mobile-top-nav {
-    min-height: 60px;
-    padding: 9px 10px;
-  }
-
-  .nav-right {
-    gap: 5px;
-  }
-
-  .nav-action-btn {
-    width: 39px;
-    height: 39px;
-    border-radius: 10px;
-  }
-
-  .mobile-branch {
-    height: 44px;
-    max-width: calc(100% - 92px);
-  }
-
-  .custom-panel {
-    padding: 20px;
-    border-radius: 15px;
-  }
-
-  .qr-container img {
-    width: 160px;
-    height: 160px;
-  }
-
-  .qr-preview-container {
-    width: 155px;
-    height: 155px;
-  }
+  .mobile-top-nav { min-height: 60px; padding: 9px 10px; }
+  .nav-right { gap: 5px; }
+  .nav-action-btn { width: 39px; height: 39px; border-radius: 10px; }
+  .mobile-branch { height: 44px; max-width: calc(100% - 92px); }
+  .custom-panel { padding: 20px; border-radius: 15px; }
+  .qr-container img { width: 160px; height: 160px; }
+  .qr-preview-container { width: 155px; height: 155px; }
 }
-
-/* =========================================================
-   TELÉFONO PEQUEÑO
-========================================================= */
 
 @media (max-width: 380px) {
-
-  .tab {
-    font-size: .62rem;
-  }
-
-  .fab {
-    width: 58px;
-    height: 58px;
-    top: -27px;
-  }
+  .tab { font-size: .62rem; }
+  .fab { width: 58px; height: 58px; top: -27px; }
 }
-
-/* =========================================================
-   TRANSICIONES GENERALES
-========================================================= */
 
 .pop-enter-active,
 .pop-leave-active {

@@ -33,6 +33,7 @@ const router = createRouter({
     { path: '/recover-password-client', name: 'recover-password-client', component: RecoverPasswordClient },
     { path: '/record-client', name: 'record-client', component: RecordClient },
     { path: '/copiar-clave', name: 'copiar-clave', component: () => import('../views/Copiarclave.vue') },
+    { path: '/asistencia-qr', name: 'asistencia-qr', component: () => import('../views/AsistenciaQR.vue') },
     ...GYM_ACCOUNTRoutes,
     ...GYM_RECEPCIONISTRoutes,
     ...AdminRoutes,
@@ -69,6 +70,8 @@ router.beforeEach((to) => {
   }
 
   if ((to.name === 'login' || to.name === 'loginclient') && token && dashboard && router.hasRoute(dashboard)) {
+    const redirect = typeof to.query.redirect === 'string' && to.query.redirect.startsWith('/') ? to.query.redirect : null
+    if (redirect && userRole === 'Member') return redirect
     return { name: dashboard }
   }
 
