@@ -6,7 +6,7 @@ type Sucursal = { ID_Gym: number; ID_Sede: number; Nombre_Gym: string; Nombre_Se
 type Tarifa = { ID_Precio: number; Nombre_Paquete: string; Precio: number; Periodo?: string };
 type CampoNombre = 'nombres' | 'apellidoP' | 'apellidoM';
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '/docs/terminos-y-condiciones.pdf';
+const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '../../docs/terminos-y-condiciones.pdf';
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const gymSearchInput = ref<HTMLInputElement | null>(null);
