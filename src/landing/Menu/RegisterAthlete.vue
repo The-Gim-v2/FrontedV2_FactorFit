@@ -6,7 +6,7 @@ type Sucursal = { ID_Gym: number; ID_Sede: number; Nombre_Gym: string; Nombre_Se
 type Tarifa = { ID_Precio: number; Nombre_Paquete: string; Precio: number; Periodo?: string };
 type CampoNombre = 'nombres' | 'apellidoP' | 'apellidoM';
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
-const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '/docs/terminos-y-condiciones.pdf';
+const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '../../docs/terminos-y-condiciones.pdf';
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const gymSearchInput = ref<HTMLInputElement | null>(null);
@@ -84,6 +84,40 @@ async function handleRegisterClick() {
 }
 onMounted(() => { void cargarSucursales(); });
 onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage.value); });
+
+/* ===== Registro con Google: solo autocompleta nombre, apellidos y correo ===== */
+const GOOGLE_CLIENT_ID = String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
+const googleBtn = ref<HTMLElement | null>(null);
+function usarDatosGoogle({ credential }: { credential: string }) {
+  try {
+    const base64 = (credential.split('.')[1] ?? '').replace(/-/g, '+').replace(/_/g, '/');
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const u = JSON.parse(new TextDecoder().decode(bytes));
+    const [paterno = '', ...resto] = String(u.family_name || '').trim().split(/\s+/);
+    form.nombres = nombreTitulo(u.given_name || '');
+    form.apellidoP = nombreTitulo(paterno);
+    form.apellidoM = nombreTitulo(resto.join(' '));
+    form.email = String(u.email || '').toLowerCase();
+    notify('Datos de Google cargados. Revísalos y completa los que faltan.', 'success');
+  } catch {
+    notify('No se pudieron leer los datos de Google.', 'error');
+  }
+}
+function iniciarGoogle() {
+  const google = (window as any).google;
+  if (!google || !googleBtn.value) return;
+  google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: usarDatosGoogle });
+  google.accounts.id.renderButton(googleBtn.value, { theme: 'filled_black', size: 'large', text: 'signup_with', shape: 'pill', width: 280, locale: 'es' });
+}
+onMounted(() => {
+  if (!GOOGLE_CLIENT_ID) return console.warn('Falta VITE_GOOGLE_CLIENT_ID en el archivo .env');
+  if ((window as any).google?.accounts) return iniciarGoogle();
+  const script = document.createElement('script');
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.async = true;
+  script.onload = iniciarGoogle;
+  document.head.appendChild(script);
+});
 </script>
 
 <template>
@@ -123,6 +157,9 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
         </div>
 
         <form v-else @submit.prevent="handleRegisterClick">
+          <!-- ===== Registro con Google ===== -->
+          <div ref="googleBtn" class="google-btn"></div>
+
           <div class="rg-grid">
             <!-- ===== Fotografía ===== -->
             <div class="form-column area-foto">
@@ -213,6 +250,9 @@ onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage
                       <input v-model="form.confirmPassword" :type="showConfirmPassword ? 'text' : 'password'" required minlength="8" autocomplete="new-password" />
                       <button type="button" @click="showConfirmPassword = !showConfirmPassword">{{ showConfirmPassword ? 'Ocultar' : 'Ver' }}</button>
                     </div>
+                    <small v-if="form.confirmPassword" class="field-note" :class="{ invalid: form.password !== form.confirmPassword }" aria-live="polite">
+                      {{ form.password === form.confirmPassword ? '✓ Las contraseñas son idénticas' : '✗ Las contraseñas no coinciden' }}
+                    </small>
                   </div>
                 </div>
               </div>
@@ -758,6 +798,10 @@ input[type="date"] { color-scheme: dark; }
 .success-box h2 { margin: 0 0 8px; }
 .success-box p { margin: 0 0 14px; color: var(--text-2); }
 .success-box a { color: var(--soft); font-weight: 650; }
+
+/* GOOGLE */
+.google-btn { display: flex; justify-content: center; margin-bottom: 28px; color-scheme: light; }
+.google-btn:empty { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { transition: none !important; animation-duration: .01ms !important; }
