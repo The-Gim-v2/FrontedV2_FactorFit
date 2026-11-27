@@ -5,8 +5,8 @@ const year = new Date().getFullYear();
 
 const WHATSAPP = 'https://wa.me/524811111030';
 const EMAIL = 'g-nafc@hotmail.com';
-const TERMINOS_PDF_URL = '../../../public/docs/terminos-y-condiciones.pdf';
-const PRIVACIDAD_PDF_URL = '../../../public/docs/politica-de-privacidad.pdf';
+const TERMINOS_PDF_URL = '/docs/terminos-y-condiciones.pdf';
+const PRIVACIDAD_PDF_URL = '/docs/politica-de-privacidad.pdf';
 
 /* Ajusta los href a los ids reales de tus secciones */
 const LINKS = [
