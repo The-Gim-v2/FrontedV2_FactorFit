@@ -3,16 +3,18 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import HeadingGYM_ADMIN from '../HeadingGYM_ADMIN.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
 import { traducciones } from '../i18n.js';
+
 const currentLang = ref(localStorage.getItem('GYM_ADMIN-idioma') || 'es');
+
 const extraTexts = {
   es: {
     fp_pageTitle: 'GESTIÓN DE',
     fp_pageHighlight: 'MOROSIDAD Y RECARGOS',
     fp_pageSubtitle:
-      'Configura estados de morosidad, períodos de gracia, recargos, límites y notificaciones de pago.',
+      'Configura estados de morosidad, períodos de gracia, multas independientes, límites y notificaciones de pago.',
     fp_kpiRules: 'Reglas activas',
     fp_kpiGrace: 'Período de gracia',
-    fp_kpiFine: 'Multa base',
+    fp_kpiFines: 'Multas activas',
     fp_kpiCap: 'Tope máximo',
     fp_days: 'días',
     fp_remTitle1: 'Avisos al',
@@ -25,18 +27,30 @@ const extraTexts = {
     fp_notifyFineDesc:
       'El socio recibe un mensaje cada vez que se genera un recargo.',
     fp_noteNoCap: 'Sin tope: las multas pueden acumularse sin límite.',
-    fp_warnExceeds: 'La multa base supera el tope máximo.',
-    fp_invalidFine: 'La multa base no puede ser mayor que el tope máximo.',
-    fp_invalidValues: 'Los montos no pueden ser negativos.'
+    fp_warnExceeds: 'La multa activa supera el tope máximo configurado.',
+    fp_invalidFine: 'La multa no puede ser mayor que el tope máximo.',
+    fp_invalidValues: 'Los montos no pueden ser negativos.',
+    fp_optional: 'Opcional ($0 = sin multa)',
+    fp_tempTitle: 'Multa por baja temporal',
+    fp_tempDesc: 'Se aplica automáticamente como cargo único al poner al cliente en estatus de baja temporal.',
+    fp_tempBadge: 'Automática al dar de baja temporal',
+    fp_graceFineTitle: 'Multa por saldo pendiente (Período de gracia)',
+    fp_graceFineDesc: 'Se aplica al adeudo no pagado tras el período de gracia y se detiene al entrar al plazo de inactivo.',
+    fp_inactiveFineTitle: 'Multa por pasar a inactivo',
+    fp_inactiveFineDesc: 'Se aplica cuando se cumple el plazo adicional y la membresía pasa a Inactivo.',
+    fp_amountLabel: 'Monto ($)',
+    fp_freqLabel: 'Frecuencia de aplicación',
+    fp_capForInactive: 'Este tope aplica a la multa por pasar a inactivo (la multa por saldo pendiente finaliza al pasar a inactivo).',
+    fp_capForGrace: 'Sin multa por inactivo configurada: este tope aplica a la multa por saldo pendiente.'
   },
   en: {
     fp_pageTitle: 'DELINQUENCY &',
     fp_pageHighlight: 'LATE FEE MANAGEMENT',
     fp_pageSubtitle:
-      'Configure delinquency statuses, grace periods, late fees, limits and payment notifications.',
+      'Configure delinquency statuses, grace periods, independent fines, limits and payment notifications.',
     fp_kpiRules: 'Active rules',
     fp_kpiGrace: 'Grace period',
-    fp_kpiFine: 'Base fine',
+    fp_kpiFines: 'Active fines',
     fp_kpiCap: 'Maximum cap',
     fp_days: 'days',
     fp_remTitle1: 'Member',
@@ -49,11 +63,24 @@ const extraTexts = {
     fp_notifyFineDesc:
       'The member receives a message every time a charge is generated.',
     fp_noteNoCap: 'No cap: fines can accumulate without limit.',
-    fp_warnExceeds: 'The base fine exceeds the maximum cap.',
-    fp_invalidFine: 'The base fine cannot exceed the maximum cap.',
-    fp_invalidValues: 'Amounts cannot be negative.'
+    fp_warnExceeds: 'The active fine exceeds the maximum cap.',
+    fp_invalidFine: 'The fine cannot exceed the maximum cap.',
+    fp_invalidValues: 'Amounts cannot be negative.',
+    fp_optional: 'Optional ($0 = no fine)',
+    fp_tempTitle: 'Temporary leave fine',
+    fp_tempDesc: 'Applied automatically as a one-time charge when a member is set to temporary leave.',
+    fp_tempBadge: 'Automatic on temporary leave',
+    fp_graceFineTitle: 'Unpaid balance fine (Grace period)',
+    fp_graceFineDesc: 'Applied to unpaid balances after grace and stops once the inactive deadline begins.',
+    fp_inactiveFineTitle: 'Deactivation fine (Inactive status)',
+    fp_inactiveFineDesc: 'Applied when the additional deadline passes and the membership becomes Inactive.',
+    fp_amountLabel: 'Amount ($)',
+    fp_freqLabel: 'Application frequency',
+    fp_capForInactive: 'This cap applies to the deactivation fine (the unpaid balance fine stops once inactive).',
+    fp_capForGrace: 'No deactivation fine set: this cap applies to the unpaid balance fine.'
   }
 };
+
 const t = (key) => {
   const lang = currentLang.value;
   return (
@@ -64,6 +91,7 @@ const t = (key) => {
     key
   );
 };
+
 const handleLangChange = (event) => {
   const idioma = event?.detail?.idioma;
   if (idioma && ['es', 'en'].includes(idioma)) {
@@ -71,36 +99,51 @@ const handleLangChange = (event) => {
     localStorage.setItem('GYM_ADMIN-idioma', idioma);
   }
 };
+
 onMounted(() => {
   window.addEventListener('idioma-changed', handleLangChange);
 });
 onUnmounted(() => {
   window.removeEventListener('idioma-changed', handleLangChange);
 });
+
 const toastRef = ref(null);
 const graceDays = ref(0);
 const inactiveDays = ref(7);
+
 const settings = ref({
   pendingStatus: true,
   inactiveStatus: true,
   blockTurnstile: true,
   paymentType: 'membresia',
-  fineAmount: 800,
+  // 1. Baja temporal (automática, sin frecuencia)
+  tempLeaveFine: 0,
+  // 2. Saldo pendiente tras período de gracia
+  graceFine: 0,
+  graceRecurrence: 'unica',
+  // 3. Plazo para pasar a inactivo
+  inactiveFine: 0,
+  inactiveRecurrence: 'unica',
+  // Tope máximo y compatibilidad
+  maxFineLimit: 0,
+  fineAmount: 0,
   recurrence: 'unica',
-  maxFineLimit: 2500,
   remindBefore: true,
   remindDays: 3,
   notifyFine: true
 });
+
 const notify = (message, type = 'success') => {
   toastRef.value?.notify?.(message, type);
 };
+
 const selectedSede = ref(sessionStorage.getItem('selected_sede_id') || '');
 const loading = ref(false);
 const saving = ref(false);
 const aplicarTodas = ref(false);
 const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 const api = `${base}${base.endsWith('/api') ? '' : '/api'}/gym/morosidad`;
+
 const request = async (path = '', options = {}) => {
   const token = sessionStorage.getItem('auth_token');
   if (!token) throw new Error('Sesión no iniciada.');
@@ -122,6 +165,7 @@ const request = async (path = '', options = {}) => {
     );
   return data;
 };
+
 const resolveSede = () => {
   selectedSede.value = sessionStorage.getItem('selected_sede_id') || '';
   if (!selectedSede.value) {
@@ -131,6 +175,7 @@ const resolveSede = () => {
     } catch {}
   }
 };
+
 const cargarConfiguracion = async () => {
   resolveSede();
   if (!selectedSede.value) return;
@@ -141,7 +186,15 @@ const cargarConfiguracion = async () => {
       const c = data.configuracion;
       graceDays.value = Number(c.graceDays ?? 0);
       inactiveDays.value = Number(c.inactiveDays ?? 7);
-      Object.assign(settings.value, c);
+      Object.assign(settings.value, c, {
+        paymentType: 'membresia',
+        tempLeaveFine: Number(c.tempLeaveFine ?? 0),
+        graceFine: Number(c.graceFine ?? c.fineAmount ?? 0),
+        graceRecurrence: c.graceRecurrence || c.recurrence || 'unica',
+        inactiveFine: Number(c.inactiveFine ?? 0),
+        inactiveRecurrence: c.inactiveRecurrence || 'unica',
+        maxFineLimit: Number(c.maxFineLimit ?? 0)
+      });
     }
   } catch (e) {
     notify(e.message, 'error');
@@ -149,13 +202,33 @@ const cargarConfiguracion = async () => {
     loading.value = false;
   }
 };
+
 const guardarConfiguracionGeneral = async () => {
   if (!selectedSede.value) return notify('Selecciona una sucursal.', 'error');
-  const fine = Number(settings.value.fineAmount);
-  const cap = Number(settings.value.maxFineLimit);
-  if (!Number.isFinite(fine) || !Number.isFinite(cap) || fine < 0 || cap < 0)
+
+  const tempFine = Number(settings.value.tempLeaveFine || 0);
+  const graceFine = Number(settings.value.graceFine || 0);
+  const inactiveFine = Number(settings.value.inactiveFine || 0);
+  const cap = Number(settings.value.maxFineLimit || 0);
+
+  if (
+    !Number.isFinite(tempFine) ||
+    !Number.isFinite(graceFine) ||
+    !Number.isFinite(inactiveFine) ||
+    !Number.isFinite(cap) ||
+    tempFine < 0 ||
+    graceFine < 0 ||
+    inactiveFine < 0 ||
+    cap < 0
+  ) {
     return notify(t('fp_invalidValues'), 'error');
-  if (cap > 0 && fine > cap) return notify(t('fp_invalidFine'), 'error');
+  }
+
+  const targetFine = capAppliesToInactive.value ? inactiveFine : graceFine;
+  if (cap > 0 && targetFine > cap) {
+    return notify(t('fp_invalidFine'), 'error');
+  }
+
   saving.value = true;
   try {
     await request('', {
@@ -165,6 +238,14 @@ const guardarConfiguracionGeneral = async () => {
         graceDays: graceDays.value,
         inactiveDays: inactiveDays.value,
         ...settings.value,
+        paymentType: 'membresia',
+        tempLeaveFine: tempFine,
+        graceFine,
+        inactiveFine,
+        maxFineLimit: cap,
+        // Compatibilidad con backend anterior
+        fineAmount: graceFine,
+        recurrence: settings.value.graceRecurrence,
         aplicar_todas: aplicarTodas.value
       })
     });
@@ -175,11 +256,13 @@ const guardarConfiguracionGeneral = async () => {
     saving.value = false;
   }
 };
+
 let timer = null;
 const guardarCambiosRapidos = () => {
   clearTimeout(timer);
   timer = setTimeout(() => guardarConfiguracionGeneral(), 550);
 };
+
 const copiarSedes = async () => {
   if (!selectedSede.value) return notify('Selecciona una sucursal.', 'error');
   if (!window.confirm('¿Copiar la configuración actual de esta sede a todas las demás?'))
@@ -194,10 +277,12 @@ const copiarSedes = async () => {
     notify(e.message, 'error');
   }
 };
+
 const handleBranchChange = () => {
   clearTimeout(timer);
   cargarConfiguracion();
 };
+
 onMounted(() => {
   window.addEventListener('factorfit:branch-changed', handleBranchChange);
   cargarConfiguracion();
@@ -206,6 +291,7 @@ onUnmounted(() => {
   clearTimeout(timer);
   window.removeEventListener('factorfit:branch-changed', handleBranchChange);
 });
+
 const incrementDays = () => {
   graceDays.value++;
   guardarCambiosRapidos();
@@ -234,6 +320,7 @@ const setRemindDays = (days) => {
   settings.value.remindDays = days;
   guardarCambiosRapidos();
 };
+
 const fmt = (number) => {
   const value = Number(number) || 0;
   return (
@@ -244,6 +331,7 @@ const fmt = (number) => {
     })
   );
 };
+
 const activeRules = computed(
   () =>
     [
@@ -252,14 +340,29 @@ const activeRules = computed(
       settings.value.blockTurnstile
     ].filter(Boolean).length
 );
-const fineValue = computed(() => Math.max(Number(settings.value.fineAmount) || 0, 0));
+
+const tempFineValue = computed(() => Math.max(Number(settings.value.tempLeaveFine) || 0, 0));
+const graceFineValue = computed(() => Math.max(Number(settings.value.graceFine) || 0, 0));
+const inactiveFineValue = computed(() => Math.max(Number(settings.value.inactiveFine) || 0, 0));
+const activeFinesCount = computed(
+  () => [tempFineValue.value, graceFineValue.value, inactiveFineValue.value].filter((v) => v > 0).length
+);
+
+// El tope aplica a la multa por inactivo si está configurada; si no, aplica a la multa por saldo pendiente
+const capAppliesToInactive = computed(
+  () => inactiveDays.value > 0 && inactiveFineValue.value > 0
+);
+const cappedFineValue = computed(
+  () => (capAppliesToInactive.value ? inactiveFineValue.value : graceFineValue.value)
+);
 const capValue = computed(() => Math.max(Number(settings.value.maxFineLimit) || 0, 0));
+
 const finePercent = computed(() => {
   if (capValue.value <= 0) return 0;
-  return Math.min(Math.round((fineValue.value / capValue.value) * 100), 100);
+  return Math.min(Math.round((cappedFineValue.value / capValue.value) * 100), 100);
 });
 const fineExceedsLimit = computed(
-  () => capValue.value > 0 && fineValue.value > capValue.value
+  () => capValue.value > 0 && cappedFineValue.value > capValue.value
 );
 const fineLevel = computed(() => {
   if (fineExceedsLimit.value || finePercent.value >= 90) return 'danger';
@@ -267,6 +370,7 @@ const fineLevel = computed(() => {
   return 'ok';
 });
 </script>
+
 <template>
   <HeadingGYM_ADMIN>
     <NotificationSystem ref="toastRef" />
@@ -279,6 +383,7 @@ const fineLevel = computed(() => {
         </h1>
         <p class="mor-description">{{ t('fp_pageSubtitle') }}</p>
       </header>
+
       <!-- KPIs -->
       <section class="kpi-grid">
         <article class="kpi-card">
@@ -298,8 +403,8 @@ const fineLevel = computed(() => {
         <article class="kpi-card">
           <span class="kpi-icon blue"><i class="bi bi-cash-coin"></i></span>
           <div class="kpi-copy">
-            <span class="kpi-label">{{ t('fp_kpiFine') }}</span>
-            <strong class="kpi-value">{{ fmt(fineValue) }}</strong>
+            <span class="kpi-label">{{ t('fp_kpiFines') }}</span>
+            <strong class="kpi-value">{{ activeFinesCount }}<small>/3</small></strong>
           </div>
         </article>
         <article class="kpi-card">
@@ -310,6 +415,7 @@ const fineLevel = computed(() => {
           </div>
         </article>
       </section>
+
       <!-- COLUMNAS PRINCIPALES -->
       <div class="mor-columns">
         <!-- REGLAS -->
@@ -325,6 +431,7 @@ const fineLevel = computed(() => {
             </div>
             <span class="counter-pill">{{ activeRules }}<small>/3</small></span>
           </header>
+
           <div class="card-body">
             <div class="row" :class="{ 'is-on': settings.pendingStatus }">
               <span class="row-icon"><i class="bi bi-hourglass-split"></i></span>
@@ -337,6 +444,7 @@ const fineLevel = computed(() => {
                 <span class="switch-track"><span class="switch-knob"></span></span>
               </label>
             </div>
+
             <div class="row" :class="{ 'is-on': settings.inactiveStatus }">
               <span class="row-icon"><i class="bi bi-person-x"></i></span>
               <div class="row-text">
@@ -348,6 +456,7 @@ const fineLevel = computed(() => {
                 <span class="switch-track"><span class="switch-knob"></span></span>
               </label>
             </div>
+
             <div class="row" :class="{ 'is-on': settings.blockTurnstile }">
               <span class="row-icon"><i class="bi bi-lock"></i></span>
               <div class="row-text">
@@ -359,6 +468,7 @@ const fineLevel = computed(() => {
                 <span class="switch-track"><span class="switch-knob"></span></span>
               </label>
             </div>
+
             <!-- Gracia -->
             <div class="row stacked">
               <div class="row-head">
@@ -391,6 +501,7 @@ const fineLevel = computed(() => {
                 >{{ d }}</button>
               </div>
             </div>
+
             <!-- Inactivo -->
             <div class="row stacked">
               <div class="row-head">
@@ -435,7 +546,8 @@ const fineLevel = computed(() => {
             </div>
           </div>
         </section>
-        <!-- COSTO Y FRECUENCIA -->
+
+        <!-- COSTO Y FRECUENCIA (3 MULTAS INDEPENDIENTES) -->
         <section class="card accent-blue" id="tutorial-step-1">
           <header class="card-header">
             <span class="badge-icon blue"><i class="bi bi-currency-dollar"></i></span>
@@ -447,47 +559,121 @@ const fineLevel = computed(() => {
               <p>{{ t('costFrequencySubtitle') }}</p>
             </div>
           </header>
+
           <div class="card-body form-body">
-            <div class="field">
-              <label>{{ t('affectedServiceLabel') }}</label>
-              <div class="select-wrap">
-                <select v-model="settings.paymentType" class="control">
-                  <option value="membresia">{{ t('serviceMembershipOption') }}</option>
-                  <option value="clases">{{ t('serviceClassesOption') }}</option>
-                  <option value="taquilla">{{ t('serviceLockerOption') }}</option>
-                  <option value="todos">{{ t('serviceAllOption') }}</option>
-                </select>
-                <i class="bi bi-chevron-down select-chevron"></i>
+            <!-- 1. MULTA POR BAJA TEMPORAL (AUTOMÁTICA, SIN FRECUENCIA) -->
+            <div class="fine-card">
+              <div class="fine-head">
+                <div>
+                  <h4>{{ t('fp_tempTitle') }}</h4>
+                  <p>{{ t('fp_tempDesc') }}</p>
+                </div>
+                <span class="fine-tag auto">{{ t('fp_tempBadge') }}</span>
+              </div>
+              <div class="field">
+                <label>{{ t('fp_amountLabel') }} <small class="opt-hint">{{ t('fp_optional') }}</small></label>
+                <div class="money">
+                  <span class="money-sign">$</span>
+                  <input
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    v-model.number="settings.tempLeaveFine"
+                    class="control mono"
+                  />
+                </div>
               </div>
             </div>
+
+            <!-- 2. MULTA POR SALDO PENDIENTE (PERÍODO DE GRACIA) -->
             <div class="fine-card">
+              <div class="fine-head">
+                <div>
+                  <h4>{{ t('fp_graceFineTitle') }}</h4>
+                  <p>{{ t('fp_graceFineDesc') }}</p>
+                </div>
+              </div>
               <div class="fine-grid">
                 <div class="field">
-                  <label>{{ t('fineAmountLabel') }}</label>
+                  <label>{{ t('fp_amountLabel') }} <small class="opt-hint">{{ t('fp_optional') }}</small></label>
                   <div class="money">
                     <span class="money-sign">$</span>
                     <input
                       type="number"
                       inputmode="decimal"
                       min="0"
-                      v-model.number="settings.fineAmount"
+                      v-model.number="settings.graceFine"
                       class="control mono"
-                      :class="{ 'is-warn': fineExceedsLimit }"
+                      :class="{ 'is-warn': !capAppliesToInactive && capValue > 0 && graceFineValue > capValue }"
                     />
                   </div>
                 </div>
                 <div class="field">
-                  <label>{{ t('maxFineLimitLabel') }}</label>
+                  <label>{{ t('fp_freqLabel') }}</label>
+                  <div class="select-wrap">
+                    <select v-model="settings.graceRecurrence" class="control" :disabled="graceFineValue <= 0">
+                      <option value="unica">{{ t('recurrenceSingleOption') }}</option>
+                      <option value="diaria">{{ t('recurrenceDailyOption') }}</option>
+                      <option value="semanal">{{ t('recurrenceWeeklyOption') }}</option>
+                      <option value="mensual">{{ t('recurrenceMonthlyOption') }}</option>
+                    </select>
+                    <i class="bi bi-chevron-down select-chevron"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. MULTA POR PLAZO PARA PASAR A INACTIVO -->
+            <div class="fine-card">
+              <div class="fine-head">
+                <div>
+                  <h4>{{ t('fp_inactiveFineTitle') }}</h4>
+                  <p>{{ t('fp_inactiveFineDesc') }}</p>
+                </div>
+              </div>
+              <div class="fine-grid">
+                <div class="field">
+                  <label>{{ t('fp_amountLabel') }} <small class="opt-hint">{{ t('fp_optional') }}</small></label>
                   <div class="money">
                     <span class="money-sign">$</span>
                     <input
                       type="number"
                       inputmode="decimal"
                       min="0"
-                      v-model.number="settings.maxFineLimit"
+                      v-model.number="settings.inactiveFine"
                       class="control mono"
+                      :class="{ 'is-warn': capAppliesToInactive && capValue > 0 && inactiveFineValue > capValue }"
                     />
                   </div>
+                </div>
+                <div class="field">
+                  <label>{{ t('fp_freqLabel') }}</label>
+                  <div class="select-wrap">
+                    <select v-model="settings.inactiveRecurrence" class="control" :disabled="inactiveFineValue <= 0">
+                      <option value="unica">{{ t('recurrenceSingleOption') }}</option>
+                      <option value="diaria">{{ t('recurrenceDailyOption') }}</option>
+                      <option value="semanal">{{ t('recurrenceWeeklyOption') }}</option>
+                      <option value="mensual">{{ t('recurrenceMonthlyOption') }}</option>
+                    </select>
+                    <i class="bi bi-chevron-down select-chevron"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TOPE MÁXIMO DE ACUMULACIÓN -->
+            <div class="fine-card">
+              <div class="field">
+                <label>{{ t('maxFineLimitLabel') }}</label>
+                <div class="money">
+                  <span class="money-sign">$</span>
+                  <input
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    v-model.number="settings.maxFineLimit"
+                    class="control mono"
+                  />
                 </div>
               </div>
               <div class="ratio" :class="'level-' + fineLevel" aria-hidden="true">
@@ -500,19 +686,12 @@ const fineLevel = computed(() => {
               <p v-else-if="capValue <= 0" class="note">
                 <i class="bi bi-infinity"></i> {{ t('fp_noteNoCap') }}
               </p>
+              <p class="note info">
+                <i class="bi bi-info-circle"></i>
+                {{ capAppliesToInactive ? t('fp_capForInactive') : t('fp_capForGrace') }}
+              </p>
             </div>
-            <div class="field">
-              <label>{{ t('recurrenceLabel') }}</label>
-              <div class="select-wrap">
-                <select v-model="settings.recurrence" class="control">
-                  <option value="unica">{{ t('recurrenceSingleOption') }}</option>
-                  <option value="diaria">{{ t('recurrenceDailyOption') }}</option>
-                  <option value="semanal">{{ t('recurrenceWeeklyOption') }}</option>
-                  <option value="mensual">{{ t('recurrenceMonthlyOption') }}</option>
-                </select>
-                <i class="bi bi-chevron-down select-chevron"></i>
-              </div>
-            </div>
+
             <!-- Sedes -->
             <div class="sync-box">
               <label class="check">
@@ -524,6 +703,7 @@ const fineLevel = computed(() => {
                 <i class="bi bi-copy"></i> Copiar a todas las sedes
               </button>
             </div>
+
             <button type="button" class="btn-primary" :disabled="saving || loading" @click="guardarConfiguracionGeneral">
               <i class="bi bi-floppy"></i>
               {{ t('saveConfigurationBtn') }}
@@ -531,6 +711,7 @@ const fineLevel = computed(() => {
           </div>
         </section>
       </div>
+
       <!-- AVISOS -->
       <section class="card accent-amber" id="tutorial-step-2">
         <header class="card-header">
@@ -563,6 +744,7 @@ const fineLevel = computed(() => {
               <span class="switch-track"><span class="switch-knob"></span></span>
             </label>
           </div>
+
           <div class="row top" :class="{ 'is-on': settings.notifyFine }">
             <span class="row-icon"><i class="bi bi-envelope"></i></span>
             <div class="row-text">
@@ -579,9 +761,11 @@ const fineLevel = computed(() => {
     </main>
   </HeadingGYM_ADMIN>
 </template>
+
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
 @import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+
 /* ================= BASE ================= */
 .mor-page {
   --accent: var(--color-highlight, #3b82f6);
@@ -609,6 +793,7 @@ const fineLevel = computed(() => {
 }
 .mor-page *, .mor-page *::before, .mor-page *::after { box-sizing: border-box; }
 .mor-page i.bi { line-height: 1; display: inline-block; }
+
 /* ================= ENCABEZADO ================= */
 .mor-heading { display: flex; flex-direction: column; gap: 8px; }
 .mor-title {
@@ -618,6 +803,7 @@ const fineLevel = computed(() => {
 }
 .mor-title span { color: var(--accent); }
 .mor-description { max-width: 720px; margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.55; }
+
 /* ================= KPIs ================= */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .kpi-card {
@@ -636,8 +822,10 @@ const fineLevel = computed(() => {
 .kpi-label { overflow: hidden; color: var(--muted); font-size: 0.7rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .kpi-value { color: var(--title); font-family: 'Oswald', sans-serif; font-size: 1.55rem; font-weight: 600; line-height: 1; white-space: nowrap; }
 .kpi-value small { margin-left: 5px; color: var(--muted); font-family: 'Inter', sans-serif; font-size: 0.7rem; font-weight: 500; }
+
 /* ================= COLUMNAS ================= */
 .mor-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: stretch; }
+
 /* ================= TARJETAS ================= */
 .card {
   position: relative; min-width: 0; display: flex; flex-direction: column; overflow: hidden;
@@ -674,7 +862,8 @@ const fineLevel = computed(() => {
 }
 .counter-pill small { color: var(--muted); font-size: 0.68rem; }
 .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 20px; }
-.form-body { gap: 18px; }
+.form-body { gap: 14px; }
+
 /* ================= FILAS ================= */
 .row {
   position: relative; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 16px;
@@ -697,6 +886,7 @@ const fineLevel = computed(() => {
 .row-text { min-width: 0; flex: 1; }
 .row-text h4 { margin: 0 0 3px; color: var(--title); font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
 .row-text p { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.5; }
+
 /* ================= SWITCH ================= */
 .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; display: inline-flex; cursor: pointer; }
 .switch input { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
@@ -705,6 +895,7 @@ const fineLevel = computed(() => {
 .switch input:checked + .switch-track { border-color: var(--amber); background: var(--amber); }
 .switch input:checked + .switch-track .switch-knob { transform: translateX(20px); }
 .switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 25%, transparent); }
+
 /* ================= STEPPER Y CHIPS ================= */
 .stepper {
   display: grid; grid-template-columns: 42px 1fr 42px; align-items: center; gap: 12px;
@@ -733,25 +924,29 @@ const fineLevel = computed(() => {
 .chip:hover { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 55%, transparent); }
 .chip.active { color: var(--amber); border-color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
 .chip-suffix { color: var(--muted); font-size: 0.7rem; }
+
 /* ================= NOTAS ================= */
 .note { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--muted); font-size: 0.7rem; line-height: 1.5; }
 .note i { margin-top: 2px; flex-shrink: 0; }
 .note.info { padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--text); }
 .note.info i { color: var(--accent); }
 .note.danger { color: var(--red); }
+
 /* ================= FORMULARIO ================= */
-.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.field label { color: var(--color-etiquetas, var(--text)); font-size: 0.74rem; font-weight: 600; line-height: 1.3; }
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.field label { color: var(--color-etiquetas, var(--text)); font-size: 0.74rem; font-weight: 600; line-height: 1.3; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.opt-hint { color: var(--muted); font-size: 0.66rem; font-weight: 400; }
 .select-wrap, .money { position: relative; width: 100%; }
 .money { display: flex; align-items: center; }
 .control {
-  width: 100%; height: 46px; padding: 0 14px; outline: none; color: var(--color-texto-input, var(--text));
+  width: 100%; height: 44px; padding: 0 14px; outline: none; color: var(--color-texto-input, var(--text));
   font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 500;
   border: 1px solid var(--line); border-radius: 10px; background: var(--input);
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s, opacity 0.18s;
 }
-.control:hover { border-color: color-mix(in srgb, var(--text) 26%, transparent); }
+.control:hover:not(:disabled) { border-color: color-mix(in srgb, var(--text) 26%, transparent); }
 .control:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.control:disabled { opacity: 0.45; cursor: not-allowed; }
 .control.is-warn { border-color: color-mix(in srgb, var(--red) 70%, transparent); }
 select.control { padding-right: 40px; appearance: none; -webkit-appearance: none; color-scheme: dark; cursor: pointer; }
 select.control option { background: #111315; color: #fff; }
@@ -762,10 +957,17 @@ select.control option { background: #111315; color: #fff; }
 .control[type='number'] { -moz-appearance: textfield; appearance: textfield; }
 .control[type='number']::-webkit-inner-spin-button,
 .control[type='number']::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
-.fine-card { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: color-mix(in srgb, var(--text) 1.5%, transparent); }
-.fine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.fine-grid .field { justify-content: flex-end; }
-.fine-grid .field label { min-height: 2.6em; display: flex; align-items: flex-end; }
+
+.fine-card { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 12px; background: color-mix(in srgb, var(--text) 1.5%, transparent); }
+.fine-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.fine-head h4 { margin: 0 0 3px; color: var(--title); font-size: 0.82rem; font-weight: 650; }
+.fine-head p { margin: 0; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+.fine-tag {
+  padding: 4px 9px; border-radius: 999px; font-size: 0.65rem; font-weight: 600; white-space: nowrap;
+  color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 32%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+.fine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .ratio { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
 .ratio-track { height: 6px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--text) 9%, transparent); }
 .ratio-fill { height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.35s, background 0.25s; }
@@ -774,6 +976,7 @@ select.control option { background: #111315; color: #fff; }
 .ratio.level-warn .ratio-label { color: var(--amber); }
 .ratio.level-danger .ratio-fill { background: var(--red); }
 .ratio.level-danger .ratio-label { color: var(--red); }
+
 /* ================= SEDES ================= */
 .sync-box {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -807,14 +1010,17 @@ select.control option { background: #111315; color: #fff; }
 }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 9px 22px color-mix(in srgb, var(--accent) 28%, transparent); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* ================= AVISOS ================= */
 .notice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
 /* ================= NOTIFICACIONES ================= */
 :deep(.notification-container), :deep(.toast-container) {
   width: calc(100% - 32px) !important; max-width: 480px !important; left: 50% !important;
   right: auto !important; margin: 0 auto !important; transform: translateX(-50%) !important;
 }
 .step-btn:focus-visible, .btn-primary:focus-visible, .chip:focus-visible, .btn-ghost:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ================= RESPONSIVE ================= */
 @media (max-width: 1050px) {
   .mor-page { max-width: 780px; padding: 26px 22px 48px; }
@@ -836,7 +1042,6 @@ select.control option { background: #111315; color: #fff; }
   .row { padding: 13px 12px; gap: 11px; }
   .row-icon { width: 34px; height: 34px; }
   .fine-grid { grid-template-columns: 1fr; }
-  .fine-grid .field label { min-height: 0; }
   .notice-grid { grid-template-columns: 1fr; }
   .sync-box { flex-direction: column; align-items: stretch; }
   .btn-ghost { justify-content: center; }

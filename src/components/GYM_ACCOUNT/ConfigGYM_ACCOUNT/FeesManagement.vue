@@ -27,19 +27,21 @@ const extraTexts = {
     fp_notifyFineDesc:
       'El socio recibe un mensaje cada vez que se genera un recargo.',
     fp_noteNoCap: 'Sin tope: las multas pueden acumularse sin límite.',
-    fp_warnExceeds: 'Alguna multa supera el tope máximo configurado.',
-    fp_invalidFine: 'Ninguna multa puede ser mayor que el tope máximo.',
+    fp_warnExceeds: 'La multa activa supera el tope máximo configurado.',
+    fp_invalidFine: 'La multa no puede ser mayor que el tope máximo.',
     fp_invalidValues: 'Los montos no pueden ser negativos.',
     fp_optional: 'Opcional ($0 = sin multa)',
     fp_tempTitle: 'Multa por baja temporal',
     fp_tempDesc: 'Se aplica automáticamente como cargo único al poner al cliente en estatus de baja temporal.',
     fp_tempBadge: 'Automática al dar de baja temporal',
     fp_graceFineTitle: 'Multa por saldo pendiente (Período de gracia)',
-    fp_graceFineDesc: 'Se aplica al adeudo no pagado una vez terminado el período de gracia.',
+    fp_graceFineDesc: 'Se aplica al adeudo no pagado tras el período de gracia y se detiene al entrar al plazo de inactivo.',
     fp_inactiveFineTitle: 'Multa por pasar a inactivo',
     fp_inactiveFineDesc: 'Se aplica cuando se cumple el plazo adicional y la membresía pasa a Inactivo.',
     fp_amountLabel: 'Monto ($)',
-    fp_freqLabel: 'Frecuencia de aplicación'
+    fp_freqLabel: 'Frecuencia de aplicación',
+    fp_capForInactive: 'Este tope aplica a la multa por pasar a inactivo (la multa por saldo pendiente finaliza al pasar a inactivo).',
+    fp_capForGrace: 'Sin multa por inactivo configurada: este tope aplica a la multa por saldo pendiente.'
   },
   en: {
     fp_pageTitle: 'DELINQUENCY &',
@@ -61,19 +63,21 @@ const extraTexts = {
     fp_notifyFineDesc:
       'The member receives a message every time a charge is generated.',
     fp_noteNoCap: 'No cap: fines can accumulate without limit.',
-    fp_warnExceeds: 'One or more fines exceed the maximum cap.',
-    fp_invalidFine: 'No fine can exceed the maximum cap.',
+    fp_warnExceeds: 'The active fine exceeds the maximum cap.',
+    fp_invalidFine: 'The fine cannot exceed the maximum cap.',
     fp_invalidValues: 'Amounts cannot be negative.',
     fp_optional: 'Optional ($0 = no fine)',
     fp_tempTitle: 'Temporary leave fine',
     fp_tempDesc: 'Applied automatically as a one-time charge when a member is set to temporary leave.',
     fp_tempBadge: 'Automatic on temporary leave',
     fp_graceFineTitle: 'Unpaid balance fine (Grace period)',
-    fp_graceFineDesc: 'Applied to unpaid balances once the grace period ends.',
+    fp_graceFineDesc: 'Applied to unpaid balances after grace and stops once the inactive deadline begins.',
     fp_inactiveFineTitle: 'Deactivation fine (Inactive status)',
     fp_inactiveFineDesc: 'Applied when the additional deadline passes and the membership becomes Inactive.',
     fp_amountLabel: 'Amount ($)',
-    fp_freqLabel: 'Application frequency'
+    fp_freqLabel: 'Application frequency',
+    fp_capForInactive: 'This cap applies to the deactivation fine (the unpaid balance fine stops once inactive).',
+    fp_capForGrace: 'No deactivation fine set: this cap applies to the unpaid balance fine.'
   }
 };
 
@@ -183,6 +187,7 @@ const cargarConfiguracion = async () => {
       graceDays.value = Number(c.graceDays ?? 0);
       inactiveDays.value = Number(c.inactiveDays ?? 7);
       Object.assign(settings.value, c, {
+        paymentType: 'membresia',
         tempLeaveFine: Number(c.tempLeaveFine ?? 0),
         graceFine: Number(c.graceFine ?? c.fineAmount ?? 0),
         graceRecurrence: c.graceRecurrence || c.recurrence || 'unica',
@@ -219,7 +224,8 @@ const guardarConfiguracionGeneral = async () => {
     return notify(t('fp_invalidValues'), 'error');
   }
 
-  if (cap > 0 && Math.max(tempFine, graceFine, inactiveFine) > cap) {
+  const targetFine = capAppliesToInactive.value ? inactiveFine : graceFine;
+  if (cap > 0 && targetFine > cap) {
     return notify(t('fp_invalidFine'), 'error');
   }
 
@@ -232,6 +238,7 @@ const guardarConfiguracionGeneral = async () => {
         graceDays: graceDays.value,
         inactiveDays: inactiveDays.value,
         ...settings.value,
+        paymentType: 'membresia',
         tempLeaveFine: tempFine,
         graceFine,
         inactiveFine,
@@ -340,15 +347,22 @@ const inactiveFineValue = computed(() => Math.max(Number(settings.value.inactive
 const activeFinesCount = computed(
   () => [tempFineValue.value, graceFineValue.value, inactiveFineValue.value].filter((v) => v > 0).length
 );
-const maxSingleFine = computed(() => Math.max(tempFineValue.value, graceFineValue.value, inactiveFineValue.value));
+
+// El tope aplica a la multa por inactivo si está configurada; si no, aplica a la multa por saldo pendiente
+const capAppliesToInactive = computed(
+  () => inactiveDays.value > 0 && inactiveFineValue.value > 0
+);
+const cappedFineValue = computed(
+  () => (capAppliesToInactive.value ? inactiveFineValue.value : graceFineValue.value)
+);
 const capValue = computed(() => Math.max(Number(settings.value.maxFineLimit) || 0, 0));
 
 const finePercent = computed(() => {
   if (capValue.value <= 0) return 0;
-  return Math.min(Math.round((maxSingleFine.value / capValue.value) * 100), 100);
+  return Math.min(Math.round((cappedFineValue.value / capValue.value) * 100), 100);
 });
 const fineExceedsLimit = computed(
-  () => capValue.value > 0 && maxSingleFine.value > capValue.value
+  () => capValue.value > 0 && cappedFineValue.value > capValue.value
 );
 const fineLevel = computed(() => {
   if (fineExceedsLimit.value || finePercent.value >= 90) return 'danger';
@@ -547,19 +561,6 @@ const fineLevel = computed(() => {
           </header>
 
           <div class="card-body form-body">
-            <div class="field">
-              <label>{{ t('affectedServiceLabel') }}</label>
-              <div class="select-wrap">
-                <select v-model="settings.paymentType" class="control">
-                  <option value="membresia">{{ t('serviceMembershipOption') }}</option>
-                  <option value="clases">{{ t('serviceClassesOption') }}</option>
-                  <option value="taquilla">{{ t('serviceLockerOption') }}</option>
-                  <option value="todos">{{ t('serviceAllOption') }}</option>
-                </select>
-                <i class="bi bi-chevron-down select-chevron"></i>
-              </div>
-            </div>
-
             <!-- 1. MULTA POR BAJA TEMPORAL (AUTOMÁTICA, SIN FRECUENCIA) -->
             <div class="fine-card">
               <div class="fine-head">
@@ -579,7 +580,6 @@ const fineLevel = computed(() => {
                     min="0"
                     v-model.number="settings.tempLeaveFine"
                     class="control mono"
-                    :class="{ 'is-warn': capValue > 0 && tempFineValue > capValue }"
                   />
                 </div>
               </div>
@@ -604,7 +604,7 @@ const fineLevel = computed(() => {
                       min="0"
                       v-model.number="settings.graceFine"
                       class="control mono"
-                      :class="{ 'is-warn': capValue > 0 && graceFineValue > capValue }"
+                      :class="{ 'is-warn': !capAppliesToInactive && capValue > 0 && graceFineValue > capValue }"
                     />
                   </div>
                 </div>
@@ -642,7 +642,7 @@ const fineLevel = computed(() => {
                       min="0"
                       v-model.number="settings.inactiveFine"
                       class="control mono"
-                      :class="{ 'is-warn': capValue > 0 && inactiveFineValue > capValue }"
+                      :class="{ 'is-warn': capAppliesToInactive && capValue > 0 && inactiveFineValue > capValue }"
                     />
                   </div>
                 </div>
@@ -685,6 +685,10 @@ const fineLevel = computed(() => {
               </p>
               <p v-else-if="capValue <= 0" class="note">
                 <i class="bi bi-infinity"></i> {{ t('fp_noteNoCap') }}
+              </p>
+              <p class="note info">
+                <i class="bi bi-info-circle"></i>
+                {{ capAppliesToInactive ? t('fp_capForInactive') : t('fp_capForGrace') }}
               </p>
             </div>
 
