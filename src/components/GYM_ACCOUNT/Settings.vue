@@ -1,5 +1,5 @@
 <template>
-  <HeadingGYM_ADMIN>
+  <HeadingGYM_ACCOUNT>
     <main class="main-content">
       <div class="header-section">
         <div class="header-titles">
@@ -81,7 +81,6 @@
               type="checkbox"
               id="input-tutorial"
               v-model="settings.tutorial"
-              @change="sincronizarTutorialLocal"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
@@ -368,12 +367,12 @@
         </div>
       </transition>
     </main>
-  </HeadingGYM_ADMIN>
+  </HeadingGYM_ACCOUNT>
 </template>
 <script setup>
 import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
-import HeadingGYM_ADMIN from './HeadingGYM_ADMIN.vue';
+import HeadingGYM_ACCOUNT from './HeadingGYM_ACCOUNT.vue';
 const { setLang } = useLang();
 const guardandoConfig = ref(false);
 const exportandoExcel = ref(false);
@@ -427,7 +426,7 @@ const translations = {
     exportFormatDesc: "Descarga las bitácoras de esta sucursal en un archivo Excel con hojas, columnas y filtros.",
     toastColorsRestored: "Colores restaurados y guardados.",
     toastPresetApplied: "Tema combinado '{label}' aplicado y guardado.",
-    toastGYM_ADMINSaved: "Configuración de GYM_ADMIN guardada globalmente.",
+    toastGYM_ACCOUNTSaved: "Configuración de GYM_ACCOUNT guardada globalmente.",
     toastLocalSaved: "Configuración guardada localmente.",
     toastSaveError: "Error al guardar la configuración.",
     toastDownloading: "Descargando archivo {tipo}..."
@@ -480,7 +479,7 @@ const translations = {
     exportFormatDesc: "Download this branch’s logs as a formatted Excel workbook.",
     toastColorsRestored: "Colors restored and saved.",
     toastPresetApplied: "Combined theme '{label}' applied and saved.",
-    toastGYM_ADMINSaved: "GYM_ADMIN configuration saved globally.",
+    toastGYM_ACCOUNTSaved: "GYM_ACCOUNT configuration saved globally.",
     toastLocalSaved: "Configuration saved locally.",
     toastSaveError: "Error saving configuration.",
     toastDownloading: "Downloading {tipo} file..."
@@ -494,25 +493,22 @@ function safeJsonParse(raw, fallback = null) {
   try {
     return JSON.parse(raw);
   } catch (e) {
-    console.warn(
-      'localStorage corrupto, usando valores por defecto:',
-      e
-    );
+    console.warn('localStorage corrupto, usando valores por defecto:', e);
     return fallback;
   }
 }
 const ROLE_KEY = 'user_role';
 const cuentaVisualKey=()=>{const token=(()=>{for(const store of [sessionStorage,localStorage])for(const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const value=store.getItem(key);if(value)return value.replace(/^Bearer\s+/i,'');}return '';})();let h=2166136261;for(let i=0;i<token.length;i++)h=Math.imul(h^token.charCodeAt(i),16777619);return token?(h>>>0).toString(36):'no-session';};
 const claveColores = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
   return `app-colors-${rol}-${cuentaVisualKey()}`;
 };
 const claveRadius = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
   return `app-radius-${rol}-${cuentaVisualKey()}`;
 };
 const claveDensidad = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
   return `app-densidad-${rol}-${cuentaVisualKey()}`;
 };
 const defaultColors = {
@@ -1013,9 +1009,9 @@ const colorPresets = {
 const settings = reactive({
   notificaciones: false,
   tutorial:
-    localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true',
+    localStorage.getItem('tutorialActivo') === 'true',
   idioma:
-    localStorage.getItem('GYM_ADMIN-idioma') || 'es',
+    localStorage.getItem('GYM_ACCOUNT-idioma') || 'es',
   densidad:
     localStorage.getItem(claveDensidad()) || 'normal',
   borderRadius:
@@ -1041,11 +1037,11 @@ const pushSede = () => {
 };
 const pushToken = () => {
   for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['auth_token','token','access_token','gym_token','GYM_ADMIN_token','GYM_ACCOUNT_token','gymAccountToken']) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
       const value = store.getItem(key);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const key of ['auth','user','session','gymAccount','gym_account','GYM_ADMIN']) {
+    for (const key of ['auth','user','session','gymAccount','gym_account']) {
       try {
         const value = JSON.parse(store.getItem(key) || 'null');
         const token = value?.token || value?.access_token || value?.accessToken;
@@ -1108,7 +1104,6 @@ const cambiarNotificaciones = async () => {
     if (activar && Notification.permission === 'denied') {
       throw new Error('Las notificaciones están bloqueadas en este navegador. Habilítalas desde el ícono junto a la dirección web y recarga.');
     }
-    // Se solicita inmediatamente desde el evento real del interruptor.
     const permiso = activar && Notification.permission !== 'granted' ? Notification.requestPermission() : null;
     const reg = await pushRegistration();
     let subscription = await reg.pushManager.getSubscription();
@@ -1118,7 +1113,6 @@ const cambiarNotificaciones = async () => {
       }
       const config = await pushRequest(`config?sede_id=${pushSede()}`);
       if (!config.configured || !config.publicKey) throw new Error('Configura primero las claves VAPID en Railway.');
-      // Evita mandar el historial anterior al registrar un dispositivo nuevo.
       await fetch(`${pushBase}/api/gym/notificaciones/sincronizar`, {
         method: 'POST',
         headers: { Accept: 'application/json', Authorization: `Bearer ${pushToken()}`, 'Content-Type': 'application/json' },
@@ -1147,9 +1141,7 @@ const cambiarNotificaciones = async () => {
 const presetActivo = computed(() => {
   const actual = JSON.stringify(settings.colors);
   const key = Object.keys(colorPresets).find(
-    (k) =>
-      JSON.stringify(colorPresets[k].colors) ===
-      actual
+    (k) => JSON.stringify(colorPresets[k].colors) === actual
   );
   return key || null;
 });
@@ -1169,7 +1161,7 @@ const showToast = (msg) => {
     toast.visible = false;
   }, 3000);
 };
-// Apariencia privada por usuario, guardada en Railway; no afecta a otros roles ni cuentas.
+// Apariencia privada de la cuenta del propietario, independiente de los demás usuarios.
 const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const apiApariencia = async (method = 'GET', datos = null) => {
   const token = pushToken();
@@ -1190,17 +1182,13 @@ const guardarLocalApariencia = () => {
   aplicarEstilos();
   window.dispatchEvent(new CustomEvent('app-settings-updated', {detail: settings}));
 };
-const sincronizarTutorialLocal = () => {
-  localStorage.setItem('GYM_ADMIN-tutorialActivo', String(settings.tutorial));
-  window.dispatchEvent(new Event('tutorial-updated'));
-};
 const cargarAparienciaRemota = async () => {
   cargandoConfig.value = true;
   try {
     const respuesta = await apiApariencia();
     const apariencia = respuesta.apariencia;
-    if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ADMIN-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
-    if (typeof respuesta.tutorial === 'boolean') { settings.tutorial = respuesta.tutorial; sincronizarTutorialLocal(); }
+    if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ACCOUNT-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
+    if (typeof respuesta.tutorial === 'boolean') settings.tutorial=respuesta.tutorial;
     if (apariencia && typeof apariencia === 'object') {
       if (apariencia.colors && typeof apariencia.colors === 'object') {
         settings.colors = {...defaultColors, ...apariencia.colors};
@@ -1233,10 +1221,11 @@ const guardarCambios = async () => {
       apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
-    sincronizarTutorialLocal();
-    localStorage.setItem('GYM_ADMIN-idioma', settings.idioma);
+    localStorage.setItem('tutorialActivo', String(settings.tutorial));
+    localStorage.setItem('GYM_ACCOUNT-idioma', settings.idioma);
+    window.dispatchEvent(new Event('tutorial-updated'));
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
-    showToast(settings.idioma === 'en' ? 'Your personal appearance was saved.' : 'Tu apariencia personal se guardó correctamente.');
+    showToast(settings.idioma==='en'?'Your personal appearance was saved.':'Tu apariencia personal se guardó correctamente.');
   } catch(error) {
     console.error('Error al guardar apariencia en Railway:', error);
     showToast(error?.message || t('toastSaveError'));
