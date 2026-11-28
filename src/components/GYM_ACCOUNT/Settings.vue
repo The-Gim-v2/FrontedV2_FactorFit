@@ -1,5 +1,5 @@
 <template>
-  <HeadingGYM_ACCOUNT>
+  <HeadingGYM_ADMIN>
     <main class="main-content">
       <div class="header-section">
         <div class="header-titles">
@@ -81,6 +81,7 @@
               type="checkbox"
               id="input-tutorial"
               v-model="settings.tutorial"
+              @change="sincronizarTutorialLocal"
               class="toggle-input"
             >
             <span class="toggle-slider"></span>
@@ -367,12 +368,12 @@
         </div>
       </transition>
     </main>
-  </HeadingGYM_ACCOUNT>
+  </HeadingGYM_ADMIN>
 </template>
 <script setup>
 import { reactive, computed, onMounted, ref } from 'vue';
 import { useLang } from './useLang.js';
-import HeadingGYM_ACCOUNT from './HeadingGYM_ACCOUNT.vue';
+import HeadingGYM_ADMIN from './HeadingGYM_ADMIN.vue';
 const { setLang } = useLang();
 const guardandoConfig = ref(false);
 const exportandoExcel = ref(false);
@@ -426,7 +427,7 @@ const translations = {
     exportFormatDesc: "Descarga las bitácoras de esta sucursal en un archivo Excel con hojas, columnas y filtros.",
     toastColorsRestored: "Colores restaurados y guardados.",
     toastPresetApplied: "Tema combinado '{label}' aplicado y guardado.",
-    toastGYM_ACCOUNTSaved: "Configuración de GYM_ACCOUNT guardada globalmente.",
+    toastGYM_ADMINSaved: "Configuración de GYM_ADMIN guardada globalmente.",
     toastLocalSaved: "Configuración guardada localmente.",
     toastSaveError: "Error al guardar la configuración.",
     toastDownloading: "Descargando archivo {tipo}..."
@@ -479,7 +480,7 @@ const translations = {
     exportFormatDesc: "Download this branch’s logs as a formatted Excel workbook.",
     toastColorsRestored: "Colors restored and saved.",
     toastPresetApplied: "Combined theme '{label}' applied and saved.",
-    toastGYM_ACCOUNTSaved: "GYM_ACCOUNT configuration saved globally.",
+    toastGYM_ADMINSaved: "GYM_ADMIN configuration saved globally.",
     toastLocalSaved: "Configuration saved locally.",
     toastSaveError: "Error saving configuration.",
     toastDownloading: "Downloading {tipo} file..."
@@ -503,29 +504,29 @@ function safeJsonParse(raw, fallback = null) {
 const ROLE_KEY = 'user_role';
 const cuentaVisualKey=()=>{const token=(()=>{for(const store of [sessionStorage,localStorage])for(const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']){const value=store.getItem(key);if(value)return value.replace(/^Bearer\s+/i,'');}return '';})();let h=2166136261;for(let i=0;i<token.length;i++)h=Math.imul(h^token.charCodeAt(i),16777619);return token?(h>>>0).toString(36):'no-session';};
 const claveColores = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-colors-${rol}-${cuentaVisualKey()}`;
 };
 const claveRadius = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-radius-${rol}-${cuentaVisualKey()}`;
 };
 const claveDensidad = () => {
-  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ACCOUNT').toLowerCase();
+  const rol = (sessionStorage.getItem(ROLE_KEY) || localStorage.getItem(ROLE_KEY) || 'GYM_ADMIN').toLowerCase();
   return `app-densidad-${rol}-${cuentaVisualKey()}`;
 };
 const defaultColors = {
-  headingBg:    '#161726',  // --color-heading-bg
-  tablas:       '#25283d',  // --color-tablas
-  interfaz:     '#12121c',  // --bg-custom (fondo)
-  botones:      '#e04a6d',  // --color-botones
-  tarjetas:     '#1a1b2b',  // --bg-cards
-  titulos:      '#fff7f1',  // --color-titulos
-  highlight:    '#ffb27a',  // --color-highlight
-  etiquetas:    '#f6e8df',  // --color-etiquetas
-  textoGeneral: '#c9c5d3',  // --color-texto-general
-  textoBotones: '#ffffff',  // --color-texto-botones
-  svgColor:     '#ffc7a1'   // --color-svg
+  headingBg:    '#161726',
+  tablas:       '#25283d',
+  interfaz:     '#12121c',
+  botones:      '#e04a6d',
+  tarjetas:     '#1a1b2b',
+  titulos:      '#fff7f1',
+  highlight:    '#ffb27a',
+  etiquetas:    '#f6e8df',
+  textoGeneral: '#c9c5d3',
+  textoBotones: '#ffffff',
+  svgColor:     '#ffc7a1'
 };
 const colorPresets = {
   gymFemenino: {
@@ -1012,9 +1013,9 @@ const colorPresets = {
 const settings = reactive({
   notificaciones: false,
   tutorial:
-    localStorage.getItem('tutorialActivo') === 'true',
+    localStorage.getItem('GYM_ADMIN-tutorialActivo') === 'true',
   idioma:
-    localStorage.getItem('GYM_ACCOUNT-idioma') || 'es',
+    localStorage.getItem('GYM_ADMIN-idioma') || 'es',
   densidad:
     localStorage.getItem(claveDensidad()) || 'normal',
   borderRadius:
@@ -1040,11 +1041,11 @@ const pushSede = () => {
 };
 const pushToken = () => {
   for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+    for (const key of ['auth_token','token','access_token','gym_token','GYM_ADMIN_token','GYM_ACCOUNT_token','gymAccountToken']) {
       const value = store.getItem(key);
       if (value) return value.replace(/^Bearer\s+/i, '');
     }
-    for (const key of ['auth','user','session','gymAccount','gym_account']) {
+    for (const key of ['auth','user','session','gymAccount','gym_account','GYM_ADMIN']) {
       try {
         const value = JSON.parse(store.getItem(key) || 'null');
         const token = value?.token || value?.access_token || value?.accessToken;
@@ -1081,6 +1082,11 @@ const consultarNotificacionesDispositivo = async () => {
     pushMessage.value = 'Tu navegador no permite Web Push o falta una conexión HTTPS.';
     return;
   }
+  if (Notification.permission === 'denied') {
+    settings.notificaciones = false;
+    pushMessage.value = 'Bloqueadas en el navegador. Actívalas desde el ícono junto a la dirección web y recarga.';
+    return;
+  }
   try {
     const reg = await pushRegistration();
     const subscription = await reg.pushManager.getSubscription();
@@ -1099,12 +1105,17 @@ const cambiarNotificaciones = async () => {
   pushBusy.value = true;
   pushMessage.value = '';
   try {
+    if (activar && Notification.permission === 'denied') {
+      throw new Error('Las notificaciones están bloqueadas en este navegador. Habilítalas desde el ícono junto a la dirección web y recarga.');
+    }
     // Se solicita inmediatamente desde el evento real del interruptor.
     const permiso = activar && Notification.permission !== 'granted' ? Notification.requestPermission() : null;
     const reg = await pushRegistration();
     let subscription = await reg.pushManager.getSubscription();
     if (activar) {
-      if (permiso && await permiso !== 'granted') throw new Error('No se autorizó recibir notificaciones.');
+      if (permiso && await permiso !== 'granted') {
+        throw new Error('No se autorizó recibir notificaciones. Permite el aviso del navegador para activarlas.');
+      }
       const config = await pushRequest(`config?sede_id=${pushSede()}`);
       if (!config.configured || !config.publicKey) throw new Error('Configura primero las claves VAPID en Railway.');
       // Evita mandar el historial anterior al registrar un dispositivo nuevo.
@@ -1158,12 +1169,11 @@ const showToast = (msg) => {
     toast.visible = false;
   }, 3000);
 };
-// Apariencia privada de la cuenta del propietario, independiente de los demás usuarios.
+// Apariencia privada por usuario, guardada en Railway; no afecta a otros roles ni cuentas.
 const configBase = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const apiApariencia = async (method = 'GET', datos = null) => {
   const token = pushToken();
   if (!token) throw new Error('No hay sesión activa. Inicia sesión nuevamente.');
-  const sede = pushSede();
   const response = await fetch(`${configBase}/api/gym/mis-preferencias`, {
     method,
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, ...(datos ? {'Content-Type':'application/json'} : {}) },
@@ -1180,13 +1190,17 @@ const guardarLocalApariencia = () => {
   aplicarEstilos();
   window.dispatchEvent(new CustomEvent('app-settings-updated', {detail: settings}));
 };
+const sincronizarTutorialLocal = () => {
+  localStorage.setItem('GYM_ADMIN-tutorialActivo', String(settings.tutorial));
+  window.dispatchEvent(new Event('tutorial-updated'));
+};
 const cargarAparienciaRemota = async () => {
   cargandoConfig.value = true;
   try {
     const respuesta = await apiApariencia();
     const apariencia = respuesta.apariencia;
-    if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ACCOUNT-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
-    if (typeof respuesta.tutorial === 'boolean') settings.tutorial=respuesta.tutorial;
+    if (['es','en'].includes(respuesta.idioma)) { settings.idioma=respuesta.idioma; localStorage.setItem('GYM_ADMIN-idioma',respuesta.idioma); window.dispatchEvent(new CustomEvent('idioma-changed',{detail:{idioma:respuesta.idioma}})); }
+    if (typeof respuesta.tutorial === 'boolean') { settings.tutorial = respuesta.tutorial; sincronizarTutorialLocal(); }
     if (apariencia && typeof apariencia === 'object') {
       if (apariencia.colors && typeof apariencia.colors === 'object') {
         settings.colors = {...defaultColors, ...apariencia.colors};
@@ -1209,123 +1223,55 @@ const aplicarPreset = async (tipoPreset) => {
   if (!colorPresets[tipoPreset]) return;
   settings.colors = { ...colorPresets[tipoPreset].colors };
   guardarLocalApariencia();
-  // Los presets también se guardan automáticamente, igual que en el componente original.
   await guardarCambios();
 };
 const guardarCambios = async () => {
   if (guardandoConfig.value || cargandoConfig.value) return;
   guardandoConfig.value = true;
   try {
-    // Guardar primero en Railway; solo confirmar éxito si la API responde correctamente.
     await apiApariencia('PUT', {
       apariencia: {colors: {...settings.colors}, densidad: settings.densidad, borderRadius: settings.borderRadius}, idioma:settings.idioma, tutorial:settings.tutorial
     });
     guardarLocalApariencia();
-    localStorage.setItem('tutorialActivo', String(settings.tutorial));
-    localStorage.setItem('GYM_ACCOUNT-idioma', settings.idioma);
-    window.dispatchEvent(new Event('tutorial-updated'));
+    sincronizarTutorialLocal();
+    localStorage.setItem('GYM_ADMIN-idioma', settings.idioma);
     window.dispatchEvent(new CustomEvent('idioma-changed', {detail: {idioma: settings.idioma}}));
-    showToast(settings.idioma==='en'?'Your personal appearance was saved.':'Tu apariencia personal se guardó correctamente.');
+    showToast(settings.idioma === 'en' ? 'Your personal appearance was saved.' : 'Tu apariencia personal se guardó correctamente.');
   } catch(error) {
     console.error('Error al guardar apariencia en Railway:', error);
     showToast(error?.message || t('toastSaveError'));
   } finally { guardandoConfig.value = false; }
 };
 const aplicarEstilos = () => {
-  const root =
-    document.documentElement;
-  root.style.setProperty(
-    '--color-heading-bg',
-    settings.colors.headingBg
-  );
-  root.style.setProperty(
-    '--color-tablas',
-    settings.colors.tablas
-  );
-  root.style.setProperty(
-    '--color-interfaz',
-    settings.colors.interfaz
-  );
-  root.style.setProperty(
-    '--color-botones',
-    settings.colors.botones
-  );
-  root.style.setProperty(
-    '--bg-cards',
-    settings.colors.tarjetas
-  );
-  root.style.setProperty(
-    '--bg-custom',
-    settings.colors.interfaz
-  );
-  root.style.setProperty(
-    '--app-border-radius',
-    settings.borderRadius
-  );
-  root.style.setProperty(
-    '--color-titulos',
-    settings.colors.titulos
-  );
-  root.style.setProperty(
-    '--color-highlight',
-    settings.colors.highlight
-  );
-  root.style.setProperty(
-    '--color-etiquetas',
-    settings.colors.etiquetas
-  );
-  root.style.setProperty(
-    '--color-texto-general',
-    settings.colors.textoGeneral
-  );
-  root.style.setProperty(
-    '--color-texto-botones',
-    settings.colors.textoBotones
-  );
-  root.style.setProperty(
-    '--color-svg',
-    settings.colors.svgColor
-  );
-  if (
-    settings.densidad ===
-    'compacto'
-  ) {
-    root.style.setProperty(
-      '--panel-padding',
-      '16px'
-    );
-    root.style.setProperty(
-      '--row-padding',
-      '10px 0'
-    );
-  } else if (
-    settings.densidad ===
-    'espacioso'
-  ) {
-    root.style.setProperty(
-      '--panel-padding',
-      '38px'
-    );
-    root.style.setProperty(
-      '--row-padding',
-      '22px 0'
-    );
+  const root = document.documentElement;
+  root.style.setProperty('--color-heading-bg', settings.colors.headingBg);
+  root.style.setProperty('--color-tablas', settings.colors.tablas);
+  root.style.setProperty('--color-interfaz', settings.colors.interfaz);
+  root.style.setProperty('--color-botones', settings.colors.botones);
+  root.style.setProperty('--bg-cards', settings.colors.tarjetas);
+  root.style.setProperty('--bg-custom', settings.colors.interfaz);
+  root.style.setProperty('--app-border-radius', settings.borderRadius);
+  root.style.setProperty('--color-titulos', settings.colors.titulos);
+  root.style.setProperty('--color-highlight', settings.colors.highlight);
+  root.style.setProperty('--color-etiquetas', settings.colors.etiquetas);
+  root.style.setProperty('--color-texto-general', settings.colors.textoGeneral);
+  root.style.setProperty('--color-texto-botones', settings.colors.textoBotones);
+  root.style.setProperty('--color-svg', settings.colors.svgColor);
+  if (settings.densidad === 'compacto') {
+    root.style.setProperty('--panel-padding', '16px');
+    root.style.setProperty('--row-padding', '10px 0');
+  } else if (settings.densidad === 'espacioso') {
+    root.style.setProperty('--panel-padding', '38px');
+    root.style.setProperty('--row-padding', '22px 0');
   } else {
-    root.style.setProperty(
-      '--panel-padding',
-      '30px'
-    );
-    root.style.setProperty(
-      '--row-padding',
-      '16px 0'
-    );
+    root.style.setProperty('--panel-padding', '30px');
+    root.style.setProperty('--row-padding', '16px 0');
   }
 };
 onMounted(async () => {
   aplicarEstilos();
   void consultarNotificacionesDispositivo();
   await cargarAparienciaRemota();
-  // Idioma y tutorial son preferencias de este navegador, no cambian para todo el gimnasio.
   window.addEventListener('idioma-changed', (e) => {if(e.detail?.idioma) settings.idioma = e.detail.idioma;});
 });
 const exportarExcel = async () => {
@@ -1336,7 +1282,12 @@ const exportarExcel = async () => {
     if (!token) throw new Error('Tu sesión no está disponible. Inicia sesión nuevamente.');
     const sede = pushSede();
     const respuesta = await fetch(`${configBase}/api/gym/exportar/bitacoras/excel?sede_id=${encodeURIComponent(sede)}`, {
-      method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }, cache: 'no-store'
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/json'
+      },
+      cache: 'no-store'
     });
     if (!respuesta.ok) {
       const error = await respuesta.json().catch(() => ({}));
@@ -1350,13 +1301,16 @@ const exportarExcel = async () => {
     enlace.href = url;
     enlace.download = `FactorFit_Bitacoras_Sede_${sede}_${new Date().toISOString().slice(0,10)}.xlsx`;
     document.body.appendChild(enlace);
-    enlace.click(); enlace.remove();
+    enlace.click();
+    enlace.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
     showToast('Excel de bitácoras descargado correctamente.');
   } catch (error) {
     console.error('Exportación de bitácoras:', error);
     showToast(error?.message || 'No se pudo descargar el Excel.');
-  } finally { exportandoExcel.value = false; }
+  } finally {
+    exportandoExcel.value = false;
+  }
 };
 </script>
 <style scoped>
@@ -1508,7 +1462,6 @@ const exportarExcel = async () => {
   cursor: pointer;
   transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-/* barra de acento inferior: muestra el color principal del tema */
 .preset-card::after {
   content: '';
   position: absolute;
@@ -1767,11 +1720,10 @@ const exportarExcel = async () => {
   .select-wrapper { flex: 1 1 100%; width: 100%; }
   .color-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .toast-notification { left: 16px; right: 16px; bottom: 16px; max-width: none; }
-  /* Exportación: botón de ancho completo, alto fijo y legible con el pulgar */
   .export-row .config-info { flex: 1 1 100%; }
   .export-actions { flex: 1 1 100%; width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
   .btn-export {
-    flex: 0 0 auto;        /* evita que el alto se colapse en columna */
+    flex: 0 0 auto;
     width: 100%;
     min-width: 0;
     height: 52px;

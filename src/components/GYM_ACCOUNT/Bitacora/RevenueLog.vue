@@ -41,10 +41,37 @@
           </button>
         </div>
       </header>
+
+      <!-- NAVEGADOR DE MES -->
+      <section class="month-bar" :aria-label="t('monthKicker')">
+        <div class="month-label">
+          <span class="month-kicker">{{ t('monthKicker') }}</span>
+          <span class="month-name">{{ showAllMonths ? t('allMonthsLabel') : monthLabel }}</span>
+          <span class="month-range">{{ showAllMonths ? t('allMonthsRange') : rangeLabel }}</span>
+        </div>
+        <div class="month-controls">
+          <div class="month-nav">
+            <button class="nav-btn" type="button" :aria-label="t('prevMonth')" @click="shiftMonth(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="nav-btn nav-today" type="button" :disabled="!showAllMonths && isCurrentMonth" @click="goToday">{{ t('thisMonth') }}</button>
+            <button class="nav-btn" type="button" :aria-label="t('nextMonth')" :disabled="showAllMonths || isCurrentMonth" @click="shiftMonth(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button class="nav-btn nav-all" :class="{ active: showAllMonths }" type="button" @click="toggleAllMonths">{{ t('allMonthsBtn') }}</button>
+          </div>
+          <label class="month-picker">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <input type="month" :value="monthValue" :max="maxMonthValue" :aria-label="t('pickMonth')" @change="pickMonth">
+          </label>
+        </div>
+      </section>
+
       <div v-if="loading" class="earnings-message" role="status">{{ t('loading') }}</div>
       <div v-if="errorCarga" class="earnings-message error" role="alert">{{ errorCarga }}
         <button type="button" @click="obtenerIngresos">{{ t('retry') }}</button>
       </div>
+
       <!-- RESUMEN -->
       <section class="stats-row">
         <div class="stat-card" v-for="s in stats" :key="s.key" :class="'stat-' + s.tone">
@@ -52,6 +79,7 @@
           <span class="stat-label">{{ t(s.key) }}</span>
         </div>
       </section>
+
       <!-- ESCRITORIO -->
       <div class="table-container desktop-only" :id="!isMobile ? 'tutorial-step-1' : undefined">
         <table class="user-table">
@@ -61,6 +89,7 @@
               <th>{{ t('colName') }}</th>
               <th>{{ t('colEmail') }}</th>
               <th>{{ t('colType') }}</th>
+              <th>{{ t('colPaymentDate') }}</th>
               <th>{{ t('colExpiration') }}</th>
               <th>{{ t('colMembership') }}</th>
               <th class="th-right">{{ t('colAmount') }}</th>
@@ -72,15 +101,16 @@
               <td class="text-bold">{{ user.name }}</td>
               <td class="text-muted">{{ user.email }}</td>
               <td><span class="type-chip" :class="getPeriodClass(user.mensualidad)">{{ typeLabel(user.mensualidad) }}</span></td>
+              <td class="text-muted">{{ user.paymentDate }}</td>
               <td class="text-muted">{{ user.expirationDate }}</td>
               <td><span :class="['status-badge2', getMembershipClass(user.membership)]">{{ user.membership }}</span></td>
               <td class="td-right"><span class="status-badge income">{{ user.amount }}</span></td>
             </tr>
             <tr v-if="filteredUsers.length === 0">
-              <td colspan="7" class="empty-state-cell">
+              <td colspan="8" class="empty-state-cell">
                 <div class="empty-state">
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <span>{{ t('emptyState') }}</span>
+                  <span>{{ showAllMonths ? t('emptyState') : t('emptyMonthState') }}</span>
                 </div>
               </td>
             </tr>
@@ -88,6 +118,7 @@
         </table>
         <div class="table-footer">{{ filteredUsers.length }} {{ t('resultsLabel') }}</div>
       </div>
+
       <!-- MÓVIL -->
       <div class="mobile-only">
         <div
@@ -109,16 +140,18 @@
           </div>
           <div class="card-meta">
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="email-text">{{ user.email }}</span></span>
+            <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span>{{ t('paidLabel') }}: {{ user.paymentDate }}</span></span>
             <span class="meta-row expiration-warning"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span class="vence-label">{{ t('expiresLabel') }}:</span> {{ user.expirationDate }}</span>
             <span class="meta-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="phone-text">{{ user.phone }}</span></span>
           </div>
         </div>
         <div v-if="filteredUsers.length === 0" class="empty-state-mobile">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span>{{ t('emptyState') }}</span>
+          <span>{{ showAllMonths ? t('emptyState') : t('emptyMonthState') }}</span>
         </div>
       </div>
-      <!-- PAGINACIÓN (solo con más de 40 resultados) -->
+
+      <!-- PAGINACIÓN -->
       <nav v-if="showPager" class="pager" :aria-label="t('pagination')">
         <button class="pager-btn" type="button" :disabled="page <= 1" :aria-label="t('prevPage')" @click="goPage(page - 1)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -128,6 +161,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </nav>
+
       <!-- Modal Eliminar -->
       <ModalComponent :isOpen="showDelete" @close="showDelete = false">
         <div class="modal-body-custom">
@@ -143,6 +177,7 @@
         </div>
       </ModalComponent>
     </main>
+
     <transition name="pop">
       <div v-if="activeModal === 'ganancias'" class="modal-wrapper" @click.self="activeModal = null">
         <Ganancias :users="filteredUsers" :pagos="pagosFiltrados" @close="activeModal = null" />
@@ -150,6 +185,7 @@
     </transition>
   </HeadingGYM_ACCOUNT>
 </template>
+
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
@@ -157,6 +193,7 @@ import HeadingGYM_ACCOUNT from '../HeadingGYM_ACCOUNT.vue';
 import ModalComponent from '../../Modals/ModalComponent.vue';
 import Ganancias from '../Componets/Earnings.vue';
 import NotificationSystem from '../../Modals/NotificationSystem.vue';
+
 type PagoIngreso = {
   id: number;
   pagoId: number;
@@ -169,6 +206,7 @@ type PagoIngreso = {
   expirationDate: string;
   enrollmentDate: string;
   paymentDate: string;
+  paymentISO: string | null;
   membership: string;
   amount: string;
   monto: number;
@@ -183,6 +221,7 @@ type PagoIngreso = {
   vencimientoISO: string | null;
   nombrePaquete: string | null;
 };
+
 type PagoAPI = {
   ID_Pago: number | string;
   ID_Inscripto: number | string;
@@ -203,28 +242,93 @@ type PagoAPI = {
   saldo_a_pagar: number | string;
   saldo_a_favor: number | string;
 };
-type PagoConfirmado = { id_pago: number; id_inscripto: number; fecha_pago: string | null; monto: number; periodo: string | null; membresia: string | null; tipo_pago: string | null; };
-// Etiqueta de cobertura vigente: meses de calendario desde el mes actual hasta el vencimiento.
-// Cantidad_Meses del paquete no refleja las renovaciones que extienden Fecha_Vencimiento.
-const hoyGym = (): { y:number; m:number; d:number } => {
-  const partes = new Intl.DateTimeFormat('en-US', { timeZone:'America/Monterrey', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date());
-  const numero = (tipo:string):number => Number(partes.find(p => p.type === tipo)?.value ?? 0);
-  return { y:numero('year'), m:numero('month'), d:numero('day') };
+
+type PagoConfirmado = {
+  id_pago: number;
+  id_inscripto: number;
+  fecha_pago: string | null;
+  monto: number;
+  periodo: string | null;
+  membresia: string | null;
+  tipo_pago: string | null;
+};
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+const hoyGym = (): { y: number; m: number; d: number } => {
+  const partes = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Monterrey', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const numero = (tipo: string): number => Number(partes.find(p => p.type === tipo)?.value ?? 0);
+  return { y: numero('year'), m: numero('month'), d: numero('day') };
 };
 const fechaActual = ref(hoyGym());
+
+// ---------- NAVEGADOR DE MES ----------
+const viewYear = ref(fechaActual.value.y);
+const viewMonth = ref(fechaActual.value.m); // 1-12
+const showAllMonths = ref(false);
+
+const todayKey = computed(() => fechaActual.value.y * 100 + fechaActual.value.m);
+const viewKey = computed(() => viewYear.value * 100 + viewMonth.value);
+const isCurrentMonth = computed(() => viewKey.value >= todayKey.value);
+const monthValue = computed(() => `${viewYear.value}-${pad(viewMonth.value)}`);
+const maxMonthValue = computed(() => `${fechaActual.value.y}-${pad(fechaActual.value.m)}`);
+const daysInMonth = computed(() => new Date(Date.UTC(viewYear.value, viewMonth.value, 0)).getUTCDate());
+const locale = computed(() => (currentLang.value === 'en' ? 'en-US' : 'es-MX'));
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const monthLabel = computed(() => capitalize(new Intl.DateTimeFormat(locale.value, {
+  month: 'long', year: 'numeric', timeZone: 'UTC'
+}).format(Date.UTC(viewYear.value, viewMonth.value - 1, 1))));
+const rangeLabel = computed(() => {
+  const short = new Intl.DateTimeFormat(locale.value, { month: 'short', timeZone: 'UTC' })
+    .format(Date.UTC(viewYear.value, viewMonth.value - 1, 1)).replace('.', '').toUpperCase();
+  return `1 ${short} — ${daysInMonth.value} ${short}`;
+});
+
+const shiftMonth = (delta: number): void => {
+  showAllMonths.value = false;
+  let y = viewYear.value;
+  let m = viewMonth.value + delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  if (y * 100 + m > todayKey.value) return;
+  viewYear.value = y;
+  viewMonth.value = m;
+};
+const goToday = (): void => {
+  showAllMonths.value = false;
+  fechaActual.value = hoyGym();
+  viewYear.value = fechaActual.value.y;
+  viewMonth.value = fechaActual.value.m;
+};
+const toggleAllMonths = (): void => {
+  showAllMonths.value = !showAllMonths.value;
+};
+const pickMonth = (event: Event): void => {
+  const match = /^(\d{4})-(\d{2})$/.exec((event.target as HTMLInputElement).value);
+  if (!match?.[1] || !match[2]) return;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  showAllMonths.value = false;
+  if (y * 100 + m > todayKey.value) { goToday(); return; }
+  viewYear.value = y;
+  viewMonth.value = m;
+};
+
 const etiquetaMembresia = (periodo: string | null, vencimiento: string | null, monto: number, plan: string | null): string => {
   if (!['mensual', 'promocion'].includes(String(periodo || '').toLowerCase())) return plan || periodo || '—';
   if (!(monto > 0)) return 'Pendiente';
   const fecha = /^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/.exec(String(vencimiento || ''));
-  if (!fecha) return 'Sin vencimiento';
+  if (!fecha?.[1] || !fecha[2] || !fecha[3]) return 'Sin vencimiento';
   const y = Number(fecha[1]), m = Number(fecha[2]), d = Number(fecha[3]);
-  const verificacion = new Date(Date.UTC(y,m-1,d));
-  if (verificacion.getUTCFullYear() !== y || verificacion.getUTCMonth() !== m-1 || verificacion.getUTCDate() !== d) return 'Sin vencimiento';
+  const verificacion = new Date(Date.UTC(y, m - 1, d));
+  if (verificacion.getUTCFullYear() !== y || verificacion.getUTCMonth() !== m - 1 || verificacion.getUTCDate() !== d) return 'Sin vencimiento';
   const hoy = fechaActual.value;
   if (y < hoy.y || (y === hoy.y && (m < hoy.m || (m === hoy.m && d < hoy.d)))) return 'Vencida';
-  const meses = Math.max(1, (y - hoy.y)*12 + (m - hoy.m));
+  const meses = Math.max(1, (y - hoy.y) * 12 + (m - hoy.m));
   return `${meses} ${meses === 1 ? 'Mes' : 'Meses'}`;
 };
+
 const route = useRoute();
 const activeModal = ref<string | null>(null);
 const showDelete = ref(false);
@@ -238,63 +342,85 @@ const errorCarga = ref('');
 const users = ref<PagoIngreso[]>([]);
 const pagosConfirmados = ref<PagoConfirmado[]>([]);
 let requestId = 0;
+
 const langData = {
   es: {
-    incomesTitle:'Ingresos', pageSubtitle:'Consulta los clientes registrados, sus pagos reales, fechas y saldos.',
-    membershipAll:'Todos los tipos', monthly:'Mensual', fortnightly:'Quincenal', weekly:'Semanal',
-    daily:'Diario', promotion:'Promoción', analysisLabel:'Análisis', viewAnalysis:'Ver desglose',
-    searchPlaceholder:'Buscar cliente, folio o pago...', colPhoto:'Foto', colName:'Nombre',
-    colEmail:'Correo', colType:'Pago', colExpiration:'Fecha a Vencer', colMembership:'Membresía',
-    colAmount:'Monto', colPaymentDate:'Último pago', colEnrollmentDate:'Inscripción',
-    colDue:'Saldo a pagar', colCredit:'Saldo a favor', colMethod:'Método',
-    expiresLabel:'Vence', paidLabel:'Último pago', enrolledLabel:'Inscripción', dueLabel:'Debe', creditLabel:'A favor',
-    emptyState:'No hay clientes registrados con estos filtros.', resultsLabel:'inscripciones',
-    pagination:'Paginación', prevPage:'Página anterior', nextPage:'Página siguiente',
-    statTotal:'Ingresos', statMembers:'Miembros registrados', statAverage:'Promedio por miembro',
-    statHighest:'Ingreso mayor por miembro', deleteTitle:'¿Eliminar usuario?',
-    deleteMsgPre:'¿Deseas eliminar a', deleteMsgPost:'temporalmente?', cancelBtn:'Cancelar', confirmBtn:'Confirmar',
-    loading:'Cargando clientes y pagos registrados...', retry:'Reintentar'
+    incomesTitle: 'Ingresos', pageSubtitle: 'Consulta los ingresos de tu sucursal separados mes por mes.',
+    membershipAll: 'Todos los tipos', monthly: 'Mensual', fortnightly: 'Quincenal', weekly: 'Semanal',
+    daily: 'Diario', promotion: 'Promoción', analysisLabel: 'Análisis', viewAnalysis: 'Ver desglose',
+    searchPlaceholder: 'Buscar cliente, folio o pago...', colPhoto: 'Foto', colName: 'Nombre',
+    colEmail: 'Correo', colType: 'Pago', colExpiration: 'Fecha a Vencer', colMembership: 'Membresía',
+    colAmount: 'Monto', colPaymentDate: 'Fecha de pago', colEnrollmentDate: 'Inscripción',
+    colDue: 'Saldo a pagar', colCredit: 'Saldo a favor', colMethod: 'Método',
+    expiresLabel: 'Vence', paidLabel: 'Pago', enrolledLabel: 'Inscripción', dueLabel: 'Debe', creditLabel: 'A favor',
+    emptyState: 'No hay clientes registrados con estos filtros.',
+    emptyMonthState: 'No hay ingresos registrados en este mes.',
+    resultsLabel: 'registros',
+    pagination: 'Paginación', prevPage: 'Página anterior', nextPage: 'Página siguiente',
+    statTotal: 'Ingresos del periodo', statMembers: 'Miembros con pago', statAverage: 'Promedio por miembro',
+    statHighest: 'Ingreso mayor', deleteTitle: '¿Eliminar usuario?',
+    deleteMsgPre: '¿Deseas eliminar a', deleteMsgPost: 'temporalmente?', cancelBtn: 'Cancelar', confirmBtn: 'Confirmar',
+    loading: 'Cargando clientes y pagos registrados...', retry: 'Reintentar',
+    monthKicker: 'Periodo de ingresos', thisMonth: 'Este mes', allMonthsBtn: 'Todos',
+    allMonthsLabel: 'Historial completo', allMonthsRange: 'TODOS LOS MESES REGISTRADOS',
+    prevMonth: 'Mes anterior', nextMonth: 'Mes siguiente', pickMonth: 'Elegir mes',
+    archivedMember: 'Cliente archivado'
   },
   en: {
-    incomesTitle:'Income', pageSubtitle:'View registered members, their payments, dates and balances.',
-    membershipAll:'All types', monthly:'Monthly', fortnightly:'Fortnightly', weekly:'Weekly',
-    daily:'Daily', promotion:'Promotion', analysisLabel:'Analysis', viewAnalysis:'View breakdown',
-    searchPlaceholder:'Search client, reference or payment...', colPhoto:'Photo', colName:'Name',
-    colEmail:'Email', colType:'Payment', colExpiration:'Expiration Date', colMembership:'Membership',
-    colAmount:'Amount', colPaymentDate:'Latest payment', colEnrollmentDate:'Enrollment',
-    colDue:'Balance due', colCredit:'Credit balance', colMethod:'Method',
-    expiresLabel:'Expires', paidLabel:'Latest paid', enrolledLabel:'Enrollment', dueLabel:'Due', creditLabel:'Credit',
-    emptyState:'No registered members match the filters.', resultsLabel:'enrollments',
-    pagination:'Pagination', prevPage:'Previous', nextPage:'Next',
-    statTotal:'Income', statMembers:'Registered members', statAverage:'Average per member',
-    statHighest:'Highest member income', deleteTitle:'Delete user?',
-    deleteMsgPre:'Do you want to temporarily delete', deleteMsgPost:'?', cancelBtn:'Cancel', confirmBtn:'Confirm',
-    loading:'Loading registered members and payments...', retry:'Retry'
+    incomesTitle: 'Income', pageSubtitle: 'Review your branch income separated month by month.',
+    membershipAll: 'All types', monthly: 'Monthly', fortnightly: 'Fortnightly', weekly: 'Weekly',
+    daily: 'Daily', promotion: 'Promotion', analysisLabel: 'Analysis', viewAnalysis: 'View breakdown',
+    searchPlaceholder: 'Search client, reference or payment...', colPhoto: 'Photo', colName: 'Name',
+    colEmail: 'Email', colType: 'Payment', colExpiration: 'Expiration Date', colMembership: 'Membership',
+    colAmount: 'Amount', colPaymentDate: 'Payment date', colEnrollmentDate: 'Enrollment',
+    colDue: 'Balance due', colCredit: 'Credit balance', colMethod: 'Method',
+    expiresLabel: 'Expires', paidLabel: 'Paid', enrolledLabel: 'Enrollment', dueLabel: 'Due', creditLabel: 'Credit',
+    emptyState: 'No registered members match the filters.',
+    emptyMonthState: 'No income recorded in this month.',
+    resultsLabel: 'records',
+    pagination: 'Pagination', prevPage: 'Previous', nextPage: 'Next',
+    statTotal: 'Period income', statMembers: 'Paying members', statAverage: 'Average per member',
+    statHighest: 'Highest income', deleteTitle: 'Delete user?',
+    deleteMsgPre: 'Do you want to temporarily delete', deleteMsgPost: '?', cancelBtn: 'Cancel', confirmBtn: 'Confirm',
+    loading: 'Loading registered members and payments...', retry: 'Retry',
+    monthKicker: 'Income period', thisMonth: 'This month', allMonthsBtn: 'All',
+    allMonthsLabel: 'Full history', allMonthsRange: 'ALL RECORDED MONTHS',
+    prevMonth: 'Previous month', nextMonth: 'Next month', pickMonth: 'Pick month',
+    archivedMember: 'Archived member'
   }
 } as const;
+
 const t = (key: keyof typeof langData.es): string =>
   (currentLang.value === 'en' ? langData.en[key] : langData.es[key]) || langData.es[key] || key;
+
 const typeLabel = (periodo: string): string => ({
-  Mensual:t('monthly'), Quincenal:t('fortnightly'), Semanal:t('weekly'),
-  Diario:t('daily'), Promocion:t('promotion')
+  Mensual: t('monthly'), Quincenal: t('fortnightly'), Semanal: t('weekly'),
+  Diario: t('daily'), Promocion: t('promotion')
 } as Record<string, string>)[periodo] || periodo || '—';
-const getPeriodClass=(periodo:string):string=>({Mensual:'type-mensual',Quincenal:'type-quincenal',Semanal:'type-semanal',Diario:'type-diario',Promocion:'type-promocion'} as Record<string,string>)[periodo]||'';
+
+const getPeriodClass = (periodo: string): string => ({
+  Mensual: 'type-mensual', Quincenal: 'type-quincenal', Semanal: 'type-semanal',
+  Diario: 'type-diario', Promocion: 'type-promocion'
+} as Record<string, string>)[periodo] || '';
+
 const formatCurrency = (value: number): string => new Intl.NumberFormat(
-  currentLang.value === 'en' ? 'en-US' : 'es-MX', { style:'currency', currency:'MXN' }
+  currentLang.value === 'en' ? 'en-US' : 'es-MX', { style: 'currency', currency: 'MXN' }
 ).format(Number(value) || 0);
+
 const formatDate = (value: string | null | undefined): string => {
   const raw = String(value || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
   const [y, m, d] = raw.split('-');
   return `${d}/${m}/${y}`;
 };
+
 const obtenerToken = (): string => {
   for (const store of [sessionStorage, localStorage]) {
-    for (const k of ['auth_token','token','access_token','gym_token','GYM_ACCOUNT_token','gymAccountToken']) {
+    for (const k of ['auth_token', 'token', 'access_token', 'gym_token', 'GYM_ACCOUNT_token', 'gymAccountToken']) {
       const v = store.getItem(k);
       if (v) return v.replace(/^Bearer\s+/i, '');
     }
-    for (const k of ['auth','user','session','gymAccount','gym_account']) {
+    for (const k of ['auth', 'user', 'session', 'gymAccount', 'gym_account']) {
       try {
         const p = JSON.parse(store.getItem(k) || 'null');
         const v = p?.token || p?.access_token || p?.accessToken;
@@ -304,13 +430,14 @@ const obtenerToken = (): string => {
   }
   return '';
 };
-const sedeEvento=ref(0);
+
+const sedeEvento = ref(0);
 const sedeId = (): number => {
-  if(sedeEvento.value>0)return sedeEvento.value;
+  if (sedeEvento.value > 0) return sedeEvento.value;
   const q = Number(route.query.sede_id);
   if (Number.isInteger(q) && q > 0) return q;
   for (const store of [sessionStorage, localStorage]) {
-    for (const key of ['selected_sede_id','sede_id','ID_Sede','id_sede','selectedSede','selectedSedeId','sedeSeleccionada','gym_sede_id']) {
+    for (const key of ['selected_sede_id', 'sede_id', 'ID_Sede', 'id_sede', 'selectedSede', 'selectedSedeId', 'sedeSeleccionada', 'gym_sede_id']) {
       const raw = store.getItem(key);
       if (!raw) continue;
       try {
@@ -321,8 +448,9 @@ const sedeId = (): number => {
       } catch { const n = Number(raw); if (Number.isInteger(n) && n > 0) return n; }
     }
   }
-  return 1; // Emiliano: sede predeterminada solo si no existe una selección previa.
+  return 1;
 };
+
 const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   id: Number(p.ID_Inscripto), pagoId: Number(p.ID_Pago),
   clienteId: Number(p.ID_Cliente), inscripcionId: Number(p.ID_Inscripto),
@@ -330,8 +458,10 @@ const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   photo: p.foto_url || null,
   enrollmentDate: formatDate(p.fecha_inscripcion),
   paymentDate: formatDate(p.fecha_pago),
+  paymentISO: p.fecha_pago ? String(p.fecha_pago).slice(0, 10) : null,
   expirationDate: formatDate(p.fecha_vencimiento),
-  membership: etiquetaMembresia(p.periodo, p.fecha_vencimiento, Number(p.monto || 0), p.plan), mensualidad: p.periodo || '—',
+  membership: etiquetaMembresia(p.periodo, p.fecha_vencimiento, Number(p.monto || 0), p.plan),
+  mensualidad: p.periodo || '—',
   cantidadMeses: p.cantidad_meses != null ? Number(p.cantidad_meses) : null,
   vencimientoISO: p.fecha_vencimiento, nombrePaquete: p.plan,
   metodoPago: p.metodo_pago || '—', folio: p.folio || '—',
@@ -341,6 +471,7 @@ const normalizarPago = (p: PagoAPI): PagoIngreso => ({
   saldoPendienteNumero: Number(p.saldo_a_pagar || 0),
   saldoFavorNumero: Number(p.saldo_a_favor || 0)
 });
+
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const obtenerIngresos = async () => {
   const seq = ++requestId;
@@ -357,7 +488,7 @@ const obtenerIngresos = async () => {
   errorCarga.value = '';
   try {
     const respuesta = await fetch(`${API}/api/gym/ingresos?sede_id=${encodeURIComponent(sede)}`, {
-      headers: { Accept:'application/json', Authorization:`Bearer ${token}` }
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` }
     });
     const json = await respuesta.json().catch(() => ({}));
     if (!respuesta.ok) throw new Error(json.message || `Error HTTP ${respuesta.status}`);
@@ -376,25 +507,35 @@ const obtenerIngresos = async () => {
     if (seq === requestId) loading.value = false;
   }
 };
+
 const isMobile = ref(typeof window !== 'undefined' && window.innerWidth <= 900);
 const updateWidth = () => { isMobile.value = window.innerWidth <= 900; };
 const handleLangChange = (e: Event) => {
   const idioma = (e as CustomEvent<{ idioma?: string }>).detail?.idioma;
   if (idioma) {
     currentLang.value = idioma;
-    users.value = users.value.map(u => ({ ...u, amount:formatCurrency(u.monto), saldoAPagar:formatCurrency(u.saldoPendienteNumero), saldoAFavor:formatCurrency(u.saldoFavorNumero) }));
+    users.value = users.value.map(u => ({
+      ...u,
+      amount: formatCurrency(u.monto),
+      saldoAPagar: formatCurrency(u.saldoPendienteNumero),
+      saldoAFavor: formatCurrency(u.saldoFavorNumero)
+    }));
   }
 };
-const cambioSede = (event?:Event) => {
- const detail=(event as CustomEvent<Record<string,unknown>>|undefined)?.detail;
- const id=Number(detail?.sede_id??detail?.sedeId??detail?.selectedSedeId??detail?.ID_Sede??detail?.id??0);
- sedeEvento.value=Number.isInteger(id)&&id>0?id:0;
- void obtenerIngresos();
+const cambioSede = (event?: Event) => {
+  const detail = (event as CustomEvent<Record<string, unknown>> | undefined)?.detail;
+  const id = Number(detail?.sede_id ?? detail?.sedeId ?? detail?.selectedSedeId ?? detail?.ID_Sede ?? detail?.id ?? 0);
+  sedeEvento.value = Number.isInteger(id) && id > 0 ? id : 0;
+  void obtenerIngresos();
 };
 const actualizarMeses = () => {
   fechaActual.value = hoyGym();
-  users.value = users.value.map(u => ({...u, membership:etiquetaMembresia(u.mensualidad, u.vencimientoISO, u.monto, u.nombrePaquete)}));
+  users.value = users.value.map(u => ({
+    ...u,
+    membership: etiquetaMembresia(u.mensualidad, u.vencimientoISO, u.monto, u.nombrePaquete)
+  }));
 };
+
 onMounted(() => {
   window.addEventListener('focus', actualizarMeses);
   document.addEventListener('visibilitychange', actualizarMeses);
@@ -411,40 +552,114 @@ onUnmounted(() => {
   window.removeEventListener('factorfit:branch-changed', cambioSede);
   window.removeEventListener('resize', updateWidth);
 });
-watch(() => route.query.sede_id, () => { sedeEvento.value=0;void obtenerIngresos(); });
+watch(() => route.query.sede_id, () => { sedeEvento.value = 0; void obtenerIngresos(); });
+
+// Pagos del periodo seleccionado (mes específico o historial completo)
+const pagosDelPeriodo = computed(() => {
+  if (showAllMonths.value) return pagosConfirmados.value;
+  const key = monthValue.value;
+  return pagosConfirmados.value.filter(p => String(p.fecha_pago || '').startsWith(key));
+});
+
+// Agrupar ingresos por inscripción dentro del mes seleccionado
+const scopedUsers = computed<PagoIngreso[]>(() => {
+  if (showAllMonths.value) return users.value;
+
+  const key = monthValue.value;
+  if (pagosConfirmados.value.length === 0) {
+    return users.value.filter(u => u.paymentISO?.startsWith(key) && u.monto > 0);
+  }
+
+  const porInscripcion = new Map<number, { monto: number; fecha: string | null; periodo: string | null; metodo: string | null; plan: string | null }>();
+  for (const p of pagosDelPeriodo.value) {
+    const id = Number(p.id_inscripto);
+    const monto = Number(p.monto || 0);
+    if (!id || monto <= 0) continue;
+    const prev = porInscripcion.get(id);
+    const fecha = p.fecha_pago ? String(p.fecha_pago).slice(0, 10) : null;
+    if (!prev) {
+      porInscripcion.set(id, { monto, fecha, periodo: p.periodo, metodo: p.tipo_pago, plan: p.membresia });
+    } else {
+      prev.monto += monto;
+      if (fecha && (!prev.fecha || fecha > prev.fecha)) prev.fecha = fecha;
+    }
+  }
+
+  const encontrados = new Set<number>();
+  const lista: PagoIngreso[] = [];
+
+  for (const u of users.value) {
+    const resumen = porInscripcion.get(u.inscripcionId);
+    if (!resumen) continue;
+    encontrados.add(u.inscripcionId);
+    lista.push({
+      ...u,
+      monto: resumen.monto,
+      amount: formatCurrency(resumen.monto),
+      paymentISO: resumen.fecha,
+      paymentDate: formatDate(resumen.fecha)
+    });
+  }
+
+  // Incluir pagos archivados de clientes eliminados definitivamente si existen en ese mes
+  for (const [id, resumen] of porInscripcion.entries()) {
+    if (encontrados.has(id)) continue;
+    lista.push({
+      id, pagoId: id, clienteId: id, inscripcionId: id,
+      name: `${t('archivedMember')} #${id}`, email: '—', phone: '—', photo: null,
+      enrollmentDate: '—', paymentDate: formatDate(resumen.fecha), paymentISO: resumen.fecha,
+      expirationDate: '—', membership: resumen.plan || resumen.periodo || '—',
+      mensualidad: resumen.periodo || '—', cantidadMeses: null, vencimientoISO: null,
+      nombrePaquete: resumen.plan, metodoPago: resumen.metodo || '—', folio: '—',
+      monto: resumen.monto, amount: formatCurrency(resumen.monto),
+      saldoAPagar: formatCurrency(0), saldoAFavor: formatCurrency(0),
+      saldoPendienteNumero: 0, saldoFavorNumero: 0
+    });
+  }
+
+  return lista;
+});
+
 const filteredUsers = computed(() => {
   const term = searchQuery.value.trim().toLocaleLowerCase();
-  return users.value.filter(p =>
+  return scopedUsers.value.filter(p =>
     (!selectedMembership.value || p.mensualidad === selectedMembership.value) &&
-    (!term || [p.name,p.email,p.phone,p.membership,p.mensualidad,p.metodoPago,
-      p.folio,p.paymentDate,p.enrollmentDate,p.expirationDate,p.saldoAPagar,p.saldoAFavor,
-      String(p.clienteId),String(p.pagoId)].some(v => String(v).toLocaleLowerCase().includes(term)))
+    (!term || [
+      p.name, p.email, p.phone, p.membership, p.mensualidad, p.metodoPago,
+      p.folio, p.paymentDate, p.enrollmentDate, p.expirationDate, p.saldoAPagar, p.saldoAFavor,
+      String(p.clienteId), String(p.pagoId)
+    ].some(v => String(v).toLocaleLowerCase().includes(term)))
   );
 });
+
 const pagosFiltrados = computed(() => {
   const inscripciones = new Map(filteredUsers.value.map(u => [u.inscripcionId, u.membership] as const));
-  return pagosConfirmados.value.filter(p => inscripciones.has(Number(p.id_inscripto)))
-    .map(p => ({...p, membresia:inscripciones.get(Number(p.id_inscripto)) ?? p.membresia}));
+  return pagosDelPeriodo.value
+    .filter(p => inscripciones.has(Number(p.id_inscripto)))
+    .map(p => ({ ...p, membresia: inscripciones.get(Number(p.id_inscripto)) ?? p.membresia }));
 });
+
 const PAGE_SIZE = 40;
 const page = ref(1);
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / PAGE_SIZE)));
 const showPager = computed(() => filteredUsers.value.length > PAGE_SIZE);
-const pagedUsers = computed(() => filteredUsers.value.slice((page.value - 1)*PAGE_SIZE, page.value*PAGE_SIZE));
-const goPage = (n: number) => { page.value = Math.min(Math.max(1,n),totalPages.value); window.scrollTo({top:0,behavior:'smooth'}); };
-watch([searchQuery, selectedMembership], () => { page.value = 1; });
+const pagedUsers = computed(() => filteredUsers.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+const goPage = (n: number) => { page.value = Math.min(Math.max(1, n), totalPages.value); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+watch([searchQuery, selectedMembership, monthValue, showAllMonths], () => { page.value = 1; });
 watch(totalPages, n => { if (page.value > n) page.value = n; });
+
 const stats = computed(() => {
   const list = filteredUsers.value;
-  const total = list.reduce((sum,p) => sum + p.monto, 0);
+  const total = list.reduce((sum, p) => sum + p.monto, 0);
   const amounts = list.map(p => p.monto);
   return [
-    { key:'statTotal' as const, value:formatCurrency(total), tone:'green' },
-    { key:'statMembers' as const, value:String(new Set(list.map(p => p.clienteId)).size), tone:'total' },
-    { key:'statAverage' as const, value:formatCurrency(list.length ? total/list.length : 0), tone:'blue' },
-    { key:'statHighest' as const, value:formatCurrency(amounts.length ? Math.max(...amounts) : 0), tone:'orange' }
+    { key: 'statTotal' as const, value: formatCurrency(total), tone: 'green' },
+    { key: 'statMembers' as const, value: String(new Set(list.map(p => p.clienteId)).size), tone: 'total' },
+    { key: 'statAverage' as const, value: formatCurrency(list.length ? total / list.length : 0), tone: 'blue' },
+    { key: 'statHighest' as const, value: formatCurrency(amounts.length ? Math.max(...amounts) : 0), tone: 'orange' }
   ];
 });
+
 const avatarGradients = [
   'linear-gradient(135deg, #7e22ce, #4c1d95)', 'linear-gradient(135deg, #ea580c, #9a3412)',
   'linear-gradient(135deg, #db2777, #9d174d)', 'linear-gradient(135deg, #dc2626, #7f1d1d)',
@@ -454,23 +669,24 @@ const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
 };
-const avatarStyle = (id: number) => ({backgroundImage:avatarGradients[Math.abs(id)%avatarGradients.length]});
+const avatarStyle = (id: number) => ({ backgroundImage: avatarGradients[Math.abs(id) % avatarGradients.length] });
 const getMembershipClass = (etiqueta: string): string => {
   if (etiqueta === 'Pendiente') return 'membership-pending';
   const meses = parseInt(etiqueta, 10);
-  if (/^\d+ Mes(?:es)?$/.test(etiqueta)) return (['membership-red','membership-blue','membership-green','membership-purple','membership-orange','membership-pink'] as string[])[(meses-1)%6] ?? 'membership-default';
-  return ({Mensual:'membership-red',Quincenal:'membership-blue',Semanal:'membership-purple',Diario:'membership-orange',Promocion:'membership-pink'} as Record<string,string>)[etiqueta] || 'membership-default';
+  if (/^\d+ Mes(?:es)?$/.test(etiqueta)) return (['membership-red', 'membership-blue', 'membership-green', 'membership-purple', 'membership-orange', 'membership-pink'] as string[])[(meses - 1) % 6] ?? 'membership-default';
+  return ({ Mensual: 'membership-red', Quincenal: 'membership-blue', Semanal: 'membership-purple', Diario: 'membership-orange', Promocion: 'membership-pink' } as Record<string, string>)[etiqueta] || 'membership-default';
 };
 </script>
+
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
 .main-content, .modal-wrapper { --accent: var(--color-highlight, #3b82f6); --income: #34d399; --card-bg: var(--bg-cards, #121416); --radius: var(--app-border-radius, 14px); --radius-small: 10px; --line: color-mix(in srgb, var(--color-texto-general, #94a3b8) 16%, transparent); --line-soft: color-mix(in srgb, var(--color-texto-general, #94a3b8) 9%, transparent); --muted: color-mix(in srgb, var(--color-texto-general, #94a3b8) 68%, transparent); }
 .main-content *, .main-content *::before, .main-content *::after { box-sizing: border-box; }
 .main-content { width: 100%; max-width: 1500px; margin: 0 auto; padding: 34px 36px 55px; color: var(--color-texto-general, #e5e7eb); font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
-.header-section { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.header-section { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
 .title-wrapper { min-width: 240px; display: flex; flex-direction: column; gap: 6px; }
 .main-title { margin: 0; color: var(--color-titulos, #ffffff); font-family: 'Anton', sans-serif; font-size: clamp(1.9rem, 3vw, 2.55rem); font-weight: 400; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; }
-.title-underline { display: block; width: 58px; height: 3px; margin-top: 2px; border-radius: 999px; background: linear-gradient(90deg, var(--accent), transparent); }
+.title-underline { display: block; width: 58px; height: 3px; margin-top: 2px; border-radius: 999px; background: linear-gradient(90deg, var(--income), transparent); }
 .main-subtitle { max-width: 560px; margin: 1px 0 0; color: var(--muted); font-size: 0.82rem; font-weight: 500; line-height: 1.5; }
 .actions-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 .search-wrapper, .select-wrapper { position: relative; display: flex; align-items: center; }
@@ -493,6 +709,27 @@ const getMembershipClass = (etiqueta: string): string => {
 .highlight-text-custom { color: #34d399; font-size: 0.88rem; font-weight: 700; letter-spacing: -0.01em; }
 .btn-bulk:hover { border-color: rgba(52, 211, 153, 0.6); background: rgba(52, 211, 153, 0.13); box-shadow: 0 8px 20px rgba(52, 211, 153, 0.1); transform: translateY(-1px); }
 .btn-bulk:active { transform: translateY(0); }
+
+/* ---- Navegador de mes (igual a Asistencia Mensual) ---- */
+.month-bar { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(120deg, color-mix(in srgb, var(--income) 9%, var(--card-bg)), var(--card-bg) 55%); }
+.month-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.month-kicker { color: var(--income); font-family: 'Oswald', sans-serif; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+.month-name { color: var(--color-titulos, #ffffff); font-family: 'Oswald', sans-serif; font-size: 1.65rem; font-weight: 600; line-height: 1.1; }
+.month-range { color: var(--muted); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em; }
+.month-controls { display: flex; align-items: center; gap: 10px; }
+.month-nav { display: flex; align-items: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-small); background: color-mix(in srgb, var(--color-texto-general, #ffffff) 4%, transparent); }
+.nav-btn { height: 40px; min-width: 42px; display: grid; place-items: center; padding: 0 14px; border: 0; background: transparent; color: var(--color-texto-general, #e5e7eb); font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: background 0.18s ease, color 0.18s ease; }
+.nav-btn + .nav-btn { border-left: 1px solid var(--line); }
+.nav-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--income) 16%, transparent); color: var(--color-titulos, #ffffff); }
+.nav-btn.active { background: color-mix(in srgb, var(--income) 20%, transparent); color: var(--income); }
+.nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.nav-btn:focus-visible { outline: 2px solid var(--income); outline-offset: -2px; }
+.month-picker { position: relative; display: flex; align-items: center; color: var(--muted); }
+.month-picker svg { position: absolute; left: 12px; pointer-events: none; }
+.month-picker input { height: 42px; padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--card-bg); color: var(--color-texto-general, #e5e7eb); font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 500; color-scheme: dark; outline: none; cursor: pointer; transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.month-picker input:hover { border-color: color-mix(in srgb, var(--color-texto-general, #ffffff) 26%, transparent); }
+.month-picker input:focus { border-color: var(--income); box-shadow: 0 0 0 3px color-mix(in srgb, var(--income) 16%, transparent); }
+
 .stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .stat-card { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 3px; padding: 15px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); }
 .stat-card::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px; background: var(--tone, var(--accent)); }
@@ -504,9 +741,9 @@ const getMembershipClass = (etiqueta: string): string => {
 .stat-label { color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
 .desktop-only { display: block; }
 .mobile-only { display: none; }
-.table-container { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18); }
-.table-container::before { content: ''; position: absolute; z-index: 3; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #34d399, transparent); opacity: 0.7; pointer-events: none; }
-.user-table { width: 100%; border-collapse: collapse; color: var(--color-texto-general, #e5e7eb); text-align: left; }
+.table-container { position: relative; width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card-bg); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18); }
+.table-container::before { content: ''; position: sticky; display: block; z-index: 3; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #34d399, transparent); opacity: 0.7; pointer-events: none; }
+.user-table { width: 100%; min-width: 920px; border-collapse: collapse; color: var(--color-texto-general, #e5e7eb); text-align: left; }
 .user-table thead { background: color-mix(in srgb, var(--card-bg) 95%, var(--color-texto-general, #ffffff)); }
 .user-table th { padding: 15px 18px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.065em; text-transform: uppercase; white-space: nowrap; }
 .user-table td { padding: 13px 18px; border-top: 1px solid var(--line-soft); font-size: 0.82rem; vertical-align: middle; }
@@ -517,7 +754,8 @@ const getMembershipClass = (etiqueta: string): string => {
   .user-table tbody tr:hover { background: rgba(52, 211, 153, 0.04); box-shadow: inset 3px 0 0 rgba(52, 211, 153, 0.8); }
 }
 .table-footer { padding: 11px 18px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 0.72rem; font-weight: 500; text-align: right; }
-.avatar-small { width: 41px; height: 41px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 11px; color: #ffffff; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em; box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24); }
+.avatar-small { width: 41px; height: 41px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 11px; color: #ffffff; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.02em; box-shadow: 0 5px 14px rgba(0, 0, 0, 0.24); }
+.avatar-small img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .text-bold { color: var(--color-titulos, #ffffff); font-weight: 600; }
 .text-muted { color: var(--muted); }
 .type-chip { display: inline-flex; align-items: center; min-height: 26px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--color-texto-general, #ffffff) 4%, transparent); color: var(--color-texto-general, #e5e7eb); font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
@@ -561,7 +799,7 @@ const getMembershipClass = (etiqueta: string): string => {
 .btn-modal.danger:hover { background: #ef4444; box-shadow: 0 6px 16px rgba(239, 68, 68, 0.2); transform: translateY(-1px); }
 :deep(.notification-container), :deep(.toast-container) { width: calc(100% - 32px) !important; max-width: 480px !important; box-sizing: border-box !important; left: 50% !important; right: auto !important; margin: 0 auto !important; transform: translateX(-50%) !important; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
-.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-small, var(--r-sm, 10px)); background: var(--card-bg, var(--bg-cards, #121416)); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pager-btn { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-small, 10px); background: var(--card-bg, #121416); color: var(--color-texto-general, #e5e7eb); cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
 .pager-btn:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--color-titulos, #ffffff); transform: translateY(-1px); }
 .pager-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .pager-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -570,6 +808,15 @@ const getMembershipClass = (etiqueta: string): string => {
 .pop-enter-active, .pop-leave-active { transition: opacity 0.2s ease; }
 .pop-enter-from, .pop-leave-to { opacity: 0; }
 .search-input:focus-visible, .status-select:focus-visible, .btn-bulk:focus-visible, .btn-modal:focus-visible, .search-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.earnings-message { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: var(--bg-cards, #121416); font-size: .82rem; }
+.earnings-message.error { color: #fca5a5; border: 1px solid rgba(239, 68, 68, .3); }
+.earnings-message button { margin-left: 8px; padding: 5px 10px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; cursor: pointer; }
+.type-chip.type-mensual{color:#ff93a6;border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.24);font-weight:750;}
+.type-chip.type-quincenal{color:#93c5fd;border-color:rgba(96,165,250,.65);background:rgba(96,165,250,.24);font-weight:750;}
+.type-chip.type-semanal{color:#c4b5fd;border-color:rgba(167,139,250,.48);background:rgba(167,139,250,.16);}
+.type-chip.type-diario{color:#fdba74;border-color:rgba(251,146,60,.48);background:rgba(251,146,60,.16);}
+.type-chip.type-promocion{color:#6ee7b7;border-color:rgba(52,211,153,.48);background:rgba(52,211,153,.16);}
+
 @media (max-width: 1150px) {
   .main-content { padding: 30px 24px 48px; }
   .header-section { align-items: flex-start; flex-direction: column; gap: 17px; }
@@ -591,6 +838,17 @@ const getMembershipClass = (etiqueta: string): string => {
   .select-wrapper { width: 100%; min-width: 0; }
   .status-select { width: 100%; min-width: 0; text-overflow: ellipsis; }
   .btn-bulk { width: 100%; min-width: 0; min-height: 44px; }
+  .month-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 14px 16px; }
+  .month-controls { display: contents; }
+  .month-label { grid-column: 1; grid-row: 1; }
+  .month-picker { grid-column: 2; grid-row: 1; width: 42px; height: 42px; }
+  .month-picker svg { left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; color: var(--color-texto-general, #e5e7eb); }
+  .month-picker input { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; opacity: 0; }
+  .month-picker::before { content: ''; position: absolute; inset: 0; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--card-bg); pointer-events: none; }
+  .month-nav { grid-column: 1 / -1; grid-row: 2; }
+  .month-nav .nav-btn { height: 44px; }
+  .month-nav .nav-today { flex: 1; }
+  .month-name { font-size: 1.45rem; }
   .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 14px; }
   .stat-card { padding: 12px 14px; }
   .stat-value { font-size: 1.2rem; }
@@ -619,19 +877,6 @@ const getMembershipClass = (etiqueta: string): string => {
   .status-badge, .status-badge2 { font-size: 0.65rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .search-input, .status-select, .btn-bulk, .user-table tbody tr, .btn-modal, .pop-enter-active, .pop-leave-active { transition: none !important; }
+  .search-input, .status-select, .btn-bulk, .nav-btn, .user-table tbody tr, .btn-modal, .pop-enter-active, .pop-leave-active { transition: none !important; }
 }
-.table-container { overflow-x: auto; }
-.user-table { min-width: 850px; }
-.avatar-small { overflow: hidden; }
-.avatar-small img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
-.earnings-message { margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: var(--bg-cards, #121416); font-size: .82rem; }
-.earnings-message.error { color: #fca5a5; border: 1px solid rgba(239, 68, 68, .3); }
-.earnings-message button { margin-left: 8px; padding: 5px 10px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 6px; cursor: pointer; }
-/* Colores visibles de los tipos de pago; se conserva el diseño original. */
-.type-chip.type-mensual{color:#ff93a6;border-color:rgba(251,113,133,.65);background:rgba(251,113,133,.24);font-weight:750;}
-.type-chip.type-quincenal{color:#93c5fd;border-color:rgba(96,165,250,.65);background:rgba(96,165,250,.24);font-weight:750;}
-.type-chip.type-semanal{color:#c4b5fd;border-color:rgba(167,139,250,.48);background:rgba(167,139,250,.16);}
-.type-chip.type-diario{color:#fdba74;border-color:rgba(251,146,60,.48);background:rgba(251,146,60,.16);}
-.type-chip.type-promocion{color:#6ee7b7;border-color:rgba(52,211,153,.48);background:rgba(52,211,153,.16);}
 </style>
