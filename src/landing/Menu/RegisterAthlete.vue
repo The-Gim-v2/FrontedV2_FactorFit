@@ -2,15 +2,19 @@
 import { ref, reactive, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import NoGymModal from './NoGymModal.vue';
 import NotificationSystem from '../../components/Modals/NotificationSystem.vue';
+
 type Sucursal = { ID_Gym: number; ID_Sede: number; Nombre_Gym: string; Nombre_Sede: string; Ciudad?: string; Estado?: string; Direccion?: string };
 type Tarifa = { ID_Precio: number; Nombre_Paquete: string; Precio: number; Periodo?: string };
 type CampoNombre = 'nombres' | 'apellidoP' | 'apellidoM';
+
 const API = String(import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/i, '');
 const TERMINOS_VERSION = '1.0', TERMINOS_PDF_URL = '../../docs/terminos-y-condiciones.pdf';
+
 const toastRef = ref<InstanceType<typeof NotificationSystem> | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const gymSearchInput = ref<HTMLInputElement | null>(null);
 const gymPickerRef = ref<HTMLElement | null>(null);
+
 const foto = ref<File | null>(null);
 const previewImage = ref<string | null>(null);
 const showPassword = ref(false), showConfirmPassword = ref(false), showNoGymModal = ref(false), aceptaTerminos = ref(false);
@@ -18,14 +22,86 @@ const isGymDropdownOpen = ref(false), gymSearch = ref(''), selectedGym = ref<Suc
 const sucursales = ref<Sucursal[]>([]), tarifas = ref<Tarifa[]>([]), selectedTarifa = ref<number | null>(null);
 const loadingGyms = ref(false), loadingTarifas = ref(false), guardando = ref(false);
 const mensaje = ref(''), registroExitoso = ref(false), errorSucursales = ref('');
+
 const form = reactive({ nombres: '', apellidoP: '', apellidoM: '', curp: '', fechaNac: '', celular: '', email: '', password: '', confirmPassword: '', peso: '', altura: '' });
-const filteredGyms = computed(() => { const q = gymSearch.value.trim().toLocaleLowerCase(); return sucursales.value.filter(s => `${s.Nombre_Gym} ${s.Nombre_Sede} ${s.Ciudad || ''} ${s.Estado || ''}`.toLocaleLowerCase().includes(q)); });
+
+const filteredGyms = computed(() => {
+  const q = gymSearch.value.trim().toLocaleLowerCase();
+  return sucursales.value.filter(s => `${s.Nombre_Gym} ${s.Nombre_Sede} ${s.Ciudad || ''} ${s.Estado || ''}`.toLocaleLowerCase().includes(q));
+});
 const tarifaElegida = computed(() => tarifas.value.find(p => Number(p.ID_Precio) === selectedTarifa.value) || null);
 const notify = (msg: string, type: 'success' | 'warning' | 'error' = 'warning') => { mensaje.value = msg; toastRef.value?.notify(msg, type); };
+
+/* ===== Validación anti-datos falsos y de ejemplo ===== */
+const PALABRAS_FALSAS = new Set([
+  'test', 'testing', 'prueba', 'pruebas', 'ejemplo', 'ejemplos', 'demo', 'fake', 'falso',
+  'asdf', 'asdfg', 'qwer', 'qwerty', 'zxcv', 'xxx', 'xxxx', 'none', 'null', 'na', 'n/a',
+  'nombre', 'nombres', 'paterno', 'materno', 'apellido', 'usuario', 'admin', 'cliente',
+  'sin nombre', 'desconocido', 'anonimo', 'anónimo', 'abc', 'abcd', 'xyz'
+]);
+const DOMINIOS_FALSOS = new Set([
+  'ejemplo.test', 'ejemplo.com', 'example.com', 'example.org', 'example.net',
+  'test.com', 'test.test', 'correo.com', 'mail.test', 'fake.com', 'asdf.com',
+  'mailinator.com', 'yopmail.com', 'tempmail.com', '10minutemail.com', 'guerrillamail.com'
+]);
+const TELEFONOS_FALSOS = new Set([
+  '4810000000', '0000000000', '1234567890', '0123456789', '9876543210',
+  '1111111111', '2222222222', '3333333333', '4444444444', '5555555555',
+  '6666666666', '7777777777', '8888888888', '9999999999', '1231231234', '1234512345'
+]);
+const CURPS_EJEMPLO = new Set(['LOPL010515HSLPRS09', 'ABCD010101HDFXXX00']);
+const CLAVES_FALSAS = new Set([
+  'demofactorfit2026!', '12345678', '123456789', '1234567890', '00000000',
+  '11111111', 'password', 'contrasena', 'contraseña', 'qwertyui', 'abcdefgh', 'admin123'
+]);
+
+const esNombreReal = (valor: string, opcional = false) => {
+  const limpio = valor.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  if (!limpio) return opcional;
+  if (limpio.length < 2 || limpio.length > 150) return false;
+  if (!/^[\p{L}\s.'’-]+$/u.test(limpio)) return false;
+  const lower = limpio.toLocaleLowerCase('es-MX');
+  if (PALABRAS_FALSAS.has(lower)) return false;
+  if (/(.)\1{2,}/i.test(lower.replace(/\s+/g, ''))) return false;
+  return true;
+};
+
+const esEdadReal = (fecha: string) => {
+  const m = fecha.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const nacimiento = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const mes = hoy.getMonth() - nacimiento.getMonth();
+  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
+  return edad >= 12 && edad <= 95;
+};
+
+const esCelularReal = (valor: string) => {
+  const digits = soloNumeros(valor);
+  if (digits.length !== 10) return false;
+  if (TELEFONOS_FALSOS.has(digits)) return false;
+  if (/^(\d)\1{9}$/.test(digits)) return false;
+  if (digits.endsWith('0000000')) return false;
+  return true;
+};
+
+const esCorreoReal = (correo: string) => {
+  const c = correo.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(c)) return false;
+  if (c === 'luis.posada@ejemplo.test') return false;
+  const [local, dominio] = c.split('@');
+  if (!local || !dominio) return false;
+  if (DOMINIOS_FALSOS.has(dominio)) return false;
+  if (PALABRAS_FALSAS.has(local) && dominio.includes('test')) return false;
+  return true;
+};
+
 const nombreTitulo = (valor: string) => String(valor ?? '').toLocaleLowerCase('es-MX').replace(/(^|[\s'-])([\p{L}])/gu, (_, separador, letra) => separador + letra.toLocaleUpperCase('es-MX'));
 function normalizarCampo(campo: CampoNombre) { form[campo] = nombreTitulo(form[campo]); }
 function normalizarCorreo() { form.email = form.email.trim().toLowerCase(); }
 function limpiarCurp() { form.curp = String(form.curp).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18); }
+
 // La CURP trae la fecha (AAMMDD); el carácter 17 es número antes del 2000 y letra desde el 2000
 function fechaDesdeCurp() {
   if (validarCurp(form.curp)) return;
@@ -34,62 +110,207 @@ function fechaDesdeCurp() {
   const d = new Date(`${fecha}T00:00:00Z`);
   if (!Number.isNaN(d.getTime()) && d.toISOString().startsWith(fecha) && d.getTime() <= Date.now()) form.fechaNac = fecha;
 }
+
 const validarCurp = (valor: string) => {
   const curp = valor.trim().toUpperCase();
   if (curp.length !== 18) return 'La CURP debe tener exactamente 18 caracteres.';
   if (!/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(curp)) return 'El formato de la CURP no es válido.';
+  if (
+    CURPS_EJEMPLO.has(curp) ||
+    curp.startsWith('ABCD') ||
+    curp.startsWith('AAAA') ||
+    curp.startsWith('XXXX') ||
+    curp.slice(4, 10) === '010101' ||
+    curp.slice(4, 10) === '000000'
+  ) {
+    return 'La CURP ingresada es de ejemplo. Escribe tu CURP real.';
+  }
   const mes = Number(curp.slice(6, 8)), dia = Number(curp.slice(8, 10));
   if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return 'La CURP contiene una fecha no válida.';
   return '';
 };
 const errorCurp = computed(() => form.curp ? validarCurp(form.curp) : '');
+
 const soloNumeros = (v: string) => String(v || '').replace(/\D/g, '');
-const formatearCelular = (v: string) => { const n = soloNumeros(v).slice(0, 10); return n.length <= 3 ? n : n.length <= 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`; };
-function actualizarCelular(event: Event) { const input = event.target as HTMLInputElement; const raw = input.value; if (raw.includes('+') || soloNumeros(raw).length > 10) { notify('El celular debe tener 10 dígitos, sin +52.', 'warning'); input.value = form.celular; return; } form.celular = formatearCelular(raw); input.value = form.celular; }
-function pegarCelular(event: ClipboardEvent) { const valor = event.clipboardData?.getData('text') || ''; if (valor.includes('+') || soloNumeros(valor).length > 10) { event.preventDefault(); notify('Ingresa solamente 10 dígitos, sin +52.', 'warning'); } }
-const limitarMedida = (value: string, decimal = false) => { const partes = String(value || '').replace(',', '.').replace(/[^0-9.]/g, '').split('.'); const entero = (partes[0] ?? '').slice(0, 3); return decimal && partes.length > 1 ? entero + '.' + (partes[1] || '').slice(0, 1) : entero; };
+const formatearCelular = (v: string) => {
+  const n = soloNumeros(v).slice(0, 10);
+  return n.length <= 3 ? n : n.length <= 6 ? `${n.slice(0, 3)} ${n.slice(3)}` : `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+};
+function actualizarCelular(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const raw = input.value;
+  if (raw.includes('+') || soloNumeros(raw).length > 10) {
+    notify('El celular debe tener 10 dígitos, sin +52.', 'warning');
+    input.value = form.celular;
+    return;
+  }
+  form.celular = formatearCelular(raw);
+  input.value = form.celular;
+}
+function pegarCelular(event: ClipboardEvent) {
+  const valor = event.clipboardData?.getData('text') || '';
+  if (valor.includes('+') || soloNumeros(valor).length > 10) {
+    event.preventDefault();
+    notify('Ingresa solamente 10 dígitos, sin +52.', 'warning');
+  }
+}
+const limitarMedida = (value: string, decimal = false) => {
+  const partes = String(value || '').replace(',', '.').replace(/[^0-9.]/g, '').split('.');
+  const entero = (partes[0] ?? '').slice(0, 3);
+  return decimal && partes.length > 1 ? entero + '.' + (partes[1] || '').slice(0, 1) : entero;
+};
 function normalizarPeso(event: Event) { form.peso = limitarMedida((event.target as HTMLInputElement).value, true); (event.target as HTMLInputElement).value = form.peso; }
 function normalizarAltura(event: Event) { form.altura = limitarMedida((event.target as HTMLInputElement).value); (event.target as HTMLInputElement).value = form.altura; }
+
 function rellenarEjemplo() {
   // Datos ilustrativos. No son identidad ni contacto de una persona real.
   Object.assign(form, { nombres: 'Luis', apellidoP: 'Posada', apellidoM: 'Lopez', curp: 'LOPL010515HSLPRS09', fechaNac: '2001-05-15', celular: '481 000 0000', email: 'luis.posada@ejemplo.test', password: 'DemoFactorFit2026!', confirmPassword: 'DemoFactorFit2026!', peso: '72.5', altura: '175' });
-  notify('Datos ficticios cargados; sustituye CURP, correo y celular por los tuyos antes de registrarte.', 'success');
+  notify('Datos de ejemplo cargados solo como guía; sustitúyelos por tus datos reales para registrarte.', 'warning');
 }
-async function jsonGet(url: string) { const res = await fetch(`${API}${url}`, { headers: { Accept: 'application/json' } }); const data = await res.json().catch(() => null); if (!res.ok) throw new Error(data?.message || `Error HTTP ${res.status}`); return data; }
-async function cargarSucursales() { loadingGyms.value = true; errorSucursales.value = ''; try { const data = await jsonGet('/api/public/sucursales'); sucursales.value = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []); } catch (e) { errorSucursales.value = e instanceof Error ? e.message : 'No se pudieron cargar las sucursales.'; notify(errorSucursales.value, 'error'); } finally { loadingGyms.value = false; } }
-async function selectGym(gym: Sucursal) { selectedGym.value = gym; selectedTarifa.value = null; tarifas.value = []; gymSearch.value = ''; isGymDropdownOpen.value = false; loadingTarifas.value = true; try { const data = await jsonGet(`/api/public/sucursales/${gym.ID_Sede}/tarifas`); tarifas.value = Array.isArray(data) ? data : (data?.data || []); } catch (e) { notify(e instanceof Error ? e.message : 'No se pudieron cargar las tarifas.', 'error'); } finally { loadingTarifas.value = false; } }
+
+async function jsonGet(url: string) {
+  const res = await fetch(`${API}${url}`, { headers: { Accept: 'application/json' } });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.message || `Error HTTP ${res.status}`);
+  return data;
+}
+async function cargarSucursales() {
+  loadingGyms.value = true; errorSucursales.value = '';
+  try {
+    const data = await jsonGet('/api/public/sucursales');
+    sucursales.value = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+  } catch (e) {
+    errorSucursales.value = e instanceof Error ? e.message : 'No se pudieron cargar las sucursales.';
+    notify(errorSucursales.value, 'error');
+  } finally {
+    loadingGyms.value = false;
+  }
+}
+async function selectGym(gym: Sucursal) {
+  selectedGym.value = gym; selectedTarifa.value = null; tarifas.value = []; gymSearch.value = ''; isGymDropdownOpen.value = false; loadingTarifas.value = true;
+  try {
+    const data = await jsonGet(`/api/public/sucursales/${gym.ID_Sede}/tarifas`);
+    tarifas.value = Array.isArray(data) ? data : (data?.data || []);
+  } catch (e) {
+    notify(e instanceof Error ? e.message : 'No se pudieron cargar las tarifas.', 'error');
+  } finally {
+    loadingTarifas.value = false;
+  }
+}
 function clearGym() { selectedGym.value = null; selectedTarifa.value = null; tarifas.value = []; }
 function triggerFileInput() { fileInput.value?.click(); }
-function onFileSelected(event: Event) { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size >= 3 * 1024 * 1024) { notify('La fotografía debe ser JPG, PNG o WebP y pesar menos de 3 MB.', 'warning'); input.value = ''; return; } if (previewImage.value) URL.revokeObjectURL(previewImage.value); foto.value = file; previewImage.value = URL.createObjectURL(file); }
-async function onAddGym() { showNoGymModal.value = false; await nextTick(); gymPickerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }); isGymDropdownOpen.value = true; gymSearchInput.value?.focus(); }
+function onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size >= 3 * 1024 * 1024) {
+    notify('La fotografía debe ser JPG, PNG o WebP y pesar menos de 3 MB.', 'warning');
+    input.value = '';
+    return;
+  }
+  if (previewImage.value) URL.revokeObjectURL(previewImage.value);
+  foto.value = file;
+  previewImage.value = URL.createObjectURL(file);
+}
+async function onAddGym() {
+  showNoGymModal.value = false;
+  await nextTick();
+  gymPickerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  isGymDropdownOpen.value = true;
+  gymSearchInput.value?.focus();
+}
+
 async function handleRegisterClick() {
   if (guardando.value) return;
   normalizarCampo('nombres'); normalizarCampo('apellidoP'); normalizarCampo('apellidoM'); normalizarCorreo(); limpiarCurp();
-  if (!form.nombres || !form.apellidoP || !form.fechaNac || !form.email || !form.celular) return notify('Completa los datos personales obligatorios.');
+
+  if (!form.nombres || !form.apellidoP || !form.fechaNac || !form.email || !form.celular) {
+    return notify('Completa los datos personales obligatorios.');
+  }
+  if (!esNombreReal(form.nombres) || !esNombreReal(form.apellidoP) || !esNombreReal(form.apellidoM, true)) {
+    return notify('Ingresa tu nombre y apellidos reales, sin números ni textos de ejemplo.');
+  }
+  if (
+    form.nombres.toLowerCase() === 'luis' &&
+    form.apellidoP.toLowerCase() === 'posada' &&
+    form.apellidoM.toLowerCase() === 'lopez'
+  ) {
+    return notify('Sustituye los datos de ejemplo por tu nombre real para registrarte.');
+  }
   if (validarCurp(form.curp)) return notify(validarCurp(form.curp));
-  if (soloNumeros(form.celular).length !== 10) return notify('El celular debe tener exactamente 10 dígitos.');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return notify('Ingresa un correo electrónico válido.');
-  if (form.peso && (!/^\d{1,3}(\.\d)?$/.test(form.peso) || Number(form.peso) <= 0 || Number(form.peso) > 999.9)) return notify('El peso debe ser de máximo 3 dígitos y un decimal.');
-  if (form.altura && (!/^\d{1,3}$/.test(form.altura) || Number(form.altura) < 50 || Number(form.altura) > 300)) return notify('La altura debe estar entre 50 y 300 cm.');
-  if (form.password.length < 8) return notify('La contraseña debe tener al menos 8 caracteres.');
+  if (!esEdadReal(form.fechaNac)) return notify('Ingresa una fecha de nacimiento real.');
+
+  // Comprobar que los 6 dígitos AAMMDD de la CURP coincidan con la fecha de nacimiento
+  // Comprobar que los 6 dígitos AAMMDD de la CURP coincidan con la fecha de nacimiento
+  const matchFecha = form.fechaNac.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (matchFecha?.[1] && matchFecha[2] && matchFecha[3]) {
+    const esperado = matchFecha[1].slice(2) + matchFecha[2] + matchFecha[3];
+    if (form.curp.slice(4, 10) !== esperado) {
+      return notify('La fecha de tu CURP no coincide con tu fecha de nacimiento.');
+    }
+  }
+
+  if (!esCelularReal(form.celular)) {
+    return notify('Ingresa un número celular real de 10 dígitos, sin +52 (no se permiten números de ejemplo).');
+  }
+  if (!esCorreoReal(form.email)) {
+    return notify('Ingresa un correo electrónico real y válido (no se permiten correos de ejemplo).');
+  }
+  if (form.peso && (!/^\d{1,3}(\.\d)?$/.test(form.peso) || Number(form.peso) <= 0 || Number(form.peso) > 999.9)) {
+    return notify('El peso debe ser de máximo 3 dígitos y un decimal.');
+  }
+  if (form.altura && (!/^\d{1,3}$/.test(form.altura) || Number(form.altura) < 50 || Number(form.altura) > 300)) {
+    return notify('La altura debe estar entre 50 y 300 cm.');
+  }
+  if (form.password.length < 8 || CLAVES_FALSAS.has(form.password.toLowerCase())) {
+    return notify('Usa una contraseña personal de al menos 8 caracteres (no uses contraseñas de ejemplo).');
+  }
   if (form.password !== form.confirmPassword) return notify('Las contraseñas no coinciden.');
   if (!selectedGym.value) { showNoGymModal.value = true; return; }
   if (!selectedTarifa.value) return notify('Selecciona una tarifa.');
   if (!aceptaTerminos.value) return notify('Debes leer y aceptar los Términos y Condiciones para registrarte.');
+
   guardando.value = true; mensaje.value = '';
   try {
     const data = new FormData();
-    const fields: Record<string, string | number> = { sede_id: selectedGym.value.ID_Sede, id_precio: selectedTarifa.value, nombres: form.nombres, apellidoP: form.apellidoP, apellidoM: form.apellidoM, curp: form.curp, fechaNacimiento: form.fechaNac, celular: soloNumeros(form.celular), email: form.email, password: form.password, password_confirmation: form.confirmPassword, acepta_terminos: '1', terminos_version: TERMINOS_VERSION };
+    const fields: Record<string, string | number> = {
+      sede_id: selectedGym.value.ID_Sede,
+      id_precio: selectedTarifa.value,
+      nombres: form.nombres,
+      apellidoP: form.apellidoP,
+      apellidoM: form.apellidoM,
+      curp: form.curp,
+      fechaNacimiento: form.fechaNac,
+      celular: soloNumeros(form.celular),
+      email: form.email,
+      password: form.password,
+      password_confirmation: form.confirmPassword,
+      acepta_terminos: '1',
+      terminos_version: TERMINOS_VERSION
+    };
     for (const [key, value] of Object.entries(fields)) if (String(value)) data.append(key, String(value));
     if (form.peso) data.append('peso', form.peso);
     if (form.altura) data.append('altura', form.altura);
     if (foto.value) data.append('foto', foto.value);
+
     const res = await fetch(`${API}/api/public/registro`, { method: 'POST', headers: { Accept: 'application/json' }, body: data });
     const result = await res.json().catch(() => ({}));
-    if (!res.ok) { const errors = result?.errors ? Object.values(result.errors).flat().join(' ') : ''; throw new Error(errors || result?.message || `Error HTTP ${res.status}`); }
-    registroExitoso.value = true; notify(result?.message || 'Registro completado. Te enviamos tu QR al correo; tu membresía está pendiente de activación.', 'success');
-  } catch (e) { notify(e instanceof Error ? e.message : 'No se pudo completar el registro.', 'error'); } finally { guardando.value = false; }
+    if (res.status === 429) {
+      throw new Error('Demasiados intentos de registro. Espera 1 minuto e intenta de nuevo.');
+    }
+    if (!res.ok) {
+      const errors = result?.errors ? Object.values(result.errors).flat().join(' ') : '';
+      throw new Error(errors || result?.message || `Error HTTP ${res.status}`);
+    }
+    registroExitoso.value = true;
+    notify(result?.message || 'Registro completado. Te enviamos tu QR al correo; tu membresía está pendiente de activación.', 'success');
+  } catch (e) {
+    notify(e instanceof Error ? e.message : 'No se pudo completar el registro.', 'error');
+  } finally {
+    guardando.value = false;
+  }
 }
+
 onMounted(() => { void cargarSucursales(); });
 onBeforeUnmount(() => { if (previewImage.value) URL.revokeObjectURL(previewImage.value); });
 
@@ -111,7 +332,6 @@ function usarDatosGoogle({ credential }: { credential: string }) {
     const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
     const u = JSON.parse(new TextDecoder().decode(bytes));
     let nombres = String(u.given_name || '').trim(), apellidos = String(u.family_name || '').trim();
-    // Hay cuentas con los datos al revés: si el correo empieza con los "apellidos", se intercambian
     const simple = (v: string) => v.normalize('NFD').toLowerCase().replace(/[^a-z]/g, '');
     const correo = simple(String(u.email || '').split('@')[0] ?? '');
     if (nombres && apellidos && correo.startsWith(simple(apellidos))) [nombres, apellidos] = [apellidos, nombres];
@@ -163,7 +383,7 @@ onMounted(() => {
       <div class="register-card">
         <!-- ===== Encabezado ===== -->
         <div class="header-section">
-          <button type="button" class="demo-fill" @click="rellenarEjemplo" title="Carga datos ficticios para probar el formulario">
+          <button type="button" class="demo-fill" @click="rellenarEjemplo" title="Carga datos ficticios solo como guía visual">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20l-.8-1.9-1.9-.8 1.9-.8L19 15z"/></svg>
             <span>Datos de ejemplo</span>
           </button>
@@ -193,7 +413,6 @@ onMounted(() => {
                 <input ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onFileSelected" />
                 <p>Sube una fotografía reciente<br /><span class="hint">JPG, PNG o WebP, menos de 3 MB</span></p>
               </div>
-
             </div>
 
             <!-- ===== Datos personales ===== -->
@@ -203,21 +422,21 @@ onMounted(() => {
               <div class="fields">
                 <div class="field">
                   <label>Nombre(s)</label>
-                  <input v-model="form.nombres" @input="normalizarCampo('nombres')" required maxlength="150" placeholder="Luis" />
+                  <input v-model="form.nombres" @input="normalizarCampo('nombres')" required maxlength="150" placeholder="Tu(s) nombre(s)" />
                 </div>
                 <div class="field-row">
                   <div class="field">
                     <label>Apellido paterno</label>
-                    <input v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" required maxlength="150" placeholder="Posada" />
+                    <input v-model="form.apellidoP" @input="normalizarCampo('apellidoP')" required maxlength="150" placeholder="Primer apellido" />
                   </div>
                   <div class="field">
                     <label>Apellido materno</label>
-                    <input v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" maxlength="150" placeholder="Lopez" />
+                    <input v-model="form.apellidoM" @input="normalizarCampo('apellidoM')" maxlength="150" placeholder="Segundo apellido" />
                   </div>
                 </div>
                 <div class="field">
                   <label>CURP</label>
-                  <input v-model="form.curp" @input="limpiarCurp(); fechaDesdeCurp()" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="ABCD010101HDFXXX00" required />
+                  <input v-model="form.curp" @input="limpiarCurp(); fechaDesdeCurp()" type="text" maxlength="18" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase" placeholder="18 caracteres oficiales" required />
                   <div class="field-foot">
                     <small v-if="errorCurp" class="field-note invalid">{{ errorCurp }}</small>
                     <small v-else-if="form.curp.length === 18" class="field-note">CURP con formato válido (sin consulta oficial).</small>
@@ -231,7 +450,7 @@ onMounted(() => {
                   </div>
                   <div class="field">
                     <label>Teléfono celular</label>
-                    <input :value="form.celular" @input="actualizarCelular" @paste="pegarCelular" @keydown.plus.prevent type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="481 000 0000" required maxlength="12" />
+                    <input :value="form.celular" @input="actualizarCelular" @paste="pegarCelular" @keydown.plus.prevent type="tel" inputmode="numeric" autocomplete="tel-national" placeholder="10 dígitos sin +52" required maxlength="12" />
                   </div>
                 </div>
                 <div class="field-row">
@@ -253,7 +472,7 @@ onMounted(() => {
               <div class="fields">
                 <div class="field">
                   <label>Correo electrónico</label>
-                  <input v-model="form.email" @blur="normalizarCorreo" placeholder="ejemplo@gmail.com" type="email" required maxlength="255" autocomplete="email" />
+                  <input v-model="form.email" @blur="normalizarCorreo" placeholder="tu@correo.com" type="email" required maxlength="255" autocomplete="email" />
                 </div>
                 <div class="field-row">
                   <div class="field">
@@ -513,7 +732,6 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.6;
 }
-/* Botón de datos de ejemplo: discreto, en la esquina de la tarjeta */
 .demo-fill {
   order: 3;
   display: inline-flex;
@@ -739,7 +957,7 @@ input[type="date"] { color-scheme: dark; }
 .membership-option.active small,
 .membership-option.active b { color: var(--soft); }
 
-/* ACCIONES (ancho completo, centradas) */
+/* ACCIONES */
 .actions {
   display: flex;
   flex-direction: column;
@@ -846,7 +1064,6 @@ input[type="date"] { color-scheme: dark; }
   .area-foto { grid-area: foto; }
   .area-datos { grid-area: datos; }
   .area-cuenta { grid-area: cuenta; }
-  /* En escritorio el botón de ejemplo sale del flujo y queda en la esquina */
   .demo-fill { position: absolute; top: -12px; right: -12px; order: 0; margin: 0; background: rgba(18, 18, 28, .5); }
 }
 @media (max-width: 768px) {
@@ -864,7 +1081,7 @@ input[type="date"] { color-scheme: dark; }
   .membership-options { grid-template-columns: 1fr; }
   .actions { margin-top: 28px; padding-top: 24px; }
   .actions::before { left: 0; right: 0; }
-  input:not([type="checkbox"]) { font-size: 16px; } /* evita el zoom automático en iOS */
+  input:not([type="checkbox"]) { font-size: 16px; }
 }
 @media (max-width: 420px) {
   .topbar { height: 62px; padding: 0 14px; }

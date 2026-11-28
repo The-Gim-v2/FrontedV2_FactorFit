@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 interface LoginResponse {
 message: string
 token: string
@@ -17,6 +17,7 @@ sedes: Array<Record<string, unknown>>
 }
 }
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const onIdentifierInput = () => {
 const value = email.value.trim()
@@ -70,7 +71,11 @@ email: identifier.includes('@') ? identifier.toLowerCase() : identifier,
 password: password.value
 })
 })
-const data = await response.json()
+const data = await response.json().catch(() => ({}))
+if (response.status === 429) {
+errorMessage.value = 'Demasiados intentos fallidos. Espera 1 minuto e intenta de nuevo.'
+return
+}
 if (!response.ok) {
 errorMessage.value = data.message || 'Correo, celular o contraseña incorrectos.'
 return
@@ -111,7 +116,8 @@ sessionStorage.setItem('user_role', role)
 sessionStorage.setItem('gym_account', JSON.stringify(sessionUser))
 localStorage.removeItem('user_role')
 successMessage.value = `Bienvenido a ${String(person.nombre ?? rawUser.nombre ?? 'Factor Fit')}.`
-const failure = await router.replace({ name: routeName })
+const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : null
+const failure = await router.replace(redirect && role === 'Member' ? redirect : { name: routeName })
 if (failure) {
 console.error('Error de navegación:', failure)
 errorMessage.value = 'No fue posible acceder al dashboard.'
